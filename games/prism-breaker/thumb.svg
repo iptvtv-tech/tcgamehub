@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <g>
+    <rect x="10" y="14" width="30" height="12" rx="3" fill="#f472b6"/><rect x="45" y="14" width="30" height="12" rx="3" fill="#fb923c"/><rect x="80" y="14" width="30" height="12" rx="3" fill="#fbbf24"/>
+    <rect x="10" y="30" width="30" height="12" rx="3" fill="#a3e635"/><rect x="45" y="30" width="30" height="12" rx="3" fill="#22d3ee">
+      <animate attributeName="opacity" values="1;1;0;0;1" keyTimes="0;.45;.5;.95;1" dur="2s" repeatCount="indefinite"/></rect><rect x="80" y="30" width="30" height="12" rx="3" fill="#a78bfa"/>
+  </g>
+  <circle r="6" fill="#fff">
+    <animateMotion path="M60 96 L60 44 L60 96" dur="2s" repeatCount="indefinite"/>
+  </circle>
+  <rect x="36" y="104" width="48" height="9" rx="4.5" fill="url(#p)"/>
+  <defs><linearGradient id="p" x1="0" x2="1"><stop offset="0" stop-color="#f472b6"/><stop offset="1" stop-color="#22d3ee"/></linearGradient></defs>
+</svg>

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <defs>
+    <linearGradient id="s" x1="0" x2="1"><stop offset="0" stop-color="#a78bfa"/><stop offset=".5" stop-color="#22d3ee"/><stop offset="1" stop-color="#4ade80"/></linearGradient>
+    <filter id="g"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <g filter="url(#g)">
+    <path d="M18 88 H48 V58 H80 V30" fill="none" stroke="url(#s)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="130 200">
+      <animate attributeName="stroke-dashoffset" values="0;-20;0" dur="2s" repeatCount="indefinite"/>
+    </path>
+    <circle cx="80" cy="30" r="9" fill="#4ade80"/>
+    <circle cx="77" cy="27" r="2.6" fill="#fff"/><circle cx="84" cy="27" r="2.6" fill="#fff"/>
+    <circle cx="98" cy="84" r="8" fill="#f472b6"><animate attributeName="r" values="7;9;7" dur="0.8s" repeatCount="indefinite"/></circle>
+  </g>
+</svg>

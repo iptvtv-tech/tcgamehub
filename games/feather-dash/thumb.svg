@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <rect x="84" y="0" width="22" height="38" rx="4" fill="#16a34a"/><rect x="80" y="30" width="30" height="10" rx="3" fill="#22c55e"/>
+  <rect x="84" y="82" width="22" height="38" rx="4" fill="#16a34a"/><rect x="80" y="80" width="30" height="10" rx="3" fill="#22c55e"/>
+  <g>
+    <animateTransform attributeName="transform" type="translate" values="0 4;0 -6;0 4" dur="1.2s" repeatCount="indefinite"/>
+    <path d="M26 62 L12 55 L14 70 Z" fill="#c2410c"/>
+    <ellipse cx="44" cy="62" rx="22" ry="18" fill="#f97316"/>
+    <ellipse cx="48" cy="70" rx="15" ry="8" fill="#fef3c7"/>
+    <ellipse cx="38" cy="60" rx="13" ry="8" fill="#c2410c">
+      <animateTransform attributeName="transform" type="rotate" values="-25 44 60;20 44 60;-25 44 60" dur="0.3s" repeatCount="indefinite"/>
+    </ellipse>
+    <circle cx="54" cy="55" r="6" fill="#fff"/><circle cx="56" cy="55" r="3" fill="#0b0b1a"/>
+    <path d="M64 58 L76 62 L64 67 Z" fill="#facc15"/>
+  </g>
+  <circle cx="92" cy="60" r="5" fill="#fde047"><animate attributeName="opacity" values="1;.4;1" dur="1s" repeatCount="indefinite"/></circle>
+</svg>

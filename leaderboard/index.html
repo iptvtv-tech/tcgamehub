@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>High Scores · Quick Play Arcade</title>
+  <meta name="description" content="Today's, this week's and all-time high scores for every game, plus the Daily Challenge board.">
+  <meta name="theme-color" content="#0b0b1a">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&display=swap">
+  <link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="logo" href="../"><img src="../favicon.svg" alt=""><span data-site-name>Quick Play Arcade</span></a>
+      <nav class="site-nav">
+        <a href="../">Games</a>
+        <a href="./" aria-current="page">Leaderboard</a>
+        <a href="../about/">About</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="section">
+      <div class="section-head">
+        <h1 style="font-size:2.4em;margin:0">🏆 High scores</h1>
+        <a class="btn primary" id="play-btn" href="#">▶ Play</a>
+      </div>
+      <div class="tabs" role="tablist" aria-label="Game" id="game-tabs"></div>
+      <div class="tabs" role="tablist" aria-label="Period" id="period-tabs">
+        <button class="tab" role="tab" data-period="today">Today</button>
+        <button class="tab" role="tab" data-period="week">This week</button>
+        <button class="tab" role="tab" data-period="all">All time</button>
+        <button class="tab" role="tab" data-period="daily">📅 Daily challenge</button>
+      </div>
+      <div id="board" aria-live="polite"></div>
+      <p class="board-note" id="note"></p>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <span>© <span data-year></span> <span data-site-name>Quick Play Arcade</span></span>
+      <span><a href="../">Games</a> · <a href="../about/">About & privacy</a></span>
+    </div>
+  </footer>
+  <script type="module" src="../assets/js/leaderboard.js"></script>
+</body>
+</html>

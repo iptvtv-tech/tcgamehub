@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>About & Privacy · Quick Play Arcade</title>
+  <meta name="description" content="How the games, scoring and leaderboards work, and what we store (just the name you type).">
+  <meta name="theme-color" content="#0b0b1a">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&display=swap">
+  <link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="logo" href="../"><img src="../favicon.svg" alt=""><span data-site-name>Quick Play Arcade</span></a>
+      <nav class="site-nav">
+        <a href="../">Games</a>
+        <a href="../leaderboard/">Leaderboard</a>
+        <a href="./" aria-current="page">About</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap prose">
+    <h1>About the arcade</h1>
+    <p>Short, free games you can play in any modern browser, on a computer, tablet or phone. No account, no download, no email address.</p>
+
+    <h2>How scoring works</h2>
+    <ul>
+      <li><b>Levels:</b> each level is a little faster (about 6–7% per level) and every few levels adds something new.</li>
+      <li><b>Bonus rounds:</b> every 5th level. You can't lose, there's a countdown, and the points are big.</li>
+      <li><b>Checkpoints:</b> once you've reached level 6, 11, 16… you can start from there next time.</li>
+      <li><b>Combos:</b> chain hits to raise your multiplier. It resets if you pause too long or miss.</li>
+      <li><b>Daily Challenge:</b> one game each day uses the same level layout for everyone, with its own board. It changes at midnight UTC.</li>
+    </ul>
+
+    <h2>Fair play</h2>
+    <p>Scores are checked when they're submitted — impossible scores, too-short games and rapid-fire submissions are rejected, and rude names are blocked. If you spot a name that shouldn't be there, let us know and we'll remove it.</p>
+
+    <h2>Privacy</h2>
+    <p>When you save a high score we store only the <b>name you type</b>, your score, the level reached, the game and the time. We don't use cookies, accounts or advertising trackers.</p>
+    <p>To stop spam, a one-way scrambled (hashed) version of your connection address is kept for up to one hour and then deleted automatically. It is never shown or shared.</p>
+    <p>Your personal bests, badges and settings are saved only in your own browser (local storage). Clearing your browser data removes them.</p>
+    <p>Don't use your full real name if you'd rather not — any nickname up to 12 letters and numbers works.</p>
+
+    <h2>Credits</h2>
+    <p>Games, graphics and sound are made from code — no external image or audio files. Hosted on GitHub Pages; high scores powered by Supabase.</p>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <span>© <span data-year></span> <span data-site-name>Quick Play Arcade</span></span>
+      <span><a href="../">Games</a> · <a href="../leaderboard/">Leaderboard</a></span>
+    </div>
+  </footer>
+  <script type="module">import { siteChrome } from '../assets/js/site.js'; siteChrome();</script>
+</body>
+</html>
