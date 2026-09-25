@@ -15,7 +15,8 @@ create table if not exists public.games (
 insert into public.games (id, title, max_points_per_second) values
   ('neon-snake',    'Neon Snake',    3000),
   ('feather-dash',  'Feather Dash',  3000),
-  ('prism-breaker', 'Prism Breaker', 6000)
+  ('prism-breaker', 'Prism Breaker', 6000),
+  ('astro-blaster', 'Astro Blaster', 6000)
   -- ADD NEW GAMES HERE, e.g.  ,('my-game', 'My Game', 3000)
 on conflict (id) do update set title = excluded.title, max_points_per_second = excluded.max_points_per_second;
 
