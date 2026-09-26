@@ -52,6 +52,7 @@ canvas { display: block; width: 100%; height: 100%; touch-action: none; user-sel
 .panel h2 { font-size: 2.2em; margin: 0 0 .1em; }
 .panel p { margin: .45em 0; }
 .panel .btn.big { margin: .6em 0 .4em; min-width: 60%; }
+.panel .btn.wa { margin: .1em 0 .3em; font-size: .92em; }
 .panel .row { display: flex; flex-wrap: wrap; justify-content: center; gap: .5em; margin-top: .4em; }
 .panel .row .btn { font-size: .9em; padding: .5em .9em; }
 @keyframes panelIn { from { transform: translateY(12px) scale(.97); opacity: 0; } }

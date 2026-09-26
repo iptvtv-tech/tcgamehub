@@ -59,6 +59,11 @@ kbd { background: #2c2c5a; border: 1px solid #45458a; border-bottom-width: 2px; 
 .pill.new { background: #3a0d2a; border-color: #be185d; color: var(--pink); }
 .pill.big { font-size: .95em; }
 
+/* WhatsApp share buttons */
+.btn.wa { background: #25d366; border-color: #25d366; color: #052e16; }
+.btn.wa:hover { background: #1ebe5b; }
+.wa-ico { width: 1.25em; height: 1.25em; flex: none; }
+
 /* ── Site header / footer ────────────────────────────────── */
 .site-header { position: sticky; top: 0; z-index: 10; backdrop-filter: blur(10px); background: #0b0b1acc; border-bottom: 1px solid #ffffff10; }
 .site-header .wrap { display: flex; align-items: center; gap: 16px; height: 64px; }

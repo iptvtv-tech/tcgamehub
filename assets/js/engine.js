@@ -14,6 +14,7 @@ import { Store } from './storage.js';
 import { Sound } from './audio.js';
 import { Scores, cleanName, nameProblem } from './scores.js';
 import { makeRng, hashString, todayKey } from './rng.js';
+import { whatsappLink, WA_ICON } from './site.js';
 
 const STEP = 1 / 120; // physics runs at a fixed 120 updates per second
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -597,6 +598,10 @@ class Shell {
     else pbLine = `<p class="muted">Your best: ${fmt(prevBest)}</p>`;
     const others = GAMES.filter((g) => g.id !== this.id);
     const boardUrl = `../../leaderboard/?game=${this.id}&period=${this.daily ? 'daily' : 'today'}`;
+    const gameUrl = location.origin + location.pathname + (this.daily ? '?daily=1' : '');
+    const shareText = score > 0
+      ? `🎮 I scored ${fmt(score)} on ${this.meta.title}${this.daily ? " (today's Daily Challenge)" : ''} and reached level ${this.level}! Can you beat me? ${gameUrl}`
+      : `🎮 Come play ${this.meta.title} with me, free in your browser: ${gameUrl}`;
 
     const o = this.showOverlay(`
       <h2 class="over-title">Game Over</h2>
@@ -605,6 +610,7 @@ class Shell {
       ${pbLine}
       <div class="rank-box" data-rank><span class="muted">Checking the leaderboard…</span></div>
       <button class="btn primary big" data-act="again">↻ Play again</button>
+      <a class="btn wa" href="${whatsappLink(shareText)}" target="_blank" rel="noopener">${WA_ICON} Challenge a friend on WhatsApp</a>
       <div class="row">
         <button class="btn" data-act="menu">☰ Menu</button>
         <a class="btn" href="${boardUrl}">🏆 Leaderboard</a>

@@ -11,6 +11,7 @@ A static website of quick browser games with levels, bonus rounds, combos, badge
 | **Neon Snake** | Snake with neon colours. Golden fruit, blocks, solid walls, portals and sparks get added level by level. Bonus round: a gem feast where you can't crash. |
 | **Feather Dash** | Flappy-style endless flyer. Pillars start to sway, golden-feather shields and hawks come in later, and the scenery goes from day to sunset to night to aurora. Bonus round: golden sky. |
 | **Astro Blaster** | Colourful space shooter. ⚡ Shock asteroids go off with a bang, a flash and a shockwave that chain-reacts; plus splitting rocks, power-ups, comets and UFOs. Bonus: crystal storm. |
+| **Crazy Putt** | Crazy golf: hold to power up, aim line, windmills, water, bumpers and *hidden* traps (trapdoors, secret sand, speed pads, fake holes). Big hole-in-one bonus. Bonus: hole-in-one frenzy. |
 | **Prism Breaker** | Rainbow brick breaker with 10 layouts, tough, steel and explosive bricks, and 5 power-ups. Bonus round: a piñata party where the floor is shielded. |
 
 ---

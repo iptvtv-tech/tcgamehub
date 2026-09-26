@@ -2,9 +2,14 @@ import { CONFIG } from './config.js';
 import { GAMES, GLOBAL_ACHIEVEMENTS, gameById, dailyGame } from './games.js';
 import { Store } from './storage.js';
 import { Scores } from './scores.js';
-import { siteChrome, esc, fmt, ago } from './site.js';
+import { siteChrome, esc, fmt, ago, whatsappLink, WA_ICON } from './site.js';
 
 siteChrome();
+
+// ── WhatsApp share ──────────────────────────────────────────
+const wa = document.getElementById('wa-share');
+wa.href = whatsappLink(`🎮 Free quick games with levels, bonus rounds and high-score boards. Come and try to beat my scores! ${location.origin + location.pathname}`);
+wa.innerHTML = `${WA_ICON} Share on WhatsApp`;
 
 // ── Play now (random game) ──────────────────────────────────
 document.getElementById('play-random').onclick = () => {

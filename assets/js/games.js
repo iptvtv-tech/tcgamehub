@@ -62,7 +62,7 @@ export const GAMES = [
     controls: 'Move: mouse / arrows / drag · Fire: hold Space or mouse button (touch & hold on phones)',
     difficulty: 'Medium',
     color: '#a855f7',
-    isNew: true,
+    isNew: false,
     achievements: [
       { id: 'shock',    icon: '⚡', title: 'Shock Wave',     desc: 'Set off a shock asteroid' },
       { id: 'shock5',   icon: '💥', title: 'Chain Reaction', desc: 'Destroy 5 rocks with one shockwave' },
@@ -70,6 +70,23 @@ export const GAMES = [
       { id: 'combo4',   icon: '🔥', title: 'On Fire',        desc: 'Reach a x4 combo' },
       { id: 'level10',  icon: '🚀', title: 'Deep Space',     desc: 'Reach level 10' },
       { id: 'score10k', icon: '🏅', title: 'Ten Grand',      desc: 'Score 10,000 in one run' },
+    ],
+  },
+  {
+    id: 'crazy-putt',
+    title: 'Crazy Putt',
+    tagline: 'Crazy golf that looks easy… until the hidden traps get you. Go for a hole in one!',
+    controls: 'Aim with mouse / finger (or ← →) · hold click or Space for power · release to putt',
+    difficulty: 'Tricky',
+    color: '#4ade80',
+    isNew: true,
+    achievements: [
+      { id: 'ace',      icon: '⛳', title: 'Hole in One',    desc: 'Sink a hole in a single shot' },
+      { id: 'ace3',     icon: '🏌️', title: 'Ace Collector',  desc: 'Get 3 holes in one in a single run' },
+      { id: 'birdie',   icon: '🐦', title: 'Birdie',         desc: 'Finish a hole under par' },
+      { id: 'trapped',  icon: '🕳️', title: 'Watch Your Step', desc: 'Fall down a hidden trapdoor' },
+      { id: 'fake',     icon: '🤡', title: 'Fooled You',     desc: 'Putt into a fake hole' },
+      { id: 'level10',  icon: '🏆', title: 'Course Master',  desc: 'Reach hole 10' },
     ],
   },
 ];
