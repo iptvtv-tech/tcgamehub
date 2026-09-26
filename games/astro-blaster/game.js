@@ -1,6 +1,6 @@
 // ─────────────────────────────────────────────────────────────
 //  ASTRO BLASTER — space shooter
-//  L1  slow rocks, auto-fire           L2  ⚡ SHOCK asteroids: shoot one and it goes off
+//  L1  slow rocks, hold to fire          L2  ⚡ SHOCK asteroids: shoot one and it goes off
 //                                          with a bang, a white flash and a shockwave
 //                                          that sets off everything nearby (chain reactions!)
 //  L3  power-ups (spread, rapid, shield) L4  big rocks split into smaller ones
@@ -33,7 +33,7 @@ runGame({
   levelInfo(level, bonus) {
     if (bonus) return 'Crystal storm! You can\'t be hit — grab every crystal!';
     const notes = {
-      1: 'Drag, mouse or arrow keys to fly. You fire automatically.',
+      1: 'Move with mouse / arrows. Hold SPACE or the mouse button to fire!',
       2: '⚡ Glowing SHOCK asteroids! Shoot one to blow up everything near it.',
       3: 'Power-ups drop from big rocks — catch them!',
       4: 'Big rocks split into smaller ones.',
@@ -71,6 +71,7 @@ class AstroBlaster {
     this.speedK = this.s.speed(0.065, 2.2, level);
     this.shockChance = level >= 2 ? Math.min(0.2, 0.08 + (level - 2) * 0.02) : 0;
     this.gemsGot = 0;
+    this.hasFired = false;
   }
 
   // ── Input ──────────────────────────────────────────────────
@@ -131,9 +132,11 @@ class AstroBlaster {
     sh.y += (sh.ty - sh.y) * Math.min(1, dt * 14);
     sh.tilt = clamp((sh.x - px) / dt / 900, -0.45, 0.45);
 
-    // Auto-fire
+    // Fire while Space or the mouse button (or a finger on touch screens) is held down
     this.fireT -= dt;
-    if (this.fireT <= 0) {
+    const trigger = s.input.isDown('action') || s.input.pointer.down;
+    if (trigger && this.fireT <= 0) {
+      this.hasFired = true;
       this.fireT = this.rapidT > 0 ? 0.09 : 0.2;
       const shots = this.spreadT > 0 ? [-0.22, 0, 0.22] : [0];
       for (const a of shots) this.bullets.push({ x: sh.x + Math.sin(a) * 6, y: sh.y - 20, vx: Math.sin(a) * 720, vy: -Math.cos(a) * 720 });
@@ -415,6 +418,16 @@ class AstroBlaster {
     ctx.stroke(); ctx.restore();
 
     this.drawShip(ctx, t);
+
+    // Reminder until the player fires for the first time this level
+    if (!this.hasFired && this.s.state === 'playing') {
+      ctx.save(); ctx.globalAlpha = 0.65 + Math.sin(t * 6) * 0.3;
+      ctx.font = '800 20px system-ui'; ctx.textAlign = 'center';
+      ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.fillStyle = '#fde047';
+      const msg = matchMedia('(pointer: coarse)').matches ? 'Touch & hold to fire' : 'Hold SPACE or mouse button to fire';
+      ctx.strokeText(msg, W / 2, H * 0.62); ctx.fillText(msg, W / 2, H * 0.62);
+      ctx.restore();
+    }
 
     // HUD strip
     ctx.fillStyle = 'rgba(5,8,22,.75)'; ctx.fillRect(0, 0, W, 44);

@@ -59,7 +59,7 @@ export const GAMES = [
     id: 'astro-blaster',
     title: 'Astro Blaster',
     tagline: 'Blast colourful asteroids — shoot a ⚡ shock rock for a huge chain reaction.',
-    controls: 'Drag / mouse / arrow keys to fly · fires automatically',
+    controls: 'Move: mouse / arrows / drag · Fire: hold Space or mouse button (touch & hold on phones)',
     difficulty: 'Medium',
     color: '#a855f7',
     isNew: true,
