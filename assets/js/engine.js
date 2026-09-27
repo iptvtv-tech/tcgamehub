@@ -17,6 +17,7 @@ import { makeRng, hashString, todayKey } from './rng.js';
 import { whatsappLink, WA_ICON } from './site.js';
 
 const STEP = 1 / 120; // physics runs at a fixed 120 updates per second
+const REDUCED_MOTION = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fmt = (n) => Math.floor(n).toLocaleString('en-GB');
 
@@ -42,8 +43,20 @@ class FX {
   }
   text(x, y, str, { color = '#fff', size = 22, life = 0.9, rise = 55 } = {}) { this.texts.push({ x, y, str, color, size, life, max: life, rise }); }
   ring(x, y, { color = '#fff', radius = 40, life = 0.45, width = 3 } = {}) { this.rings.push({ x, y, color, radius, life, max: life, width }); }
-  shake(mag = 6, dur = 0.25) { this.shakeMag = Math.max(this.shakeMag, mag); this.shakeT = Math.max(this.shakeT, dur); }
-  flash(color = '#fff', a = 0.45) { this.flashColor = color; this.flashA = a; }
+  shake(mag = 6, dur = 0.25) {
+    if (REDUCED_MOTION) mag *= 0.25;
+    this.shakeMag = Math.max(this.shakeMag, mag); this.shakeT = Math.max(this.shakeT, dur);
+  }
+  // Photosensitivity safety: full-screen flashes are soft (max 30% opacity), never more than
+  // ~2 per second (WCAG 2.3.1 allows up to 3), and switched off entirely for players whose
+  // device is set to "reduce motion".
+  flash(color = '#fff', a = 0.45) {
+    if (REDUCED_MOTION) return;
+    const now = performance.now();
+    if (now - (this.lastFlash || 0) < 450) return;
+    this.lastFlash = now;
+    this.flashColor = color; this.flashA = Math.min(a, 0.3);
+  }
   update(dt) {
     for (const p of this.parts) { p.life -= dt; p.vy += p.gravity * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.985; }
     this.parts = this.parts.filter((p) => p.life > 0);

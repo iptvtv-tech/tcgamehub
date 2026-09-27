@@ -2,14 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://*.supabase.co; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>About & Privacy · Quick Play Arcade</title>
   <meta name="description" content="How the games, scoring and leaderboards work, and what we store (just the name you type).">
   <meta name="theme-color" content="#0b0b1a">
   <link rel="icon" href="../favicon.svg" type="image/svg+xml">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&display=swap">
   <link rel="stylesheet" href="../assets/css/site.css">
 </head>
 <body>
@@ -38,16 +37,27 @@
     </ul>
 
     <h2>Fair play</h2>
-    <p>Scores are checked when they're submitted — impossible scores, too-short games and rapid-fire submissions are rejected, and rude names are blocked. If you spot a name that shouldn't be there, let us know and we'll remove it.</p>
+    <p>Scores are checked when they're submitted. Impossible scores, very short games and rapid-fire submissions are rejected, and rude names are blocked. If you see a name that is rude, hurtful or uses someone's real name without their permission, email us at <b data-contact>[YOUR CONTACT EMAIL]</b> and we'll remove it.</p>
 
-    <h2>Privacy</h2>
-    <p>When you save a high score we store only the <b>name you type</b>, your score, the level reached, the game and the time. We don't use cookies, accounts or advertising trackers.</p>
-    <p>To stop spam, a one-way scrambled (hashed) version of your connection address is kept for up to one hour and then deleted automatically. It is never shown or shared.</p>
-    <p>Your personal bests, badges and settings are saved only in your own browser (local storage). Clearing your browser data removes them.</p>
-    <p>Don't use your full real name if you'd rather not — any nickname up to 12 letters and numbers works.</p>
+    <h2>Health warning: flashing lights</h2>
+    <p>Some games use brief screen flashes and fast-moving colours. We keep flashes soft and limit how often they happen, and they switch off completely if your device's "reduce motion" setting is on. If you or anyone playing has photosensitive epilepsy, please take care, and stop playing if you feel unwell.</p>
+
+    <h2>Privacy notice</h2>
+    <p><b>Who we are.</b> This site is run by <b data-owner>[Conor Walsh]</b>. Contact: <b data-contact>[jelly-emu-liberty@duck.com]</b>.</p>
+    <p><b>What we store, and why.</b></p>
+    <ul>
+      <li><b>High scores you choose to save:</b> the nickname you type, your score, the level reached, the game and the time. These are shown publicly on the leaderboards. We keep them because running a public leaderboard is the point of the site (legitimate interests). Scores older than 90 days are deleted unless they are in a game's all-time top 20.</li>
+      <li><b>Spam protection:</b> when you save a score, a one-way scrambled (hashed) version of your connection (IP) address is stored briefly to limit spam, and deleted automatically, normally within an hour. It is never shown or shared.</li>
+      <li><b>On your own device:</b> your best scores, badges, game progress and sound settings are saved in your browser's local storage so the games remember them. This data never leaves your device, and clearing your browser data removes it. We don't use cookies, advertising or tracking.</li>
+    </ul>
+    <p><b>Please use a nickname.</b> Don't enter your full real name or anyone else's.</p>
+    <p><b>Services we use:</b> the site is hosted by GitHub Pages (GitHub, Inc.), which receives your IP address like any web host does in order to deliver the pages, and the leaderboard is stored with Supabase. Some of these providers may process data outside the UK/EU under approved safeguards.</p>
+    <p><b>Your rights.</b> You can ask us to see or delete a score saved under your nickname, or object to how we use it. Email <b data-contact>[YOUR CONTACT EMAIL]</b> with the nickname, game and roughly when you played. If you're unhappy with how we handle your data, you can complain to the Data Protection Commission (Ireland) or the Information Commissioner's Office (UK).</p>
+    <p><b>Children.</b> The games are suitable for all ages. We don't ask for age, email, location or any contact details, and there is no chat or messaging between players.</p>
+    <p class="muted small">Last updated: 27 September 2026</p>
 
     <h2>Credits</h2>
-    <p>Games, graphics and sound are made from code — no external image or audio files. Hosted on GitHub Pages; high scores powered by Supabase.</p>
+    <p>Games, graphics and sound are made from code — no external image or audio files. Hosted on GitHub Pages; high scores powered by Supabase. No third-party fonts, trackers or ads are loaded.</p>
   </main>
 
   <footer class="site-footer">
@@ -56,6 +66,6 @@
       <span><a href="../">Games</a> · <a href="../leaderboard/">Leaderboard</a></span>
     </div>
   </footer>
-  <script type="module">import { siteChrome } from '../assets/js/site.js'; siteChrome();</script>
+  <script type="module" src="../assets/js/about.js"></script>
 </body>
 </html>
