@@ -106,6 +106,10 @@ Also add the page to `sitemap.xml`.
 - Try it on a phone (touch controls).
 - Commit and push. GitHub Pages updates in about a minute.
 
+## Resetting a game's high scores after a big update
+1. In Supabase → SQL Editor: `delete from public.scores where game = 'your-id';`
+2. In `assets/js/storage.js`, add or bump the game in `RESETS`, e.g. `{ 'your-id': 2 }`. Every visitor's saved best, checkpoints and offline scores for that game are cleared the next time they open the site (badges are kept).
+
 ## Tips for a good new game
 - **Levels 1–2 should be almost impossible to fail.** They teach the controls.
 - Raise speed about **6–7% per level**, and **add one new thing every 2–3 levels**.

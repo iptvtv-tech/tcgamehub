@@ -18,7 +18,7 @@ insert into public.games (id, title, max_points_per_second) values
   ('prism-breaker', 'Prism Breaker', 6000),
   ('astro-blaster', 'Astro Blaster', 6000),
   ('crazy-putt',    'Crazy Putt',    8000),
-  ('galactic-alien-shooter', 'Galactic Alien Shooter', 6000)
+  ('galactic-alien-shooter', 'Galactic Alien Shooter', 8000)
   -- ADD NEW GAMES HERE, e.g.  ,('my-game', 'My Game', 3000)
 on conflict (id) do update set title = excluded.title, max_points_per_second = excluded.max_points_per_second;
 

@@ -3,6 +3,10 @@
 const KEY = 'arcade:v1';
 let data = null;
 
+// Wipe one game's saved best / progress / local scores when it gets a big update.
+// Bump the number to reset that game again (badges are kept).
+const RESETS = { 'galactic-alien-shooter': 2 };
+
 function load() {
   if (data) return data;
   try { data = JSON.parse(localStorage.getItem(KEY)) || {}; } catch { data = {}; }
@@ -12,6 +16,15 @@ function load() {
   data.ach ??= {};        // { 'gameId:achId' | 'g:achId': timestamp }
   data.local ??= [];      // offline leaderboard entries
   data.settings ??= { muted: false, music: true };
+  data.resets ??= {};
+  let changed = false;
+  for (const [game, v] of Object.entries(RESETS)) {
+    if ((data.resets[game] || 0) >= v) continue;
+    delete data.best[game]; delete data.maxLevel[game];
+    data.local = data.local.filter((e) => e.game !== game);
+    data.resets[game] = v; changed = true;
+  }
+  if (changed) save();
   return data;
 }
 function save() {

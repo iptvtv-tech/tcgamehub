@@ -117,21 +117,24 @@ export const GAMES = [
     id: 'galactic-alien-shooter',
     gold: 'Golden Starfighter',     // golden character unlocked for Legends
     title: 'Galactic Alien Shooter',
-    tagline: 'Blast the swooping alien swarm — get beamed up, then rescue your ship for DOUBLE FIRE!',
+    tagline: 'Five alien warships, five different weapons. Grab lasers, rockets and blasters, rescue your abducted ship, then take on the Dreadnought!',
     controls: 'Move: mouse / ← → / drag · Fire: hold Space or mouse button (touch & hold on phones)',
     difficulty: 'Medium',
     color: '#22d3ee',
     isNew: true,
     achievements: [
-      { id: 'rescue',   icon: '🚀', title: 'Double Trouble',     desc: 'Rescue a captured fighter for double fire' },
-      { id: 'squad',    icon: '👑', title: 'Royal Flush',        desc: 'Shoot down a diving Queen and both escorts' },
+      { id: 'rescue',   icon: '🚀', title: 'Twin Engines',       desc: 'Rescue your abducted ship for a twin fighter' },
+      { id: 'squad',    icon: '🛸', title: 'Wing Clipper',       desc: 'Shoot down a diving carrier and both escorts' },
+      { id: 'maxed',    icon: '🔋', title: 'Fully Loaded',       desc: 'Power a weapon up to level 3' },
+      { id: 'boss',     icon: '☠️', title: 'Dreadnought Down',   desc: 'Destroy the Dreadnought boss' },
       { id: 'sharp',    icon: '🎯', title: 'Sharpshooter',       desc: 'Clear level 2+ with 75% accuracy' },
-      { id: 'golden',   icon: '✨', title: 'Golden Starfighter', desc: 'Hit all 40 in a Challenging Stage — unlocks the golden ship' },
+      { id: 'golden',   icon: '✨', title: 'Golden Starfighter', desc: 'Hit all 40 in a Star Run bonus — unlocks the golden ship' },
       { id: 'combo4',   icon: '🔥', title: 'On Fire',            desc: 'Reach a x4 combo' },
       { id: 'level10',  icon: '🌌', title: 'Galaxy Defender',    desc: 'Reach level 10' },
       { id: 'score10k', icon: '🏅', title: 'Ten Grand',          desc: 'Score 10,000 in one run' },
     ],
   },
+
 ];
 
 // Badges that any game can earn (unlocked automatically by the engine).
