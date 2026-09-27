@@ -12,8 +12,8 @@
 //
 //  YOUR WEAPONS (capsules dropped by destroyed ships, power 1 → 3)
 //   B Blaster  rapid bolts, spreads wider with power
-//   L Laser    hitscan beam, pierces more ships with power
-//   R Rockets  homing rockets with splash damage + a light cannon
+//   L Laser    hitscan beam — RARE (like a 1UP: once per 4 levels at most), lasts 8 s
+//   R Rockets  homing rockets with splash damage + a light cannon, lasts 14 s
 //   S Shield   soaks one hit        1UP  very rare drop (and at 100k / 300k / 600k)
 //
 //  Every 5th level: ★ STAR RUN bonus (can't be hit, 15 s, hit all 40 = PERFECT)
@@ -27,7 +27,8 @@ const ID = 'galactic-alien-shooter';
 const W = 480, H = 720;
 const PY = H - 74;                 // player row
 const HUD_H = 44;
-const SHIP_R = 13, TWIN = 15;      // hit radius, half-gap of the twin fighter
+const SHIP_R = 14, TWIN = 15;      // hit radius, half-gap of the twin fighter
+const YMIN = 330;                  // how high up the screen your ship can fly
 const GRID_DX = 40, GRID_DY = 36, GRID_TOP = 96;
 const TAU = Math.PI * 2;
 
@@ -54,6 +55,7 @@ const PICKUPS = {
 const BEAM = { grow: 0.5, hold: 1.9, shrink: 0.5 };
 const LANCE = { charge: 0.75, fire: 0.4 };
 const LIFE_AT = [100000, 300000, 600000];
+const WEAPON_TIME = { laser: 8, rockets: 14 };   // seconds before a special weapon runs out
 const MAX_LIVES = 5;
 
 const isBoss = (level) => level % 10 === 9;
@@ -75,7 +77,7 @@ runGame({
       ? '☠️ BOSS: the DREADNOUGHT! Watch for its twin lasers — blast it to pieces!'
       : `☠️ BOSS: DREADNOUGHT Mk ${Math.floor(level / 10) + 1} — tougher, faster, meaner!`;
     const notes = {
-      1: 'Move: mouse / arrows · hold SPACE or mouse button to fire. Catch capsules: B blaster · L laser · R rockets',
+      1: 'Fly anywhere in the lower half: mouse / arrows. Hold SPACE or the mouse button to fire. Capsules: B blaster · R rockets · L laser (rare!) — rockets & laser run out',
       2: 'Scouts shoot back now — keep moving!',
       3: '🛸 Carriers fire an ABDUCTION BEAM! Lose a ship? Shoot that carrier as it dives to win it back as a TWIN FIGHTER.',
       4: 'Gunships fire 3-way spreads · Bombers drop bombs that burst — shoot the bombs!',
@@ -152,13 +154,16 @@ class AlienShooter {
   }
 
   // Golden ship: earned here (perfect Star Run) or as a Legend. The menu's ON/OFF switch applies to both.
+  get power() { return this.pw[this.weapon]; }
+
   get golden() { return this.s.gold || (Store.hasAch(`${ID}:golden`) && Store.setting(`gold:${ID}`) !== false); }
 
   reset() {
-    this.ship.x = this.ship.tx = W / 2;
+    this.ship.x = this.ship.tx = W / 2; this.ship.y = this.ship.ty = PY;
     this.dual = false; this.invuln = 0; this.dead = false;
     this.capture = null; this.rescue = null; this.shipHidden = false;
-    this.weapon = 'blaster'; this.power = 1; this.shield = false;
+    this.weapon = 'blaster'; this.pw = { blaster: 1, laser: 1, rockets: 1 }; this.weaponT = 0; this.shield = false;
+    this.nextLaserLevel = 3;
     this.lifeIdx = 0; this.lifeDropped = false; this.sinceDrop = 0;
     this.runShots = 0; this.runHits = 0;
   }
@@ -239,13 +244,15 @@ class AlienShooter {
   }
 
   // ── Input ──────────────────────────────────────────────────
-  onAction(a, x) {
-    if (a === 'press') this.drag = { px: x, sx: this.ship.tx };
+  onAction(a, x, y) {
+    if (a === 'press') this.drag = { px: x, py: y, sx: this.ship.tx, sy: this.ship.ty };
     if (a === 'release') this.drag = null;
   }
   onPointerMove(x, y, down) {
-    if (down && this.drag) this.ship.tx = this.drag.sx + (x - this.drag.px) * 1.3;
-    else if (!down) this.ship.tx = x;
+    if (down && this.drag) {
+      this.ship.tx = this.drag.sx + (x - this.drag.px) * 1.3;
+      this.ship.ty = this.drag.sy + (y - this.drag.py) * 1.3;
+    } else if (!down) { this.ship.tx = x; this.ship.ty = y; }
   }
 
   idle(dt) { this.t += dt; this.cosmetic(dt); }
@@ -265,15 +272,28 @@ class AlienShooter {
     this.invuln = Math.max(0, this.invuln - dt);
     this.laserVis = [];
     this.tickTimers(dt);
+    if (this.weapon !== 'blaster') {
+      this.weaponT -= dt;
+      if (this.weaponT <= 0) {
+        const info = WEAPONS[this.weapon];
+        this.pw[this.weapon] = 1; this.weapon = 'blaster'; this.weaponT = 0;
+        s.fx.text(this.ship.x, this.ship.y - 50, `${info.name} OFFLINE`, { color: info.color, size: 18 });
+        s.sound.tone({ freq: 700, to: 150, dur: 0.35, type: 'square', vol: 0.05 });
+      }
+    }
 
     // Player
     if (!this.capture) {
       const kx = (s.input.isDown('right') ? 1 : 0) - (s.input.isDown('left') ? 1 : 0);
+      const ky = (s.input.isDown('down') ? 1 : 0) - (s.input.isDown('up') ? 1 : 0);
       if (kx) { sh.tx = sh.x + kx * 1600 * dt; this.drag = null; }
+      if (ky) { sh.ty = sh.y + ky * 1100 * dt; this.drag = null; }
       const edge = this.dual ? 24 + TWIN : 24;
       sh.tx = clamp(sh.tx, edge, W - edge);
+      sh.ty = clamp(sh.ty, YMIN, PY);
       const px = sh.x;
       sh.x += (sh.tx - sh.x) * Math.min(1, dt * 16);
+      sh.y += (sh.ty - sh.y) * Math.min(1, dt * 14);
       sh.vx = (sh.x - px) / dt;
       sh.tilt = clamp(sh.vx / 1100, -0.35, 0.35);
 
@@ -329,7 +349,7 @@ class AlienShooter {
         }
         while (a.shotsAt.length && a.diveTime >= a.shotsAt[0]) {
           a.shotsAt.shift();
-          if (a.y < PY - 120 && a.y > 0) this.enemyFire(a);
+          if (a.y < this.ship.y - 100 && a.y > 0) this.enemyFire(a);
         }
         if (a.split && a.y > H * 0.36) this.splitAlien(a);
       } else if (a.state === 'beam') {
@@ -346,7 +366,7 @@ class AlienShooter {
 
       // collisions with the player (diving ships only; bonus rounds are safe)
       if (!this.bonus && (a.state === 'dive' || a.state === 'return') && !this.invuln && !this.capture && !this.shipHidden) {
-        const hitX = this.touchesShip(a.x, a.y, a.r * 0.8);
+        const hitX = this.touchesShip(a.x, a.y, a.r * 0.9);
         if (hitX !== null) { this.killAlien(a, false); if (this.crash(hitX)) return; }
       }
     }
@@ -365,7 +385,7 @@ class AlienShooter {
       if ((this.arrived || (L >= 3 && this.formT > 3)) && !this.boss) {
         this.diveT -= dt;
         if (this.diveT <= 0) {
-          let gap = L === 1 ? 4.2 : Math.max(0.5, 2.7 / this.speedK - L * 0.04);
+          let gap = L === 1 ? 3.6 : Math.max(0.45, 2.4 / this.speedK - L * 0.04);
           if (alive.length <= 6) gap *= 0.55;
           this.diveT = gap * s.rng.range(0.7, 1.3);
           this.startDive();
@@ -396,7 +416,7 @@ class AlienShooter {
     if (this.capture) {
       const c = this.capture; c.t += dt;
       const k = Math.min(1, c.t / 1.3);
-      c.x = c.sx + (c.q.x - c.sx) * k; c.y = PY + (c.q.y + 32 - PY) * k; c.spin += dt * 9;
+      c.x = c.sx + (c.q.x - c.sx) * k; c.y = c.sy + (c.q.y + 32 - c.sy) * k; c.spin += dt * 9;
       if (c.q.dead) { this.capture = null; this.invuln = 1.5; return; }
       if (c.t >= 1.5) {
         c.q.captive = true; c.q.state = 'return'; c.q.beamDive = false;
@@ -411,15 +431,15 @@ class AlienShooter {
     // Rescued ship floating down to dock
     if (this.rescue) {
       const r = this.rescue; r.spin += dt * 10;
-      const tx = sh.x + TWIN, ty = PY;
+      const tx = sh.x + TWIN, ty = sh.y;
       const dx = tx - r.x, dy = ty - r.y, d = Math.hypot(dx, dy), v = 330 * dt;
       if (d <= v) {
         this.rescue = null; this.dual = true;
         sh.x = clamp(sh.x - TWIN, 24 + TWIN, W - 24 - TWIN); sh.tx = sh.x;
         s.sound.play('powerup'); s.unlock('rescue');
-        s.fx.text(sh.x, PY - 50, 'TWIN FIGHTER!', { color: '#22d3ee', size: 26, life: 1.3 });
-        s.fx.ring(sh.x, PY, { color: '#22d3ee', radius: 70, width: 5 });
-        s.fx.burst(sh.x, PY, { colors: ['#22d3ee', '#fff', '#a78bfa'], count: 40, speed: 260 });
+        s.fx.text(sh.x, sh.y - 50, 'TWIN FIGHTER!', { color: '#22d3ee', size: 26, life: 1.3 });
+        s.fx.ring(sh.x, sh.y, { color: '#22d3ee', radius: 70, width: 5 });
+        s.fx.burst(sh.x, sh.y, { colors: ['#22d3ee', '#fff', '#a78bfa'], count: 40, speed: 260 });
       } else { r.x += dx / d * v; r.y += dy / d * v; }
     }
 
@@ -431,7 +451,7 @@ class AlienShooter {
 
     // Engine exhaust
     if (!this.shipHidden && !this.capture && Math.random() < 0.7) {
-      for (const x of this.shipXs()) s.fx.burst(x + (Math.random() - 0.5) * 4, PY + 17, { colors: this.golden ? ['#fde047', '#fbbf24', '#fff'] : ['#22d3ee', '#a78bfa', '#f472b6'], count: 1, speed: 80, life: 0.3, size: 2.5, angle: Math.PI / 2, spread: 0.4 });
+      for (const x of this.shipXs()) s.fx.burst(x + (Math.random() - 0.5) * 4, sh.y + 17, { colors: this.golden ? ['#fde047', '#fbbf24', '#fff'] : ['#22d3ee', '#a78bfa', '#f472b6'], count: 1, speed: 80, life: 0.3, size: 2.5, angle: Math.PI / 2, spread: 0.4 });
     }
   }
 
@@ -462,7 +482,7 @@ class AlienShooter {
     const bolts = this.bullets.filter((b) => b.kind === 'bolt').length;
     const cap = xs.length * (this.weapon === 'blaster' ? [3, 6, 9][P - 1] : 3);
     if (this.fireT <= 0 && bolts < cap) {
-      const bolt = (x, vx = 0) => this.bullets.push({ kind: 'bolt', x, y: PY - 20, vx, vy: -700, r: 4, dmg: 1 });
+      const bolt = (x, vx = 0) => this.bullets.push({ kind: 'bolt', x, y: this.ship.y - 20, vx, vy: -700, r: 4, dmg: 1 });
       if (this.weapon === 'blaster') {
         this.fireT = [0.2, 0.18, 0.17][P - 1];
         for (const x of xs) {
@@ -486,7 +506,7 @@ class AlienShooter {
         for (let i = 0; i < per; i++) {
           const side = per === 1 ? 0 : per === 2 ? (i ? 1 : -1) : i - 1;
           const ang = -Math.PI / 2 + side * 0.55;
-          this.bullets.push({ kind: 'rocket', x: x + side * 10, y: PY - 10, ang, sp: 240, r: 6, dmg: 2, life: 2.6 });
+          this.bullets.push({ kind: 'rocket', x: x + side * 10, y: this.ship.y - 10, ang, sp: 240, r: 6, dmg: 2, life: 2.6 });
         }
       }
       const n = xs.length * per; this.shots += n; this.runShots += n;
@@ -496,10 +516,10 @@ class AlienShooter {
 
   /** Everything the laser beam touches this frame (also drives the drawing). */
   laserTargets(xs) {
-    const P = this.power, w = [5, 8, 12][P - 1], maxHits = [1, 2, 99][P - 1];
+    const P = this.power, w = [5, 8, 12][P - 1], maxHits = [1, 2, 99][P - 1], sy = this.ship.y;
     this.laserHits = [];
     for (const x of xs) {
-      const list = this.aliens.filter((a) => !a.dead && a.state !== 'wait' && a.y > HUD_H && a.y < PY - 16 && Math.abs(a.x - x) < a.r * 0.8 + w);
+      const list = this.aliens.filter((a) => !a.dead && a.state !== 'wait' && a.y > HUD_H && a.y < sy - 16 && Math.abs(a.x - x) < a.r * 0.8 + w);
       list.sort((p, q) => q.y - p.y);
       const hits = list.slice(0, maxHits);
       let top = HUD_H;
@@ -507,8 +527,8 @@ class AlienShooter {
       const b = this.boss;
       if (b && !b.enter && b.hp > 0 && Math.abs(b.x - x) < 76 && top < b.y + 26) { top = b.y + 26; this.laserHits.push({ boss: true }); }
       for (const a of hits) if (a.y > top - 1) this.laserHits.push({ a });
-      for (const e of this.enemyShots) if (e.shootable && !e.gone && Math.abs(e.x - x) < w + e.r && e.y > top && e.y < PY) this.laserHits.push({ e });
-      this.laserVis.push({ x, top, w });
+      for (const e of this.enemyShots) if (e.shootable && !e.gone && Math.abs(e.x - x) < w + e.r && e.y > top && e.y < sy) this.laserHits.push({ e });
+      this.laserVis.push({ x, top, w, y0: sy - 20 });
     }
   }
 
@@ -610,7 +630,7 @@ class AlienShooter {
 
   /** Returns the x of the ship that was touched, or null. */
   touchesShip(x, y, r) {
-    for (const sx of this.shipXs()) if ((x - sx) ** 2 + (y - PY) ** 2 < (r + SHIP_R) ** 2) return sx;
+    for (const sx of this.shipXs()) if ((x - sx) ** 2 + (y - this.ship.y) ** 2 < (r + SHIP_R) ** 2) return sx;
     return null;
   }
 
@@ -633,7 +653,7 @@ class AlienShooter {
     const s = this.s, L = this.level;
     const inForm = this.aliens.filter((a) => !a.dead && a.state === 'form');
     const diving = this.aliens.filter((a) => !a.dead && (a.state === 'dive' || a.state === 'beam' || a.state === 'lance')).length;
-    const maxDivers = L === 1 ? 1 : Math.min(6, 1 + Math.floor(L / 2));
+    const maxDivers = L === 1 ? 1 : Math.min(7, 1 + Math.ceil(L / 2));
     if (!inForm.length || diving >= maxDivers) return;
 
     // Carriers holding your ship love to dive — giving you the chance to rescue it
@@ -694,11 +714,11 @@ class AlienShooter {
     for (let i = 0; i < n; i++) a.shotsAt.push(0.35 + i * 0.3 + r.range(0, 0.3));
   }
 
-  shotSpeed() { return 260 * Math.min(1.5, Math.sqrt(this.speedK)); }
+  shotSpeed() { return 290 * Math.min(1.5, Math.sqrt(this.speedK)); }
 
   pellet(a, spread = 0, k = 1) {
     const sh = this.ship, vy = this.shotSpeed() * k;
-    const tt = Math.max(0.3, (PY - a.y) / vy);
+    const tt = Math.max(0.3, (sh.y - a.y) / vy);
     // from level 3, shots lead a moving target (more so on later levels)
     const lead = this.level >= 3 ? Math.min(0.9, 0.35 + this.level * 0.04) * this.s.rng.range(0.5, 1.1) : 0;
     const aimX = clamp(sh.x + (sh.vx || 0) * tt * lead, 20, W - 20);
@@ -713,7 +733,7 @@ class AlienShooter {
       for (const sp of [-0.3, 0, 0.3]) this.pellet(a, sp);
       s.sound.tone({ freq: 420, to: 900, dur: 0.1, type: 'sawtooth', vol: 0.045 });
     } else if (a.type === 'bomber') {
-      this.enemyShots.push({ kind: 'bomb', x: a.x, y: a.y + 12, vx: 0, vy: 150 * Math.sqrt(this.speedK), r: 8, shootable: true, burstY: PY - s.rng.range(130, 200), t: 0 });
+      this.enemyShots.push({ kind: 'bomb', x: a.x, y: a.y + 12, vx: 0, vy: 150 * Math.sqrt(this.speedK), r: 8, shootable: true, burstY: Math.max(a.y + 80, this.ship.y - s.rng.range(90, 170)), t: 0 });
       s.sound.tone({ freq: 200, to: 90, dur: 0.25, type: 'square', vol: 0.05 });
     } else if (a.type === 'carrier') {
       this.enemyShots.push({ kind: 'mine', x: a.x, y: a.y + 14, vx: 0, vy: 90, r: 8, shootable: true, life: 5, t: 0 });
@@ -733,11 +753,11 @@ class AlienShooter {
       e.t = (e.t || 0) + dt;
       if (e.kind === 'mine') {
         e.life -= dt;
-        const want = Math.atan2(PY - e.y, sh.x - e.x), cur = Math.atan2(e.vy, e.vx);
+        const want = Math.atan2(sh.y - e.y, sh.x - e.x), cur = Math.atan2(e.vy, e.vx);
         let d = want - cur; d = ((d + Math.PI) % TAU + TAU) % TAU - Math.PI;
         const na = cur + clamp(d, -1.6 * dt, 1.6 * dt), sp = Math.min(150, Math.hypot(e.vx, e.vy) + 30 * dt);
         e.vx = Math.cos(na) * sp; e.vy = Math.sin(na) * sp;
-        if (e.life <= 0 || e.y > PY + 30) { e.gone = true; s.fx.burst(e.x, e.y, { colors: ['#67e8f9', '#fff'], count: 10, speed: 120, life: 0.3 }); continue; }
+        if (e.life <= 0 || e.y > H + 10) { e.gone = true; s.fx.burst(e.x, e.y, { colors: ['#67e8f9', '#fff'], count: 10, speed: 120, life: 0.3 }); continue; }
       }
       e.x += e.vx * dt; e.y += e.vy * dt;
       if (e.kind === 'bomb' && e.y >= e.burstY) {
@@ -779,7 +799,7 @@ class AlienShooter {
       const sh = this.makeAlien('shard', -1, -1);
       sh.x = a.x; sh.y = a.y; sh.state = 'dive'; sh.pi = 0; sh.trio = trio;
       const tx = clamp(this.ship.x + dx * 110, 20, W - 20);
-      sh.path = [[a.x + dx * 60, a.y + 60], [tx, PY - 60], [tx + dx * 40, H + 30]];
+      sh.path = [[a.x + dx * 60, a.y + 60], [tx, Math.max(a.y + 90, this.ship.y - 40)], [tx + dx * 40, H + 30]];
       this.aliens.push(sh);
     }
   }
@@ -791,14 +811,14 @@ class AlienShooter {
     const total = BEAM.grow + BEAM.hold + BEAM.shrink;
     if (Math.floor(q.beamT * 8) !== Math.floor((q.beamT - dt) * 8)) s.sound.tone({ freq: 220 + (Math.floor(q.beamT * 8) % 4) * 60, dur: 0.12, type: 'sine', vol: 0.05 });
     const full = q.beamT > BEAM.grow && q.beamT < BEAM.grow + BEAM.hold;
-    if (full && !this.capture && !this.invuln && !this.dual && !this.shipHidden && Math.abs(this.ship.x - q.x) < 30) {
+    if (full && !this.capture && !this.invuln && !this.dual && !this.shipHidden && Math.abs(this.ship.x - q.x) < 30 && this.ship.y > q.y + 20) {
       if (this.shield) {
         // the shield blocks the beam once
         this.shield = false; this.invuln = 1.2;
-        s.sound.play('metal'); s.fx.ring(this.ship.x, PY, { color: '#60a5fa', radius: 60 });
-        s.fx.text(this.ship.x, PY - 50, 'Shield blocked it!', { color: '#93c5fd', size: 18 });
+        s.sound.play('metal'); s.fx.ring(this.ship.x, this.ship.y, { color: '#60a5fa', radius: 60 });
+        s.fx.text(this.ship.x, this.ship.y - 50, 'Shield blocked it!', { color: '#93c5fd', size: 18 });
       } else {
-        this.capture = { q, t: 0, sx: this.ship.x, x: this.ship.x, y: PY, spin: 0 };
+        this.capture = { q, t: 0, sx: this.ship.x, sy: this.ship.y, x: this.ship.x, y: this.ship.y, spin: 0 };
         this.bullets = [];
         s.sound.tone({ freq: 900, to: 200, dur: 1.2, type: 'triangle', vol: 0.08 });
       }
@@ -828,7 +848,7 @@ class AlienShooter {
     const firing = a.lanceT >= LANCE.charge && a.lanceT < LANCE.charge + LANCE.fire;
     if (firing && !this.invuln && !this.capture && !this.shipHidden) {
       for (const sx of this.shipXs()) {
-        if (Math.abs(sx - a.x) < 7 + SHIP_R * 0.75) { if (this.crash(sx)) return true; break; }
+        if (this.ship.y > a.y && Math.abs(sx - a.x) < 7 + SHIP_R * 0.75) { if (this.crash(sx)) return true; break; }
       }
     }
     if (a.lanceT >= LANCE.charge + LANCE.fire) {
@@ -942,10 +962,14 @@ class AlienShooter {
     const s = this.s, r = s.rng, T = TYPES[a.type];
     this.sinceDrop++;
     let kind = null;
-    if (a.type === 'carrier' && a.state !== 'form' && this.level >= 6 && !this.lifeDropped && r.chance(0.05)) {
+    const diving = a.state !== 'form' && a.state !== 'home' && a.state !== 'enter';
+    if (a.type === 'carrier' && diving && this.level >= 6 && !this.lifeDropped && r.chance(0.05)) {
       kind = 'life'; this.lifeDropped = true;
+    } else if ((a.type === 'carrier' || a.type === 'bomber') && diving && this.level >= this.nextLaserLevel && r.chance(a.type === 'carrier' ? 0.1 : 0.03)) {
+      // the laser is as scarce as a 1UP: only from diving carriers/bombers, at most once every 4 levels
+      kind = 'laser'; this.nextLaserLevel = this.level + 4;
     } else if (r.chance(T.drop) || (this.sinceDrop >= 28 && T.drop > 0)) {
-      kind = r.chance(0.12) ? 'shield' : r.pick(['blaster', 'laser', 'rockets']);
+      kind = r.chance(0.14) ? 'shield' : r.chance(0.6) ? 'blaster' : 'rockets';
     }
     if (!kind) return;
     this.sinceDrop = 0;
@@ -958,14 +982,14 @@ class AlienShooter {
       p.t += dt; p.y += p.vy * dt; p.x += Math.sin(p.t * 3) * 20 * dt;
       if (this.shipHidden || this.capture) continue;
       for (const sx of this.shipXs()) {
-        if ((p.x - sx) ** 2 + (p.y - PY) ** 2 < 30 ** 2) { p.got = true; this.collect(p); break; }
+        if ((p.x - sx) ** 2 + (p.y - this.ship.y) ** 2 < 30 ** 2) { p.got = true; this.collect(p); break; }
       }
     }
     this.pickups = this.pickups.filter((p) => !p.got && p.y < H + 30);
   }
 
   collect(p) {
-    const s = this.s, L = this.level, x = p.x, y = PY - 40, info = PICKUPS[p.kind];
+    const s = this.s, L = this.level, x = p.x, y = this.ship.y - 40, info = PICKUPS[p.kind];
     s.fx.ring(p.x, p.y, { color: info.color, radius: 44 });
     s.fx.burst(p.x, p.y, { colors: [info.color, '#fff'], count: 24, speed: 200 });
     if (p.kind === 'life') { this.gainLife(); return; }
@@ -976,16 +1000,22 @@ class AlienShooter {
       this.shield = true;
       return;
     }
-    if (p.kind === this.weapon) {
-      if (this.power < 3) {
-        this.power++;
-        s.fx.text(x, y, `${info.name} ${'▮'.repeat(this.power)}`, { color: info.color, size: 22 });
-        if (this.power === 3) { s.unlock('maxed'); s.fx.text(x, y - 30, 'FULLY LOADED!', { color: '#fde047', size: 20 }); }
-      } else s.award(500 * L, x, y, { color: info.color, size: 20 });
+    const pw = this.pw, k = p.kind;
+    if (pw[k] < 3 && (k === this.weapon || k === 'blaster')) {
+      // same weapon (or a blaster capsule while a special is running) → more power
+      pw[k]++;
+      s.fx.text(x, y, `${info.name} ${'▮'.repeat(pw[k])}`, { color: info.color, size: 22 });
+      if (pw[k] === 3) { s.unlock('maxed'); s.fx.text(x, y - 30, 'FULLY LOADED!', { color: '#fde047', size: 20 }); }
+    } else if (k === this.weapon || k === 'blaster') {
+      s.award(500 * L, x, y, { color: info.color, size: 20 });
     } else {
-      this.weapon = p.kind;
-      s.fx.text(x, y, `${info.name}!`, { color: info.color, size: 24 });
+      // switch to a special weapon (the other special is lost)
+      if (this.weapon !== 'blaster') pw[this.weapon] = 1;
+      this.weapon = k;
+      if (k === 'laser') pw.laser = 2;          // rare, so it arrives strong
+      s.fx.text(x, y, `${info.name}!  ${WEAPON_TIME[k]}s`, { color: info.color, size: 24 });
     }
+    if (k === this.weapon && WEAPON_TIME[k]) this.weaponT = WEAPON_TIME[k];
   }
 
   // ── Hits and scoring ───────────────────────────────────────
@@ -1044,7 +1074,7 @@ class AlienShooter {
         s.award(300 * L, a.x, a.y - 50, { color: '#fbbf24', size: 26 });
         s.fx.text(a.x, a.y - 80, 'SQUAD BONUS!', { color: '#fbbf24', size: 22 });
         s.sound.play('golden'); s.unlock('squad');
-        this.pickups.push({ kind: s.rng.pick(['blaster', 'laser', 'rockets', 'shield']), x: a.x, y: a.y, vy: 110, t: 0 });
+        this.pickups.push({ kind: s.rng.pick(['blaster', 'rockets', 'shield']), x: a.x, y: a.y, vy: 110, t: 0 });
       }
     }
     // Split trio bonus
@@ -1099,19 +1129,19 @@ class AlienShooter {
     if (this.shield) {
       this.shield = false; this.invuln = 1.2;
       s.sound.play('metal'); s.fx.shake(5, 0.2);
-      s.fx.ring(this.ship.x, PY, { color: '#60a5fa', radius: 70, width: 5 });
-      s.fx.burst(this.ship.x, PY, { colors: ['#60a5fa', '#bfdbfe', '#fff'], count: 30, speed: 240 });
-      s.fx.text(this.ship.x, PY - 50, 'Shield down!', { color: '#93c5fd', size: 20 });
+      s.fx.ring(this.ship.x, this.ship.y, { color: '#60a5fa', radius: 70, width: 5 });
+      s.fx.burst(this.ship.x, this.ship.y, { colors: ['#60a5fa', '#bfdbfe', '#fff'], count: 30, speed: 240 });
+      s.fx.text(this.ship.x, this.ship.y - 50, 'Shield down!', { color: '#93c5fd', size: 20 });
       return false;
     }
-    s.fx.burst(hitX, PY, { colors: ['#f472b6', '#22d3ee', '#fde047', '#fff'], count: 60, speed: 320, life: 0.9 });
-    s.fx.ring(hitX, PY, { color: '#f472b6', radius: 80 });
+    s.fx.burst(hitX, this.ship.y, { colors: ['#f472b6', '#22d3ee', '#fde047', '#fff'], count: 60, speed: 320, life: 0.9 });
+    s.fx.ring(hitX, this.ship.y, { color: '#f472b6', radius: 80 });
     if (this.dual) {
       // lose one half of the twin fighter instead of a life
       this.dual = false; this.invuln = 1.3;
       this.ship.x = this.ship.tx = hitX < this.ship.x ? this.ship.x + TWIN : this.ship.x - TWIN;
       s.sound.play('hit'); s.fx.shake(8, 0.3);
-      s.fx.text(this.ship.x, PY - 50, 'Wing lost!', { color: '#fb7185', size: 20 });
+      s.fx.text(this.ship.x, this.ship.y - 50, 'Wing lost!', { color: '#fb7185', size: 20 });
       s.resetCombo();
       return false;
     }
@@ -1133,8 +1163,10 @@ class AlienShooter {
     if (this.boss) { this.boss.lasers = null; this.boss.atkT = 2.5; }
     this.beamCarrier = null; this.capture = null; this.rescue = null;
     this.shipHidden = false; this.dual = false; this.shield = false;
-    this.power = Math.max(1, this.power - 1);          // keep the weapon, lose one power level
-    this.ship.x = this.ship.tx = W / 2;
+    // special weapons are lost; the blaster drops one power level
+    this.weapon = 'blaster'; this.weaponT = 0;
+    this.pw = { blaster: Math.max(1, this.pw.blaster - 1), laser: 1, rockets: 1 };
+    this.ship.x = this.ship.tx = W / 2; this.ship.y = this.ship.ty = PY;
     this.invuln = 2.2; this.diveT = 1.5;
   }
 
@@ -1215,13 +1247,13 @@ class AlienShooter {
       this.drawFighter(ctx, c.x, c.y, c.spin, t, { captive: c.t > 0.8 });
     } else if (!this.shipHidden && !this.dead && !(this.invuln && Math.floor(t * 14) % 2)) {
       const sh = this.ship;
-      for (const x of this.shipXs()) this.drawFighter(ctx, x, PY, sh.tilt, t, { flame: true });
+      for (const x of this.shipXs()) this.drawFighter(ctx, x, sh.y, sh.tilt, t, { flame: true });
       if (this.shield) {
         ctx.save(); ctx.globalCompositeOperation = 'lighter';
         const rx = this.dual ? 44 : 28;
         ctx.strokeStyle = `rgba(96,165,250,${0.55 + Math.sin(t * 6) * 0.2})`; ctx.lineWidth = 3;
         ctx.fillStyle = 'rgba(96,165,250,.12)';
-        ctx.beginPath(); ctx.ellipse(sh.x, PY, rx, 28, 0, 0, TAU); ctx.fill(); ctx.stroke(); ctx.restore();
+        ctx.beginPath(); ctx.ellipse(sh.x, sh.y, rx, 28, 0, 0, TAU); ctx.fill(); ctx.stroke(); ctx.restore();
       }
     }
     if (this.rescue) this.drawFighter(ctx, this.rescue.x, this.rescue.y, this.rescue.spin, t, {});
@@ -1252,6 +1284,12 @@ class AlienShooter {
     ctx.save(); ctx.font = '800 12px system-ui'; ctx.textBaseline = 'bottom';
     const wp = WEAPONS[this.weapon];
     ctx.textAlign = 'left'; ctx.fillStyle = wp.color;
+    if (this.weapon !== 'blaster') {
+      const k = Math.max(0, this.weaponT / WEAPON_TIME[this.weapon]);
+      ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fillRect(12, H - 30, 150, 5);
+      ctx.fillStyle = wp.color; ctx.globalAlpha = this.weaponT < 2.5 && Math.floor(this.t * 8) % 2 ? 0.35 : 1;
+      ctx.fillRect(12, H - 30, 150 * k, 5); ctx.globalAlpha = 1;
+    }
     ctx.fillText(`${wp.name} ${'▮'.repeat(this.power)}${'▯'.repeat(3 - this.power)}${this.dual ? ' ×2' : ''}${this.shield ? '  +SHIELD' : ''}`, 12, H - 8);
     if (this.shots >= 10 && !this.bonus) {
       ctx.fillStyle = 'rgba(165,243,252,.7)'; ctx.textAlign = 'right';
@@ -1310,8 +1348,8 @@ class AlienShooter {
     const w = lv.w + Math.sin(t * 60) * 1.5;
     const lg = ctx.createLinearGradient(lv.x - w * 1.8, 0, lv.x + w * 1.8, 0);
     lg.addColorStop(0, `rgba(${c},0)`); lg.addColorStop(0.35, `rgba(${c},.6)`); lg.addColorStop(0.5, 'rgba(255,255,255,.95)'); lg.addColorStop(0.65, `rgba(${c},.6)`); lg.addColorStop(1, `rgba(${c},0)`);
-    ctx.fillStyle = lg; ctx.fillRect(lv.x - w * 1.8, lv.top, w * 3.6, PY - 20 - lv.top);
-    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(lv.x, PY - 20, w * 0.9, 0, TAU); ctx.fill();
+    ctx.fillStyle = lg; ctx.fillRect(lv.x - w * 1.8, lv.top, w * 3.6, lv.y0 - lv.top);
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(lv.x, lv.y0, w * 0.9, 0, TAU); ctx.fill();
     ctx.fillStyle = `rgba(${c},.8)`; ctx.beginPath(); ctx.arc(lv.x, lv.top, w * 1.3 + Math.random() * 3, 0, TAU); ctx.fill();
     ctx.restore();
   }

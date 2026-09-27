@@ -118,8 +118,8 @@ export const GAMES = [
     gold: 'Golden Starfighter',     // golden character unlocked for Legends
     title: 'Galactic Alien Shooter',
     tagline: 'Five alien warships, five different weapons. Grab lasers, rockets and blasters, rescue your abducted ship, then take on the Dreadnought!',
-    controls: 'Move: mouse / ← → / drag · Fire: hold Space or mouse button (touch & hold on phones)',
-    difficulty: 'Medium',
+    controls: 'Fly: mouse / arrow keys / drag (up, down, left, right) · Fire: hold Space or mouse button (touch & hold on phones)',
+    difficulty: 'Hard',
     color: '#22d3ee',
     isNew: true,
     achievements: [
