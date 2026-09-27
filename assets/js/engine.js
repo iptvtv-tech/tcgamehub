@@ -15,6 +15,7 @@ import { Sound } from './audio.js';
 import { Scores, cleanName, nameProblem } from './scores.js';
 import { makeRng, hashString, todayKey } from './rng.js';
 import { whatsappLink, WA_ICON } from './site.js';
+import { Legends } from './legends.js';
 
 const STEP = 1 / 120; // physics runs at a fixed 120 updates per second
 const REDUCED_MOTION = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -199,10 +200,12 @@ class Shell {
     this.id = def.id;
     this.meta = gameById(def.id) || { title: def.title || def.id, tagline: '', controls: '', color: '#22d3ee', achievements: [] };
     this.W = def.width; this.H = def.height;
+    this.gold = false; // set after meta is known (below)
     const params = new URLSearchParams(location.search);
     this.daily = params.get('daily') === '1';
     this.mode = this.daily ? 'daily' : 'normal';
     this.checkpoints = this.computeCheckpoints();
+    this.gold = !!this.meta.gold && Legends.goldOn(this.id);
     const wanted = parseInt(params.get('start'), 10);
     this.chosenStart = this.checkpoints.includes(wanted) ? wanted : 1;
 
@@ -233,7 +236,14 @@ class Shell {
   // ── Helpers games use ────────────────────────────────────────
   /** Difficulty multiplier: grows `perLevel` (7%) each level, capped. */
   speed(perLevel = 0.07, cap = 2.4, level = this.level) { return Math.min(cap, Math.pow(1 + perLevel, level - 1)); }
-  isBonusLevel(level) { return level % CONFIG.bonusEvery === 0; }
+  isBonusLevel(level) {
+    if (this.def.secretLevel && level >= this.def.secretLevel) return false;
+    if (this.def.bonusLevels) return this.def.bonusLevels.includes(level);
+    return level % CONFIG.bonusEvery === 0;
+  }
+  isSecretLevel(level = this.level) { return !!this.def.secretLevel && level === this.def.secretLevel; }
+  /** Flawless = started at level 1 and never lost a life. */
+  isFlawless() { return this.startLevel === 1 && !this.livesLost; }
 
   /** Add points. With {chain:true} it counts toward the combo and gets multiplied. */
   award(base, x, y, { chain = false, color = '#fff', size = 20 } = {}) {
@@ -284,13 +294,18 @@ class Shell {
     this.fx.text(this.W / 2, this.H * 0.42, this.bonus ? 'BONUS COMPLETE!' : 'LEVEL CLEAR!', { color: '#a3e635', size: 38, life: 1.3, rise: 20 });
     this.fx.text(this.W / 2, this.H * 0.52, `+${fmt(pts)}`, { color: '#fff', size: 28, life: 1.3, rise: 20 });
     this.game.onLevelClear?.();
-    this.after(1.3, () => this.beginLevel(this.level + 1));
+    const fin = this.def.finalLevel;
+    if (fin && this.level >= fin) {
+      if (this.def.secretLevel && this.level === fin && this.isFlawless()) this.after(1.6, () => this.beginLevel(this.def.secretLevel));
+      else this.after(1.4, () => this.finishRun());
+    } else this.after(1.3, () => this.beginLevel(this.level + 1));
   }
 
   /** Call when the player is hit. Loses a life, or ends the game on the last one. */
   hurt() {
     if (this.state !== 'playing') return;
     this.lives--;
+    this.livesLost = (this.livesLost || 0) + 1;
     this.resetCombo();
     this.updateHud();
     if (this.lives <= 0) return this.gameOver();
@@ -318,7 +333,7 @@ class Shell {
   // ── Run flow ─────────────────────────────────────────────────
   computeCheckpoints() {
     if (this.daily) return [1];
-    const max = Store.maxLevel(this.id), list = [1];
+    const max = Math.min(Store.maxLevel(this.id), this.def.finalLevel || Infinity), list = [1];
     for (let l = CONFIG.bonusEvery + 1; l <= max; l += CONFIG.bonusEvery) list.push(l);
     return list;
   }
@@ -330,6 +345,8 @@ class Shell {
     this.startLevel = startLevel;
     this.score = 0; this.lives = this.def.lives || 1; this.playTime = 0;
     this.comboCount = 0; this.multiplier = 1;
+    this.livesLost = 0; this.won = false;
+    this.gold = !!this.meta.gold && Legends.goldOn(this.id);
     const seed = this.daily ? hashString(todayKey() + ':' + this.id) : (Math.random() * 4294967296) >>> 0;
     this.rng = makeRng(seed);
     Store.addPlay(this.id);
@@ -351,7 +368,7 @@ class Shell {
     this.bonusLeft = this.bonus ? (this.def.bonusTime || 15) : 0;
     this.lastTick = Math.ceil(this.bonusLeft);
     if (this.bonus) this.unlock('bonus', true);
-    Store.reachLevel(this.id, level);
+    Store.reachLevel(this.id, Math.min(level, this.def.finalLevel || level));
     for (const a of this.meta.achievements || []) {
       const m = /^level(\d+)$/.exec(a.id);
       if (m && level >= +m[1]) this.unlock(a.id);
@@ -359,11 +376,33 @@ class Shell {
     this.game.startLevel(level, this.bonus);
     this.updateHud();
     const info = this.def.levelInfo ? this.def.levelInfo(level, this.bonus) : '';
-    this.showBanner(this.bonus ? '★ BONUS ROUND ★' : `Level ${level}`, info, this.bonus);
-    this.sound.play(this.bonus ? 'bonus' : 'go');
+    const secret = this.isSecretLevel(level);
+    this.showBanner(secret ? (this.def.secretTitle || '??? SECRET LEVEL ???') : this.bonus ? '★ BONUS ROUND ★' : `Level ${level}`, info, this.bonus || secret);
+    this.sound.play(this.bonus || secret ? 'bonus' : 'go');
     if (this.def.music?.bpm) Sound.setTempo(this.def.music.bpm * Math.min(1.45, 1 + (level - 1) * 0.025));
     this.state = 'banner';
     this.after(this.bonus ? 1.7 : 1.35, () => { this.hideBanner(); this.state = 'playing'; });
+  }
+
+  /** Reached the end of a game with a fixed number of levels (def.finalLevel). */
+  finishRun() {
+    this.state = 'dying';
+    this.won = true;
+    this.sound.play('highscore');
+    this.fx.confetti(this.W, this.H);
+    this.after(1.2, () => this.showGameOver());
+  }
+
+  /** Legend games call this when the secret reward is revealed. */
+  legendFound() {
+    if (this.state === 'legend') return;
+    this.state = 'legend';
+    this.won = true;
+    this.unlock('legend', true);
+    Legends.grant(this.id);
+    if (this.def.legendBadge) this.unlock(this.def.legendBadge);
+    Sound.stopMusic();
+    this.after(this.def.legendRevealDelay ?? 6, () => this.showLegendPanel());
   }
 
   gameOver() {
@@ -512,7 +551,7 @@ class Shell {
 
   updateHud() {
     const h = this.hud;
-    h.level.textContent = this.bonus ? `${this.level}★` : this.level;
+    h.level.textContent = this.isSecretLevel() ? '???' : this.bonus ? `${this.level}★` : this.level;
     h.score.textContent = fmt(this.score);
     h.best.textContent = fmt(Math.max(Store.best(this.id), this.state === 'title' ? 0 : this.score));
     h.combo.textContent = `x${this.multiplier}`;
@@ -539,6 +578,7 @@ class Shell {
   hideBanner() { this.bannerEl.hidden = true; }
 
   showOverlay(html) {
+    this.overlayEl.className = 'overlay';
     this.overlayEl.innerHTML = `<div class="panel">${html}</div>`;
     this.overlayEl.hidden = false;
     return this.overlayEl;
@@ -565,6 +605,8 @@ class Shell {
       <div class="title-art" style="--c:${m.color}">${esc(m.title)}</div>
       ${this.daily ? `<p class="pill daily big">📅 Daily Challenge · ${todayKey()}</p><p class="muted">Same level layout for everyone today. Own leaderboard.</p>` : `<p class="tagline">${esc(m.tagline || '')}</p>`}
       <p class="controls">🎮 ${esc(m.controls || '')}</p>
+      ${this.def.titleHint ? `<p class="legend-hint">${esc(this.def.titleHint)}</p>` : ''}
+      ${m.gold && Legends.isLegend() ? `<p><button class="chip gold-chip${Legends.goldOn(this.id) ? ' on' : ''}" data-gold>✨ ${esc(m.gold)}: ${Legends.goldOn(this.id) ? 'ON' : 'OFF'}</button></p>` : ''}
       ${cps.length > 1 ? `<div class="checkpoints"><small>Start from</small>${cps.map((l) => `<button class="chip${l === this.chosenStart ? ' on' : ''}" data-start="${l}">Level ${l}</button>`).join('')}</div>` : ''}
       <button class="btn primary big" data-act="play">▶ Play</button>
       <p class="muted small">Press <kbd>Enter</kbd> or <kbd>Space</kbd> · <kbd>P</kbd> pause · <kbd>M</kbd> mute</p>
@@ -575,6 +617,13 @@ class Shell {
       <p class="small">${this.daily ? `<a href="./">Play normal mode instead</a>` : `<a href="./?daily=1">Try today's Daily Challenge seed →</a>`}</p>
     `);
     o.querySelector('[data-act="play"]').onclick = () => this.startRun(this.chosenStart);
+    const gb = o.querySelector('[data-gold]');
+    if (gb) gb.onclick = () => {
+      const on = !Legends.goldOn(this.id);
+      Legends.setGold(this.id, on); this.gold = on;
+      gb.classList.toggle('on', on); gb.textContent = `✨ ${m.gold}: ${on ? 'ON' : 'OFF'}`;
+      Sound.play(on ? 'powerup' : 'click');
+    };
     o.querySelectorAll('[data-start]').forEach((b) => b.onclick = () => {
       this.chosenStart = +b.dataset.start; Sound.play('click');
       o.querySelectorAll('[data-start]').forEach((x) => x.classList.toggle('on', x === b));
@@ -597,6 +646,58 @@ class Shell {
     o.querySelector('[data-act="resume"]').focus({ preventScroll: true });
   }
 
+  /** The finale panel for a Legend game (shown over the reward animation). */
+  showLegendPanel() {
+    this.state = 'over';
+    this.overReady = true;
+    const score = Math.floor(this.score);
+    if (Store.submitBest(this.id, score)) this.unlock('pb', true);
+    const unlocks = Legends.unlocks();
+    const shareText = `🥚👑 I found the secret at ${location.origin}/ … can you? Only true Legends get in.`;
+    const o = this.showOverlay(`
+      <h2 class="legend-title">👑 You are a Legend</h2>
+      <p class="muted">Final score <b>${fmt(score)}</b> · ${this.def.finalLevel || ''} levels · not a single life lost</p>
+      <div class="gold-unlocks"><small>Golden characters unlocked in every game</small>
+        <div>${unlocks.map((u) => `<span class="gold-pill">✨ ${esc(u.gold)}</span>`).join('')}</div>
+      </div>
+      <div class="rank-box" data-legend>
+        <p class="rank-msg">Sign the <b>Hall of Legends</b>:</p>
+        <form class="name-form" autocomplete="off">
+          <input name="n" maxlength="12" placeholder="Your name" value="${esc(Store.name())}" aria-label="Your name" enterkeyhint="done">
+          <button class="btn primary" type="submit">Sign</button>
+        </form>
+        <p class="form-msg" aria-live="polite"></p>
+      </div>
+      <div class="row">
+        <a class="btn gold-btn" href="../../hall-of-legends/">🏛️ Hall of Legends</a>
+        <a class="btn wa" href="${whatsappLink(shareText)}" target="_blank" rel="noopener">${WA_ICON} Share</a>
+        <a class="btn" href="../../">⌂ Arcade</a>
+      </div>`);
+    o.classList.add('legend-overlay');
+    const box = o.querySelector('[data-legend]'), form = box.querySelector('form'), input = form.n, msg = box.querySelector('.form-msg');
+    input.focus({ preventScroll: true }); input.select();
+    input.addEventListener('input', () => { const c = cleanName(input.value); if (c !== input.value.trim() || input.value.length > 12) input.value = c; msg.textContent = ''; });
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const name = cleanName(input.value);
+      const problem = nameProblem(name);
+      if (problem) { msg.textContent = problem; msg.className = 'form-msg err'; return; }
+      form.querySelector('button').disabled = true; msg.textContent = 'Signing…'; msg.className = 'form-msg';
+      try {
+        const { code } = await Legends.claim(this.id, name, this.playTime * 1000);
+        Scores.submit({ game: this.id, name, score, level: this.level, durationMs: this.playTime * 1000, mode: this.mode }).catch(() => {});
+        this.unlock('famous', true);
+        this.sound.play('achieve');
+        box.innerHTML = `<p class="rank-msg saved">✅ <b>${esc(name)}</b> is in the Hall of Legends.</p>
+          <p class="legend-code">Your Legend code: <b>${esc(code)}</b></p>
+          <p class="muted small">Keep it safe. Enter it on the Hall of Legends page to get your golden characters back on another phone or computer.</p>`;
+      } catch (err) {
+        form.querySelector('button').disabled = false;
+        msg.textContent = err.message || 'Could not sign — try again.'; msg.className = 'form-msg err';
+      }
+    };
+  }
+
   async showGameOver() {
     this.state = 'over';
     this.overReady = false;
@@ -616,10 +717,15 @@ class Shell {
       ? `🎮 I scored ${fmt(score)} on ${this.meta.title}${this.daily ? " (today's Daily Challenge)" : ''} and reached level ${this.level}! Can you beat me? ${gameUrl}`
       : `🎮 Come play ${this.meta.title} with me, free in your browser: ${gameUrl}`;
 
+    let wonLine = '';
+    if (this.won && this.def.sealedHint) {
+      wonLine = `<p class="legend-hint">${esc(this.startLevel === 1 ? this.def.sealedHint : (this.def.sealedHintCheckpoint || this.def.sealedHint))}</p>`;
+    }
     const o = this.showOverlay(`
-      <h2 class="over-title">Game Over</h2>
+      <h2 class="over-title">${this.won ? esc(this.def.winTitle || 'You made it!') : 'Game Over'}</h2>
       <div class="final-score">${fmt(score)}</div>
-      <p class="muted">Reached level ${this.level}${this.daily ? ' · Daily Challenge' : ''}</p>
+      <p class="muted">${this.won ? `All ${this.def.finalLevel || this.level} levels complete · ${this.livesLost ? `${this.livesLost} ${this.livesLost === 1 ? 'life' : 'lives'} lost` : 'no lives lost'}` : `Reached level ${this.level}`}${this.daily ? ' · Daily Challenge' : ''}</p>
+      ${wonLine}
       ${pbLine}
       <div class="rank-box" data-rank><span class="muted">Checking the leaderboard…</span></div>
       <button class="btn primary big" data-act="again">↻ Play again</button>

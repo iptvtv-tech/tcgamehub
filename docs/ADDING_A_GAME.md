@@ -62,6 +62,31 @@ Badges named `level10`, `score5k`, `score10k` or `combo3` unlock **automatically
 
 The home page card, leaderboard tab, daily-challenge rotation, "Try another game" links and badge list all update from this entry.
 
+### 4b. Give it a golden character (every game must have one)
+Legends unlock a golden version of the main character in **every** game. Add a `gold` name to the entry, e.g. `gold: 'Golden Rocket'`, and in your `render()` use the gold colours when `this.s.gold` is true:
+
+```js
+ctx.fillStyle = this.s.gold ? '#fbbf24' : '#22d3ee';
+```
+
+The engine adds the "✨ Golden …: ON/OFF" switch to the game's menu, and the Hall of Legends lists it automatically.
+
+### 4c. (Optional) Make it a Legend game
+A Legend game has an ending, and a secret level for flawless runs. In `runGame({...})` add:
+
+```js
+finalLevel: 15,            // the last normal level
+secretLevel: 16,           // only reached from level 1 with no lives lost
+bonusLevels: [5, 10],      // which levels are bonus rounds
+secretTitle: '★ THE SECRET ★',
+winTitle: 'You made it!',
+sealedHint: 'Something stays locked… perhaps a more careful player?',
+titleHint: 'Legends say a flawless player finds something special…',
+legendBadge: 'egg',        // an achievement id with legendary: true, secret: true
+```
+
+In the secret level, call `this.s.legendFound()` when the player reaches the reward (show your own reward animation in `idle()`). In games.js set `legend: true` on the entry. In Supabase, add the game with `has_legend = true` (see supabase/legends-update.sql). Everything else — badges, golden unlocks, the Hall, Legend codes — is shared.
+
 ### 5. Add a thumbnail
 Put a square `thumb.svg` in the game folder. A small animated SVG looks great on the cards. You can copy one of the existing ones.
 

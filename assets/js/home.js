@@ -2,6 +2,7 @@ import { CONFIG } from './config.js';
 import { GAMES, GLOBAL_ACHIEVEMENTS, gameById, dailyGame } from './games.js';
 import { Store } from './storage.js';
 import { Scores } from './scores.js';
+import { Legends } from './legends.js';
 import { siteChrome, esc, fmt, ago, whatsappLink, WA_ICON } from './site.js';
 
 siteChrome();
@@ -89,11 +90,30 @@ async function loadTicker() {
 loadTicker(); setInterval(loadTicker, 60000);
 
 // ── Badges ──────────────────────────────────────────────────
-const groups = [{ title: 'Arcade', list: GLOBAL_ACHIEVEMENTS, key: (a) => `g:${a.id}` }]
-  .concat(GAMES.map((g) => ({ title: g.title, list: g.achievements || [], key: (a) => `${g.id}:${a.id}` })));
+// Legendary badges get their own gold group at the top; secret ones stay hidden until earned.
+const legendary = [
+  ...GLOBAL_ACHIEVEMENTS.filter((a) => a.legendary).map((a) => ({ a, key: `g:${a.id}` })),
+  ...GAMES.flatMap((g) => (g.achievements || []).filter((a) => a.legendary).map((a) => ({ a, key: `${g.id}:${a.id}` }))),
+];
+const groups = [{ title: '👑 Legendary', cls: 'legendary', items: legendary }]
+  .concat([{ title: 'Arcade', items: GLOBAL_ACHIEVEMENTS.filter((a) => !a.legendary).map((a) => ({ a, key: `g:${a.id}` })) }])
+  .concat(GAMES.map((g) => ({ title: g.title, items: (g.achievements || []).filter((a) => !a.legendary).map((a) => ({ a, key: `${g.id}:${a.id}` })) })));
 let got = 0, total = 0;
-document.getElementById('badge-list').innerHTML = groups.map((grp) => `
-  <div class="badge-group"><h3>${esc(grp.title)}</h3><div class="badge-grid">
-    ${grp.list.map((a) => { const has = Store.hasAch(grp.key(a)); got += has; total++; return `<div class="badge${has ? ' got' : ''}" title="${esc(a.desc)}"><span class="ico">${a.icon}</span><span><b>${esc(a.title)}</b><small>${esc(a.desc)}</small></span></div>`; }).join('')}
+document.getElementById('badge-list').innerHTML = groups.filter((grp) => grp.items.length).map((grp) => `
+  <div class="badge-group ${grp.cls || ''}"><h3>${esc(grp.title)}</h3><div class="badge-grid">
+    ${grp.items.map(({ a, key }) => {
+      const has = Store.hasAch(key); got += has; total++;
+      const hidden = a.secret && !has;
+      const title = hidden ? '???' : a.title, desc = hidden ? 'A secret. Keep playing…' : a.desc;
+      return `<div class="badge${has ? ' got' : ''}${a.legendary ? ' legendary' : ''}${hidden ? ' secret' : ''}" title="${esc(desc)}"><span class="ico">${hidden ? '🔒' : a.icon}</span><span><b>${esc(title)}</b><small>${esc(desc)}</small></span></div>`;
+    }).join('')}
   </div></div>`).join('');
 document.getElementById('badge-count').textContent = `${got} / ${total} unlocked`;
+
+// ── Legend banner ───────────────────────────────────────────
+if (Legends.isLegend()) {
+  const el = document.createElement('div');
+  el.className = 'legend-banner';
+  el.innerHTML = `<span style="font-size:1.8em">👑</span><div><b>You are a Legend.</b><br><span class="muted small">Your golden characters are switched on in every game. Turn them on or off from each game's menu.</span></div><a class="btn" href="hall-of-legends/">🏛️ Hall of Legends</a>`;
+  document.getElementById('games').before(el);
+}

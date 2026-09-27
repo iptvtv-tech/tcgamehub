@@ -12,6 +12,7 @@ A static website of quick browser games with levels, bonus rounds, combos, badge
 | **Feather Dash** | Flappy-style endless flyer. Pillars start to sway, golden-feather shields and hawks come in later, and the scenery goes from day to sunset to night to aurora. Bonus round: golden sky. |
 | **Astro Blaster** | Colourful space shooter. ⚡ Shock asteroids go off with a bang, a flash and a shockwave that chain-reacts; plus splitting rocks, power-ups, comets and UFOs. Bonus: crystal storm. |
 | **Crazy Putt** | Crazy golf: hold to power up, aim line, windmills, water, bumpers and *hidden* traps (trapdoors, secret sand, speed pads, fake holes). Big hole-in-one bonus. Bonus: hole-in-one frenzy. |
+| **The Vault Job** | Stealth heist through a museum at night: guards with torch beams, cameras, guard dogs, lasers and hiding spots. 15 levels, and a secret for anyone who finishes without losing a life… |
 | **Prism Breaker** | Rainbow brick breaker with 10 layouts, tough, steel and explosive bricks, and 5 power-ups. Bonus round: a piñata party where the floor is shielded. |
 
 ---
@@ -127,6 +128,16 @@ See **[docs/ADDING_A_GAME.md](docs/ADDING_A_GAME.md)**. In short: copy `games/_t
 | Phone-friendly **touch, swipe and drag** controls, auto-pause when the tab is hidden | Engine |
 | **Installable / offline** (web-app manifest and service worker) | Site |
 
+## Legends (secret rewards)
+
+Some games are **Legend games** (currently *The Vault Job*). They have a fixed number of levels. Finish every level **starting from level 1 without losing a single life** and a secret final level opens. Completing it makes the player a **Legend**:
+- golden versions of every game's main character (switchable in each game's menu),
+- special gold "Legendary" badges on the home page,
+- the hidden **Hall of Legends** page (`/hall-of-legends/`) with every Legend's name,
+- a Legend code to restore everything on another device.
+
+Run `supabase/legends-update.sql` once to switch on the Hall of Legends. Adding golden characters and new Legend games is covered in docs/ADDING_A_GAME.md.
+
 ## Project layout
 
 ```
@@ -139,6 +150,8 @@ assets/js/games.js         ← game registry (add new games here)
 assets/js/engine.js        shared game engine (loop, input, levels, game over…)
 assets/js/scores.js        leaderboard (Supabase or local fallback)
 assets/js/audio.js         synthesised sounds + music
+assets/js/legends.js       Legends: golden characters, Hall of Legends, Legend codes
+hall-of-legends/           the hidden Hall of Legends page
 assets/css/                styles
 supabase/schema.sql        database setup (run once)
 ```

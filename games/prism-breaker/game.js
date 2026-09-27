@@ -353,7 +353,8 @@ class PrismBreaker {
     const p = this.paddle, pw = this.pw;
     ctx.save();
     const pg = ctx.createLinearGradient(p.x - pw / 2, 0, p.x + pw / 2, 0);
-    pg.addColorStop(0, '#f472b6'); pg.addColorStop(0.5, '#a78bfa'); pg.addColorStop(1, '#22d3ee');
+    if (this.s.gold) { pg.addColorStop(0, '#b45309'); pg.addColorStop(0.5, '#fde68a'); pg.addColorStop(1, '#f59e0b'); } // ✨ Legend: golden paddle
+    else { pg.addColorStop(0, '#f472b6'); pg.addColorStop(0.5, '#a78bfa'); pg.addColorStop(1, '#22d3ee'); }
     ctx.shadowColor = this.fireT > 0 ? '#fb923c' : '#c084fc'; ctx.shadowBlur = 20;
     ctx.fillStyle = pg; roundRect(ctx, p.x - pw / 2, PY, pw, PH, 7); ctx.fill();
     ctx.shadowBlur = 0; ctx.fillStyle = 'rgba(255,255,255,.4)'; roundRect(ctx, p.x - pw / 2 + 6, PY + 2, pw - 12, 4, 2); ctx.fill();
@@ -369,7 +370,7 @@ class PrismBreaker {
       });
       ctx.globalAlpha = 1;
       ctx.save(); ctx.shadowColor = fire ? '#fb923c' : '#a5f3fc'; ctx.shadowBlur = 18;
-      ctx.fillStyle = fire ? '#fed7aa' : '#fff'; ctx.beginPath(); ctx.arc(b.x, b.y, BALL_R, 0, 7); ctx.fill(); ctx.restore();
+      ctx.fillStyle = fire ? '#fed7aa' : this.s.gold ? '#fde047' : '#fff'; ctx.beginPath(); ctx.arc(b.x, b.y, BALL_R, 0, 7); ctx.fill(); ctx.restore();
     }
 
     // Launch hint

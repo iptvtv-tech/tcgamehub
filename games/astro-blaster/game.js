@@ -509,12 +509,13 @@ class AstroBlaster {
     ctx.fillStyle = fg; ctx.beginPath(); ctx.moveTo(-6, 12); ctx.lineTo(0, 16 + f); ctx.lineTo(6, 12); ctx.fill();
     // wings
     ctx.shadowColor = '#22d3ee'; ctx.shadowBlur = 14;
-    ctx.fillStyle = '#7c3aed';
+    ctx.fillStyle = this.s.gold ? '#d97706' : '#7c3aed';
     ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(-20, 14); ctx.lineTo(-8, 12); ctx.closePath(); ctx.fill();
     ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(20, 14); ctx.lineTo(8, 12); ctx.closePath(); ctx.fill();
     // body
     const bg = ctx.createLinearGradient(-8, 0, 8, 0);
-    bg.addColorStop(0, '#22d3ee'); bg.addColorStop(0.5, '#e0f2fe'); bg.addColorStop(1, '#f472b6');
+    if (this.s.gold) { bg.addColorStop(0, '#b45309'); bg.addColorStop(0.5, '#fef3c7'); bg.addColorStop(1, '#f59e0b'); } // ✨ Legend: golden ship
+    else { bg.addColorStop(0, '#22d3ee'); bg.addColorStop(0.5, '#e0f2fe'); bg.addColorStop(1, '#f472b6'); }
     ctx.fillStyle = bg;
     ctx.beginPath(); ctx.moveTo(0, -22); ctx.quadraticCurveTo(10, -2, 8, 14); ctx.lineTo(-8, 14); ctx.quadraticCurveTo(-10, -2, 0, -22); ctx.fill();
     ctx.shadowBlur = 0;

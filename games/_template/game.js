@@ -97,7 +97,8 @@ class StarCatcher {
       ctx.fillStyle = it.bomb ? '#fb7185' : '#fde047';
       ctx.beginPath(); ctx.arc(it.x, it.y, it.bomb ? 14 : 10, 0, Math.PI * 2); ctx.fill();
     }
-    ctx.fillStyle = '#22d3ee';
+    // Every game has a golden version of its main character for Legends: check this.s.gold
+    ctx.fillStyle = this.s.gold ? '#fbbf24' : '#22d3ee';
     roundRect(ctx, this.x - 45, H - 60, 90, 16, 8); ctx.fill();
     if (!this.bonus) progressBar(ctx, 16, 14, W - 32, 18, this.caught / this.need, '#22d3ee', `Stars ${this.caught} / ${this.need}`);
   }

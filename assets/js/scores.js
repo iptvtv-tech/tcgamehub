@@ -16,7 +16,7 @@ function headers() {
   return h;
 }
 
-async function rpc(fn, args) {
+export async function rpc(fn, args) {
   const res = await fetch(`${URL_}/rest/v1/rpc/${fn}`, {
     method: 'POST', headers: headers(), body: JSON.stringify(args),
   });

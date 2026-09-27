@@ -1,5 +1,6 @@
 // Small helpers shared by the non-game pages.
 import { CONFIG } from './config.js';
+import { Legends } from './legends.js';
 
 export const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export const fmt = (n) => Math.floor(n || 0).toLocaleString('en-GB');
@@ -16,6 +17,15 @@ export function ago(ts) {
 export function siteChrome() {
   document.querySelectorAll('[data-site-name]').forEach((el) => { el.textContent = CONFIG.siteName; });
   document.querySelectorAll('[data-year]').forEach((el) => { el.textContent = new Date().getFullYear(); });
+  // Only Legends see the way into the Hall of Legends.
+  const nav = document.querySelector('.site-nav');
+  if (nav && Legends.isLegend() && !nav.querySelector('.legend-link')) {
+    const root = new URL('../../', import.meta.url);
+    const a = document.createElement('a');
+    a.className = 'legend-link'; a.href = new URL('hall-of-legends/', root).href; a.textContent = '👑 Legends';
+    if (location.pathname.includes('/hall-of-legends/')) a.setAttribute('aria-current', 'page');
+    nav.appendChild(a);
+  }
   if ('serviceWorker' in navigator && location.protocol === 'https:') {
     const root = new URL('../../', import.meta.url); // assets/js/ → site root
     navigator.serviceWorker.register(new URL('sw.js', root)).catch(() => {});

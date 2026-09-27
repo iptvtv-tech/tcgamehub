@@ -344,7 +344,9 @@ class NeonSnake {
     for (let i = n - 1; i >= 0; i--) {
       const p = this.snake[i];
       const hue = (t * 70 + i * 14) % 360;
-      const color = this.dead ? `hsl(0 0% ${40 + (i % 2) * 8}%)` : `hsl(${hue} 95% 60%)`;
+      const color = this.dead ? `hsl(0 0% ${40 + (i % 2) * 8}%)`
+        : this.s.gold ? `hsl(${44 + Math.sin(t * 4 - i * 0.5) * 6} 95% ${52 + Math.sin(t * 5 - i * 0.7) * 14}%)` // ✨ Legend: golden snake
+        : `hsl(${hue} 95% 60%)`;
       const inset = i === 0 ? 1.5 : 2.5 + Math.min(3, i * 0.15);
       ctx.shadowColor = color; ctx.shadowBlur = this.dead ? 0 : 12;
       ctx.fillStyle = color;

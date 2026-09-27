@@ -687,7 +687,8 @@ class CrazyPutt {
     const sc = 1 - b.z * 0.7;
     ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(b.x + 2, b.y + 3, R * sc, R * 0.8 * sc, 0, 0, 7); ctx.fill();
     const bg = ctx.createRadialGradient(b.x - 2, b.y - 2, 1, b.x, b.y, R * sc);
-    bg.addColorStop(0, '#fff'); bg.addColorStop(1, '#cbd5e1');
+    if (this.s.gold) { bg.addColorStop(0, '#fef9c3'); bg.addColorStop(1, '#d97706'); } // ✨ Legend: golden golf ball
+    else { bg.addColorStop(0, '#fff'); bg.addColorStop(1, '#cbd5e1'); }
     ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(b.x, b.y, R * sc, 0, 7); ctx.fill();
   }
 }

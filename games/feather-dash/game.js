@@ -385,7 +385,8 @@ class FeatherDash {
       ctx.save(); ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 3; ctx.globalAlpha = 0.6 + Math.sin(t * 8) * 0.3;
       ctx.shadowColor = '#fbbf24'; ctx.shadowBlur = 16; ctx.beginPath(); ctx.arc(0, 0, R + 9, 0, 7); ctx.stroke(); ctx.restore();
     }
-    const body = this.theme.body;
+    const body = this.s.gold ? '#fbbf24' : this.theme.body; // ✨ Legend: golden bird
+    if (this.s.gold && !this.dead && Math.random() < 0.35) this.s.fx.burst(BIRD_X - 12, b.y, { colors: ['#fde68a', '#fff', '#fbbf24'], count: 1, speed: 50, life: 0.5, size: 3, angle: Math.PI, spread: 1 });
     // tail
     ctx.fillStyle = shade(body, -30);
     ctx.beginPath(); ctx.moveTo(-R + 2, -2); ctx.lineTo(-R - 12, -9); ctx.lineTo(-R - 10, 6); ctx.closePath(); ctx.fill();
