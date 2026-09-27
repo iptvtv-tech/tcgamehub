@@ -102,7 +102,7 @@ export const GAMES = [
     controls: 'Arrow keys / WASD / swipe to move one tile · hide behind plants and statues',
     difficulty: 'Sneaky',
     color: '#fbbf24',
-    isNew: true,
+    isNew: false,
     legend: true,                           // this game can make you a Legend (see assets/js/legends.js)
     achievements: [
       { id: 'escape',   icon: '🚪', title: 'Great Escape',   desc: 'Get out of the museum after level 15' },
@@ -111,6 +111,25 @@ export const GAMES = [
       { id: 'level10',  icon: '🔦', title: 'Night Shift',    desc: 'Reach level 10' },
       { id: 'score10k', icon: '🏅', title: 'Ten Grand',      desc: 'Score 10,000 in one run' },
       { id: 'egg',      icon: '🥚', title: 'The Golden Egg', desc: 'Open the display case in the vault', legendary: true, secret: true },
+    ],
+  },
+  {
+    id: 'galactic-alien-shooter',
+    gold: 'Golden Starfighter',     // golden character unlocked for Legends
+    title: 'Galactic Alien Shooter',
+    tagline: 'Blast the swooping alien swarm — get beamed up, then rescue your ship for DOUBLE FIRE!',
+    controls: 'Move: mouse / ← → / drag · Fire: hold Space or mouse button (touch & hold on phones)',
+    difficulty: 'Medium',
+    color: '#22d3ee',
+    isNew: true,
+    achievements: [
+      { id: 'rescue',   icon: '🚀', title: 'Double Trouble',     desc: 'Rescue a captured fighter for double fire' },
+      { id: 'squad',    icon: '👑', title: 'Royal Flush',        desc: 'Shoot down a diving Queen and both escorts' },
+      { id: 'sharp',    icon: '🎯', title: 'Sharpshooter',       desc: 'Clear level 2+ with 75% accuracy' },
+      { id: 'golden',   icon: '✨', title: 'Golden Starfighter', desc: 'Hit all 40 in a Challenging Stage — unlocks the golden ship' },
+      { id: 'combo4',   icon: '🔥', title: 'On Fire',            desc: 'Reach a x4 combo' },
+      { id: 'level10',  icon: '🌌', title: 'Galaxy Defender',    desc: 'Reach level 10' },
+      { id: 'score10k', icon: '🏅', title: 'Ten Grand',          desc: 'Score 10,000 in one run' },
     ],
   },
 ];

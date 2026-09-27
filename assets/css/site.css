@@ -179,3 +179,15 @@ kbd { background: #2c2c5a; border: 1px solid #45458a; border-bottom-width: 2px; 
 .prose h1 { font-size: 2.4em; margin-top: 32px; }
 .prose h2 { margin-top: 1.6em; }
 .prose p, .prose li { color: #d6d5f0; }
+
+/* ── Legends ─────────────────────────────────────────────── */
+.badge-group.legendary h3 { color: #fbbf24; }
+.badge.legendary { border-color: #3b2a06; }
+.badge.legendary.got { background: linear-gradient(135deg, #3b2a06, #1a1a3d 60%); border-color: #fbbf24; box-shadow: 0 0 18px -6px #fbbf24; animation: goldGlow 2.4s ease-in-out infinite alternate; }
+.badge.secret .ico { filter: grayscale(1) opacity(.25); }
+@keyframes goldGlow { to { box-shadow: 0 0 26px -4px #fbbf24; } }
+.legend-banner { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 14px 18px; border-radius: var(--radius); background: linear-gradient(135deg, #3b2a06, #1a1a3d 70%); border: 1px solid #fbbf24; margin-bottom: 18px; }
+.legend-banner b { color: #fde68a; }
+.legend-banner .btn { margin-left: auto; background: linear-gradient(135deg, #fde68a, #f59e0b); color: #1c1003; border: 0; }
+.site-nav a.legend-link { color: #fbbf24; }
+@media (prefers-reduced-motion: reduce) { .badge.legendary.got { animation: none; } }

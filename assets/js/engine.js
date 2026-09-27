@@ -623,10 +623,12 @@ class Shell {
       Legends.setGold(this.id, on); this.gold = on;
       gb.classList.toggle('on', on); gb.textContent = `✨ ${m.gold}: ${on ? 'ON' : 'OFF'}`;
       Sound.play(on ? 'powerup' : 'click');
+      o.querySelector('[data-act="play"]').focus({ preventScroll: true }); // so Enter starts the game
     };
     o.querySelectorAll('[data-start]').forEach((b) => b.onclick = () => {
       this.chosenStart = +b.dataset.start; Sound.play('click');
       o.querySelectorAll('[data-start]').forEach((x) => x.classList.toggle('on', x === b));
+      o.querySelector('[data-act="play"]').focus({ preventScroll: true });
     });
     o.querySelector('[data-act="play"]').focus({ preventScroll: true });
     Scores.top(this.id, 'today', this.mode, 1).then((rows) => {

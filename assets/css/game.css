@@ -92,3 +92,18 @@ canvas { display: block; width: 100%; height: 100%; touch-action: none; user-sel
 .toast-icon { font-size: 1.6em; }
 .toast small { display: block; font-size: .7em; color: var(--gold); text-transform: uppercase; letter-spacing: .08em; }
 @keyframes toastIn { from { transform: translateY(-20px) scale(.8); opacity: 0; } }
+
+/* ── Legends ─────────────────────────────────────────────── */
+.legend-hint { font-style: italic; color: #fde68a; font-size: .92em; }
+.chip.gold-chip { border-color: #a16207; color: #fde68a; }
+.chip.gold-chip.on { background: linear-gradient(135deg, #a16207, #fbbf24); color: #1c1003; border-color: #fbbf24; }
+.legend-overlay { display: block; background: linear-gradient(to bottom, transparent 0%, transparent 30%, #06061299 50%); backdrop-filter: none; padding: 33% 4% 4%; }
+.legend-overlay .panel { margin: 0 auto; }
+.legend-overlay .gold-pill { font-size: .72em; padding: .15em .55em; }
+.legend-overlay .panel { border-color: #fbbf24; box-shadow: 0 0 0 1px #fbbf2455, 0 20px 60px #000c, 0 0 60px -10px #fbbf24aa; }
+.legend-title { font: 700 2em var(--font-head); margin: 0; background: linear-gradient(90deg, #fde68a, #fbbf24, #fff7cc, #f59e0b); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.gold-unlocks { margin: .5em 0; }
+.gold-unlocks small { color: var(--muted); display: block; margin-bottom: .3em; }
+.gold-pill { display: inline-block; margin: .15em; padding: .2em .65em; border-radius: 999px; font-size: .82em; font-weight: 700; color: #1c1003; background: linear-gradient(135deg, #fde68a, #f59e0b); }
+.btn.gold-btn { background: linear-gradient(135deg, #fde68a, #f59e0b); color: #1c1003; border: 0; }
+.legend-code b { font-family: ui-monospace, Consolas, monospace; letter-spacing: .08em; color: #fde68a; font-size: 1.15em; user-select: all; }

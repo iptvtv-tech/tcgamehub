@@ -13,6 +13,7 @@ A static website of quick browser games with levels, bonus rounds, combos, badge
 | **Astro Blaster** | Colourful space shooter. ⚡ Shock asteroids go off with a bang, a flash and a shockwave that chain-reacts; plus splitting rocks, power-ups, comets and UFOs. Bonus: crystal storm. |
 | **Crazy Putt** | Crazy golf: hold to power up, aim line, windmills, water, bumpers and *hidden* traps (trapdoors, secret sand, speed pads, fake holes). Big hole-in-one bonus. Bonus: hole-in-one frenzy. |
 | **The Vault Job** | Stealth heist through a museum at night: guards with torch beams, cameras, guard dogs, lasers and hiding spots. 15 levels, and a secret for anyone who finishes without losing a life… |
+| **Galactic Alien Shooter** | Formation space shooter. Aliens swoop in and dive at you; Queens use a tractor beam — rescue your captured ship for a double fighter. Splitters, escorts and return fire later. Bonus: Challenging Stage (hit all 40 for a golden ship). |
 | **Prism Breaker** | Rainbow brick breaker with 10 layouts, tough, steel and explosive bricks, and 5 power-ups. Bonus round: a piñata party where the floor is shielded. |
 
 ---
