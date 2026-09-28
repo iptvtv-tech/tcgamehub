@@ -83,8 +83,10 @@ const PROGRESSIONS = {
   minor: [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]], // Am F C G
   major: [[48, 52, 55], [55, 59, 62], [57, 60, 64], [53, 57, 60]], // C G Am F
   dream: [[50, 53, 57], [46, 50, 53], [48, 52, 55], [45, 49, 52]], // Dm Bb C A
+  cosmic: [[52, 55, 59], [48, 52, 55], [45, 48, 52], [47, 51, 54]], // Em C Am B
 };
-const music = { on: false, timer: null, step: 0, nextTime: 0, bpm: 110, prog: PROGRESSIONS.minor, lead: 'square' };
+const ARP = [0, 1, 2, 1, 0, 1, 2, 1], OCT = [12, 12, 12, 12, 24, 24, 24, 24];
+const music = { on: false, timer: null, step: 0, nextTime: 0, bpm: 110, prog: PROGRESSIONS.minor, lead: 'square', arp: ARP, oct: OCT, bass: 'half' };
 
 function scheduleMusic() {
   const c = ctx; if (!c || !music.on) return;
@@ -93,11 +95,12 @@ function scheduleMusic() {
     const bar = Math.floor(music.step / 8) % music.prog.length;
     const chord = music.prog[bar];
     const s = music.step % 8;
-    const arp = [0, 1, 2, 1, 0, 1, 2, 1][s];
-    const octave = s >= 4 ? 24 : 12;
+    const a = music.arp[s];
+    const pitch = (a >= 3 ? chord[a - 3] + 12 : chord[a]) + music.oct[s];
     const t = music.nextTime - c.currentTime;
-    tone({ freq: note(chord[arp] + octave), dur: stepDur * 0.9, type: music.lead, vol: 0.05, delay: t, bus: musicBus });
-    if (s % 2 === 0) tone({ freq: note(chord[0] - 12), dur: stepDur * 1.6, type: 'triangle', vol: 0.12, delay: t, bus: musicBus });
+    tone({ freq: note(pitch), dur: stepDur * 0.9, type: music.lead, vol: 0.05, delay: t, bus: musicBus });
+    if (music.bass === 'drive') tone({ freq: note(chord[0] - (s % 2 ? 12 : 24)), dur: stepDur * 0.8, type: 'triangle', vol: 0.13, delay: t, bus: musicBus });
+    else if (s % 2 === 0) tone({ freq: note(chord[0] - 12), dur: stepDur * 1.6, type: 'triangle', vol: 0.12, delay: t, bus: musicBus });
     if (s === 0 || s === 4) noise_hat(t, 0.06);
     if (s === 2 || s === 6) noise_hat(t, 0.025);
     music.nextTime += stepDur;
@@ -128,10 +131,12 @@ export const Sound = {
     if (musicBus) musicBus.gain.setTargetAtTime(on ? 0.28 : 0, ctx.currentTime, 0.05);
   },
 
-  /** Start looping background music. style: 'minor' | 'major' | 'dream' */
-  startMusic({ bpm = 110, style = 'minor', lead = 'square' } = {}) {
+  /** Start looping background music. style: 'minor' | 'major' | 'dream' | 'cosmic'.
+   *  Optional: arp (8 chord-note indexes, 3-5 = an octave up), oct (8 octave offsets), bass: 'half' | 'drive'. */
+  startMusic({ bpm = 110, style = 'minor', lead = 'square', arp = ARP, oct = OCT, bass = 'half' } = {}) {
     const c = ac(); if (!c) return;
     music.bpm = bpm; music.prog = PROGRESSIONS[style] || PROGRESSIONS.minor; music.lead = lead;
+    music.arp = arp; music.oct = oct; music.bass = bass;
     if (music.on) return;
     music.on = true; music.step = 0; music.nextTime = c.currentTime + 0.05;
     music.timer = setInterval(scheduleMusic, 30);

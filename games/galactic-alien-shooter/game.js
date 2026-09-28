@@ -17,10 +17,9 @@
 //   S Shield   soaks one hit        1UP  very rare drop (and at 100k / 300k / 600k)
 //
 //  Every 5th level: ★ STAR RUN bonus (can't be hit, 15 s, hit all 40 = PERFECT)
-//  Golden unlock: a PERFECT Star Run → GOLDEN STARFIGHTER (also for Legends)
+//  Golden Starfighter: Legends only (see assets/js/legends.js)
 // ─────────────────────────────────────────────────────────────
 import { runGame, progressBar, clamp } from '../../assets/js/engine.js';
-import { Store } from '../../assets/js/storage.js';
 
 const ID = 'galactic-alien-shooter';
 
@@ -33,11 +32,11 @@ const GRID_DX = 40, GRID_DY = 36, GRID_TOP = 96;
 const TAU = Math.PI * 2;
 
 const TYPES = {
-  scout:   { r: 14, hp: 1, form: 10, dive: 20, color: '#a3e635', drop: 0.04 },
-  gunship: { r: 16, hp: 1, form: 16, dive: 32, color: '#fb923c', drop: 0.06 },
-  bomber:  { r: 17, hp: 2, form: 24, dive: 50, color: '#c084fc', drop: 0.14 },
-  lancer:  { r: 14, hp: 1, form: 20, dive: 45, color: '#f472b6', drop: 0.10 },
-  carrier: { r: 20, hp: 3, form: 30, dive: 90, color: '#22d3ee', drop: 0.30 },
+  scout:   { r: 14, hp: 1, form: 10, dive: 20, color: '#a3e635', drop: 0.02 },
+  gunship: { r: 16, hp: 1, form: 16, dive: 32, color: '#fb923c', drop: 0.03 },
+  bomber:  { r: 17, hp: 2, form: 24, dive: 50, color: '#c084fc', drop: 0.07 },
+  lancer:  { r: 14, hp: 1, form: 20, dive: 45, color: '#f472b6', drop: 0.05 },
+  carrier: { r: 20, hp: 3, form: 30, dive: 90, color: '#22d3ee', drop: 0.12 },
   shard:   { r: 9,  hp: 1, form: 12, dive: 12, color: '#bef264', drop: 0 },
 };
 
@@ -60,6 +59,28 @@ const MAX_LIVES = 5;
 
 const isBoss = (level) => level % 10 === 9;
 
+// Four different bosses, one after another (levels 9, 19, 29, 39). After that they come round again, tougher.
+const BOSSES = [
+  { kind: 'dreadnought', name: 'DREADNOUGHT', hue: 345, hp: 100, color: '#fb923c',
+    attacks: ['fan', 'twin', 'launch', 'aimed', 'fan', 'twin'],
+    hint: 'Watch for the warning lines — its twin lasers fire straight down.' },
+  { kind: 'hive', name: 'HIVE MOTHER', hue: 95, hp: 125, color: '#a3e635',
+    attacks: ['spiral', 'swarm', 'mines', 'ring', 'spiral', 'aimed'],
+    hint: 'Spinning bullet spirals and a swarm of splitters. Keep moving!' },
+  { kind: 'warden', name: 'IRON WARDEN', hue: 215, hp: 150, color: '#60a5fa',
+    attacks: ['lanes', 'missiles', 'carpet', 'fan', 'lanes', 'missiles'],
+    hint: 'Laser gates, homing missiles and carpet bombs. Find the gap!' },
+  { kind: 'eclipse', name: 'ECLIPSE', hue: 300, hp: 175, color: '#f472b6',
+    attacks: ['sweep', 'ring', 'missiles', 'spiral', 'lanes', 'swarm'],
+    hint: 'Its giant laser SWEEPS across the screen. Everything at once — good luck!' },
+];
+function bossFor(level) {
+  const tier = Math.floor(level / 10) + 1;
+  const B = BOSSES[(tier - 1) % BOSSES.length];
+  const round = Math.floor((tier - 1) / BOSSES.length);
+  return { ...B, round, title: round ? `${B.name} Mk ${round + 1}` : `the ${B.name}` };
+}
+
 runGame({
   id: ID,
   width: W,
@@ -69,17 +90,16 @@ runGame({
   comboStep: 4,
   maxMultiplier: 6,
   bonusTime: 15,
-  music: { bpm: 138, style: 'minor', lead: 'square' },
+  // its own tune: E-minor space march, rising arpeggio, driving octave bass (not the Astro Blaster loop)
+  music: { bpm: 150, style: 'cosmic', lead: 'triangle', arp: [0, 1, 2, 3, 2, 1, 4, 3], oct: [12, 12, 12, 12, 12, 12, 12, 12], bass: 'drive' },
   levelClearPoints: (level, bonus) => (bonus ? 0 : level * (isBoss(level) ? 300 : 120)),
   levelInfo(level, bonus) {
     if (bonus) return '★ STAR RUN! Bonus round — you can\'t be hit. Shoot all 40 for a PERFECT ✨';
-    if (isBoss(level)) return level === 9
-      ? '☠️ BOSS: the DREADNOUGHT! Watch for its twin lasers — blast it to pieces!'
-      : `☠️ BOSS: DREADNOUGHT Mk ${Math.floor(level / 10) + 1} — tougher, faster, meaner!`;
+    if (isBoss(level)) { const B = bossFor(level); return `☠️ BOSS: ${B.title}! ${B.hint}`; }
     const notes = {
       1: 'Fly anywhere in the lower half: mouse / arrows. Hold SPACE or the mouse button to fire. Capsules: B blaster · R rockets · L laser (rare!) — rockets & laser run out',
-      2: 'Scouts shoot back now — keep moving!',
-      3: '🛸 Carriers fire an ABDUCTION BEAM! Lose a ship? Shoot that carrier as it dives to win it back as a TWIN FIGHTER.',
+      2: 'Scouts shoot back now! 🔴 A red-glowing carrier holds the rare LASER — shoot it down and catch the L!',
+      3: '🛸 Carriers fire an ABDUCTION BEAM! Lose a ship? Shoot that carrier as it dives to win it back as a TWIN FIGHTER. The fleet fires from formation now too.',
       4: 'Gunships fire 3-way spreads · Bombers drop bombs that burst — shoot the bombs!',
       6: '⚡ LANCERS charge a laser — see the warning line? Get out of the way! The fleet starts firing from formation too.',
       7: '💥 Glowing scouts SPLIT into three mid-dive!',
@@ -153,17 +173,17 @@ class AlienShooter {
     this.startLevel(1, false);
   }
 
-  // Golden ship: earned here (perfect Star Run) or as a Legend. The menu's ON/OFF switch applies to both.
   get power() { return this.pw[this.weapon]; }
 
-  get golden() { return this.s.gold || (Store.hasAch(`${ID}:golden`) && Store.setting(`gold:${ID}`) !== false); }
+  // Golden ship: Legends only (unlocked via the Hall of Legends; the menu has an ON/OFF switch).
+  get golden() { return this.s.gold; }
 
   reset() {
     this.ship.x = this.ship.tx = W / 2; this.ship.y = this.ship.ty = PY;
     this.dual = false; this.invuln = 0; this.dead = false;
     this.capture = null; this.rescue = null; this.shipHidden = false;
     this.weapon = 'blaster'; this.pw = { blaster: 1, laser: 1, rockets: 1 }; this.weaponT = 0; this.shield = false;
-    this.nextLaserLevel = 3;
+    this.laserBlocks = {};
     this.lifeIdx = 0; this.lifeDropped = false; this.sinceDrop = 0;
     this.runShots = 0; this.runHits = 0;
   }
@@ -179,7 +199,7 @@ class AlienShooter {
     this.shots = 0; this.hits = 0;
     this.capture = null; this.rescue = null; this.shipHidden = false;
     this.beamCarrier = null;
-    this.boss = null; this.bossDeadT = 0; this.timers = [];
+    this.boss = null; this.bossDeadT = 0; this.timers = []; this.lanes = [];
     this.bonusHits = 0; this.bonusTotal = 0; this.perfectDone = false;
 
     if (bonus) {
@@ -201,13 +221,19 @@ class AlienShooter {
 
     if (isBoss(level)) {
       const tier = Math.floor(level / 10) + 1;
-      const hp = 110 + (tier - 1) * 45;
-      this.boss = { x: W / 2, y: -120, hp, maxHp: hp, tier, t: 0, enter: true, atkT: 2.2, atk: 0, flash: 0, hold: 0, lasers: null, moveT: 0 };
+      const B = bossFor(level);
+      const hp = Math.round(B.hp * (1 + B.round * 0.5) + (tier - 1) * 15);
+      this.boss = { ...B, x: W / 2, y: -120, hp, maxHp: hp, tier, t: 0, enter: true, atkT: 2.2, atk: 0, flash: 0, hold: 0,
+        lasers: null, spiral: null, moveT: 0, tx: W / 2 };
+      this.lanes = [];
       this.arrived = true;
       return;
     }
 
     const slots = formationFor(level);
+    // one carrier per 5-level block (from level 2) carries the rare LASER
+    const block = Math.floor((level - 1) / 5);
+    const laserHere = level >= 2 && !this.laserBlocks[block];
     const chunks = [];
     for (let i = 0; i < slots.length; i += 8) chunks.push(slots.slice(i, i + 8));
     const gap = 1.9 / Math.sqrt(this.speedK);
@@ -217,6 +243,7 @@ class AlienShooter {
       const members = chunk.map((sl, k) => {
         const a = this.makeAlien(sl.type, sl.row, sl.col);
         a.split = level >= 7 && sl.type === 'scout' && s.rng.chance(Math.min(0.45, 0.2 + (level - 7) * 0.04));
+        if (laserHere && sl.type === 'carrier' && sl.col === 4) a.laserCarrier = true;
         return { a, path: pathFn(k % 2 && i % 2 ? -side : side), delay: k * 0.13 };
       });
       this.waveQ.push({ t: 0.5 + i * gap, members });
@@ -390,12 +417,13 @@ class AlienShooter {
           this.diveT = gap * s.rng.range(0.7, 1.3);
           this.startDive();
         }
-        if (L >= 6) {
+        if (L >= 3) {
           this.formFireT -= dt;
           if (this.formFireT <= 0) {
-            this.formFireT = Math.max(0.7, (L >= 11 ? 2.6 : 4.5) / this.speedK) * s.rng.range(0.7, 1.3);
+            this.formFireT = Math.max(0.45, (L >= 11 ? 1.8 : L >= 6 ? 2.6 : 3.6) / this.speedK) * s.rng.range(0.7, 1.3);
             const inForm = alive.filter((a) => a.state === 'form' && !a.captive);
-            if (inForm.length) this.pellet(s.rng.pick(inForm), 0, 0.8);
+            if (inForm.length) this.pellet(s.rng.pick(inForm), 0, 0.85);
+            if (inForm.length > 1 && L >= 8) this.pellet(s.rng.pick(inForm), 0, 0.85);
           }
         }
       }
@@ -707,10 +735,10 @@ class AlienShooter {
   planShots(a) {
     const L = this.level, r = this.s.rng;
     a.shotsAt = [];
-    const armed = { scout: 2, shard: 99, gunship: 4, bomber: 4, carrier: 8, lancer: 99 }[a.type];
+    const armed = { scout: 2, shard: 99, gunship: 3, bomber: 3, carrier: 6, lancer: 99 }[a.type];
     if (L < armed) return;
-    if (!r.chance(Math.min(0.95, 0.6 + (L - armed) * 0.08))) return;
-    const n = a.type === 'bomber' ? (L >= 12 ? 2 : 1) : L >= 9 ? 2 : 1;
+    if (!r.chance(Math.min(1, 0.75 + (L - armed) * 0.08))) return;
+    const n = a.type === 'bomber' ? (L >= 12 ? 2 : 1) : L >= 14 ? 3 : L >= 6 ? 2 : 1;
     for (let i = 0; i < n; i++) a.shotsAt.push(0.35 + i * 0.3 + r.range(0, 0.3));
   }
 
@@ -751,11 +779,13 @@ class AlienShooter {
     for (const e of this.enemyShots) {
       if (e.gone) continue;
       e.t = (e.t || 0) + dt;
-      if (e.kind === 'mine') {
+      if (e.kind === 'mine' || e.kind === 'missile') {
         e.life -= dt;
+        const m = e.kind === 'missile';
         const want = Math.atan2(sh.y - e.y, sh.x - e.x), cur = Math.atan2(e.vy, e.vx);
         let d = want - cur; d = ((d + Math.PI) % TAU + TAU) % TAU - Math.PI;
-        const na = cur + clamp(d, -1.6 * dt, 1.6 * dt), sp = Math.min(150, Math.hypot(e.vx, e.vy) + 30 * dt);
+        const turn = m && e.t > 1.6 ? 0.3 : m ? 2.6 : 1.6;     // missiles stop steering after 1.6 s
+        const na = cur + clamp(d, -turn * dt, turn * dt), sp = Math.min(m ? 250 : 150, Math.hypot(e.vx, e.vy) + (m ? 160 : 30) * dt);
         e.vx = Math.cos(na) * sp; e.vy = Math.sin(na) * sp;
         if (e.life <= 0 || e.y > H + 10) { e.gone = true; s.fx.burst(e.x, e.y, { colors: ['#67e8f9', '#fff'], count: 10, speed: 120, life: 0.3 }); continue; }
       }
@@ -783,7 +813,7 @@ class AlienShooter {
   shootProjectile(e) {
     const s = this.s;
     e.gone = true;
-    s.award((e.kind === 'mine' ? 30 : 25) * this.level, e.x, e.y, { color: e.kind === 'mine' ? '#67e8f9' : '#e9d5ff', size: 14 });
+    s.award((e.kind === 'bomb' ? 25 : 30) * this.level, e.x, e.y, { color: e.kind === 'mine' ? '#67e8f9' : '#e9d5ff', size: 14 });
     s.fx.burst(e.x, e.y, { colors: ['#fff', e.kind === 'mine' ? '#67e8f9' : '#c084fc'], count: 14, speed: 160, life: 0.35 });
     s.sound.play('coin');
   }
@@ -858,70 +888,150 @@ class AlienShooter {
     return false;
   }
 
-  // ── Boss: the Dreadnought ──────────────────────────────────
+  // ── Bosses ─────────────────────────────────────────────────
   /** Returns true if the game should stop updating this frame. */
   updateBoss(dt) {
     const s = this.s, b = this.boss;
     b.flash = Math.max(0, b.flash - dt * 5);
+    if (this.updateLanes(dt)) return true;
     if (b.hp <= 0) return false;
     b.t += dt;
     const rage = b.hp < b.maxHp * 0.5 ? 1.35 : 1;
+    const hard = 1 + (b.tier - 1) * 0.12;                // every boss level is harder than the last
+    const sk = Math.min(1.5, Math.sqrt(this.speedK)) * (1 + b.round * 0.1);
     if (b.enter) {
       b.y += 80 * dt;
       if (b.y >= 150) { b.y = 150; b.enter = false; s.sound.play('boom'); s.fx.shake(6, 0.3); }
       return false;
     }
+
+    // Movement: each boss moves its own way
     if (b.hold > 0) b.hold -= dt;
     else b.moveT += dt * rage;
-    b.x = W / 2 + Math.sin(b.moveT * 0.7 * Math.sqrt(this.speedK)) * 140;
-    b.y = 150 + Math.sin(b.t * 1.3) * 8;
+    const m = b.moveT;
+    if (b.kind === 'dreadnought') { b.x = W / 2 + Math.sin(m * 0.7 * sk) * 140; b.y = 150 + Math.sin(b.t * 1.3) * 8; }
+    else if (b.kind === 'hive') { b.x = W / 2 + Math.sin(m * 0.5 * sk) * 130; b.y = 160 + Math.sin(m * 1.0 * sk) * 40; }
+    else if (b.kind === 'warden') {
+      if (Math.abs(b.tx - b.x) < 4 && b.hold <= 0) b.tx = s.rng.range(110, W - 110);
+      if (b.hold <= 0) b.x += clamp(b.tx - b.x, -120 * dt * sk, 120 * dt * sk);
+      b.y = 140 + Math.sin(b.t * 0.8) * 5;
+    } else { b.x = W / 2 + Math.sin(m * 1.1 * sk) * 160; b.y = 150 + Math.cos(m * 2.2 * sk) * 18; }
 
-    // Twin lasers from the wing cannons
+    // Lasers fixed to the boss (twin cannons / sweeping beam)
     if (b.lasers) {
       const L = b.lasers, prev = L.t;
       L.t += dt;
-      if (prev < 0.9 && L.t >= 0.9) { s.sound.tone({ freq: 1200, to: 150, dur: 0.7, type: 'sawtooth', vol: 0.07 }); s.fx.shake(5, 0.3); }
-      if (L.t >= 0.9 && L.t < 1.6 && !this.invuln && !this.capture && !this.shipHidden) {
-        const hitX = this.shipXs().find((sx) => [-58, 58].some((off) => Math.abs(sx - (b.x + off)) < 9 + SHIP_R * 0.75));
+      if (prev < L.charge && L.t >= L.charge) { s.sound.tone({ freq: 1200, to: 150, dur: L.dur, type: 'sawtooth', vol: 0.07 }); s.fx.shake(5, 0.3); }
+      if (L.t >= L.charge && L.t < L.charge + L.dur && !this.invuln && !this.capture && !this.shipHidden) {
+        const hitX = this.shipXs().find((sx) => L.offs.some((off) => Math.abs(sx - (b.x + off)) < L.w + SHIP_R * 0.75));
         if (hitX !== undefined && this.crash(hitX)) return true;
       }
-      if (L.t >= 1.6) b.lasers = null;
+      if (L.t >= L.charge + L.dur) b.lasers = null;
     }
 
-    b.atkT -= dt * rage;
-    if (b.atkT <= 0 && !b.lasers) {
-      const attacks = ['fan', 'lasers', 'launch', 'fan', 'aimed'];
-      if (b.tier >= 2 || rage > 1) attacks.push('mines');
-      const atk = attacks[b.atk % attacks.length];
+    // Bullet spiral
+    if (b.spiral) {
+      const sp = b.spiral;
+      sp.t += dt; sp.next -= dt;
+      while (sp.next <= 0 && sp.t < sp.dur) {
+        sp.next += sp.gap;
+        sp.ang += sp.turn;
+        for (let k = 0; k < sp.arms; k++) {
+          const ang = sp.ang + k * TAU / sp.arms;
+          if (Math.sin(ang) < -0.2) continue;               // don't waste bullets upwards
+          this.enemyShots.push({ kind: 'pellet', x: b.x, y: b.y + 10, vx: Math.cos(ang) * sp.v, vy: Math.sin(ang) * sp.v, r: 4 });
+        }
+      }
+      if (sp.t >= sp.dur) b.spiral = null;
+    }
+
+    b.atkT -= dt * rage * hard;
+    if (b.atkT <= 0 && !b.lasers && !b.spiral) {
+      const atk = b.attacks[b.atk % b.attacks.length];
       b.atk++;
-      b.atkT = Math.max(1.1, 2.4 / Math.sqrt(this.speedK));
-      if (atk === 'fan') {
-        const n = 7 + b.tier * 2, sp = 200 * Math.min(1.4, Math.sqrt(this.speedK));
-        for (let i = 0; i < n; i++) {
-          const ang = Math.PI / 2 + (i / (n - 1) - 0.5) * 1.5;
-          this.enemyShots.push({ kind: 'pellet', x: b.x, y: b.y + 28, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, r: 4 });
-        }
-        s.sound.tone({ freq: 300, to: 900, dur: 0.18, type: 'sawtooth', vol: 0.06 });
-      } else if (atk === 'aimed') {
-        for (let i = 0; i < 3; i++) this.later(i * 0.18, () => { if (this.boss?.hp > 0) this.pellet({ x: this.boss.x, y: this.boss.y + 20 }, 0, 1.2); });
-        s.sound.tone({ freq: 600, to: 1200, dur: 0.1, type: 'square', vol: 0.05 });
-      } else if (atk === 'lasers') {
-        b.lasers = { t: 0 }; b.hold = 1.6;
-      } else if (atk === 'launch') {
-        const n = 2 + b.tier;
-        for (let i = 0; i < n; i++) {
-          const a = this.makeAlien('scout', -1, -1);
-          a.x = b.x + (i - (n - 1) / 2) * 30; a.y = b.y + 20; a.state = 'dive'; a.pi = 0; a.diveTime = 0;
-          a.path = this.divePath(a, this.ship.x + (i - (n - 1) / 2) * 60);
-          this.planShots(a);
-          this.aliens.push(a);
-        }
-        s.sound.tone({ freq: 250, to: 700, dur: 0.3, type: 'triangle', vol: 0.06 });
-      } else if (atk === 'mines') {
-        for (const off of [-40, 40]) this.enemyShots.push({ kind: 'mine', x: b.x + off, y: b.y + 24, vx: off * 1.5, vy: 80, r: 8, shootable: true, life: 5, t: 0 });
-        s.sound.tone({ freq: 300, to: 600, dur: 0.2, type: 'sine', vol: 0.05 });
+      b.atkT = Math.max(0.9, 2.3 / sk);
+      this.bossAttack(b, atk, sk);
+      // later bosses (and later rounds) double up: a quick extra volley on top
+      if (b.tier >= 3 && s.rng.chance(0.25 + b.round * 0.2)) this.later(0.5, () => { if (this.boss?.hp > 0) this.bossAttack(this.boss, 'aimed', sk); });
+    }
+    return false;
+  }
+
+  bossAttack(b, atk, sk) {
+    const s = this.s, extra = b.tier - 1 + b.round * 2;
+    const pellet = (x, y, ang, v) => this.enemyShots.push({ kind: 'pellet', x, y, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v, r: 4 });
+    if (atk === 'fan') {
+      const n = 7 + extra * 2, v = 200 * sk;
+      for (let i = 0; i < n; i++) pellet(b.x, b.y + 28, Math.PI / 2 + (i / (n - 1) - 0.5) * 1.6, v);
+      s.sound.tone({ freq: 300, to: 900, dur: 0.18, type: 'sawtooth', vol: 0.06 });
+    } else if (atk === 'aimed') {
+      const n = 3 + Math.min(4, extra);
+      for (let i = 0; i < n; i++) this.later(i * 0.15, () => { if (this.boss?.hp > 0) this.pellet({ x: this.boss.x, y: this.boss.y + 20 }, 0, 1.25); });
+      s.sound.tone({ freq: 600, to: 1200, dur: 0.1, type: 'square', vol: 0.05 });
+    } else if (atk === 'ring') {
+      const n = 18 + extra * 3, v = 170 * sk, off = s.rng.range(0, TAU);
+      for (let i = 0; i < n; i++) { const ang = off + i * TAU / n; if (Math.sin(ang) > -0.3) pellet(b.x, b.y, ang, v); }
+      s.sound.noise({ dur: 0.3, vol: 0.12, freq: 1600, to: 200 });
+    } else if (atk === 'spiral') {
+      b.spiral = { t: 0, dur: 2 + extra * 0.3, next: 0, gap: Math.max(0.06, 0.11 - extra * 0.01), ang: 0, turn: 0.33 * (s.rng.chance(0.5) ? 1 : -1), arms: 2 + Math.min(2, Math.floor(extra / 2)), v: 180 * sk };
+      b.hold = b.spiral.dur;
+      s.sound.tone({ freq: 200, to: 800, dur: 0.5, type: 'triangle', vol: 0.06 });
+    } else if (atk === 'twin') {
+      const offs = extra >= 2 ? [-58, 0, 58] : [-58, 58];
+      b.lasers = { t: 0, charge: Math.max(0.6, 0.9 - extra * 0.05), dur: 0.7, offs, w: 9 };
+      b.hold = b.lasers.charge + b.lasers.dur;
+    } else if (atk === 'sweep') {
+      // one fat beam; the boss keeps flying, so it sweeps across the screen
+      b.lasers = { t: 0, charge: 0.8, dur: 1.6 + extra * 0.2, offs: [0], w: 13 };
+    } else if (atk === 'launch' || atk === 'swarm') {
+      const n = 2 + Math.min(4, extra) + (atk === 'swarm' ? 1 : 0);
+      for (let i = 0; i < n; i++) {
+        const a = this.makeAlien(atk === 'swarm' ? 'scout' : 'scout', -1, -1);
+        a.x = b.x + (i - (n - 1) / 2) * 30; a.y = b.y + 20; a.state = 'dive'; a.pi = 0; a.diveTime = 0;
+        a.split = atk === 'swarm';
+        a.path = this.divePath(a, this.ship.x + (i - (n - 1) / 2) * 60);
+        this.planShots(a);
+        this.aliens.push(a);
+      }
+      s.sound.tone({ freq: 250, to: 700, dur: 0.3, type: 'triangle', vol: 0.06 });
+    } else if (atk === 'mines') {
+      const n = 2 + Math.min(3, extra);
+      for (let i = 0; i < n; i++) { const off = (i - (n - 1) / 2) * 40; this.enemyShots.push({ kind: 'mine', x: b.x + off, y: b.y + 24, vx: off * 1.5, vy: 80, r: 8, shootable: true, life: 5, t: 0 }); }
+      s.sound.tone({ freq: 300, to: 600, dur: 0.2, type: 'sine', vol: 0.05 });
+    } else if (atk === 'missiles') {
+      const n = 2 + Math.min(3, extra);
+      for (let i = 0; i < n; i++) {
+        const side = i % 2 ? 1 : -1;
+        this.enemyShots.push({ kind: 'missile', x: b.x + side * 50, y: b.y + 20, vx: side * 140, vy: 40, r: 6, shootable: true, life: 3.4, t: 0 });
+      }
+      s.sound.noise({ dur: 0.35, vol: 0.1, freq: 600, to: 200 });
+    } else if (atk === 'carpet') {
+      const n = 5 + Math.min(3, extra);
+      for (let i = 0; i < n; i++) {
+        const x = 40 + (W - 80) * (i + 0.5) / n;
+        this.later(i * 0.12, () => this.enemyShots.push({ kind: 'bomb', x, y: 60, vx: 0, vy: 150 * sk, r: 8, shootable: true, burstY: this.ship.y - s.rng.range(60, 150), t: 0 }));
+      }
+      s.sound.tone({ freq: 200, to: 90, dur: 0.4, type: 'square', vol: 0.06 });
+    } else if (atk === 'lanes') {
+      // laser gates at fixed spots across the screen — leave one gap
+      const n = 4 + Math.min(2, extra), gap = s.rng.int(0, n - 1);
+      for (let i = 0; i < n; i++) if (i !== gap) this.lanes.push({ x: 30 + (W - 60) * (i + 0.5) / n, t: 0, charge: Math.max(0.75, 1.1 - extra * 0.06), dur: 0.6, w: (W - 60) / n * 0.18 });
+      s.sound.tone({ freq: 900, to: 300, dur: 0.4, type: 'square', vol: 0.05 });
+    }
+  }
+
+  /** Laser gates (not tied to the boss). Returns true if the game should stop updating this frame. */
+  updateLanes(dt) {
+    const s = this.s;
+    for (const ln of this.lanes) {
+      const prev = ln.t; ln.t += dt;
+      if (prev < ln.charge && ln.t >= ln.charge) { s.sound.tone({ freq: 1400, to: 200, dur: ln.dur, type: 'sawtooth', vol: 0.05 }); s.fx.shake(3, 0.2); }
+      if (ln.t >= ln.charge && ln.t < ln.charge + ln.dur && !this.invuln && !this.capture && !this.shipHidden) {
+        const hitX = this.shipXs().find((sx) => Math.abs(sx - ln.x) < ln.w + SHIP_R * 0.7);
+        if (hitX !== undefined) { ln.t = 99; if (this.crash(hitX)) return true; }
       }
     }
+    this.lanes = this.lanes.filter((ln) => ln.t < ln.charge + ln.dur);
     return false;
   }
 
@@ -938,10 +1048,10 @@ class AlienShooter {
       return;
     }
     // Destroyed!
-    b.hp = 0; b.lasers = null;
+    b.hp = 0; b.lasers = null; b.spiral = null; this.lanes = [];
     this.bossDeadT = 2.2;
     s.award(250 * this.level, b.x, b.y, { color: '#fde047', size: 32 });
-    s.fx.text(W / 2, H * 0.4, 'DREADNOUGHT DESTROYED!', { color: '#fde047', size: 28, life: 2, rise: 10 });
+    s.fx.text(W / 2, H * 0.4, `${b.name} DESTROYED!`, { color: '#fde047', size: 28, life: 2, rise: 10 });
     s.unlock('boss');
     s.sound.play('boom'); s.sound.play('golden');
     s.fx.shake(14, 0.8); s.fx.flash('#fde047');
@@ -965,10 +1075,10 @@ class AlienShooter {
     const diving = a.state !== 'form' && a.state !== 'home' && a.state !== 'enter';
     if (a.type === 'carrier' && diving && this.level >= 6 && !this.lifeDropped && r.chance(0.05)) {
       kind = 'life'; this.lifeDropped = true;
-    } else if ((a.type === 'carrier' || a.type === 'bomber') && diving && this.level >= this.nextLaserLevel && r.chance(a.type === 'carrier' ? 0.1 : 0.03)) {
-      // the laser is as scarce as a 1UP: only from diving carriers/bombers, at most once every 4 levels
-      kind = 'laser'; this.nextLaserLevel = this.level + 4;
-    } else if (r.chance(T.drop) || (this.sinceDrop >= 28 && T.drop > 0)) {
+    } else if (a.laserCarrier) {
+      // the laser is scarce: one red-glowing carrier carries it, once in every 5 levels
+      kind = 'laser'; this.laserBlocks[Math.floor((this.level - 1) / 5)] = true;
+    } else if (r.chance(T.drop) || (this.sinceDrop >= 50 && T.drop > 0)) {
       kind = r.chance(0.14) ? 'shield' : r.chance(0.6) ? 'blaster' : 'rockets';
     }
     if (!kind) return;
@@ -1113,9 +1223,7 @@ class AlienShooter {
       s.award(500 * this.level, W / 2, H * 0.34, { color: '#fde047', size: 30 });
       s.fx.text(W / 2, H * 0.28, 'PERFECT!', { color: '#fde047', size: 44, life: 1.6, rise: 10 });
       s.sound.play('golden');
-      const wasGolden = this.golden;
-      s.unlock('golden');
-      if (!wasGolden && this.golden) s.fx.text(W / 2, H * 0.68, '✨ GOLDEN STARFIGHTER UNLOCKED ✨', { color: '#fbbf24', size: 20, life: 2.2, rise: 10 });
+      s.unlock('perfect');
     } else {
       s.fx.text(W / 2, H * 0.3, `Hits ${n} / ${this.bonusTotal}`, { color: '#c4b5fd', size: 30, life: 1.4, rise: 10 });
     }
@@ -1160,7 +1268,8 @@ class AlienShooter {
         a.state = 'return'; a.beamDive = false; a.lancePath = false; a.lanceRun = false; a.x = this.slot(a).x; a.y = -30;
       }
     }
-    if (this.boss) { this.boss.lasers = null; this.boss.atkT = 2.5; }
+    if (this.boss) { this.boss.lasers = null; this.boss.spiral = null; this.boss.atkT = 2.5; }
+    this.lanes = [];
     this.beamCarrier = null; this.capture = null; this.rescue = null;
     this.shipHidden = false; this.dual = false; this.shield = false;
     // special weapons are lost; the blaster drops one power level
@@ -1190,7 +1299,7 @@ class AlienShooter {
     for (const n of this.nebulas) {
       const y = ((n.y + t * 6) % (H + 400)) - 200;
       const ng = ctx.createRadialGradient(n.x, y, 0, n.x, y, n.r);
-      const hue = this.bonus ? (n.hue + t * 50) % 360 : this.boss ? 340 : n.hue;
+      const hue = this.bonus ? (n.hue + t * 50) % 360 : this.boss ? this.boss.hue : n.hue;
       ng.addColorStop(0, `hsla(${hue}, 90%, 50%, .13)`); ng.addColorStop(1, 'hsla(0,0%,0%,0)');
       ctx.fillStyle = ng; ctx.fillRect(n.x - n.r, y - n.r, n.r * 2, n.r * 2);
     }
@@ -1214,6 +1323,7 @@ class AlienShooter {
     }
 
     if (this.boss) this.drawBoss(ctx, this.boss, t);
+    for (const ln of this.lanes || []) this.drawBeamLine(ctx, ln.x, HUD_H, ln.t < ln.charge, ln.w, t);
 
     // Abduction beams + lancer lasers (under the ships)
     for (const a of this.aliens) {
@@ -1274,7 +1384,7 @@ class AlienShooter {
       progressBar(ctx, 14, 12, W - 28, 20, this.s.bonusLeft / 15, '#e879f9', `★ STAR RUN · hits ${this.bonusHits} / ${this.bonusTotal} · ${Math.ceil(this.s.bonusLeft)}s`);
     } else if (this.boss) {
       const b = this.boss;
-      progressBar(ctx, 14, 12, W - 28, 20, b.hp / b.maxHp, b.hp < b.maxHp * 0.5 ? '#f43f5e' : '#fb923c', `☠ DREADNOUGHT${b.tier > 1 ? ` Mk ${b.tier}` : ''}`);
+      progressBar(ctx, 14, 12, W - 28, 20, b.hp / b.maxHp, b.hp < b.maxHp * 0.5 ? '#f43f5e' : b.color, `☠ ${b.name}${b.round ? ` Mk ${b.round + 1}` : ''}`);
     } else {
       const total = formationFor(this.level).length;
       const left = this.aliens.filter((a) => !a.dead && a.type !== 'shard').length + this.waveQ.filter((w) => !w.done).reduce((n, w) => n + w.members.length, 0);
@@ -1379,6 +1489,12 @@ class AlienShooter {
         ctx.beginPath(); ctx.arc(0, 0, 2.5, 0, TAU); ctx.fill();
         ctx.fillStyle = '#e9d5ff';
         for (let i = 0; i < 4; i++) { const a = i * TAU / 4; ctx.fillRect(Math.cos(a) * 8 - 1.5, Math.sin(a) * 8 - 1.5, 3, 3); }
+      } else if (e.kind === 'missile') {
+        ctx.translate(e.x, e.y); ctx.rotate(Math.atan2(e.vy, e.vx) - Math.PI / 2);
+        ctx.shadowColor = '#f43f5e'; ctx.shadowBlur = 14;
+        ctx.fillStyle = '#fecdd3'; ctx.beginPath(); ctx.moveTo(0, 9); ctx.lineTo(3.5, 1); ctx.lineTo(3.5, -7); ctx.lineTo(-3.5, -7); ctx.lineTo(-3.5, 1); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#be123c'; ctx.fillRect(-5, -8, 3, 5); ctx.fillRect(2, -8, 3, 5);
+        ctx.fillStyle = '#fde047'; ctx.beginPath(); ctx.moveTo(-2, -7); ctx.lineTo(0, -13 - Math.random() * 4); ctx.lineTo(2, -7); ctx.fill();
       } else if (e.kind === 'mine') {
         ctx.translate(e.x, e.y); ctx.rotate(e.t * 2);
         ctx.shadowColor = '#22d3ee'; ctx.shadowBlur = 16;
@@ -1416,8 +1532,16 @@ class AlienShooter {
     if (a.type === 'carrier') {
       // Saucers don't turn; they wobble
       ctx.rotate(Math.sin(t * 2 + a.id) * 0.08);
+      if (a.laserCarrier) {
+        // carries the rare LASER: red halo + tag
+        ctx.save(); ctx.globalCompositeOperation = 'lighter';
+        const rg = ctx.createRadialGradient(0, 0, 8, 0, 0, 34 + pulse * 6);
+        rg.addColorStop(0, 'rgba(244,63,94,.55)'); rg.addColorStop(1, 'rgba(244,63,94,0)');
+        ctx.fillStyle = rg; ctx.beginPath(); ctx.arc(0, 0, 40, 0, TAU); ctx.fill(); ctx.restore();
+        ctx.fillStyle = '#fff'; ctx.font = '900 11px system-ui'; ctx.textAlign = 'center'; ctx.fillText('L', 0, 20);
+      }
       const hurt = a.hp < a.maxHp;
-      const c1 = hurt ? (a.hp === 1 ? '#f87171' : '#fbbf24') : '#2dd4bf', c2 = hurt ? '#7f1d1d' : '#115e59';
+      const c1 = hurt ? (a.hp === 1 ? '#f87171' : '#fbbf24') : a.laserCarrier ? '#fb7185' : '#2dd4bf', c2 = hurt ? '#7f1d1d' : a.laserCarrier ? '#881337' : '#115e59';
       ctx.shadowColor = c1; ctx.shadowBlur = 16;
       // dome
       const dg = ctx.createRadialGradient(-3, -9, 1, 0, -5, 11);
@@ -1512,56 +1636,115 @@ class AlienShooter {
     if (b.hp <= 0) { ctx.globalAlpha = Math.max(0, (this.bossDeadT - 1.2)); ctx.translate(Math.sin(t * 60) * 4, 0); }
     const white = b.flash > 0.6;
     const rage = b.hp < b.maxHp * 0.5;
-    ctx.shadowColor = rage ? '#f43f5e' : '#fb923c'; ctx.shadowBlur = 24;
-    // wings
-    const wg = ctx.createLinearGradient(-80, 0, 80, 0);
-    wg.addColorStop(0, '#7f1d1d'); wg.addColorStop(0.5, rage ? '#f87171' : '#fb923c'); wg.addColorStop(1, '#7f1d1d');
-    ctx.fillStyle = white ? '#fff' : wg;
-    ctx.beginPath();
-    ctx.moveTo(0, 30); ctx.lineTo(30, 18); ctx.lineTo(80, 24); ctx.lineTo(74, 0); ctx.lineTo(40, -18); ctx.lineTo(18, -30);
-    ctx.lineTo(-18, -30); ctx.lineTo(-40, -18); ctx.lineTo(-74, 0); ctx.lineTo(-80, 24); ctx.lineTo(-30, 18); ctx.closePath(); ctx.fill();
-    ctx.shadowBlur = 0;
-    // hull plates
-    ctx.fillStyle = white ? '#fff' : '#1f2937';
-    ctx.beginPath(); ctx.moveTo(0, 26); ctx.lineTo(22, 10); ctx.lineTo(16, -24); ctx.lineTo(-16, -24); ctx.lineTo(-22, 10); ctx.closePath(); ctx.fill();
-    // wing cannons
-    ctx.fillStyle = '#374151'; ctx.fillRect(-62, 8, 8, 22); ctx.fillRect(54, 8, 8, 22);
-    const charging = b.lasers && b.lasers.t < 0.9;
-    for (const x of [-58, 58]) {
-      ctx.fillStyle = charging ? `rgba(255,255,255,${0.5 + 0.5 * Math.sin(t * 40)})` : '#fda4af';
-      ctx.beginPath(); ctx.arc(x, 31, charging ? 3 + b.lasers.t * 6 : 3, 0, TAU); ctx.fill();
-    }
-    // core
-    const cg = ctx.createRadialGradient(0, 0, 1, 0, 0, 12);
-    cg.addColorStop(0, '#fff'); cg.addColorStop(0.4, rage ? '#f43f5e' : '#fde047'); cg.addColorStop(1, 'rgba(244,63,94,0)');
-    ctx.fillStyle = cg; ctx.beginPath(); ctx.arc(0, 0, 11 + Math.sin(t * 6) * 2, 0, TAU); ctx.fill();
-    // running lights
-    for (let i = 0; i < 5; i++) {
-      ctx.fillStyle = (Math.floor(t * 6) + i) % 5 === 0 ? '#fef08a' : 'rgba(254,240,138,.2)';
-      ctx.fillRect(-46 + i * 7, 4, 3, 3); ctx.fillRect(34 + i * 7, 4, 3, 3);
+    const charging = b.lasers && b.lasers.t < b.lasers.charge;
+    ctx.shadowColor = rage ? '#f43f5e' : b.color; ctx.shadowBlur = 24;
+    if (b.kind === 'dreadnought') {
+      const wg = ctx.createLinearGradient(-80, 0, 80, 0);
+      wg.addColorStop(0, '#7f1d1d'); wg.addColorStop(0.5, rage ? '#f87171' : '#fb923c'); wg.addColorStop(1, '#7f1d1d');
+      ctx.fillStyle = white ? '#fff' : wg;
+      ctx.beginPath();
+      ctx.moveTo(0, 30); ctx.lineTo(30, 18); ctx.lineTo(80, 24); ctx.lineTo(74, 0); ctx.lineTo(40, -18); ctx.lineTo(18, -30);
+      ctx.lineTo(-18, -30); ctx.lineTo(-40, -18); ctx.lineTo(-74, 0); ctx.lineTo(-80, 24); ctx.lineTo(-30, 18); ctx.closePath(); ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = white ? '#fff' : '#1f2937';
+      ctx.beginPath(); ctx.moveTo(0, 26); ctx.lineTo(22, 10); ctx.lineTo(16, -24); ctx.lineTo(-16, -24); ctx.lineTo(-22, 10); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#374151'; ctx.fillRect(-62, 8, 8, 22); ctx.fillRect(54, 8, 8, 22); ctx.fillRect(-4, 20, 8, 14);
+      for (const x of [-58, 0, 58]) {
+        ctx.fillStyle = charging ? `rgba(255,255,255,${0.5 + 0.5 * Math.sin(t * 40)})` : '#fda4af';
+        ctx.beginPath(); ctx.arc(x, x ? 31 : 35, charging ? 3 + b.lasers.t * 6 : 3, 0, TAU); ctx.fill();
+      }
+      this.bossCore(ctx, t, rage, 0, 0, 11);
+      for (let i = 0; i < 5; i++) {
+        ctx.fillStyle = (Math.floor(t * 6) + i) % 5 === 0 ? '#fef08a' : 'rgba(254,240,138,.2)';
+        ctx.fillRect(-46 + i * 7, 4, 3, 3); ctx.fillRect(34 + i * 7, 4, 3, 3);
+      }
+    } else if (b.kind === 'hive') {
+      // organic disc with pulsing pods
+      const g = ctx.createRadialGradient(0, -6, 6, 0, 0, 80);
+      g.addColorStop(0, rage ? '#fecaca' : '#ecfccb'); g.addColorStop(0.45, rage ? '#dc2626' : '#65a30d'); g.addColorStop(1, '#1a2e05');
+      ctx.fillStyle = white ? '#fff' : g;
+      ctx.beginPath(); ctx.ellipse(0, 0, 78, 30, 0, 0, TAU); ctx.fill();
+      ctx.shadowBlur = 0;
+      for (let i = 0; i < 10; i++) {
+        const an = i / 10 * TAU + t * 0.8, px = Math.cos(an) * 60, py = Math.sin(an) * 20;
+        const pulse = 0.5 + 0.5 * Math.sin(t * 5 + i);
+        ctx.fillStyle = white ? '#fff' : `rgba(217,249,157,${0.4 + pulse * 0.6})`;
+        ctx.beginPath(); ctx.arc(px, py, 5 + pulse * 2, 0, TAU); ctx.fill();
+      }
+      ctx.strokeStyle = 'rgba(190,242,100,.5)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.ellipse(0, 0, 44, 16, 0, 0, TAU); ctx.stroke();
+      // the eye
+      ctx.fillStyle = '#052e16'; ctx.beginPath(); ctx.ellipse(0, 0, 18, 12, 0, 0, TAU); ctx.fill();
+      const ex = clamp((this.ship.x - b.x) / 20, -8, 8);
+      ctx.fillStyle = rage ? '#f43f5e' : '#fde047'; ctx.beginPath(); ctx.ellipse(ex, 2, 6, 9, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#000'; ctx.beginPath(); ctx.ellipse(ex, 2, 2, 7, 0, 0, TAU); ctx.fill();
+    } else if (b.kind === 'warden') {
+      // armoured hexagon fortress with four turrets
+      const g = ctx.createLinearGradient(0, -34, 0, 34);
+      g.addColorStop(0, '#dbeafe'); g.addColorStop(0.5, rage ? '#b91c1c' : '#2563eb'); g.addColorStop(1, '#0f172a');
+      ctx.fillStyle = white ? '#fff' : g;
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) { const an = i * TAU / 6; ctx.lineTo(Math.cos(an) * 76, Math.sin(an) * 32); }
+      ctx.closePath(); ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = '#93c5fd'; ctx.lineWidth = 2; ctx.stroke();
+      for (const [x, y] of [[-48, -14], [48, -14], [-48, 16], [48, 16]]) {
+        ctx.fillStyle = white ? '#fff' : '#1e293b'; ctx.beginPath(); ctx.arc(x, y, 9, 0, TAU); ctx.fill();
+        const an = Math.atan2(this.ship.y - (b.y + y), this.ship.x - (b.x + x));
+        ctx.strokeStyle = '#bfdbfe'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(an) * 14, y + Math.sin(an) * 14); ctx.stroke();
+      }
+      ctx.fillStyle = '#0f172a'; ctx.fillRect(-26, -10, 52, 20);
+      for (let i = 0; i < 6; i++) { ctx.fillStyle = (Math.floor(t * 5) + i) % 6 === 0 ? '#38bdf8' : 'rgba(56,189,248,.25)'; ctx.fillRect(-22 + i * 8, -3, 5, 6); }
+    } else {
+      // eclipse: black disc with blazing corona
+      ctx.shadowBlur = 0;
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < 16; i++) {
+        const an = i / 16 * TAU + t * 1.5, len = 58 + Math.sin(t * 7 + i * 1.7) * 10;
+        ctx.strokeStyle = rage ? 'rgba(248,113,113,.55)' : 'rgba(244,114,182,.5)'; ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.moveTo(Math.cos(an) * 36, Math.sin(an) * 26); ctx.lineTo(Math.cos(an) * len, Math.sin(an) * len * 0.55); ctx.stroke();
+      }
+      const cg = ctx.createRadialGradient(0, 0, 30, 0, 0, 62);
+      cg.addColorStop(0, rage ? 'rgba(254,202,202,.9)' : 'rgba(251,207,232,.9)'); cg.addColorStop(1, 'rgba(244,114,182,0)');
+      ctx.fillStyle = cg; ctx.beginPath(); ctx.ellipse(0, 0, 62, 40, 0, 0, TAU); ctx.fill();
+      ctx.restore();
+      ctx.fillStyle = white ? '#fff' : '#0a0512'; ctx.beginPath(); ctx.ellipse(0, 0, 38, 28, 0, 0, TAU); ctx.fill();
+      ctx.strokeStyle = '#fdf2f8'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(0, 0, 38, 28, 0, 0, TAU); ctx.stroke();
+      if (charging) { ctx.fillStyle = `rgba(255,255,255,${0.5 + 0.5 * Math.sin(t * 40)})`; ctx.beginPath(); ctx.arc(0, 26, 4 + b.lasers.t * 8, 0, TAU); ctx.fill(); }
     }
     ctx.restore();
 
-    // twin lasers
+    // lasers fixed to the boss
     if (b.lasers) {
       const L = b.lasers;
       ctx.save();
-      for (const off of [-58, 58]) {
-        const x = b.x + off;
-        if (L.t < 0.9) {
-          ctx.globalAlpha = 0.3 + 0.4 * Math.abs(Math.sin(t * 20));
-          ctx.strokeStyle = '#fda4af'; ctx.lineWidth = 1.5; ctx.setLineDash([8, 8]);
-          ctx.beginPath(); ctx.moveTo(x, b.y + 34); ctx.lineTo(x, H); ctx.stroke(); ctx.setLineDash([]);
-        } else {
-          ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'lighter';
-          const w = 9 + Math.sin(t * 50) * 2;
-          const lg = ctx.createLinearGradient(x - w * 2, 0, x + w * 2, 0);
-          lg.addColorStop(0, 'rgba(244,63,94,0)'); lg.addColorStop(0.4, 'rgba(244,63,94,.7)'); lg.addColorStop(0.5, 'rgba(255,255,255,1)'); lg.addColorStop(0.6, 'rgba(244,63,94,.7)'); lg.addColorStop(1, 'rgba(244,63,94,0)');
-          ctx.fillStyle = lg; ctx.fillRect(x - w * 2, b.y + 30, w * 4, H);
-        }
-      }
+      for (const off of L.offs) this.drawBeamLine(ctx, b.x + off, b.y + 30, L.t < L.charge, L.w, t);
       ctx.restore();
     }
+  }
+
+  bossCore(ctx, t, rage, x, y, r) {
+    const cg = ctx.createRadialGradient(x, y, 1, x, y, r + 1);
+    cg.addColorStop(0, '#fff'); cg.addColorStop(0.4, rage ? '#f43f5e' : '#fde047'); cg.addColorStop(1, 'rgba(244,63,94,0)');
+    ctx.fillStyle = cg; ctx.beginPath(); ctx.arc(x, y, r + Math.sin(t * 6) * 2, 0, TAU); ctx.fill();
+  }
+
+  /** A vertical enemy laser: dashed warning line while charging, then the beam. */
+  drawBeamLine(ctx, x, top, warning, w0, t) {
+    ctx.save();
+    if (warning) {
+      ctx.globalAlpha = 0.3 + 0.45 * Math.abs(Math.sin(t * 20));
+      ctx.strokeStyle = '#fda4af'; ctx.lineWidth = 1.5; ctx.setLineDash([8, 8]);
+      ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, H); ctx.stroke(); ctx.setLineDash([]);
+      ctx.globalAlpha = 0.12; ctx.fillStyle = '#f43f5e'; ctx.fillRect(x - w0, top, w0 * 2, H);
+    } else {
+      ctx.globalCompositeOperation = 'lighter';
+      const w = w0 + Math.sin(t * 50) * 2;
+      const lg = ctx.createLinearGradient(x - w * 2, 0, x + w * 2, 0);
+      lg.addColorStop(0, 'rgba(244,63,94,0)'); lg.addColorStop(0.4, 'rgba(244,63,94,.7)'); lg.addColorStop(0.5, 'rgba(255,255,255,1)'); lg.addColorStop(0.6, 'rgba(244,63,94,.7)'); lg.addColorStop(1, 'rgba(244,63,94,0)');
+      ctx.fillStyle = lg; ctx.fillRect(x - w * 2, top, w * 4, H);
+    }
+    ctx.restore();
   }
 
   drawFighter(ctx, x, y, rot, t, { flame = false, captive = false } = {}) {

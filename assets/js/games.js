@@ -117,7 +117,7 @@ export const GAMES = [
     id: 'galactic-alien-shooter',
     gold: 'Golden Starfighter',     // golden character unlocked for Legends
     title: 'Galactic Alien Shooter',
-    tagline: 'Five alien warships, five different weapons. Grab lasers, rockets and blasters, rescue your abducted ship, then take on the Dreadnought!',
+    tagline: 'Five alien warships, five different weapons. Grab lasers, rockets and blasters, rescue your abducted ship, then face four different bosses!',
     controls: 'Fly: mouse / arrow keys / drag (up, down, left, right) · Fire: hold Space or mouse button (touch & hold on phones)',
     difficulty: 'Hard',
     color: '#22d3ee',
@@ -128,7 +128,7 @@ export const GAMES = [
       { id: 'maxed',    icon: '🔋', title: 'Fully Loaded',       desc: 'Power a weapon up to level 3' },
       { id: 'boss',     icon: '☠️', title: 'Dreadnought Down',   desc: 'Destroy the Dreadnought boss' },
       { id: 'sharp',    icon: '🎯', title: 'Sharpshooter',       desc: 'Clear level 2+ with 75% accuracy' },
-      { id: 'golden',   icon: '✨', title: 'Golden Starfighter', desc: 'Hit all 40 in a Star Run bonus — unlocks the golden ship' },
+      { id: 'perfect',  icon: '✨', title: 'Perfect Run',        desc: 'Hit all 40 ships in a Star Run bonus' },
       { id: 'combo4',   icon: '🔥', title: 'On Fire',            desc: 'Reach a x4 combo' },
       { id: 'level10',  icon: '🌌', title: 'Galaxy Defender',    desc: 'Reach level 10' },
       { id: 'score10k', icon: '🏅', title: 'Ten Grand',          desc: 'Score 10,000 in one run' },
