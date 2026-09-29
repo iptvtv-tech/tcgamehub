@@ -23,14 +23,16 @@ const COLORS = ['#22d3ee', '#f472b6', '#a3e635', '#fbbf24', '#a78bfa', '#fb923c'
 
 // Level settings
 function spec(level, bonus) {
-  if (bonus) return { n: 7, fill: 0.72, maxLen: 4, rocks: 0, timed: false };
-  const n = Math.min(12, 5 + Math.floor(level * 0.5));
+  if (bonus) return { n: 7, fill: 0.72, maxLen: 4, rocks: 0, timed: false, tight: 0 };
+  const n = Math.min(10, 5 + Math.floor(level * 0.4));
   return {
     n,
-    fill: Math.min(0.93, 0.62 + level * 0.025),
+    fill: Math.min(0.9, 0.62 + level * 0.02),
     maxLen: Math.min(10, 3 + Math.floor(level / 2)),
-    rocks: level >= 6 ? 1 + Math.floor(n * n * 0.035) : 0,
+    rocks: level >= 6 ? 1 + Math.floor(n * n * 0.03) : 0,
     timed: level >= 4,
+    // how hard the generator works to build chains (0 = relaxed, 1 = only one or two moves open at a time)
+    tight: level <= 2 ? 0 : level === 3 ? 0.35 : Math.min(1, 0.6 + (level - 4) * 0.06),
   };
 }
 
@@ -50,7 +52,7 @@ runGame({
       1: 'Tap a snake to send it out HEAD-first. If another snake is in the way it bonks — and you lose a life!',
       2: 'Bigger knot. Look for the snakes with a clear path to the edge first.',
       3: 'Find the right order — some snakes only get free after others leave.',
-      4: '⏱️ Beat the clock! Run out of time and you lose a life.',
+      4: '⏱️ Beat the clock! From now on the knots are CHAINS — usually only one or two snakes can move at a time, and the helper line is gone.',
       6: '🪨 Rocks never move — no snake can escape through one.',
       8: 'Longer snakes, tighter knots…',
       11: '10×10 — only the calmest heads get out of this one.',
@@ -78,23 +80,30 @@ class SnakeEscape {
   }
 
   // ── Puzzle generator ───────────────────────────────────────
+  // Snakes are placed one at a time; each new snake's escape path must be clear of
+  // everything already placed, so removing them newest-first always works. From
+  // level 4 the generator deliberately parks each new snake across the escape path
+  // of snakes that are still free, building long chains: only one or two snakes can
+  // move at any moment, so there are very few ways through.
   build() {
-    const r = this.s.rng, { n, fill, maxLen, rocks } = this.sp;
+    const r = this.s.rng, sp = this.sp;
+    const tries = this.bonus ? 1 : 3 + Math.round(sp.tight * 9);
     let best = null;
-    for (let attempt = 0; attempt < 6; attempt++) {
-      const p = this.generate(n, fill, maxLen, rocks, r);
+    for (let attempt = 0; attempt < tries; attempt++) {
+      const p = this.generate(sp, r);
       if (!best || p.score > best.score) best = p;
-      if (p.filled >= fill * 0.92 && p.locked >= p.snakes.length * 0.4) break;
     }
     this.n = best.n; this.cell = BOARD / best.n;
     this.occ = best.occ; this.snakes = best.snakes; this.rocks = best.rocks;
     this.total = this.snakes.length;
-    this.timeMax = this.sp.timed ? Math.round((12 + this.total * 2.4) / this.s.speed(0.035)) : 0;
+    this.stats = best.stats;
+    this.timeMax = sp.timed ? Math.round((10 + this.total * 2.6 + best.stats.depth * 1.5) / this.s.speed(0.03)) : 0;
     this.timeLeft = this.timeMax;
     this.moving = [];
   }
 
-  generate(n, fill, maxLen, rockCount, r) {
+  generate(sp, r) {
+    const { n, fill, maxLen, rocks: rockCount, tight } = sp;
     const occ = Array.from({ length: n }, () => new Array(n).fill(-1));
     const inside = (x, y) => x >= 0 && y >= 0 && x < n && y < n;
     const rocks = [];
@@ -105,8 +114,9 @@ class SnakeEscape {
     const snakes = [];
     let filled = rocks.length;
     const target = Math.floor(n * n * fill);
-    const rayOf = new Map();                          // cell → how many placed snakes need it to escape
-    // One candidate snake, or null. Its escape ray must be clear of everything already placed.
+    const owners = new Map();                         // cell → ids of placed snakes that need it to escape
+    const free = new Set();                           // placed snakes nothing has blocked yet
+    const freeOwnersAt = (k) => (owners.get(k) || []).filter((id) => free.has(id));
     const candidate = () => {
       const hx = r.int(0, n - 1), hy = r.int(0, n - 1);
       if (occ[hy][hx] !== -1) return null;
@@ -123,29 +133,86 @@ class SnakeEscape {
         const opts = DIRS.map(([ex, ey]) => [tx + ex, ty + ey]).filter(([ax, ay]) =>
           inside(ax, ay) && occ[ay][ax] === -1 && !used.has(ax + ',' + ay) && !rayset.has(ax + ',' + ay));
         if (!opts.length) break;
-        // lean towards cells that sit in other snakes' escape paths (that's what makes a knot)
-        opts.sort((p, q) => (rayOf.get(q[0] + ',' + q[1]) || 0) - (rayOf.get(p[0] + ',' + p[1]) || 0));
-        const c = r.chance(0.6) ? opts[0] : r.pick(opts);
+        opts.sort((p, q) => freeOwnersAt(q[0] + ',' + q[1]).length - freeOwnersAt(p[0] + ',' + p[1]).length);
+        const c = r.chance(0.35 + tight * 0.5) ? opts[0] : r.pick(opts);
         body.push(c); used.add(c[0] + ',' + c[1]);
       }
       if (body.length < 2) return null;
-      const blocks = body.reduce((a, [bx, by]) => a + (rayOf.get(bx + ',' + by) || 0), 0);
-      return { body, d, ray, score: blocks * 2 + body.length };
+      const blocked = new Set();
+      for (const [bx, by] of body) for (const id of freeOwnersAt(bx + ',' + by)) blocked.add(id);
+      // tight puzzles: block one or two free snakes (a chain), but not a crowd
+      const b = blocked.size;
+      const score = tight * (b === 0 ? -14 : Math.min(b, 2) * 12 - Math.max(0, b - 2) * 4) + b * (1 - tight) * 2 + body.length;
+      return { body, d, ray, blocked, score };
     };
-    for (let tries = 0; tries < 400 && filled < target; tries++) {
+    // A candidate that starts ON the escape path of a still-free snake (so it's guaranteed to block it),
+    // wanders a few cells, and puts its head at the far end facing a clear way out.
+    const targeted = () => {
+      const cells = [];
+      for (const [k, ids] of owners) if (ids.some((id) => free.has(id))) { const [x, y] = k.split(',').map(Number); if (occ[y][x] === -1) cells.push([x, y]); }
+      if (!cells.length) return null;
+      const start = r.pick(cells);
+      const want = r.int(2, maxLen);
+      const walk = [start], used = new Set([start[0] + ',' + start[1]]);
+      for (let k = 1; k < want; k++) {
+        const [tx, ty] = walk[walk.length - 1];
+        const opts = DIRS.map(([ex, ey]) => [tx + ex, ty + ey]).filter(([ax, ay]) => inside(ax, ay) && occ[ay][ax] === -1 && !used.has(ax + ',' + ay));
+        if (!opts.length) break;
+        const c = r.pick(opts); walk.push(c); used.add(c[0] + ',' + c[1]);
+      }
+      if (walk.length < 2) return null;
+      const body = walk.slice().reverse();              // the far end is the head
+      const [hx, hy] = body[0];
+      for (const d of [0, 1, 2, 3].sort(() => r.range(-1, 1))) {
+        const [dx, dy] = DIRS[d];
+        if (hx + dx === body[1][0] && hy + dy === body[1][1]) continue;
+        const ray = []; let ok = true, x = hx + dx, y = hy + dy;
+        while (inside(x, y)) { if (occ[y][x] !== -1 || used.has(x + ',' + y)) { ok = false; break; } ray.push(x + ',' + y); x += dx; y += dy; }
+        if (!ok) continue;
+        const blocked = new Set();
+        for (const [bx, by] of body) for (const id of freeOwnersAt(bx + ',' + by)) blocked.add(id);
+        const b = blocked.size;
+        return { body, d, ray, blocked, score: tight * (Math.min(b, 2) * 12 - Math.max(0, b - 2) * 4) + body.length + 2 };
+      }
+      return null;
+    };
+    const picks = 6 + Math.round(tight * 34);
+    for (let tries = 0; tries < 700 && filled < target; tries++) {
       let best = null;
-      for (let k = 0; k < 14; k++) { const c = candidate(); if (c && (!best || c.score > best.score)) best = c; }
+      for (let k = 0; k < picks; k++) {
+        const c = r.chance(tight * 0.8) ? targeted() : candidate();
+        if (c && (!best || c.score > best.score)) best = c;
+      }
       if (!best) continue;
       const id = snakes.length;
       for (const [bx, by] of best.body) occ[by][bx] = id;
-      for (const cell of best.ray) rayOf.set(cell, (rayOf.get(cell) || 0) + 1);
+      for (const cell of best.ray) { if (!owners.has(cell)) owners.set(cell, []); owners.get(cell).push(id); }
+      for (const b of best.blocked) free.delete(b);
+      free.add(id);
       snakes.push({ id, body: best.body, d: best.d, color: COLORS[id % COLORS.length], alive: true, bump: null, ph: r.range(0, 6) });
       filled += best.body.length;
     }
-    // how many start blocked (a good puzzle has plenty)
-    const tmp = { n, occ, snakes };
-    const locked = snakes.filter((sn) => this.blockedAt(sn, tmp) >= 0).length;
-    return { n, occ, snakes, rocks, filled: filled / (n * n), locked, score: filled + locked * 3 };
+    const stats = this.analyse({ n, occ, snakes });
+    // fewer choices at each step = harder; still reward a well-filled board
+    const score = filled / (n * n) * 20 - stats.branch * 6 * tight + stats.depth * tight;
+    return { n, occ, snakes, rocks, filled: filled / (n * n), stats, score };
+  }
+
+  /** Play the puzzle out greedily: how many moves are open on average, and how many "rounds" deep is it? */
+  analyse(b) {
+    const occ = b.occ.map((row) => row.slice());
+    const tmp = { n: b.n, occ, snakes: b.snakes };
+    const left = new Set(b.snakes.map((sn) => sn.id));
+    let depth = 0, sum = 0, steps = 0;
+    const startFree = b.snakes.filter((sn) => this.blockedAt(sn, tmp) < 0).length;
+    while (left.size) {
+      const freeNow = [...left].filter((id) => this.blockedAt(b.snakes[id], tmp) < 0);
+      if (!freeNow.length) break;
+      depth++;
+      for (const id of freeNow) { sum += left.size && freeNow.length; steps++; }
+      for (const id of freeNow) { for (const [x, y] of b.snakes[id].body) occ[y][x] = -1; left.delete(id); }
+    }
+    return { depth, branch: steps ? sum / steps : 0, startFree, solvable: left.size === 0 };
   }
 
   /** Distance to the first thing in a snake's way, or -1 if its path is clear. */
@@ -336,7 +403,7 @@ class SnakeEscape {
 
     // hovered snake: faint arrow along its escape line
     const hv = this.hover;
-    if (hv && hv.alive && !hv.leaving && s.state === 'playing') {
+    if (hv && hv.alive && !hv.leaving && s.state === 'playing' && (this.level <= 3 || this.bonus)) {   // the helper line is only for the first levels
       const [hx, hy] = hv.body[0], [dx, dy] = DIRS[hv.d];
       ctx.save(); ctx.strokeStyle = this.color(hv); ctx.globalAlpha = 0.35; ctx.lineWidth = 2; ctx.setLineDash([6, 8]);
       ctx.beginPath(); ctx.moveTo(BX + (hx + 0.5) * c, BY + (hy + 0.5) * c);

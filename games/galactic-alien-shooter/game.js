@@ -12,8 +12,8 @@
 //
 //  YOUR WEAPONS (capsules dropped by destroyed ships, power 1 → 3)
 //   B Blaster  rapid bolts, spreads wider with power
-//   L Laser    hitscan beam — RARE (like a 1UP: once per 4 levels at most), lasts 8 s
-//   R Rockets  homing rockets with splash damage + a light cannon, lasts 14 s
+//   L Laser    hitscan beam — RARE (one red carrier every 5 levels), lasts 7 s
+//   R Rockets  homing rockets with splash damage + a light cannon, lasts 10 s
 //   S Shield   soaks one hit        1UP  very rare drop (and at 100k / 300k / 600k)
 //
 //  Every 5th level: ★ STAR RUN bonus (can't be hit, 15 s, hit all 40 = PERFECT)
@@ -32,11 +32,11 @@ const GRID_DX = 40, GRID_DY = 36, GRID_TOP = 96;
 const TAU = Math.PI * 2;
 
 const TYPES = {
-  scout:   { r: 14, hp: 1, form: 10, dive: 20, color: '#a3e635', drop: 0.02 },
-  gunship: { r: 16, hp: 1, form: 16, dive: 32, color: '#fb923c', drop: 0.03 },
-  bomber:  { r: 17, hp: 2, form: 24, dive: 50, color: '#c084fc', drop: 0.07 },
-  lancer:  { r: 14, hp: 1, form: 20, dive: 45, color: '#f472b6', drop: 0.05 },
-  carrier: { r: 20, hp: 3, form: 30, dive: 90, color: '#22d3ee', drop: 0.12 },
+  scout:   { r: 14, hp: 1, form: 10, dive: 20, color: '#a3e635', drop: 0.01 },
+  gunship: { r: 16, hp: 1, form: 16, dive: 32, color: '#fb923c', drop: 0.015 },
+  bomber:  { r: 17, hp: 2, form: 24, dive: 50, color: '#c084fc', drop: 0.04 },
+  lancer:  { r: 14, hp: 1, form: 20, dive: 45, color: '#f472b6', drop: 0.025 },
+  carrier: { r: 20, hp: 3, form: 30, dive: 90, color: '#22d3ee', drop: 0.07 },
   shard:   { r: 9,  hp: 1, form: 12, dive: 12, color: '#bef264', drop: 0 },
 };
 
@@ -54,7 +54,7 @@ const PICKUPS = {
 const BEAM = { grow: 0.5, hold: 1.9, shrink: 0.5 };
 const LANCE = { charge: 0.75, fire: 0.4 };
 const LIFE_AT = [100000, 300000, 600000];
-const WEAPON_TIME = { laser: 8, rockets: 14 };   // seconds before a special weapon runs out
+const WEAPON_TIME = { laser: 7, rockets: 10 };   // seconds before a special weapon runs out
 const MAX_LIVES = 5;
 
 const isBoss = (level) => level % 10 === 9;
@@ -1078,8 +1078,8 @@ class AlienShooter {
     } else if (a.laserCarrier) {
       // the laser is scarce: one red-glowing carrier carries it, once in every 5 levels
       kind = 'laser'; this.laserBlocks[Math.floor((this.level - 1) / 5)] = true;
-    } else if (r.chance(T.drop) || (this.sinceDrop >= 50 && T.drop > 0)) {
-      kind = r.chance(0.14) ? 'shield' : r.chance(0.6) ? 'blaster' : 'rockets';
+    } else if (r.chance(T.drop) || (this.sinceDrop >= 90 && T.drop > 0)) {
+      kind = r.chance(0.1) ? 'shield' : r.chance(0.65) ? 'blaster' : 'rockets';
     }
     if (!kind) return;
     this.sinceDrop = 0;

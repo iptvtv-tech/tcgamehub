@@ -28,7 +28,7 @@ const PROG = [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]]; // Am F C
 const CELLS = [['1000', 1], ['1010', 1], ['1000', 1], ['0000', 1], ['0010', 2], ['1001', 2], ['1011', 3],
   ['1101', 3], ['0101', 6], ['1110', 5], ['0111', 6], ['1111', 8], ['1011', 8]];
 
-const bpmFor = (level) => Math.min(176, 100 + (level - 1) * 5);
+const bpmFor = (level) => Math.min(150, 75 + (level - 1) * 4);   // 75 BPM at level 1, +4 a level
 
 runGame({
   id: ID,
@@ -72,7 +72,9 @@ class NeonBeat {
     this.level = level; this.bonus = bonus;
     this.bpm = bpmFor(level);
     this.beat = 60 / this.bpm;
-    this.speed = Math.min(760, 440 * this.s.speed(0.035));       // pixels per second
+    this.speed = Math.min(680, 340 * this.s.speed(0.03));        // pixels per second
+    // timing windows: generous while you learn, tighter later
+    this.win = level <= 4 ? { perfect: 0.055, great: 0.11, good: 0.165 } : level <= 9 ? { perfect: 0.05, great: 0.1, good: 0.15 } : WIN;
     this.stealth = level >= 12 && !bonus;
     this.chart = this.makeChart();
     this.startSong();
@@ -147,12 +149,12 @@ class NeonBeat {
     for (const n of this.notes) {
       if (n.lane !== lane || n.state !== 'live') continue;
       const d = Math.abs(n.t - t);
-      if (d <= WIN.good && (!best || d < Math.abs(best.t - t))) best = n;
-      if (n.t - t > WIN.good) break;
+      if (d <= this.win.good && (!best || d < Math.abs(best.t - t))) best = n;
+      if (n.t - t > this.win.good) break;
     }
     if (!best) return;
     const d = Math.abs(best.t - t);
-    const j = d <= WIN.perfect ? 'perfect' : d <= WIN.great ? 'great' : 'good';
+    const j = d <= this.win.perfect ? 'perfect' : d <= this.win.great ? 'great' : 'good';
     this.hit(best, j, best.t - t);
   }
 
@@ -230,7 +232,7 @@ class NeonBeat {
     this.backing();
 
     for (const n of this.notes) {
-      if (n.state === 'live' && this.songT - n.t > WIN.good) { if (this.miss(n)) return; }
+      if (n.state === 'live' && this.songT - n.t > this.win.good) { if (this.miss(n)) return; }
       else if (n.state === 'holding') {
         const end = n.t + n.hold;
         if (this.songT >= end) {
