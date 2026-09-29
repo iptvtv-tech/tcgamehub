@@ -228,7 +228,6 @@ export const LEVELS = {
     guards: [
       { path: [[2, 7], [12, 7]], every: 4, vision: 4, pause: 8 },
       { path: [[12, 9], [2, 9]], every: 2, vision: 2, pause: 6, dog: true },
-      { path: [[13, 11], [9, 11]], every: 4, vision: 2, pause: 8, phase: 10 },
     ],
   },
 

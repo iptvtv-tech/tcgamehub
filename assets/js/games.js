@@ -10,7 +10,6 @@ export const GAMES = [
     title: 'Neon Snake',
     tagline: 'Eat, grow, glow. Dodge the walls as the pace climbs.',
     controls: 'Arrow keys / WASD · swipe on touch screens',
-    difficulty: 'Easy start',
     color: '#22d3ee',
     isNew: false,
     achievements: [
@@ -28,7 +27,6 @@ export const GAMES = [
     title: 'Feather Dash',
     tagline: 'Flap through the pillars from sunrise to the northern lights.',
     controls: 'Space / ↑ / click / tap to flap',
-    difficulty: 'Medium',
     color: '#fbbf24',
     isNew: false,
     achievements: [
@@ -46,7 +44,6 @@ export const GAMES = [
     title: 'Prism Breaker',
     tagline: 'Smash rainbow bricks, chain combos, catch the power-ups.',
     controls: 'Mouse / drag / ← → to move · Space or tap to launch',
-    difficulty: 'Easy start',
     color: '#f472b6',
     isNew: false,
     achievements: [
@@ -64,7 +61,6 @@ export const GAMES = [
     title: 'Astro Blaster',
     tagline: 'Blast colourful asteroids — shoot a ⚡ shock rock for a huge chain reaction.',
     controls: 'Move: mouse / arrows / drag · Fire: hold Space or mouse button (touch & hold on phones)',
-    difficulty: 'Medium',
     color: '#a855f7',
     isNew: false,
     achievements: [
@@ -82,7 +78,6 @@ export const GAMES = [
     title: 'Crazy Putt',
     tagline: 'Crazy golf that looks easy… until the hidden traps get you. Go for a hole in one!',
     controls: 'Aim with mouse / finger (or ← →) · hold click or Space for power · release to putt',
-    difficulty: 'Tricky',
     color: '#4ade80',
     isNew: false,
     achievements: [
@@ -100,7 +95,6 @@ export const GAMES = [
     title: 'The Vault Job',
     tagline: 'Sneak through the museum after dark. Dodge guards, cameras and lasers… grab the loot if you dare.',
     controls: 'Arrow keys / WASD / swipe to move one tile · hide behind plants and statues',
-    difficulty: 'Sneaky',
     color: '#fbbf24',
     isNew: false,
     legend: true,                           // this game can make you a Legend (see assets/js/legends.js)
@@ -114,14 +108,85 @@ export const GAMES = [
     ],
   },
   {
+    id: 'snake-escape-puzzle',
+    gold: 'Golden Snakes',          // golden character unlocked by the Zone 2 crown
+    title: 'Snake Escape Puzzle',
+    tagline: 'A knot of snakes, one way out each. Tap them in the right order — one wrong tap and BONK!',
+    controls: 'Tap / click a snake to send it out head-first · or arrow keys + Space',
+    color: '#2dd4bf',
+    isNew: true,
+    achievements: [
+      { id: 'clean',    icon: '🧠', title: 'Clean Escape',  desc: 'Clear level 3+ without a single bonk' },
+      { id: 'quick',    icon: '⏱️', title: 'Quick Thinker', desc: 'Clear a timed level with half the clock left' },
+      { id: 'giant',    icon: '🪢', title: 'Giant Knot',    desc: 'Untangle a 10×10 puzzle' },
+      { id: 'stampede', icon: '🐍', title: 'Stampede',      desc: 'Free 20 snakes in one bonus round' },
+      { id: 'combo4',   icon: '🔥', title: 'Snake Charmer', desc: 'Reach a x4 combo' },
+      { id: 'level10',  icon: '🏅', title: 'Knot Master',   desc: 'Reach level 10' },
+      { id: 'score10k', icon: '💯', title: 'Ten Grand',     desc: 'Score 10,000 in one run' },
+    ],
+  },
+  {
+    id: 'neon-beat',
+    gold: 'Golden Notes',           // golden character unlocked by the Zone 2 crown
+    title: 'Neon Beat',
+    tagline: 'Hit the falling notes on the beat — every note you hit plays the tune. Chords, holds and stealth notes!',
+    controls: '← ↓ ↑ → or A S W D · tap the lanes on touch screens · hold for long notes',
+    color: '#e879f9',
+    isNew: true,
+    achievements: [
+      { id: 'fullcombo',  icon: '🎯', title: 'Full Combo',   desc: 'Finish a song (level 2+) without a single miss' },
+      { id: 'allperfect', icon: '💎', title: 'Pitch Perfect', desc: 'Finish a song with nothing but PERFECTs' },
+      { id: 'streak100',  icon: '🔥', title: 'In the Zone',  desc: 'Hit a 100-note streak' },
+      { id: 'sustain',    icon: '🎹', title: 'Sustain',      desc: 'Complete 10 hold notes in one song' },
+      { id: 'fever',      icon: '⭐', title: 'Fever Pitch',  desc: 'Hit 60 notes in one Fever bonus' },
+      { id: 'level10',    icon: '🎧', title: 'Headliner',    desc: 'Reach level 10' },
+      { id: 'score10k',   icon: '🏅', title: 'Ten Grand',    desc: 'Score 10,000 in one run' },
+    ],
+  },
+  {
+    id: 'tower-topple',
+    gold: 'Golden Bricks',          // golden character unlocked by the Zone 2 crown
+    title: 'Tower Topple',
+    tagline: 'Drop swinging floors from the crane and build sky-high. Off-centre floors make it lean… and TOPPLE!',
+    controls: 'Tap / click / Space to drop the floor',
+    color: '#fb923c',
+    isNew: true,
+    achievements: [
+      { id: 'perfect5', icon: '🎯', title: 'Dead Centre',    desc: '5 PERFECT drops in a row' },
+      { id: 'windy',    icon: '💨', title: 'Weather Proof',  desc: 'Land 10 floors in strong wind in one level' },
+      { id: 'tall',     icon: '🏙️', title: 'Skyscraper',     desc: 'Stack 25 floors in one tower' },
+      { id: 'rush',     icon: '⭐', title: 'Golden Rush',    desc: 'Stack 12 floors in one bonus round' },
+      { id: 'nomiss',   icon: '🧱', title: 'Steady Hands',   desc: 'Clear level 3+ without losing a life' },
+      { id: 'level10',  icon: '🏗️', title: 'Master Builder', desc: 'Reach level 10' },
+      { id: 'score10k', icon: '🏅', title: 'Ten Grand',      desc: 'Score 10,000 in one run' },
+    ],
+  },
+  {
+    id: 'pinball-blast',
+    gold: 'Golden Ball',            // golden character unlocked by the Zone 2 crown
+    title: 'Pinball Blast',
+    tagline: 'A full neon pinball table with missions, multiball and classic chime-bell sounds.',
+    controls: 'Flippers: ← → or A / D (tap left / right half) · Plunger: hold Space / touch, let go · Nudge: ↑',
+    color: '#f472b6',
+    isNew: true,
+    achievements: [
+      { id: 'skill',    icon: '🎯', title: 'Skill Shot',     desc: 'Launch with a full-power plunger' },
+      { id: 'neon',     icon: '💡', title: 'Lights On',      desc: 'Light all four N·E·O·N lanes' },
+      { id: 'bank',     icon: '🧨', title: 'Bank Buster',    desc: 'Knock down the whole drop-target bank' },
+      { id: 'allballs', icon: '🪙', title: 'Wizard',         desc: 'Finish a mission (level 3+) with all 3 balls left' },
+      { id: 'frenzy',   icon: '⭐', title: 'Frenzy Jackpot', desc: 'Hit the saucer 3 times in one Multiball Frenzy' },
+      { id: 'level10',  icon: '🕹️', title: 'Table Master',   desc: 'Reach level 10' },
+      { id: 'score10k', icon: '🏅', title: 'Ten Grand',      desc: 'Score 10,000 in one run' },
+    ],
+  },
+  {
     id: 'galactic-alien-shooter',
     gold: 'Golden Starfighter',     // golden character unlocked for Legends
     title: 'Galactic Alien Shooter',
     tagline: 'Five alien warships, five different weapons. Grab lasers, rockets and blasters, rescue your abducted ship, then face four different bosses!',
     controls: 'Fly: mouse / arrow keys / drag (up, down, left, right) · Fire: hold Space or mouse button (touch & hold on phones)',
-    difficulty: 'Hard',
     color: '#22d3ee',
-    isNew: true,
+    isNew: false,
     achievements: [
       { id: 'rescue',   icon: '🚀', title: 'Twin Engines',       desc: 'Rescue your abducted ship for a twin fighter' },
       { id: 'squad',    icon: '🛸', title: 'Wing Clipper',       desc: 'Shoot down a diving carrier and both escorts' },
@@ -135,6 +200,25 @@ export const GAMES = [
     ],
   },
 
+  {
+    id: 'heist-planner',
+    gold: 'Golden Heist Crew',      // golden character unlocked by the Zone 2 crown
+    title: 'Heist Planner',
+    tagline: 'Plan every step of your crew — thief, hacker and muscle — then press GO and watch the heist play out.',
+    controls: 'Arrows / tap next to a crew member to plan steps · Space wait · Tab switch crew · Enter GO',
+    color: '#fde047',
+    isNew: true,
+    legend: true,                   // Zone 2's Legends game
+    achievements: [
+      { id: 'firsttry',    icon: '🧠', title: 'Mastermind',     desc: 'Pull off a job with your very first plan' },
+      { id: 'gems',        icon: '💎', title: 'Sticky Fingers', desc: 'Grab a bonus gem during a heist' },
+      { id: 'fullcrew',    icon: '👥', title: 'The Full Crew',  desc: 'Finish a job with thief, hacker and muscle' },
+      { id: 'safecracker', icon: '🔐', title: 'Safe Cracker',   desc: 'Crack 4 safes in one bonus round' },
+      { id: 'escape',      icon: '🚐', title: 'Clean Getaway',  desc: 'Finish job 15, The Crown Vault' },
+      { id: 'level10',     icon: '🗺️', title: 'Criminal Genius', desc: 'Reach job 10' },
+      { id: 'crown',       icon: '👑', title: 'The Golden Crown', desc: 'Find the treasure in the secret job', legendary: true, secret: true },
+    ],
+  },
 ];
 
 // Badges that any game can earn (unlocked automatically by the engine).
@@ -148,7 +232,44 @@ export const GLOBAL_ACHIEVEMENTS = [
   { id: 'famous',  icon: '🏆', title: 'Famous',          desc: 'Put your name on a leaderboard' },
   { id: 'pb',      icon: '📈', title: 'Getting Better',  desc: 'Beat your own best score' },
   { id: 'legend',  icon: '👑', title: 'Legend',          desc: 'Finish a Legend game without losing a single life', legendary: true, secret: true },
+  { id: 'crown1',  icon: '🥇', title: 'Zone 1 Crown',    desc: 'Become a Legend of Zone 1 — unlocks the golden characters in games 1–6', legendary: true, secret: true },
+  { id: 'crown2',  icon: '💎', title: 'Zone 2 Crown',    desc: 'Become a Legend of Zone 2 — unlocks the golden characters in games 7–12', legendary: true, secret: true },
+  { id: 'grand',   icon: '🏆', title: 'Grand Legend',    desc: 'Win the crown of every zone', legendary: true, secret: true },
 ];
+
+// ── Difficulty tiers & zones ─────────────────────────────────
+// Games are numbered by their place in ZONES. Difficulty goes up with the number,
+// and every 6th game (the last slot of each zone) is a Legends game.
+export const TIERS = [
+  { id: 'easy',    label: 'Easy',    color: '#4ade80', from: 1 },
+  { id: 'medium',  label: 'Medium',  color: '#facc15', from: 3 },
+  { id: 'hard',    label: 'Hard',    color: '#fb923c', from: 5 },
+  { id: 'expert',  label: 'Expert',  color: '#f43f5e', from: 7 },
+  { id: 'extreme', label: 'Extreme', color: '#c084fc', from: 10 },
+];
+export const tierFor = (n) => [...TIERS].reverse().find((t) => n >= t.from);
+
+// null = a game still to be built (shows as "coming soon").
+export const ZONES = [
+  { n: 1, name: 'Zone 1 · Arcade Classics', blurb: 'Easy to Hard. The Vault Job is this zone\'s Legends game.',
+    legendGame: 'the-vault-job',
+    slots: ['neon-snake', 'feather-dash', 'prism-breaker', 'astro-blaster', 'crazy-putt', 'the-vault-job'] },
+  { n: 2, name: 'Zone 2 · Hard Mode', blurb: 'Expert to Extreme — tougher than anything in Zone 1. Heist Planner is this zone\'s Legends game.',
+    legendGame: 'heist-planner',
+    slots: ['snake-escape-puzzle', 'neon-beat', 'tower-topple', 'pinball-blast', 'galactic-alien-shooter', 'heist-planner'] },
+];
+
+/** Every slot in order: { n, zone, tier, legendSlot, game|null } */
+export const SLOTS = ZONES.flatMap((z) => z.slots.map((id, i) => {
+  const n = (z.n - 1) * 6 + i + 1;
+  return { n, zone: z, tier: tierFor(n), legendSlot: i === 5, game: id ? GAMES.find((g) => g.id === id) : null };
+}));
+for (const sl of SLOTS) {
+  if (!sl.game) continue;
+  Object.assign(sl.game, { number: sl.n, zone: sl.zone.n, tier: sl.tier.id, difficulty: sl.tier.label });
+}
+GAMES.sort((a, b) => (a.number || 99) - (b.number || 99));
+export const zoneOf = (id) => ZONES.find((z) => z.slots.includes(id)) || null;
 
 export const gameById = (id) => GAMES.find((g) => g.id === id);
 

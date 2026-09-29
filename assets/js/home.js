@@ -1,8 +1,9 @@
 import { CONFIG } from './config.js';
-import { GAMES, GLOBAL_ACHIEVEMENTS, gameById, dailyGame } from './games.js';
+import { GAMES, GLOBAL_ACHIEVEMENTS, ZONES, SLOTS, gameById, dailyGame } from './games.js';
 import { Store } from './storage.js';
 import { Scores } from './scores.js';
 import { Legends } from './legends.js';
+import { ZoneLock } from './zones.js';
 import { siteChrome, esc, fmt, ago, whatsappLink, WA_ICON } from './site.js';
 
 siteChrome();
@@ -15,8 +16,9 @@ wa.innerHTML = `${WA_ICON} Share on WhatsApp`;
 // ── Play now (random game) ──────────────────────────────────
 document.getElementById('play-random').onclick = () => {
   // Prefer a game they haven't tried yet
-  const fresh = GAMES.filter((g) => !Store.plays(g.id));
-  const pool = fresh.length ? fresh : GAMES;
+  const open = GAMES.filter((g) => ZoneLock.gameOpen(g.id));
+  const fresh = open.filter((g) => !Store.plays(g.id));
+  const pool = fresh.length ? fresh : open;
   const g = pool[Math.floor(Math.random() * pool.length)];
   location.href = `games/${g.id}/`;
 };
@@ -53,23 +55,53 @@ if (lastGame) {
     </div>`;
 }
 
-// ── Game cards ──────────────────────────────────────────────
-const grid = document.getElementById('grid');
-grid.innerHTML = GAMES.map((g) => `
-  <a class="game-card" href="games/${g.id}/" style="--c:${g.color}">
-    <div class="thumb"><img src="games/${g.id}/thumb.svg" alt="" width="120" height="120" loading="lazy"></div>
-    <span class="play-cta">PLAY ▶</span>
-    <div class="body">
-      <h3>${esc(g.title)} ${g.isNew ? '<span class="pill new">NEW</span>' : ''}</h3>
-      <p>${esc(g.tagline)}</p>
-      <div class="meta">
-        <span>📈 ${esc(g.difficulty)}</span>
-        <span>Your best: <b>${fmt(Store.best(g.id))}</b></span>
-        <span data-top="${g.id}">Today's top: …</span>
+// ── Game cards, grouped by zone ─────────────────────────────
+const tierBar = (sl) => `<span class="tier" style="--t:${sl.tier.color}" title="Difficulty ${sl.n} of ${SLOTS.length}">
+  <i><u style="width:${Math.round(sl.n / SLOTS.length * 100)}%"></u></i><b>${esc(sl.tier.label)}</b></span>`;
+const card = (sl) => {
+  const g = sl.game;
+  if (!g) return `
+    <div class="game-card soon${sl.legendSlot ? ' legend-slot' : ''}" style="--c:${sl.tier.color}">
+      <div class="thumb"><span class="num">#${sl.n}</span><span style="font-size:3em">${sl.legendSlot ? '👑' : '🔒'}</span></div>
+      <div class="body"><h3>${sl.legendSlot ? 'Legends game' : `Game ${sl.n}`}</h3>
+        <p>${sl.legendSlot ? `Zone ${sl.zone.n}'s Legends game is on its way. Win it perfectly to earn the Zone ${sl.zone.n} crown.` : 'A new game is being built for this slot — check back soon!'}</p>
+        <div class="meta">${tierBar(sl)}<span>Coming soon</span></div></div>
+    </div>`;
+  const locked = !ZoneLock.isOpen(sl.zone.n);
+  return `
+    <a class="game-card${sl.legendSlot ? ' legend-slot' : ''}${locked ? ' zone-locked' : ''}" href="games/${g.id}/" style="--c:${g.color}">
+      ${locked ? '<span class="lock-badge">🔒 Locked</span>' : ''}
+      <div class="thumb"><span class="num">#${sl.n}</span><img src="games/${g.id}/thumb.svg" alt="" width="120" height="120" loading="lazy"></div>
+      <span class="play-cta">PLAY ▶</span>
+      <div class="body">
+        <h3>${esc(g.title)} ${g.isNew ? '<span class="pill new">NEW</span>' : ''}${sl.legendSlot ? '<span class="pill legend-pill">👑 LEGENDS</span>' : ''}</h3>
+        <p>${esc(g.tagline)}</p>
+        <div class="meta">
+          ${tierBar(sl)}
+          <span>Your best: <b>${fmt(Store.best(g.id))}</b></span>
+          <span data-top="${g.id}">Today's top: …</span>
+        </div>
       </div>
+    </a>`;
+};
+Legends.syncCrowns();
+const grid = document.getElementById('grid');
+grid.className = 'zones';
+grid.innerHTML = ZONES.map((z) => {
+  const crown = Legends.hasCrown(z.n);
+  const lock = ZoneLock.progress(z.n), open = lock.played >= lock.need;
+  const lg = z.legendGame && gameById(z.legendGame);
+  return `
+  <div class="zone zone-${z.n}">
+    <div class="zone-head">
+      <h3>${esc(z.name)}</h3>
+      <span class="muted small">${esc(z.blurb)}</span>
+      <span class="crown ${crown ? 'won' : ''}" title="${crown ? 'You won this zone\'s crown!' : `Finish ${lg ? lg.title : 'the Legends game'} without losing a life to win the crown`}">${crown ? `${z.n === 1 ? '🥇' : '💎'} Crown won` : '👑 Crown: not yet'}</span>
     </div>
-  </a>`).join('') + `
-  <div class="game-card soon"><div class="thumb" style="font-size:3em">🎲</div><div class="body"><h3>More coming soon</h3><p>New games are added regularly — check back!</p></div></div>`;
+    ${open ? '' : `<div class="zone-lock">🔒 <b>Zone ${z.n} is locked.</b> Play every Zone ${z.n - 1} game at least once to open it <span class="lock-meter"><i style="width:${Math.round(lock.played / lock.need * 100)}%"></i></span> <b>${lock.played} / ${lock.need}</b></div>`}
+    <div class="game-grid">${SLOTS.filter((sl) => sl.zone === z).map(card).join('')}</div>
+  </div>`;
+}).join('');
 
 for (const g of GAMES) {
   Scores.top(g.id, 'today', 'normal', 1).then((r) => {
@@ -114,6 +146,6 @@ document.getElementById('badge-count').textContent = `${got} / ${total} unlocked
 if (Legends.isLegend()) {
   const el = document.createElement('div');
   el.className = 'legend-banner';
-  el.innerHTML = `<span style="font-size:1.8em">👑</span><div><b>You are a Legend.</b><br><span class="muted small">Your golden characters are switched on in every game. Turn them on or off from each game's menu.</span></div><a class="btn" href="hall-of-legends/">🏛️ Hall of Legends</a>`;
+  el.innerHTML = `<span style="font-size:1.8em">👑</span><div><b>You are a Legend.</b><br><span class="muted small">Crowns won: ${Legends.crowns().map((n) => `Zone ${n}`).join(' & ')}. Your golden characters are on in those zones' games — switch them from each game's menu.</span></div><a class="btn" href="hall-of-legends/">🏛️ Hall of Legends</a>`;
   document.getElementById('games').before(el);
 }

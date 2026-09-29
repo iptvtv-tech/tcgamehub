@@ -13,7 +13,12 @@ A static website of quick browser games with levels, bonus rounds, combos, badge
 | **Astro Blaster** | Colourful space shooter. ⚡ Shock asteroids go off with a bang, a flash and a shockwave that chain-reacts; plus splitting rocks, power-ups, comets and UFOs. Bonus: crystal storm. |
 | **Crazy Putt** | Crazy golf: hold to power up, aim line, windmills, water, bumpers and *hidden* traps (trapdoors, secret sand, speed pads, fake holes). Big hole-in-one bonus. Bonus: hole-in-one frenzy. |
 | **The Vault Job** | Stealth heist through a museum at night: guards with torch beams, cameras, guard dogs, lasers and hiding spots. 15 levels, and a secret for anyone who finishes without losing a life… |
+| **Snake Escape Puzzle** | Game 7 (Zone 2). A knot of snakes in a square — tap one and it slides out head-first, unless another snake is in the way (BONK = a life). Bigger, tighter puzzles, rocks and a clock. Bonus: Stampede. |
+| **Neon Beat** | Game 8 (Zone 2). 4-lane rhythm game with its own beat — every note you hit plays the tune. Chords, hold notes, 16th runs and stealth notes; misses drain your energy. Bonus: Fever. |
+| **Tower Topple** | Game 9 (Zone 2). Drop swinging floors from a crane; real balance physics — lean too far and the tower topples. Wind, different widths, a bobbing crane, earthquakes and heavy steel floors. Bonus: Golden Rush. |
+| **Pinball Blast** | Game 10 (Zone 2). Full pinball table: flippers, plunger, pop bumpers, slingshots, drop targets, saucer and N·E·O·N lanes, with missions per level and classic chime-bell sounds. Bonus: Multiball Frenzy. |
 | **Galactic Alien Shooter** | Hard formation space shooter. Fly anywhere in the lower half. Five alien warships with their own weapons; scarce power-ups (blaster, timed rockets, a rare laser once every 5 levels from a red-glowing carrier), shields, rescue your abducted ship for a twin fighter. Four different bosses on levels 9, 19, 29, 39 (then tougher Mk 2s). Bonus: Star Run. |
+| **Heist Planner** | Game 12 — Zone 2's **Legends game**. Plan every step of a thief, hacker and muscle, then watch the heist play out. 15 jobs, and a secret 16th for flawless crews that wins the Zone 2 crown. Bonus: Safe Cracker. |
 | **Prism Breaker** | Rainbow brick breaker with 10 layouts, tough, steel and explosive bricks, and 5 power-ups. Bonus round: a piñata party where the floor is shielded. |
 
 ---
@@ -129,15 +134,19 @@ See **[docs/ADDING_A_GAME.md](docs/ADDING_A_GAME.md)**. In short: copy `games/_t
 | Phone-friendly **touch, swipe and drag** controls, auto-pause when the tab is hidden | Engine |
 | **Installable / offline** (web-app manifest and service worker) | Site |
 
+## Zones & difficulty
+
+Games are laid out in `ZONES` in `assets/js/games.js`: 6 games per zone, getting harder from #1 (Easy) to #12 (Extreme). The 6th game of every zone is its **Legends game**. Empty slots (`null`) show as "coming soon" cards. To add a game to a slot, put its id in place of the `null`.
+
 ## Legends (secret rewards)
 
-Some games are **Legend games** (currently *The Vault Job*). They have a fixed number of levels. Finish every level **starting from level 1 without losing a single life** and a secret final level opens. Completing it makes the player a **Legend**:
+Every zone's 6th game is a **Legends game** (*The Vault Job* for Zone 1, *Heist Planner* for Zone 2). They have a fixed number of levels. Finish every level **starting from level 1 without losing a single life** and a secret final level opens. Completing it makes the player a **Legend**:
 - golden versions of every game's main character (switchable in each game's menu),
 - special gold "Legendary" badges on the home page,
 - the hidden **Hall of Legends** page (`/hall-of-legends/`) with every Legend's name,
 - a Legend code to restore everything on another device.
 
-Run `supabase/legends-update.sql` once to switch on the Hall of Legends. Adding golden characters and new Legend games is covered in docs/ADDING_A_GAME.md.
+Run `supabase/legends-update.sql` once to switch on the Hall of Legends, and `supabase/zone2-update.sql` for the Zone 2 games. Level checkers: `node tools/check-vault-levels.mjs`, `node tools/check-heist-levels.mjs`. Adding golden characters and new Legend games is covered in docs/ADDING_A_GAME.md.
 
 ## Project layout
 

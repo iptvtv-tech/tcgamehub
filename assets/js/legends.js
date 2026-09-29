@@ -3,8 +3,10 @@
 //
 //  A Legend game has a fixed ending (def.finalLevel) and a secret level
 //  (def.secretLevel) that only opens for a flawless run: started at level 1
-//  and never lost a life. Finishing the secret level makes the player a Legend:
-//    • golden versions of every game's main character (toggle in each game's menu)
+//  and never lost a life. Every zone of 6 games ends with a Legend game (see ZONES
+//  in games.js). Finishing its secret level wins that zone's CROWN:
+//    • golden versions of the main character in that zone's games (toggle in each game's menu)
+//    • a crown badge (both crowns → Grand Legend)
 //    • special "Legendary" badges
 //    • access to the hidden Hall of Legends page (/hall-of-legends/)
 //    • a Legend code to restore everything on another device
@@ -13,7 +15,7 @@
 //  and finalLevel / secretLevel to its runGame() settings. See docs/ADDING_A_GAME.md
 // ─────────────────────────────────────────────────────────────
 import { Store } from './storage.js';
-import { GAMES } from './games.js';
+import { GAMES, ZONES, zoneOf } from './games.js';
 import { rpc, ONLINE, nameProblem } from './scores.js';
 
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -51,12 +53,29 @@ export const Legends = {
     return first;
   },
 
+  /** Zones whose Legend game this player has completed. */
+  crowns() {
+    const done = data().legend?.games || [];
+    return ZONES.filter((z) => z.legendGame && done.includes(z.legendGame)).map((z) => z.n);
+  },
+  hasCrown(zoneN) { return this.crowns().includes(zoneN); },
+  /** Make sure the crown badges match the crowns (also after restoring on a new device). */
+  syncCrowns() {
+    const c = this.crowns();
+    for (const n of c) Store.unlockAch(`g:crown${n}`);
+    if (c.length && c.length === ZONES.length) Store.unlockAch('g:grand');
+  },
+
+  /** Is the golden character unlocked for this game? (needs the crown of the game's zone) */
+  goldUnlocked(gameId) { const z = zoneOf(gameId); return !!z && this.hasCrown(z.n); },
   /** Is the golden character switched on for this game? (on by default once unlocked) */
-  goldOn(gameId) { return this.isLegend() && Store.setting(`gold:${gameId}`) !== false; },
+  goldOn(gameId) { return this.goldUnlocked(gameId) && Store.setting(`gold:${gameId}`) !== false; },
   setGold(gameId, on) { Store.setSetting(`gold:${gameId}`, !!on); },
 
-  /** Every golden unlock, for display. */
-  unlocks() { return GAMES.filter((g) => g.gold).map((g) => ({ id: g.id, title: g.title, gold: g.gold, color: g.color })); },
+  /** Every golden character, with whether it's unlocked yet. */
+  unlocks() {
+    return GAMES.filter((g) => g.gold).map((g) => ({ id: g.id, title: g.title, gold: g.gold, color: g.color, zone: zoneOf(g.id)?.n, unlocked: this.goldUnlocked(g.id) }));
+  },
 
   /** Sign the Hall of Legends. Returns { code, online }. */
   async claim(gameId, name, durationMs) {
@@ -90,7 +109,9 @@ export const Legends = {
     d.legend.code = code; d.legend.name = entry.name;
     if (!d.legend.games.includes(entry.game)) d.legend.games.push(entry.game);
     Store.unlockAch('g:legend');
-    Store.unlockAch(`${entry.game}:egg`);
+    const badge = GAMES.find((g) => g.id === entry.game)?.achievements?.find((a) => a.legendary)?.id;
+    if (badge) Store.unlockAch(`${entry.game}:${badge}`);
+    this.syncCrowns();
     Store.save();
     return entry;
   },

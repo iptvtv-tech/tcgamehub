@@ -87,6 +87,15 @@ legendBadge: 'egg',        // an achievement id with legendary: true, secret: tr
 
 In the secret level, call `this.s.legendFound()` when the player reaches the reward (show your own reward animation in `idle()`). In games.js set `legend: true` on the entry. In Supabase, add the game with `has_legend = true` (see supabase/legends-update.sql). Everything else — badges, golden unlocks, the Hall, Legend codes — is shared.
 
+### 4d. Put it in a zone slot
+Games are laid out in `ZONES` in `assets/js/games.js` (6 per zone, difficulty rising with the slot number; slot 6 of each zone is its Legends game). Put your game's id into a free slot, or start a new zone:
+
+```js
+{ n: 3, name: 'Zone 3 · …', blurb: '…', legendGame: 'my-legend-game', slots: ['game-13', null, null, null, null, 'my-legend-game'] },
+```
+
+A zone opens once every game in the zone before it has been played. The zone's crown unlocks the golden characters of its 6 games (and a `crownN` badge — add it to `GLOBAL_ACHIEVEMENTS`).
+
 ### 5. Add a thumbnail
 Put a square `thumb.svg` in the game folder. A small animated SVG looks great on the cards. You can copy one of the existing ones.
 

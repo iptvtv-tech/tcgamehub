@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <rect width="120" height="120" rx="16" fill="#070b16"/>
+  <g fill="#1e293b"><rect x="10" y="10" width="100" height="100" rx="6"/></g>
+  <g fill="#111c33">
+    <rect x="16" y="16" width="40" height="40"/><rect x="64" y="16" width="40" height="40"/><rect x="16" y="64" width="88" height="40"/>
+  </g>
+  <!-- guard vision -->
+  <path d="M84 30 L104 22 L104 46 Z" fill="#ef4444" opacity=".3"/>
+  <circle cx="80" cy="34" r="6" fill="#dc2626"/><rect x="75" y="27" width="10" height="3" fill="#1e3a8a"/>
+  <!-- laser -->
+  <line x1="60" y1="64" x2="60" y2="104" stroke="#f87171" stroke-width="2"><animate attributeName="opacity" values="1;.2;1" dur=".8s" repeatCount="indefinite"/></line>
+  <!-- plan paths -->
+  <path d="M26 26 V80 H90" stroke="#fbbf24" stroke-width="2.5" fill="none" stroke-dasharray="4 4"><animate attributeName="stroke-dashoffset" values="0;-16" dur="1s" repeatCount="indefinite"/></path>
+  <path d="M40 26 H48 V48" stroke="#22d3ee" stroke-width="2" fill="none" stroke-dasharray="3 3"/>
+  <!-- crew -->
+  <circle cx="26" cy="26" r="6" fill="#fbbf24"/><circle cx="40" cy="26" r="6" fill="#22d3ee"/><circle cx="26" cy="40" r="6" fill="#f472b6"/>
+  <!-- loot -->
+  <ellipse cx="90" cy="82" rx="7" ry="6" fill="#a16207"/><text x="90" y="85.5" text-anchor="middle" font-family="system-ui,sans-serif" font-weight="900" font-size="8" fill="#fde047">$</text>
+  <rect x="80" y="92" width="22" height="9" rx="3" fill="#166534"/><text x="91" y="99" text-anchor="middle" font-family="system-ui,sans-serif" font-weight="800" font-size="6" fill="#bbf7d0">VAN</text>
+</svg>

@@ -1,5 +1,5 @@
 // Hall of Legends — hidden page. Locked for everyone except Legends.
-import { GAMES, gameById } from './games.js';
+import { GAMES, ZONES, gameById, zoneOf } from './games.js';
 import { Store } from './storage.js';
 import { Legends } from './legends.js';
 import { siteChrome, esc } from './site.js';
@@ -43,7 +43,11 @@ async function open() {
   main.innerHTML = `
     <section class="hall-head">
       <h1>🏛️ Hall of Legends</h1>
-      <p>Only thieves who made it all the way through without ever being caught have found their way in here. Welcome, ${esc(me.name || Store.name() || 'Legend')}.</p>
+      <p>Only players who finished a Legends game without losing a single life have found their way in here. Welcome, ${esc(me.name || Store.name() || 'Legend')}.</p>
+      <div class="crowns">${ZONES.map((z) => {
+        const won = Legends.hasCrown(z.n), lg = z.legendGame && gameById(z.legendGame);
+        return `<div class="crown-card${won ? ' won' : ''}"><span>${won ? (z.n === 1 ? '🥇' : '💎') : '🔒'}</span><b>Zone ${z.n} Crown</b><small>${won ? 'Won! Golden characters unlocked in this zone.' : lg ? `Finish ${esc(lg.title)} without losing a life.` : 'Its Legends game is coming soon…'}</small></div>`;
+      }).join('')}</div>
     </section>
     <div class="hall-grid">
       <section class="hall-card">
@@ -54,10 +58,10 @@ async function open() {
         <section class="hall-card">
           <h2>✨ Your golden characters</h2>
           ${unlocks.map((u) => `
-            <div class="gold-row">
+            <div class="gold-row${u.unlocked ? '' : ' locked'}">
               <img src="../games/${u.id}/thumb.svg" alt="">
-              <div><a href="../games/${u.id}/">${esc(u.title)}</a><small>${esc(u.gold)}</small></div>
-              <button class="switch" role="switch" aria-checked="${Legends.goldOn(u.id)}" aria-label="${esc(u.gold)}" data-gold="${u.id}"></button>
+              <div><a href="../games/${u.id}/">${esc(u.title)}</a><small>${esc(u.gold)}${u.unlocked ? '' : ` · 🔒 needs the Zone ${u.zone} crown`}</small></div>
+              ${u.unlocked ? `<button class="switch" role="switch" aria-checked="${Legends.goldOn(u.id)}" aria-label="${esc(u.gold)}" data-gold="${u.id}"></button>` : ''}
             </div>`).join('')}
         </section>
         <section class="hall-card">
@@ -75,7 +79,19 @@ async function open() {
   try {
     const rows = await Legends.hall();
     const my = (me.name || '').toLowerCase();
-    list.innerHTML = rows.length ? rows.map((r) => `<li class="${my && r.name.toLowerCase() === my ? 'me' : ''}"><b>${esc(r.name)}</b><small>${esc(gameById(r.game)?.title || r.game)}<br>${date(r.at)}</small></li>`).join('')
+    // one line per Legend, with a crown for every zone they've won
+    const byName = new Map();
+    for (const r of rows) {
+      const k = r.name.toLowerCase();
+      if (!byName.has(k)) byName.set(k, { name: r.name, at: r.at, zones: new Set(), games: [] });
+      const e = byName.get(k); const z = zoneOf(r.game);
+      if (z) e.zones.add(z.n); e.games.push(gameById(r.game)?.title || r.game);
+    }
+    const people = [...byName.values()];
+    list.innerHTML = people.length ? people.map((p) => {
+      const grand = p.zones.size === ZONES.length;
+      return `<li class="${my && p.name.toLowerCase() === my ? 'me' : ''}${grand ? ' grand' : ''}"><b>${esc(p.name)} ${[...p.zones].sort().map((n) => n === 1 ? '🥇' : '💎').join('')}${grand ? ' <span class="grand-title">GRAND LEGEND</span>' : ''}</b><small>${esc([...new Set(p.games)].join(' · '))}<br>${date(p.at)}</small></li>`;
+    }).join('')
       : '<li class="muted">No names yet — you could be the first to sign!</li>';
   } catch { list.innerHTML = '<li class="muted">The Hall is closed for cleaning — try again in a minute.</li>'; }
 }

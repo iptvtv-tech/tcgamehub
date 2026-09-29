@@ -41,3 +41,12 @@
 .switch[aria-checked="true"]::after { transform: translateX(20px); }
 .switch:focus-visible { outline: 3px solid #fbbf24; outline-offset: 2px; }
 .my-code { font: 800 1.2em ui-monospace, Consolas, monospace; color: #fde68a; letter-spacing: .08em; user-select: all; }
+
+.crowns { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 14px; }
+.crown-card { display: grid; justify-items: center; gap: 2px; min-width: 190px; max-width: 260px; padding: 12px 16px; border-radius: 14px; border: 1px dashed #a16207; background: rgba(0,0,0,.25); text-align: center; }
+.crown-card span { font-size: 1.8em; }
+.crown-card small { color: var(--muted); }
+.crown-card.won { border-style: solid; background: linear-gradient(135deg, #3b2a06, #1a1a3d 80%); }
+.gold-row.locked { opacity: .55; }
+.legend-list li.grand b { color: #fde68a; }
+.grand-title { font-size: .7em; padding: .1em .6em; border-radius: 999px; background: linear-gradient(135deg, #fde68a, #f59e0b); color: #1c1003; vertical-align: middle; }

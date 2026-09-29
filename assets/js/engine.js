@@ -9,13 +9,14 @@
 //  A game only has to describe itself and draw — see games/_template/game.js
 // ─────────────────────────────────────────────────────────────
 import { CONFIG } from './config.js';
-import { GAMES, GLOBAL_ACHIEVEMENTS, gameById } from './games.js';
+import { GAMES, GLOBAL_ACHIEVEMENTS, gameById, zoneOf } from './games.js';
 import { Store } from './storage.js';
 import { Sound } from './audio.js';
 import { Scores, cleanName, nameProblem } from './scores.js';
 import { makeRng, hashString, todayKey } from './rng.js';
 import { whatsappLink, WA_ICON } from './site.js';
 import { Legends } from './legends.js';
+import { ZoneLock } from './zones.js';
 
 const STEP = 1 / 120; // physics runs at a fixed 120 updates per second
 const REDUCED_MOTION = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -144,7 +145,7 @@ class Input {
     }
     if (a) e.preventDefault();
     if (e.repeat) { if (a) this.down.add(a); return; }
-    if (s.state === 'title' && a === 'action') { s.startRun(s.chosenStart); return; }
+    if (s.state === 'title' && a === 'action') { if (!s.locked) s.startRun(s.chosenStart); return; }
     if (s.state === 'over' && (a === 'action' || e.code === 'KeyR') && s.overReady) { s.restart(); return; }
     if (!a) return;
     this.down.add(a);
@@ -400,6 +401,8 @@ class Shell {
     this.won = true;
     this.unlock('legend', true);
     Legends.grant(this.id);
+    for (const n of Legends.crowns()) this.unlock(`crown${n}`, true);
+    Legends.syncCrowns();                       // Grand Legend when every zone's crown is won
     if (this.def.legendBadge) this.unlock(this.def.legendBadge);
     Sound.stopMusic();
     this.after(this.def.legendRevealDelay ?? 6, () => this.showLegendPanel());
@@ -599,6 +602,20 @@ class Shell {
     this.state = 'title';
     this.updateHud();
     const m = this.meta;
+    // Zone locks (Daily Challenge links skip them)
+    const zone = zoneOf(this.id);
+    this.locked = !this.daily && zone && !ZoneLock.isOpen(zone.n);
+    if (this.locked) {
+      const p = ZoneLock.progress(zone.n);
+      const todo = p.games.filter((id) => !Store.plays(id)).map(gameById).filter(Boolean);
+      this.showOverlay(`
+        <div class="title-art" style="--c:${m.color}">${esc(m.title)}</div>
+        <p class="legend-hint">🔒 ${esc(zone.name)} is locked</p>
+        <p class="muted">Play every game in Zone ${zone.n - 1} at least once to open it — <b>${p.played} / ${p.need}</b> so far.</p>
+        <div class="checkpoints"><small>Still to play</small>${todo.map((g) => `<a class="chip" href="../${g.id}/">${esc(g.title)}</a>`).join('')}</div>
+        <p><a class="btn primary" href="../../">⌂ Back to the arcade</a></p>`);
+      return;
+    }
     const best = Store.best(this.id);
     const cps = this.checkpoints;
     const o = this.showOverlay(`
@@ -606,7 +623,7 @@ class Shell {
       ${this.daily ? `<p class="pill daily big">📅 Daily Challenge · ${todayKey()}</p><p class="muted">Same level layout for everyone today. Own leaderboard.</p>` : `<p class="tagline">${esc(m.tagline || '')}</p>`}
       <p class="controls">🎮 ${esc(m.controls || '')}</p>
       ${this.def.titleHint ? `<p class="legend-hint">${esc(this.def.titleHint)}</p>` : ''}
-      ${m.gold && Legends.isLegend() ? `<p><button class="chip gold-chip${Legends.goldOn(this.id) ? ' on' : ''}" data-gold>✨ ${esc(m.gold)}: ${Legends.goldOn(this.id) ? 'ON' : 'OFF'}</button></p>` : ''}
+      ${m.gold && Legends.goldUnlocked(this.id) ? `<p><button class="chip gold-chip${Legends.goldOn(this.id) ? ' on' : ''}" data-gold>✨ ${esc(m.gold)}: ${Legends.goldOn(this.id) ? 'ON' : 'OFF'}</button></p>` : ''}
       ${cps.length > 1 ? `<div class="checkpoints"><small>Start from</small>${cps.map((l) => `<button class="chip${l === this.chosenStart ? ' on' : ''}" data-start="${l}">Level ${l}</button>`).join('')}</div>` : ''}
       <button class="btn primary big" data-act="play">▶ Play</button>
       <p class="muted small">Press <kbd>Enter</kbd> or <kbd>Space</kbd> · <kbd>P</kbd> pause · <kbd>M</kbd> mute</p>
@@ -654,12 +671,13 @@ class Shell {
     this.overReady = true;
     const score = Math.floor(this.score);
     if (Store.submitBest(this.id, score)) this.unlock('pb', true);
-    const unlocks = Legends.unlocks();
+    const zone = zoneOf(this.id);
+    const unlocks = Legends.unlocks().filter((u) => u.zone === zone?.n);
     const shareText = `🥚👑 I found the secret at ${location.origin}/ … can you? Only true Legends get in.`;
     const o = this.showOverlay(`
-      <h2 class="legend-title">👑 You are a Legend</h2>
+      <h2 class="legend-title">👑 ${zone ? `Zone ${zone.n} Crown won!` : 'You are a Legend'}</h2>
       <p class="muted">Final score <b>${fmt(score)}</b> · ${this.def.finalLevel || ''} levels · not a single life lost</p>
-      <div class="gold-unlocks"><small>Golden characters unlocked in every game</small>
+      <div class="gold-unlocks"><small>Golden characters unlocked${zone ? ` in Zone ${zone.n}` : ''}</small>
         <div>${unlocks.map((u) => `<span class="gold-pill">✨ ${esc(u.gold)}</span>`).join('')}</div>
       </div>
       <div class="rank-box" data-legend>

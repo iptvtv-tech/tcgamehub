@@ -191,3 +191,26 @@ kbd { background: #2c2c5a; border: 1px solid #45458a; border-bottom-width: 2px; 
 .legend-banner .btn { margin-left: auto; background: linear-gradient(135deg, #fde68a, #f59e0b); color: #1c1003; border: 0; }
 .site-nav a.legend-link { color: #fbbf24; }
 @media (prefers-reduced-motion: reduce) { .badge.legendary.got { animation: none; } }
+
+/* ── Zones & difficulty ─────────────────────────────────────── */
+.zones { display: grid; gap: 34px; }
+.zone-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.zone-head h3 { margin: 0; font-size: 1.35em; }
+.zone-2 .zone-head h3 { color: #fda4af; }
+.zone-head .crown { margin-left: auto; font-size: .85em; font-weight: 700; padding: .2em .8em; border-radius: 999px; border: 1px dashed #a16207; color: #d6a84a; }
+.zone-head .crown.won { border-style: solid; background: #3b2a06; color: var(--gold); }
+.tier { display: inline-flex; align-items: center; gap: 6px; }
+.tier i { display: inline-block; width: 56px; height: 6px; border-radius: 3px; background: #26264a; overflow: hidden; }
+.tier u { display: block; height: 100%; background: var(--t); border-radius: 3px; }
+.tier b { color: var(--t) !important; }
+.game-card .thumb { position: relative; }
+.game-card .num { position: absolute; top: 10px; left: 12px; font-weight: 800; font-size: .85em; color: var(--muted); background: rgba(0,0,0,.35); padding: .1em .55em; border-radius: 999px; }
+.game-card.legend-slot { border-color: #a16207; }
+.pill.legend-pill { background: #3b2a06; border-color: #a16207; color: var(--gold); }
+
+.zone-lock { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: -4px 0 16px; padding: 12px 16px; border-radius: 14px; border: 1px dashed #be185d; background: rgba(190,24,93,.1); }
+.lock-meter { display: inline-block; width: 120px; height: 8px; border-radius: 4px; background: #26264a; overflow: hidden; }
+.lock-meter i { display: block; height: 100%; background: linear-gradient(90deg, #f472b6, #fbbf24); }
+.game-card.zone-locked .thumb img { filter: grayscale(.8) brightness(.6); }
+.game-card .lock-badge { position: absolute; top: 12px; right: 12px; z-index: 2; background: #1a1a3d; border: 1px solid #be185d; color: #fda4af; font-weight: 800; border-radius: 999px; padding: .25em .8em; font-size: .85em; }
+.game-card.zone-locked .play-cta { display: none; }
