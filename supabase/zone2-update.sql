@@ -11,7 +11,7 @@ insert into public.games (id, title, max_points_per_second, has_legend, legend_m
   ('snake-escape-puzzle',    'Snake Escape Puzzle',    4000, false, 90000),
   ('neon-beat',              'Neon Beat',              3000, false, 90000),
   ('tower-topple',           'Tower Topple',           3000, false, 90000),
-  ('pinball-blast',          'Pinball Blast',          6000, false, 90000),
+  ('hyper-hex',              'Hyper Hex',              3000, false, 90000),
   ('galactic-alien-shooter', 'Galactic Alien Shooter', 8000, false, 90000),
   ('heist-planner',          'Heist Planner',          3000, true,  240000)
 on conflict (id) do update set

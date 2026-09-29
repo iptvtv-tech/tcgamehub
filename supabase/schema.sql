@@ -21,7 +21,7 @@ insert into public.games (id, title, max_points_per_second) values
   ('snake-escape-puzzle', 'Snake Escape Puzzle', 4000),
   ('neon-beat', 'Neon Beat', 3000),
   ('tower-topple', 'Tower Topple', 3000),
-  ('pinball-blast', 'Pinball Blast', 6000),
+  ('hyper-hex', 'Hyper Hex', 3000),
   ('galactic-alien-shooter', 'Galactic Alien Shooter', 8000)
   -- ADD NEW GAMES HERE, e.g.  ,('my-game', 'My Game', 3000)
 on conflict (id) do update set title = excluded.title, max_points_per_second = excluded.max_points_per_second;

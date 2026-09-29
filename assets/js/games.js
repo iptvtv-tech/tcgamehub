@@ -162,21 +162,20 @@ export const GAMES = [
     ],
   },
   {
-    id: 'pinball-blast',
-    gold: 'Golden Ball',            // golden character unlocked by the Zone 2 crown
-    title: 'Pinball Blast',
-    tagline: 'A full neon pinball table with missions, multiball and classic chime-bell sounds.',
-    controls: 'Flippers: ← → or A / D (tap left / right half) · Plunger: hold Space / touch, let go · Nudge: ↑',
-    color: '#f472b6',
+    id: 'hyper-hex',
+    gold: 'Golden Arrow',           // golden character unlocked by the Zone 2 crown
+    title: 'Hyper Hex',
+    tagline: 'Circle the core and slip through the gaps as hexagon walls close in and the world spins. Pure reflexes.',
+    controls: 'Hold ← → or A / D · touch: hold the left or right side of the screen',
+    color: '#22d3ee',
     isNew: true,
     achievements: [
-      { id: 'skill',    icon: '🎯', title: 'Skill Shot',     desc: 'Launch with a full-power plunger' },
-      { id: 'neon',     icon: '💡', title: 'Lights On',      desc: 'Light all four N·E·O·N lanes' },
-      { id: 'bank',     icon: '🧨', title: 'Bank Buster',    desc: 'Knock down the whole drop-target bank' },
-      { id: 'allballs', icon: '🪙', title: 'Wizard',         desc: 'Finish a mission (level 3+) with all 3 balls left' },
-      { id: 'frenzy',   icon: '⭐', title: 'Frenzy Jackpot', desc: 'Hit the saucer 3 times in one Multiball Frenzy' },
-      { id: 'level10',  icon: '🕹️', title: 'Table Master',   desc: 'Reach level 10' },
-      { id: 'score10k', icon: '🏅', title: 'Ten Grand',      desc: 'Score 10,000 in one run' },
+      { id: 'nohit',     icon: '🎯', title: 'Untouchable',  desc: 'Clear level 3+ without losing a life' },
+      { id: 'survive60', icon: '⏱️', title: 'Hyper Minute', desc: 'Survive a 60-second level' },
+      { id: 'gems',      icon: '💎', title: 'Gem Rush',     desc: 'Grab 20 gems in one bonus round' },
+      { id: 'combo4',    icon: '🔥', title: 'In the Flow',  desc: 'Reach a x4 combo' },
+      { id: 'level10',   icon: '🌀', title: 'Hexpert',      desc: 'Reach level 10' },
+      { id: 'score10k',  icon: '🏅', title: 'Ten Grand',    desc: 'Score 10,000 in one run' },
     ],
   },
   {
@@ -256,7 +255,7 @@ export const ZONES = [
     slots: ['neon-snake', 'feather-dash', 'prism-breaker', 'astro-blaster', 'crazy-putt', 'the-vault-job'] },
   { n: 2, name: 'Zone 2 · Hard Mode', blurb: 'Expert to Extreme — tougher than anything in Zone 1. Heist Planner is this zone\'s Legends game.',
     legendGame: 'heist-planner',
-    slots: ['snake-escape-puzzle', 'neon-beat', 'tower-topple', 'pinball-blast', 'galactic-alien-shooter', 'heist-planner'] },
+    slots: ['snake-escape-puzzle', 'neon-beat', 'tower-topple', 'hyper-hex', 'galactic-alien-shooter', 'heist-planner'] },
 ];
 
 /** Every slot in order: { n, zone, tier, legendSlot, game|null } */

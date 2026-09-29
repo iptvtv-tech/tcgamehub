@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <rect width="120" height="120" rx="16" fill="#08202a"/>
+  <g transform="translate(60 62)">
+    <g>
+      <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="6s" repeatCount="indefinite"/>
+      <g fill="#0f3440"><path d="M0 0 L70 0 L35 60.6Z"/><path d="M0 0 L-35 60.6 L-70 0Z"/><path d="M0 0 L-35 -60.6 L35 -60.6Z"/></g>
+      <g fill="#22d3ee">
+        <path d="M44 0 L22 38.1 L28 48.5 L56 0Z"/>
+        <path d="M22 38.1 L-22 38.1 L-28 48.5 L28 48.5Z"/>
+        <path d="M-22 38.1 L-44 0 L-56 0 L-28 48.5Z"/>
+        <path d="M-44 0 L-22 -38.1 L-28 -48.5 L-56 0Z"/>
+        <path d="M-22 -38.1 L22 -38.1 L28 -48.5 L-28 -48.5Z"/>
+        <animateTransform attributeName="transform" type="scale" values="1.25;0.75;1.25" dur="1.6s" repeatCount="indefinite"/>
+      </g>
+      <path d="M13 0 L6.5 11.3 L-6.5 11.3 L-13 0 L-6.5 -11.3 L6.5 -11.3Z" fill="#08202a" stroke="#22d3ee" stroke-width="3"/>
+      <path d="M26 -4 L34 0 L26 4Z" fill="#fff"/>
+    </g>
+  </g>
+</svg>
