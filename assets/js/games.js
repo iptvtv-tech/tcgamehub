@@ -255,6 +255,26 @@ export const GAMES = [
       { id: 'score10k', icon: '💯', title: 'Ten Grand',      desc: 'Score 10,000 in one run' },
     ],
   },
+  {
+    id: 'pinball-blast',
+    gold: 'Golden Ball',            // golden character unlocked by the Zone 3 crown
+    title: 'Pinball Blast Extreme',
+    tagline: 'A full neon pinball table against the clock: missions, a patrolling UFO, a spinner, multiball jackpots — and black holes that swallow your ball.',
+    controls: 'Flippers: ← → or A / D (touch: hold left / right half) · Launch: hold Space / touch, let go · Nudge: ↑ (too much = TILT)',
+    color: '#f472b6',
+    isNew: true,
+    achievements: [
+      { id: 'skill',     icon: '🎯', title: 'Skill Shot',     desc: 'Launch with a full-power plunger' },
+      { id: 'neon',      icon: '💡', title: 'Lights On',      desc: 'Light all four N·E·O·N lanes' },
+      { id: 'bank',      icon: '🧨', title: 'Bank Buster',    desc: 'Knock down the whole drop-target bank' },
+      { id: 'multiball', icon: '🔒', title: 'Multiball!',     desc: 'Lock two balls and start multiball' },
+      { id: 'jackpot',   icon: '🛸', title: 'UFO Jackpot',    desc: 'Hit the UFO during multiball' },
+      { id: 'allballs',  icon: '🪙', title: 'Wizard',         desc: 'Finish a mission (level 3+) with all 3 balls left' },
+      { id: 'frenzy',    icon: '⭐', title: 'Frenzy Jackpot', desc: 'Hit the saucer 3 times in one Multiball Frenzy' },
+      { id: 'level10',   icon: '🕹️', title: 'Table Master',   desc: 'Reach level 10' },
+      { id: 'score10k',  icon: '🏅', title: 'Ten Grand',      desc: 'Score 10,000 in one run' },
+    ],
+  },
 ];
 
 // Badges that any game can earn (unlocked automatically by the engine).
@@ -300,7 +320,7 @@ export const ZONES = [
     slots: ['snake-escape-puzzle', 'neon-beat', 'tower-topple', 'hyper-hex', 'galactic-alien-shooter', 'heist-planner'] },
   { n: 3, name: 'Zone 3 · Master Class', blurb: 'Master difficulty — for players who have beaten Zone 2. New games arriving one at a time.',
     legendGame: null,
-    slots: ['turbo-rush', 'bubble-blitz', null, null, null, null] },
+    slots: ['turbo-rush', 'bubble-blitz', 'pinball-blast', null, null, null] },
 ];
 
 /** Crown icon for each zone. */

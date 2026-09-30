@@ -1,3 +1,4 @@
+-- ⚠️ ALREADY RUN — do NOT run this again: Pinball Blast came back as Pinball Blast Extreme (see pinball-extreme.sql), and this script would delete it.
 -- Replace Pinball Blast with Hyper Hex — run once in Supabase → SQL Editor → Run.
 -- 1) remove every Pinball Blast score, then the game itself
 delete from public.scores where game = 'pinball-blast';

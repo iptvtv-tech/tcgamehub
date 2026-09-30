@@ -7,7 +7,7 @@ let data = null;
 
 // Wipe one game's saved best / progress / local scores when it gets a big update.
 // Bump the number to reset that game again (badges are kept).
-const RESETS = { 'galactic-alien-shooter': 2 };
+const RESETS = { 'galactic-alien-shooter': 2, 'pinball-blast': 1 };   // pinball-blast: fresh start for the Extreme table
 
 function load() {
   if (data) return data;

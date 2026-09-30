@@ -21,6 +21,7 @@ A static website of quick browser games with levels, bonus rounds, combos, badge
 | **Heist Planner** | Game 12 — Zone 2's **Legends game**. Plan every step of a thief, hacker and muscle, then watch the heist play out. 15 jobs, and a secret 16th for flawless crews that wins the Zone 2 crown. Bonus: Safe Cracker. |
 | **Turbo Rush** | Game 13 (Zone 3, Master). Pseudo-3D neon highway racer: reach each checkpoint before the clock runs out, weave through traffic, chain near-miss combos. Hills, trucks, night, lane-changers, rain and fog. Bonus: Coin Highway. |
 | **Bubble Blitz** | Game 14 (Zone 3, Master). Fast bubble shooter: pop groups of 3, drop whole clusters. Sparkly bubbles hide bonuses (bomb, lightning, rainbow, star, freeze, laser sight) or traps (stone, ceiling drop, shuffle, skull row, fog) — knock them down to keep bonuses and defuse traps. The ceiling drops every few shots and the launcher fires on its own if you wait. Bonus: Bubble Bonanza. |
+| **Pinball Blast Extreme** | Game 15 (Zone 3, Master). Neon pinball against the clock: missions (bumpers, drop targets, UFO, spinner, saucer, N·E·O·N lanes), 2-ball lock → multiball with UFO jackpots, black holes from level 6, a roaming bumper from level 8, outlanes that open up and no ball save from level 10. Bonus: Multiball Frenzy. |
 | **Prism Breaker** | Rainbow brick breaker with 10 layouts, tough, steel and explosive bricks, and 5 power-ups. Bonus round: a piñata party where the floor is shielded. |
 
 ---
@@ -143,7 +144,7 @@ See **[docs/ADDING_A_GAME.md](docs/ADDING_A_GAME.md)**. In short: copy `games/_t
 
 ## Zones & difficulty
 
-Zone 3 (*Master Class*, games 13–18) opens once every Zone 2 game has been played. Turbo Rush and Bubble Blitz are live; games 15–18 (18 = Zone 3's Legends game) are coming one at a time.
+Zone 3 (*Master Class*, games 13–18) opens once every Zone 2 game has been played. Turbo Rush, Bubble Blitz and Pinball Blast Extreme are live; games 16–18 (18 = Zone 3's Legends game) are coming one at a time.
 
 Games are laid out in `ZONES` in `assets/js/games.js`: 6 games per zone, getting harder from #1 (Easy) to #12 (Extreme). The 6th game of every zone is its **Legends game**. Empty slots (`null`) show as "coming soon" cards. To add a game to a slot, put its id in place of the `null`.
 
