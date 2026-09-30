@@ -20,7 +20,7 @@ runGame({
   id: 'neon-snake',
   width: W,
   height: H,
-  lives: 1,
+  lives: 3,
   comboWindow: 3.5,   // eat again within 3.5s to keep the combo going
   comboStep: 3,       // every 3 quick bites raises the multiplier
   maxMultiplier: 5,
@@ -228,6 +228,22 @@ class NeonSnake {
       this.gemsEaten++;
       if (this.gemsEaten >= 15) s.unlock('feast');
       this.spawnGem();
+    }
+  }
+
+  /** Back to the starting lane after a crash — food eaten this level still counts. */
+  onLifeLost() {
+    const my = Math.floor(ROWS / 2);
+    this.dead = false; this.moveT = 0; this.grow = 0;
+    this.snake = [{ x: 5, y: my }, { x: 4, y: my }, { x: 3, y: my }, { x: 2, y: my }];
+    this.dir = 'right'; this.queue = [];
+    const onBody = (p) => this.snake.some((q) => q.x === p.x && q.y === p.y);
+    // anything that landed on the fresh snake, and any spark close to its head, gets moved somewhere safe
+    this.foods = this.foods.map((f) => (onBody(f) ? { ...f, ...this.freeCell() } : f));
+    this.gems = this.gems.map((g) => (onBody(g) ? { ...g, ...this.freeCell() } : g));
+    if (this.golden && onBody(this.golden)) this.golden = { ...this.golden, ...this.freeCell() };
+    for (const sp of this.sparks) {
+      if (Math.abs(sp.x - 5) + Math.abs(sp.y - my) < 8) { const c = this.freeCell({ farFrom: this.snake[0], min: 8 }); sp.x = c.x; sp.y = c.y; }
     }
   }
 

@@ -24,7 +24,7 @@ runGame({
   id: 'feather-dash',
   width: W,
   height: H,
-  lives: 1,
+  lives: 3,
   comboWindow: 0,      // combo lasts until you miss a seed
   comboStep: 4,
   maxMultiplier: 5,
