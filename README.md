@@ -24,6 +24,7 @@ A static website of quick browser games with levels, bonus rounds, combos, badge
 | **Pinball Blast Extreme** | Game 15 (Zone 3, Master). Neon pinball against the clock with CHAOS every few seconds (👻 ghost ball, 🌋 earthquake, 🧲 magnet, 🔀 reversed flippers, ⚡ flipper glitch), hidden 🚪 trap doors (secret passage… or down the chute), 🌀 teleport portals, black holes, a UFO, spinner and 2-ball lock multiball with jackpots. Bonus: Multiball Frenzy. |
 | **Star Strike 3D** | Game 16 (Zone 3, Master). 3D space-corridor shooter with real lit low-poly models: fighter waves, asteroids, mines, laser gates, kamikaze divers, aiming turrets and a Mothership boss every 5th-minus-one sector. Power-ups: twin lasers, shield, bombs. Bonus: Ring Run. |
 | **Dungeon Escape 3D** | Game 17 (Zone 3, Master). First-person 3D maze escape on a shared raycaster (`assets/js/raycast.js`): a new maze every level, keys to collect, a torch that burns down, spike traps and ghouls that hunt you by sight. ⚡ Flash stuns them. Bonus: Treasure Vault. |
+| **Crypt of Crowns** 👑 | Game 18 — Zone 3's **Legends** game. First-person grid crawl through 15 hand-built crypts (13 crypts + 2 treasure rooms): keys and coloured doors, levers that open *and* close iron gates, cracked walls you SEARCH for secret passages, skeleton patrols and spike traps on a fixed timetable. `games/crypt-of-crowns/sim.js` holds the rules the game and the level checker share, so every crypt is proven beatable without a scratch. Flawless from crypt 1 → the secret Crown Vault → Zone 3 crown. |
 | **Prism Breaker** | Rainbow brick breaker with 10 layouts, tough, steel and explosive bricks, and 5 power-ups. Bonus round: a piñata party where the floor is shielded. |
 
 ---
@@ -146,7 +147,7 @@ See **[docs/ADDING_A_GAME.md](docs/ADDING_A_GAME.md)**. In short: copy `games/_t
 
 ## Zones & difficulty
 
-Zone 3 (*Master Class*, games 13–18) opens once every Zone 2 game has been played. Turbo Rush, Bubble Blitz, Pinball Blast Extreme, Star Strike 3D and Dungeon Escape 3D are live; game 18 (Zone 3's Legends game) is coming next.
+Zone 3 (*Master Class*, games 13–18) opens once every Zone 2 game has been played. All six are live: Turbo Rush, Bubble Blitz, Pinball Blast Extreme, Star Strike 3D, Dungeon Escape 3D and the Legends game Crypt of Crowns.
 
 Games are laid out in `ZONES` in `assets/js/games.js`: 6 games per zone, getting harder from #1 (Easy) to #12 (Extreme). The 6th game of every zone is its **Legends game**. Empty slots (`null`) show as "coming soon" cards. To add a game to a slot, put its id in place of the `null`.
 

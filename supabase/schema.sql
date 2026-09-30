@@ -292,7 +292,8 @@ alter table public.games add column if not exists legend_min_ms integer not null
 
 insert into public.games (id, title, max_points_per_second, has_legend, legend_min_ms)
 values ('the-vault-job', 'The Vault Job', 8000, true, 90000),
-       ('heist-planner', 'Heist Planner', 3000, true, 240000)
+       ('heist-planner', 'Heist Planner', 3000, true, 240000),
+       ('crypt-of-crowns', 'Crypt of Crowns', 6000, true, 150000)
 on conflict (id) do update set title = excluded.title, max_points_per_second = excluded.max_points_per_second,
   has_legend = excluded.has_legend, legend_min_ms = excluded.legend_min_ms;
 -- FUTURE LEGEND GAMES: add them the same way with has_legend = true.

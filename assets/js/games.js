@@ -311,6 +311,25 @@ export const GAMES = [
       { id: 'score10k',  icon: '🏅', title: 'Ten Grand',     desc: 'Score 10,000 in one run' },
     ],
   },
+  {
+    id: 'crypt-of-crowns',
+    gold: 'Golden Explorer',        // golden character unlocked by the Zone 3 crown
+    title: 'Crypt of Crowns',
+    tagline: 'A 3D dungeon crawl through 15 hand-built crypts. Find keys, work the levers, search for secret walls and time your way past skeleton patrols and spike traps.',
+    controls: 'Step: ↑/↓ or W/S · Turn: ←/→ or A/D · Search: Space (touch: on-screen pad, or tap the view)',
+    color: '#a78bfa',
+    isNew: true,
+    legend: true,                   // Zone 3's Legends game
+    achievements: [
+      { id: 'secret',    icon: '🧱', title: 'Hidden Passage',   desc: 'Find a secret wall' },
+      { id: 'chests',    icon: '💰', title: 'Grave Robber',     desc: 'Open 10 treasure chests in one run' },
+      { id: 'untouched', icon: '🛡️', title: 'Untouchable',      desc: 'Escape crypt 8 or later without being caught' },
+      { id: 'swift',     icon: '⏱️', title: 'Swift Feet',       desc: 'Beat the par time on crypt 11 or later' },
+      { id: 'hoard',     icon: '🪙', title: 'Treasure Hoarder', desc: 'Grab 50 coins in one treasure room' },
+      { id: 'level10',   icon: '🏰', title: 'Deep Crypts',      desc: 'Reach crypt 10' },
+      { id: 'crown',     icon: '👑', title: 'Crown of the Crypt Kings', desc: 'Find the crown in the secret vault', legendary: true, secret: true },
+    ],
+  },
 ];
 
 // Badges that any game can earn (unlocked automatically by the engine).
@@ -354,9 +373,9 @@ export const ZONES = [
   { n: 2, name: 'Zone 2 · Hard Mode', blurb: 'Expert to Extreme — tougher than anything in Zone 1. Heist Planner is this zone\'s Legends game.',
     legendGame: 'heist-planner',
     slots: ['snake-escape-puzzle', 'neon-beat', 'tower-topple', 'hyper-hex', 'galactic-alien-shooter', 'heist-planner'] },
-  { n: 3, name: 'Zone 3 · Master Class', blurb: 'Master difficulty — for players who have beaten Zone 2. New games arriving one at a time.',
-    legendGame: null,
-    slots: ['turbo-rush', 'bubble-blitz', 'pinball-blast', 'star-strike', 'dungeon-escape', null] },
+  { n: 3, name: 'Zone 3 · Master Class', blurb: 'Master difficulty — for players who have beaten Zone 2. Crypt of Crowns is this zone\'s Legends game.',
+    legendGame: 'crypt-of-crowns',
+    slots: ['turbo-rush', 'bubble-blitz', 'pinball-blast', 'star-strike', 'dungeon-escape', 'crypt-of-crowns'] },
 ];
 
 /** Crown icon for each zone. */

@@ -67,7 +67,11 @@ export function makeTextures() {
     g.fillStyle = '#fbbf24'; g.fillRect(26, 26, 12, 14); g.fillStyle = '#1c1917'; g.beginPath(); g.arc(32, 31, 2.5, 0, Math.PI * 2); g.fill(); g.fillRect(31, 32, 2, 5);
   });
   mk(10, (g, r) => stones(g, r, ['#3f3f46', '#27272a', '#3f3f46', '#52525b'], '#09090b'), 10);
-  mk(11, (g, r) => { stones(g, r, ['#3f3f46', '#27272a', '#3f3f46', '#52525b'], '#09090b'); g.strokeStyle = 'rgba(0,0,0,.5)'; g.lineWidth = 1; g.beginPath(); g.moveTo(30, 18); g.lineTo(34, 30); g.lineTo(31, 44); g.stroke(); }, 10);
+  mk(11, (g, r) => { stones(g, r, ['#3f3f46', '#27272a', '#3f3f46', '#52525b'], '#09090b'); const crack = [[29, 10], [33, 22], [29, 31], [35, 42], [31, 54]];
+    g.lineJoin = 'round';
+    g.strokeStyle = 'rgba(255,255,255,.16)'; g.lineWidth = 3; g.beginPath(); crack.forEach(([x, y], i) => (i ? g.lineTo(x + 1, y) : g.moveTo(x + 1, y))); g.stroke();
+    g.strokeStyle = 'rgba(0,0,0,.8)'; g.lineWidth = 1.6; g.beginPath(); crack.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.stroke();
+    g.beginPath(); g.moveTo(33, 22); g.lineTo(40, 26); g.moveTo(29, 31); g.lineTo(23, 35); g.stroke(); }, 10);
   mk(12, (g, r) => {
     for (let i = 0; i < 4; i++) { g.fillStyle = ['#1e3a8a', '#1d4ed8', '#1e40af', '#1d4ed8'][i]; g.fillRect(i * 16, 0, 16, TEX); g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(i * 16, 0, 1, TEX); }
     g.fillStyle = '#93c5fd'; g.fillRect(26, 26, 12, 14); g.fillStyle = '#0f172a'; g.beginPath(); g.arc(32, 31, 2.5, 0, Math.PI * 2); g.fill(); g.fillRect(31, 32, 2, 5);
@@ -124,11 +128,15 @@ export function makeSprites() {
     g.fillStyle = '#78350f'; g.fillRect(10, 34, 44, 26); g.fillStyle = '#92400e'; g.beginPath(); g.moveTo(10, 36); g.quadraticCurveTo(32, 16, 54, 36); g.fill();
     g.fillStyle = '#fbbf24'; g.fillRect(10, 38, 44, 3); g.fillRect(29, 38, 6, 10);
   });
+  const plate = (g) => { g.fillStyle = '#292524'; g.fillRect(2, 58, 60, 6); g.fillStyle = '#7f1d1d'; g.fillRect(2, 58, 60, 1); g.fillStyle = '#0c0a09'; for (let x = 8; x < 60; x += 8) g.fillRect(x - 1, 60, 3, 2); };
   mk('spikes', (g) => {
-    g.fillStyle = '#d6d3d1';
-    for (let x = 6; x < 60; x += 8) { g.beginPath(); g.moveTo(x, 64); g.lineTo(x + 4, 42); g.lineTo(x + 8, 64); g.fill(); }
+    plate(g);
+    for (let x = 4; x < 60; x += 8) {
+      g.fillStyle = '#d6d3d1'; g.beginPath(); g.moveTo(x, 60); g.lineTo(x + 4, 30); g.lineTo(x + 8, 60); g.fill();
+      g.fillStyle = '#dc2626'; g.beginPath(); g.moveTo(x + 2.6, 39); g.lineTo(x + 4, 30); g.lineTo(x + 5.4, 39); g.fill();
+    }
   });
-  mk('spikesdown', (g) => { g.fillStyle = '#57534e'; for (let x = 6; x < 60; x += 8) g.fillRect(x + 2, 60, 4, 4); });
+  mk('spikesdown', (g) => { plate(g); g.fillStyle = '#a8a29e'; for (let x = 8; x < 60; x += 8) g.fillRect(x - 1, 58, 2, 2); });
   mk('crown', (g) => {
     g.fillStyle = '#fbbf24'; g.beginPath(); g.moveTo(12, 44); g.lineTo(14, 22); g.lineTo(24, 34); g.lineTo(32, 16); g.lineTo(40, 34); g.lineTo(50, 22); g.lineTo(52, 44); g.closePath(); g.fill();
     g.fillRect(12, 44, 40, 8);
