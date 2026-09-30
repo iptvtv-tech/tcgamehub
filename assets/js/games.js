@@ -259,7 +259,7 @@ export const GAMES = [
     id: 'pinball-blast',
     gold: 'Golden Ball',            // golden character unlocked by the Zone 3 crown
     title: 'Pinball Blast Extreme',
-    tagline: 'A full neon pinball table against the clock: missions, a patrolling UFO, a spinner, multiball jackpots — and black holes that swallow your ball.',
+    tagline: 'Neon pinball against the clock — and CHAOS: ghost balls, earthquakes, magnets, reversed flippers, hidden trap doors, portals and black holes. Hit the UFO for multiball jackpots!',
     controls: 'Flippers: ← → or A / D (touch: hold left / right half) · Launch: hold Space / touch, let go · Nudge: ↑ (too much = TILT)',
     color: '#f472b6',
     isNew: true,
@@ -271,6 +271,7 @@ export const GAMES = [
       { id: 'jackpot',   icon: '🛸', title: 'UFO Jackpot',    desc: 'Hit the UFO during multiball' },
       { id: 'allballs',  icon: '🪙', title: 'Wizard',         desc: 'Finish a mission (level 3+) with all 3 balls left' },
       { id: 'frenzy',    icon: '⭐', title: 'Frenzy Jackpot', desc: 'Hit the saucer 3 times in one Multiball Frenzy' },
+      { id: 'secret',    icon: '🚪', title: 'Secret Passage', desc: 'Find a hidden trap door that shoots you back to the top' },
       { id: 'level10',   icon: '🕹️', title: 'Table Master',   desc: 'Reach level 10' },
       { id: 'score10k',  icon: '🏅', title: 'Ten Grand',      desc: 'Score 10,000 in one run' },
     ],

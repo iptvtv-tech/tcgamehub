@@ -10,6 +10,8 @@
 //    L1–3 centre post + kickback save you      L4+ post gone, ball save shrinks
 //    L6+  BLACK HOLES open and swallow balls    L7+ faster ball, harder slings
 //    L8+  a roaming bumper                      L10+ no ball save at all
+//  CHAOS every few seconds: 👻 ghost ball (L2) · 🌋 earthquake (L3) · 🧲 magnet (L4) · 🔀 reversed flippers (L5) · ⚡ flipper glitch (L7)
+//  Hidden 🚪 trap doors from L2 (secret passage to the top… or down the chute) · 🌀 teleport portals from L4
 //  Every 5th level: ★ MULTIBALL FRENZY — 3 balls, 15 s, drains don't count.
 // ─────────────────────────────────────────────────────────────
 import { runGame, roundRect, progressBar, clamp } from '../../assets/js/engine.js';
@@ -18,6 +20,16 @@ const ID = 'pinball-blast';
 const UFO_Y = 206;
 const SPINNER = { x1: 22, x2: 60, y: 266 };
 const POST = { x: 220, y: 682, r: 5 };
+const PORTALS = [{ x: 118, y: 432, col: '#22d3ee' }, { x: 356, y: 360, col: '#f472b6' }];
+const DOOR_SPOTS = [[150, 410], [292, 410], [112, 250], [338, 250], [168, 180], [276, 180], [130, 540], [310, 540]];
+// Chaos events: something crazy every few seconds (the pool grows with the level)
+const CHAOS = {
+  ghost:   { from: 2, dur: 3.5, label: '👻 GHOST BALL!',   col: '#e2e8f0' },
+  quake:   { from: 3, dur: 3.5, label: '🌋 EARTHQUAKE!',   col: '#fb923c' },
+  magnet:  { from: 4, dur: 4,   label: '🧲 MAGNET!',       col: '#f87171' },
+  reverse: { from: 5, dur: 5,   label: '🔀 FLIPPERS REVERSED!', col: '#a78bfa' },
+  glitch:  { from: 7, dur: 2.5, label: '⚡ FLIPPER GLITCH!', col: '#fde047' },
+};
 const W = 480, H = 720;
 const R = 9;                                  // ball radius
 const LANE_X = 442, LANE_Y = 660;             // plunger rest spot
@@ -77,7 +89,16 @@ runGame({
   levelInfo(level, bonus) {
     if (bonus) return '★ MULTIBALL FRENZY! Three balls, 15 seconds, and drains don\'t count. Smash everything!';
     const m = missionsFor(level, { int: () => 0 }).map((x) => MISSIONS[x.id].label).join(' + ');
-    const extra = { 3: '🛸 A UFO patrols the top of the table.', 4: 'The centre post and kickback are gone, and ball save is short!', 6: '🕳️ BLACK HOLES open up — keep the ball away!', 7: 'Faster ball, harder slingshots.', 8: 'One bumper roams the table.', 10: 'No ball save at all. Good luck.' }[level] || '';
+    const extra = {
+      2: '⚠️ CHAOS begins: 👻 the ball can vanish! 🚪 Hidden trap doors lurk somewhere on the table…',
+      3: '🛸 A UFO patrols the top. 🌋 Earthquakes tilt the table!',
+      4: '🌀 Teleport portals and 🧲 magnets. The centre post and kickback are gone!',
+      5: '🔀 Watch out — your flippers can get REVERSED!',
+      6: '🕳️ BLACK HOLES open up — keep the ball away!',
+      7: '⚡ Flipper glitches! Faster ball, harder slingshots.',
+      8: 'One bumper roams the table.',
+      10: 'No ball save at all. Good luck.',
+    }[level] || '';
     if (level === 1) return `Flippers: ← → (or A / D, or tap left/right). Hold SPACE (or touch) to launch. Beat the clock! Mission: ${m}`;
     return level >= 11 ? 'Three objectives at once — beat the clock!' : `${extra} Mission: ${m} — beat the clock!`;
   },
@@ -113,6 +134,14 @@ class Pinball {
     this.kickback = !bonus && level <= 3;
     this.holes = !bonus && level >= 6;
     this.hole = null; this.holeT = 6;
+    this.chaos = null; this.chaosT = bonus ? 99 : 8;
+    this.gx = 0; this.deadFlipper = -1; this.magnet = null;
+    this.portals = !bonus && level >= 4; this.portalCool = 0;
+    // hidden trap doors (from level 2): invisible until a ball finds one
+    const spots = DOOR_SPOTS.slice();
+    this.doors = [];
+    const nDoors = bonus || level < 2 ? 0 : level < 6 ? 2 : 3;
+    for (let i = 0; i < nDoors; i++) { const [x, y] = spots.splice(s.rng.int(0, spots.length - 1), 1)[0]; this.doors.push({ x, y, found: false, open: 0 }); }
     this.roam = !bonus && level >= 8;
     this.ufo = { x: 220, dir: 1, speed: 55 + level * 5, flash: 0, cool: 0 };
     this.spin = 0; this.spinA = 0; this.spinTick = 0;
@@ -153,8 +182,11 @@ class Pinball {
 
   flipperDown(f) {
     const inp = this.s.input;
-    if (inp.isDown(f.key)) return true;
-    if (inp.pointer.down && !this.plungerBall) return f.side > 0 ? this.pointerX < W / 2 : this.pointerX >= W / 2;
+    if (this.deadFlipper === this.flippers.indexOf(f)) return false;               // ⚡ glitch: this one is dead
+    const rev = this.chaos?.kind === 'reverse';
+    const key = rev ? (f.key === 'left' ? 'right' : 'left') : f.key;
+    if (inp.isDown(key)) return true;
+    if (inp.pointer.down && !this.plungerBall) { const leftHalf = this.pointerX < W / 2; return (f.side > 0) !== rev ? leftHalf : !leftHalf; }
     return false;
   }
 
@@ -213,6 +245,18 @@ class Pinball {
         return;
       }
     }
+    // ── Chaos events ──
+    if (!this.bonus && !this.plungerBall) {
+      if (this.chaos) {
+        this.chaos.t -= dt;
+        if (this.chaos.kind === 'quake' && Math.random() < dt * 6) s.fx.shake(3, 0.1);
+        if (this.chaos.t <= 0) this.endChaos();
+      } else if ((this.chaosT -= dt) <= 0) this.startChaos();
+    }
+    if (this.magnet) { this.magnet.t -= dt; if (this.magnet.t <= 0) this.magnet = null; }
+    if (this.portalCool > 0) this.portalCool -= dt;
+    for (const d of this.doors) if (d.open > 0) d.open -= dt;
+
     // black holes open up from level 6
     if (this.holes && !this.plungerBall) {
       if (this.hole) { this.hole.t -= dt; if (this.hole.t <= 0) this.hole = null; }
@@ -245,6 +289,9 @@ class Pinball {
       this.ballPairs();
     }
 
+    // Trap-door balls come back out
+    for (const b of this.balls.slice()) if (b.limbo && (b.limbo.t -= dt) <= 0) this.fromLimbo(b);
+
     // Drains and stuck balls
     for (const b of this.balls) {
       if (!b.inPlay) continue;
@@ -274,7 +321,7 @@ class Pinball {
         }
       }
       if (this.multiball && this.balls.filter((b) => b.inPlay).length <= 1) { this.multiball = false; s.fx.text(W / 2, H * 0.5, 'MULTIBALL OVER', { color: '#94a3b8', size: 20 }); }
-      if (!this.balls.some((b) => b.inPlay) && !this.plungerBall) {
+      if (!this.balls.some((b) => b.inPlay || b.limbo) && !this.plungerBall) {
         // last ball gone
         [392, 330, 262, 196].forEach((f, i) => s.sound.tone({ freq: f, dur: 0.25, type: 'triangle', vol: 0.09, delay: i * 0.16 }));
         s.fx.text(W / 2, H * 0.5, 'DRAIN', { color: '#f87171', size: 36, life: 1.1 });
@@ -301,6 +348,7 @@ class Pinball {
   stepBall(b, h) {
     if (b.held) return;
     b.vy += this.grav * h;
+    b.vx += this.gx * h;                                               // 🌋 earthquake tilts the table
     const py = b.y;
     b.x += b.vx * h; b.y += b.vy * h;
     // black hole: pulls the ball in… and swallows it
@@ -321,6 +369,40 @@ class Pinball {
       b.vx = 330; b.vy = Math.min(b.vy * 0.3, 200);                // lob it back towards the middle of the table
       this.divFlash = 1;
       this.s.sound.tone({ freq: 420, to: 200, dur: 0.05, type: 'square', vol: 0.05 });
+    }
+    // hidden trap doors
+    for (const d of this.doors) {
+      if (d.open > 0 || Math.hypot(b.x - d.x, b.y - d.y) > 12 || Math.hypot(b.vx, b.vy) > 900) continue;   // only a rolling ball drops in
+      this.trapDoor(b, d);
+      return;
+    }
+    // teleport portals
+    if (this.portals && this.portalCool <= 0) {
+      PORTALS.forEach((p, i) => {
+        if (this.portalCool > 0 || Math.hypot(b.x - p.x, b.y - p.y) > 13) return;
+        const o = PORTALS[1 - i], sp = Math.hypot(b.vx, b.vy) || 1;
+        b.x = o.x + b.vx / sp * 20; b.y = o.y + b.vy / sp * 20;
+        this.portalCool = 0.7;
+        this.s.sound.tone({ freq: 300, to: 1200, dur: 0.15, type: 'sine', vol: 0.08 });
+        this.s.fx.ring(p.x, p.y, { color: p.col, radius: 30 }); this.s.fx.ring(o.x, o.y, { color: o.col, radius: 30 });
+        this.score(250, o.x, o.y - 20, 100);
+      });
+    }
+    // 🧲 magnet: grabs the ball, then flings it somewhere random
+    if (this.magnet) {
+      const m = this.magnet, dx = m.x - b.x, dy = m.y - b.y, d = Math.hypot(dx, dy);
+      if (!m.caught && d < 100 && d > 0) { const f = 1600 * (1 - d / 100); b.vx += dx / d * f * h; b.vy += dy / d * f * h; }
+      if (!m.caught && d < 10) { m.caught = b; m.hold = 0.6; }
+      if (m.caught === b) {
+        b.x = m.x; b.y = m.y; b.vx = b.vy = 0;
+        if ((m.hold -= h) <= 0) {
+          const a = -Math.PI / 2 + (Math.random() - 0.5) * 2.6, v = 900 + Math.random() * 500;
+          b.vx = Math.cos(a) * v; b.vy = Math.sin(a) * v;
+          this.s.sound.tone({ freq: 200, to: 900, dur: 0.12, type: 'sawtooth', vol: 0.07 });
+          this.magnet = null;
+        }
+        return;
+      }
     }
     // spinner in the left lane
     if (b.x > SPINNER.x1 && b.x < SPINNER.x2 && (py - SPINNER.y) * (b.y - SPINNER.y) < 0) {
@@ -386,6 +468,8 @@ class Pinball {
         const kick = 560 + this.level * 8;
         b.vx += nx * kick * 0.6; b.vy += ny * kick * 0.6;
         const s2 = Math.hypot(b.vx, b.vy); if (s2 < kick) { b.vx *= kick / s2; b.vy *= kick / s2; }
+        // a kick straight DOWN the middle is unplayable: soften it and send it off to one side
+        if (b.vy > 700) { b.vy = 700; b.vx += (b.x < 220 ? -1 : 1) * 260; }
         if (this.bumperFlash[i] < 0.6) this.bumperHit(i, bu);
         this.bumperFlash[i] = 1;
       }
@@ -544,6 +628,48 @@ class Pinball {
     if (this.bonus) { this.frenzyJackpots++; if (this.frenzyJackpots >= 3) s.unlock('frenzy'); }
   }
 
+  startChaos() {
+    const s = this.s, L = this.level;
+    const pool = Object.keys(CHAOS).filter((k) => L >= CHAOS[k].from);
+    this.chaosT = Math.max(5, 12 - L * 0.4) + s.rng.range(0, 3);
+    if (!pool.length) return;
+    const kind = s.rng.pick(pool), c = CHAOS[kind];
+    this.chaos = { kind, t: c.dur, max: c.dur };
+    s.fx.text(W / 2, H * 0.4, c.label, { color: c.col, size: 26, life: 1.4 });
+    s.sound.tone({ freq: 660, to: 330, dur: 0.15, type: 'square', vol: 0.06 }); s.sound.tone({ freq: 660, to: 330, dur: 0.15, type: 'square', vol: 0.06, delay: 0.2 });
+    if (kind === 'quake') { this.gx = (s.rng.chance(0.5) ? -1 : 1) * (320 + L * 12); s.sound.play('boom'); }
+    if (kind === 'glitch') this.deadFlipper = s.rng.int(0, 1);
+    if (kind === 'magnet') { this.magnet = { x: s.rng.range(120, 320), y: s.rng.range(360, 480), t: c.dur }; this.chaos.t = c.dur; }
+  }
+  endChaos() { this.chaos = null; this.gx = 0; this.deadFlipper = -1; }
+
+  trapDoor(b, d) {
+    const s = this.s, L = this.level;
+    d.found = true; d.open = 2.5;
+    b.inPlay = false;                                                       // the ball drops into the secret passage…
+    b.limbo = { t: 0.9, bad: s.rng.chance(Math.min(0.45, 0.1 + L * 0.03)) };
+    s.sound.tone({ freq: 500, to: 60, dur: 0.4, type: 'triangle', vol: 0.1 });
+    s.fx.text(d.x, d.y - 20, '🚪 TRAP DOOR!', { color: '#fbbf24', size: 18 });
+  }
+
+  /** A ball that fell through a trap door comes back out after a moment. */
+  fromLimbo(b) {
+    const s = this.s;
+    {
+      if (b.limbo.bad) {
+        // …and comes out of the drain chute. Ouch.
+        const nb = this.addBall(220, 700, 0, 500); nb.saveUntil = 0;
+        s.fx.text(W / 2, H * 0.55, 'DOWN THE CHUTE!', { color: '#f87171', size: 24 });
+      } else {
+        // …and gets shot out at the top of the table
+        const nb = this.addBall(220, 110, s.rng.range(-250, 250), 250); nb.saveUntil = 0;
+        this.score(1500, 220, 140, 1000, true);
+        s.fx.text(W / 2, 160, 'SECRET PASSAGE!', { color: '#4ade80', size: 22 }); s.unlock('secret');
+      }
+      this.balls = this.balls.filter((x) => x !== b);
+    }
+  }
+
   startMultiball() {
     const s = this.s;
     this.locks = 0; this.multiball = true;
@@ -588,7 +714,7 @@ class Pinball {
 
   later(t, fn) { setTimeout(() => { if (this.s.state === 'playing' || this.s.state === 'banner') fn(); }, t * 1000); }
 
-  onLifeLost() { this.balls = []; this.multiball = false; this.hole = null; if (this.mTime <= 0) this.mTime = Math.min(this.mTimeMax, 40); this.newBall(); }
+  onLifeLost() { this.balls = []; this.multiball = false; this.hole = null; this.endChaos(); this.magnet = null; if (this.mTime <= 0) this.mTime = Math.min(this.mTimeMax, 40); this.newBall(); }
   onLevelClear() {}
 
   // ── Draw ───────────────────────────────────────────────────
@@ -683,6 +809,33 @@ class Pinball {
       ctx.restore();
     }
 
+    // teleport portals
+    if (this.portals) PORTALS.forEach((p) => {
+      ctx.save(); ctx.translate(p.x, p.y);
+      ctx.strokeStyle = p.col; ctx.shadowColor = p.col; ctx.shadowBlur = 12; ctx.lineWidth = 3;
+      for (let i = 0; i < 2; i++) { ctx.beginPath(); ctx.arc(0, 0, 13 - i * 5, t * (3 + i) , t * (3 + i) + 4.2); ctx.stroke(); }
+      ctx.restore();
+    });
+    // trap doors: invisible until found (a faint crack on the early levels)
+    for (const d of this.doors) {
+      const a = d.open > 0 ? 1 : d.found ? 0.5 : this.level <= 3 ? 0.07 : 0;
+      if (!a) continue;
+      ctx.save(); ctx.globalAlpha = a; ctx.translate(d.x, d.y);
+      ctx.fillStyle = d.open > 0 ? '#000' : 'rgba(0,0,0,.35)'; ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2;
+      roundRect(ctx, -13, -9, 26, 18, 3); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, -9); ctx.lineTo(0, 9); ctx.stroke();
+      ctx.restore();
+    }
+    // magnet
+    if (this.magnet) {
+      const m = this.magnet;
+      ctx.save(); ctx.translate(m.x, m.y);
+      ctx.strokeStyle = `rgba(248,113,113,${0.3 + 0.3 * Math.sin(t * 10)})`; ctx.lineWidth = 2;
+      for (let r = 90; r > 25; r -= 25) { ctx.beginPath(); ctx.arc(0, 0, Math.max(2, r - ((t * 60) % 25)), 0, TAU); ctx.stroke(); }
+      ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(0, 0, 10, Math.PI, 0); ctx.lineTo(10, 8); ctx.lineTo(4, 8); ctx.lineTo(4, 0); ctx.arc(0, 0, 4, 0, Math.PI, true); ctx.lineTo(-4, 8); ctx.lineTo(-10, 8); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+
     // centre post + kickback light
     if (this.post) { ctx.fillStyle = '#e2e8f0'; ctx.beginPath(); ctx.arc(POST.x, POST.y, POST.r, 0, TAU); ctx.fill(); }
     if (this.kickback || (!this.bonus && this.level <= 3)) {
@@ -720,8 +873,10 @@ class Pinball {
     for (const f of this.flippers) {
       const [tx, ty] = this.tip(f);
       ctx.lineCap = 'round';
-      ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 17; ctx.beginPath(); ctx.moveTo(f.px, f.py); ctx.lineTo(tx, ty); ctx.stroke();
-      ctx.strokeStyle = '#f8fafc'; ctx.lineWidth = 11; ctx.beginPath(); ctx.moveTo(f.px, f.py); ctx.lineTo(tx, ty); ctx.stroke();
+      const dead = this.deadFlipper === this.flippers.indexOf(f), rev = this.chaos?.kind === 'reverse';
+      ctx.strokeStyle = dead ? '#475569' : rev ? '#a78bfa' : '#ef4444'; ctx.lineWidth = 17; ctx.beginPath(); ctx.moveTo(f.px, f.py); ctx.lineTo(tx, ty); ctx.stroke();
+      if (dead && Math.random() < 0.3) this.s.fx.burst(tx, ty, { colors: ['#fde047', '#fff'], count: 2, speed: 90, life: 0.2 });
+      ctx.strokeStyle = dead ? '#94a3b8' : '#f8fafc'; ctx.lineWidth = 11; ctx.beginPath(); ctx.moveTo(f.px, f.py); ctx.lineTo(tx, ty); ctx.stroke();
       ctx.fillStyle = '#94a3b8'; ctx.beginPath(); ctx.arc(f.px, f.py, 4, 0, TAU); ctx.fill();
     }
 
@@ -732,6 +887,14 @@ class Pinball {
 
     // balls
     for (const b of this.balls) {
+      if (b.limbo) continue;
+      const ghost = this.chaos?.kind === 'ghost' && b.inPlay;
+      if (ghost) {                                                          // 👻 invisible, with a rare flicker
+        const flick = Math.sin(t * 9 + b.x * 0.05) > 0.93;
+        ctx.strokeStyle = `rgba(226,232,240,${flick ? 0.55 : 0.05})`; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(b.x, b.y, R, 0, TAU); ctx.stroke();
+        continue;
+      }
       const y = b === this.plungerBall ? b.y + pull : b.y;
       const g = ctx.createRadialGradient(b.x - 3, y - 3, 1, b.x, y, R);
       if (s.gold) { g.addColorStop(0, '#fffbeb'); g.addColorStop(0.5, '#fbbf24'); g.addColorStop(1, '#92400e'); }
@@ -757,6 +920,12 @@ class Pinball {
       progressBar(ctx, 70, 49, 150, 8, this.mTime / this.mTimeMax, this.mTime < 10 ? '#f87171' : '#38bdf8');
       ctx.textAlign = 'right'; ctx.fillStyle = this.multiball ? '#f472b6' : '#a5f3fc';
       ctx.fillText(this.multiball ? '★ MULTIBALL — hit the UFO for JACKPOTS' : `🔒 Locks ${this.locks}/2`, W - 14, 58);
+      if (this.chaos) {                                                     // active chaos event
+        const c = CHAOS[this.chaos.kind];
+        ctx.fillStyle = 'rgba(3,5,20,.7)'; ctx.fillRect(W / 2 - 110, 66, 220, 20);
+        ctx.fillStyle = c.col; ctx.fillRect(W / 2 - 110, 83, 220 * (this.chaos.t / this.chaos.max), 3);
+        ctx.textAlign = 'center'; ctx.font = '800 12px system-ui'; ctx.fillText(c.label.replace('!', ''), W / 2, 80);
+      }
     }
     if (this.plungerBall && s.state === 'playing') {
       ctx.save(); ctx.globalAlpha = 0.6 + 0.3 * Math.sin(t * 5); ctx.fillStyle = '#fde047'; ctx.font = '800 14px system-ui'; ctx.textAlign = 'center';
