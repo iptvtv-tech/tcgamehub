@@ -43,12 +43,12 @@ runGame({
   levelInfo(level, bonus) {
     if (bonus) return '★ BUBBLE BONANZA! Every shot is a rainbow, the board keeps coming — pop as many as you can!';
     const notes = {
-      1: 'Aim and fire (mouse, finger drag or ← →, Space). Match 3 of a colour to POP them. The ceiling drops every few shots — clear the board!',
-      2: '✨ Sparkly bubbles hide a surprise — a bonus or a trap. Knock them DOWN instead of popping them to keep bonuses and defuse traps.',
-      3: 'Five colours now. Bounce shots off the walls to reach tricky spots.',
-      4: '🪨 Stone bubbles can\'t be matched — drop them, or blow them up.',
-      6: 'Six colours, and the launcher gets impatient.',
-      8: 'The laser sight is shorter now. Trust your angles!',
+      1: 'Aim and fire (mouse, finger drag or ← →, Space). Match 3 of a colour to POP them. The ceiling drops every few shots and the launcher won\'t wait — clear the board!',
+      2: '✨ Sparkly bubbles hide a bonus… or a trap — knock them DOWN to keep bonuses and defuse traps. 🪨 Stones can\'t be matched: drop them or blow them up.',
+      3: 'Bounce shots off the walls to reach tricky spots.',
+      4: '⏫ New rows now push in on a timer (pink bar at the top) — and the aim line is shorter!',
+      6: 'Six colours now. Keep your cool!',
+      8: 'The aim line is tiny now. Trust your angles!',
     };
     return notes[level] || 'Faster ceiling, more traps. Pop quick!';
   },
@@ -69,10 +69,11 @@ class BubbleBlitz {
   startLevel(level, bonus) {
     this.level = level; this.bonus = bonus;
     this.found ??= 0;
-    this.nColors = bonus ? 3 : Math.min(6, 3 + Math.ceil(level / 2.5));
-    this.dropEvery = bonus ? 99 : Math.max(4, 8 - Math.floor(level / 3));
-    this.clockMax = bonus ? 99 : Math.max(3, 7 - level * 0.2);
-    this.guideLen = level >= 8 ? 260 : 9999;
+    this.nColors = bonus ? 3 : Math.min(6, 5 + Math.floor(level / 6));
+    this.dropEvery = bonus ? 99 : Math.max(3, 6 - Math.floor(level / 3));
+    this.clockMax = bonus ? 99 : Math.max(2.5, 5 - level * 0.15);
+    this.guideLen = level >= 8 ? 150 : level >= 4 ? 240 : 9999;
+    this.pushEvery = bonus || level < 4 ? 0 : Math.max(8, 20 - level * 0.8);   // a new row pushes in on a timer
     this.livesAtStart = this.s.lives;
     this.buildBoard();
   }
@@ -82,28 +83,28 @@ class BubbleBlitz {
     this.par = 0; this.drops = 0;
     this.grid = [];
     this.shot = null; this.popping = []; this.falling = []; this.clearing = 0; this.failing = 0;
-    this.shotsLeft = this.dropEvery; this.clock = this.clockMax;
+    this.shotsLeft = this.dropEvery; this.clock = this.clockMax; this.pushT = 0;
     this.rainbowShots = 0; this.freeze = 0; this.sight = 0; this.fog = 0;
     this.popsBonus = 0;
-    const rows = this.bonus ? 8 : Math.min(10, 5 + Math.floor(L / 2));
+    const rows = this.bonus ? 8 : Math.min(11, 6 + Math.floor(L / 2));
     const secretChance = this.bonus ? 0 : L === 1 ? 0 : Math.min(0.11, 0.06 + L * 0.004);
-    const trapChance = Math.min(0.5, 0.25 + L * 0.02);
+    const trapChance = Math.min(0.55, 0.35 + L * 0.02);
     for (let row = 0; row < rows; row++) {
       const line = [];
       for (let c = 0; c < this.ncols(row); c++) {
         // clusters: often copy a neighbour's colour so there are groups to find
         let k = r.int(0, this.nColors - 1);
         const left = line[c - 1], up = this.grid[row - 1]?.[c];
-        if (left && !left.stone && r.chance(0.4)) k = left.c;
-        else if (up && !up.stone && r.chance(0.35)) k = up.c;
+        if (left && !left.stone && r.chance(0.3)) k = left.c;
+        else if (up && !up.stone && r.chance(0.25)) k = up.c;
         const cell = { c: k, stone: false, secret: null };
         if (r.chance(secretChance)) cell.secret = r.chance(trapChance) ? r.pick(TRAPS) : r.pick(BONUSES);
         line.push(cell);
       }
       this.grid.push(line);
     }
-    if (!this.bonus && L >= 4) {                                   // a few stones mixed in
-      const n = Math.min(6, 1 + Math.floor((L - 4) / 2));
+    if (!this.bonus && L >= 2) {                                   // stones mixed in
+      const n = Math.min(9, 1 + Math.floor(L / 2));
       for (let i = 0; i < n; i++) {
         const row = r.int(1, rows - 1), c = r.int(0, this.ncols(row) - 1);
         const cell = this.grid[row][c]; if (cell) { cell.stone = true; cell.secret = null; }
@@ -192,6 +193,17 @@ class BubbleBlitz {
       this.clock -= dt;
       if (this.clock <= 1.5 && Math.ceil(this.clock * 2) !== Math.ceil((this.clock + dt) * 2)) s.sound.play('tick');
       if (this.clock <= 0) this.fire();
+    }
+
+    // from level 3 a new row pushes in on a timer
+    if (this.pushEvery && this.freeze <= 0) {
+      this.pushT += dt;
+      if (this.pushT >= this.pushEvery - 2 && Math.ceil(this.pushT) !== Math.ceil(this.pushT - dt)) s.sound.tone({ freq: 180, dur: 0.05, type: 'square', vol: 0.05 });
+      if (this.pushT >= this.pushEvery) {
+        this.pushT = 0; this.pushRow();
+        s.fx.shake(4, 0.2);
+        s.sound.tone({ freq: 140, to: 80, dur: 0.2, type: 'sawtooth', vol: 0.1 });
+      }
     }
 
     // bonus: new rows keep coming
@@ -592,6 +604,11 @@ class BubbleBlitz {
     }
     const left = this.countColoured();
     progressBar(ctx, 14, 13, 200, 20, 1 - left / Math.max(1, this.total), '#22c55e', `Bubbles left ${left}`);
+    if (this.pushEvery) {                                           // new-row timer, just under the HUD
+      const k = clamp(this.pushT / this.pushEvery, 0, 1);
+      ctx.fillStyle = 'rgba(255,255,255,.08)'; ctx.fillRect(0, 46, W, 4);
+      ctx.fillStyle = this.freeze > 0 ? '#7dd3fc' : k > 0.8 ? '#f87171' : '#f472b6'; ctx.fillRect(0, 46, W * k, 4);
+    }
     // shots until the ceiling drops
     ctx.save(); ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.font = '700 12px system-ui'; ctx.fillStyle = '#cbd5e1';
     ctx.fillText(this.freeze > 0 ? `❄️ ${Math.ceil(this.freeze)}s` : 'Ceiling', W - 14 - this.dropEvery * 14, 23);
