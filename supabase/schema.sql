@@ -23,7 +23,8 @@ insert into public.games (id, title, max_points_per_second) values
   ('tower-topple', 'Tower Topple', 3000),
   ('hyper-hex', 'Hyper Hex', 3000),
   ('galactic-alien-shooter', 'Galactic Alien Shooter', 8000),
-  ('turbo-rush', 'Turbo Rush', 10000)
+  ('turbo-rush', 'Turbo Rush', 10000),
+  ('bubble-blitz', 'Bubble Blitz', 8000)
   -- ADD NEW GAMES HERE, e.g.  ,('my-game', 'My Game', 3000)
 on conflict (id) do update set title = excluded.title, max_points_per_second = excluded.max_points_per_second;
 

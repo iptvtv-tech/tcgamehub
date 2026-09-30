@@ -236,6 +236,25 @@ export const GAMES = [
       { id: 'score10k', icon: '🏅', title: 'Ten Grand',     desc: 'Score 10,000 in one run' },
     ],
   },
+  {
+    id: 'bubble-blitz',
+    gold: 'Golden Launcher',        // golden character unlocked by the Zone 3 crown
+    title: 'Bubble Blitz',
+    tagline: 'Fire coloured bubbles at the ceiling and pop groups of 3. Sparkly bubbles hide bonuses — or traps. The ceiling keeps dropping, so be quick!',
+    controls: 'Aim with the mouse and click to fire · touch: drag to aim, let go to fire · ← → aim, Space fire, ↑ swap (or tap NEXT)',
+    color: '#ec4899',
+    isNew: true,
+    achievements: [
+      { id: 'flawless', icon: '💎', title: 'Flawless',       desc: 'Clear level 3+ without losing a life' },
+      { id: 'bigdrop',  icon: '🌧️', title: 'Avalanche',      desc: 'Drop 10 bubbles with one shot' },
+      { id: 'bank',     icon: '↩️', title: 'Bank Shot',      desc: 'Pop a group with a shot off the wall' },
+      { id: 'treasure', icon: '🎁', title: 'Treasure Hunter', desc: 'Find 8 hidden bonuses in one game' },
+      { id: 'bonanza',  icon: '🫧', title: 'Bubble Bonanza', desc: 'Pop 100 bubbles in one bonus round' },
+      { id: 'combo4',   icon: '🔥', title: 'Pop Streak',     desc: 'Reach a x4 combo' },
+      { id: 'level10',  icon: '🏅', title: 'Bubble Boss',    desc: 'Reach level 10' },
+      { id: 'score10k', icon: '💯', title: 'Ten Grand',      desc: 'Score 10,000 in one run' },
+    ],
+  },
 ];
 
 // Badges that any game can earn (unlocked automatically by the engine).
@@ -281,7 +300,7 @@ export const ZONES = [
     slots: ['snake-escape-puzzle', 'neon-beat', 'tower-topple', 'hyper-hex', 'galactic-alien-shooter', 'heist-planner'] },
   { n: 3, name: 'Zone 3 · Master Class', blurb: 'Master difficulty — for players who have beaten Zone 2. New games arriving one at a time.',
     legendGame: null,
-    slots: ['turbo-rush', null, null, null, null, null] },
+    slots: ['turbo-rush', 'bubble-blitz', null, null, null, null] },
 ];
 
 /** Crown icon for each zone. */
