@@ -24,5 +24,5 @@ export const CONFIG = {
   // Visitor stats (optional, privacy-friendly, no cookies). Sign up free at https://www.goatcounter.com,
   // pick a code (e.g. "tcgamehub" for tcgamehub.goatcounter.com) and put just that code here.
   // Leave it empty and nothing is counted.
-  goatcounter: '',
+  goatcounter: 'tcgamehub',
 };

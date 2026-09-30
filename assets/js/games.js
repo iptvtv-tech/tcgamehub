@@ -293,6 +293,24 @@ export const GAMES = [
       { id: 'score10k', icon: '🏅', title: 'Ten Grand',      desc: 'Score 10,000 in one run' },
     ],
   },
+  {
+    id: 'dungeon-escape',
+    gold: 'Golden Torch',           // golden character unlocked by the Zone 3 crown
+    title: 'Dungeon Escape 3D',
+    tagline: 'Lost in a 3D maze with a dying torch. Grab the keys, find the stairs — and keep one step ahead of the ghouls hunting you in the dark.',
+    controls: 'Walk: ↑/↓ or W/S · Turn: ←/→ or A/D · Flash: Space or ✨ (touch: tap sides to turn, middle to walk, bottom to step back)',
+    color: '#f59e0b',
+    isNew: true,
+    achievements: [
+      { id: 'untouched', icon: '🛡️', title: 'Untouched',     desc: 'Escape dungeon 3+ without losing a life' },
+      { id: 'nostun',    icon: '🤫', title: 'Silent Runner', desc: 'Escape dungeon 3+ without using your flash' },
+      { id: 'speedrun',  icon: '⚡', title: 'Sprinter',      desc: 'Escape with more than half your torch left' },
+      { id: 'hoard',     icon: '💰', title: 'Dragon Hoard',  desc: 'Grab 100 coins in the Treasure Vault' },
+      { id: 'combo4',    icon: '🔥', title: 'Hot Streak',    desc: 'Reach a x4 combo' },
+      { id: 'level10',   icon: '🏰', title: 'Deep Delver',   desc: 'Reach dungeon 10' },
+      { id: 'score10k',  icon: '🏅', title: 'Ten Grand',     desc: 'Score 10,000 in one run' },
+    ],
+  },
 ];
 
 // Badges that any game can earn (unlocked automatically by the engine).
@@ -338,7 +356,7 @@ export const ZONES = [
     slots: ['snake-escape-puzzle', 'neon-beat', 'tower-topple', 'hyper-hex', 'galactic-alien-shooter', 'heist-planner'] },
   { n: 3, name: 'Zone 3 · Master Class', blurb: 'Master difficulty — for players who have beaten Zone 2. New games arriving one at a time.',
     legendGame: null,
-    slots: ['turbo-rush', 'bubble-blitz', 'pinball-blast', 'star-strike', null, null] },
+    slots: ['turbo-rush', 'bubble-blitz', 'pinball-blast', 'star-strike', 'dungeon-escape', null] },
 ];
 
 /** Crown icon for each zone. */

@@ -26,7 +26,8 @@ insert into public.games (id, title, max_points_per_second) values
   ('turbo-rush', 'Turbo Rush', 10000),
   ('bubble-blitz', 'Bubble Blitz', 8000),
   ('pinball-blast', 'Pinball Blast Extreme', 15000),
-  ('star-strike', 'Star Strike 3D', 12000)
+  ('star-strike', 'Star Strike 3D', 12000),
+  ('dungeon-escape', 'Dungeon Escape 3D', 12000)
   -- ADD NEW GAMES HERE, e.g.  ,('my-game', 'My Game', 3000)
 on conflict (id) do update set title = excluded.title, max_points_per_second = excluded.max_points_per_second;
 

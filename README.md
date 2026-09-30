@@ -23,6 +23,7 @@ A static website of quick browser games with levels, bonus rounds, combos, badge
 | **Bubble Blitz** | Game 14 (Zone 3, Master). Fast bubble shooter: pop groups of 3, drop whole clusters. Sparkly bubbles hide bonuses (bomb, lightning, rainbow, star, freeze, laser sight) or traps (stone, ceiling drop, shuffle, skull row, fog) — knock them down to keep bonuses and defuse traps. The ceiling drops every few shots and the launcher fires on its own if you wait. Bonus: Bubble Bonanza. |
 | **Pinball Blast Extreme** | Game 15 (Zone 3, Master). Neon pinball against the clock with CHAOS every few seconds (👻 ghost ball, 🌋 earthquake, 🧲 magnet, 🔀 reversed flippers, ⚡ flipper glitch), hidden 🚪 trap doors (secret passage… or down the chute), 🌀 teleport portals, black holes, a UFO, spinner and 2-ball lock multiball with jackpots. Bonus: Multiball Frenzy. |
 | **Star Strike 3D** | Game 16 (Zone 3, Master). 3D space-corridor shooter with real lit low-poly models: fighter waves, asteroids, mines, laser gates, kamikaze divers, aiming turrets and a Mothership boss every 5th-minus-one sector. Power-ups: twin lasers, shield, bombs. Bonus: Ring Run. |
+| **Dungeon Escape 3D** | Game 17 (Zone 3, Master). First-person 3D maze escape on a shared raycaster (`assets/js/raycast.js`): a new maze every level, keys to collect, a torch that burns down, spike traps and ghouls that hunt you by sight. ⚡ Flash stuns them. Bonus: Treasure Vault. |
 | **Prism Breaker** | Rainbow brick breaker with 10 layouts, tough, steel and explosive bricks, and 5 power-ups. Bonus round: a piñata party where the floor is shielded. |
 
 ---
@@ -145,7 +146,7 @@ See **[docs/ADDING_A_GAME.md](docs/ADDING_A_GAME.md)**. In short: copy `games/_t
 
 ## Zones & difficulty
 
-Zone 3 (*Master Class*, games 13–18) opens once every Zone 2 game has been played. Turbo Rush, Bubble Blitz, Pinball Blast Extreme and Star Strike 3D are live; games 17–18 (18 = Zone 3's Legends game) are coming one at a time.
+Zone 3 (*Master Class*, games 13–18) opens once every Zone 2 game has been played. Turbo Rush, Bubble Blitz, Pinball Blast Extreme, Star Strike 3D and Dungeon Escape 3D are live; game 18 (Zone 3's Legends game) is coming next.
 
 Games are laid out in `ZONES` in `assets/js/games.js`: 6 games per zone, getting harder from #1 (Easy) to #12 (Extreme). The 6th game of every zone is its **Legends game**. Empty slots (`null`) show as "coming soon" cards. To add a game to a slot, put its id in place of the `null`.
 

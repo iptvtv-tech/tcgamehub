@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <radialGradient id="glow" cx=".5" cy=".55" r=".6"><stop offset="0" stop-color="#f59e0b" stop-opacity=".55"/><stop offset=".6" stop-color="#7c2d12" stop-opacity=".25"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+    <linearGradient id="wl" x1="0" x2="1"><stop offset="0" stop-color="#1c1917"/><stop offset="1" stop-color="#78716c"/></linearGradient>
+    <linearGradient id="wr" x1="1" x2="0"><stop offset="0" stop-color="#1c1917"/><stop offset="1" stop-color="#78716c"/></linearGradient>
+    <radialGradient id="eye"><stop offset="0" stop-color="#fef08a"/><stop offset="1" stop-color="#dc2626"/></radialGradient>
+  </defs>
+  <rect width="200" height="200" fill="#0c0a09"/>
+  <polygon points="0,0 70,60 70,140 0,200" fill="url(#wl)"/>
+  <polygon points="200,0 130,60 130,140 200,200" fill="url(#wr)"/>
+  <rect x="70" y="60" width="60" height="80" fill="#57534e"/>
+  <g stroke="#292524" stroke-width="2" opacity=".8">
+    <path d="M70 80h60M70 100h60M70 120h60M100 60v20M85 80v20M115 80v20M100 100v20M85 120v20M115 120v20"/>
+    <path d="M0 40l70 38M0 90l70 12M0 150l70-12M0 200l70-60" opacity=".6"/>
+    <path d="M200 40l-70 38M200 90l-70 12M200 150l-70-12" opacity=".6"/>
+  </g>
+  <polygon points="0,200 70,140 130,140 200,200" fill="#1c1917"/>
+  <polygon points="0,0 70,60 130,60 200,0" fill="#0a0908"/>
+  <g transform="translate(100 118)">
+    <path d="M-16 22 q0-38 16-40 q16 2 16 40z" fill="#3f6212" opacity=".9"/>
+    <circle cx="-6" cy="-6" r="3.5" fill="url(#eye)"/><circle cx="6" cy="-6" r="3.5" fill="url(#eye)"/>
+    <path d="M-7 6 l3 3 3-3 3 3 3-3 3 3" stroke="#fef3c7" stroke-width="1.5" fill="none"/>
+  </g>
+  <rect width="200" height="200" fill="url(#glow)"/>
+  <g transform="translate(150 170) rotate(-12)">
+    <rect x="-6" y="-10" width="12" height="44" rx="3" fill="#78350f"/>
+    <path d="M0 -40 q14 14 6 26 q-6 6 -12 0 q-8 -12 6 -26z" fill="#f97316"/>
+    <path d="M0 -30 q7 9 3 16 q-3 3 -6 0 q-4 -7 3 -16z" fill="#fde047"/>
+  </g>
+  <g transform="translate(34 164) rotate(-20)" fill="#facc15" stroke="#a16207" stroke-width="1.5">
+    <circle r="9"/><circle r="3.5" fill="#0c0a09"/><rect x="8" y="-3" width="26" height="6"/><rect x="26" y="3" width="4" height="7"/><rect x="18" y="3" width="4" height="5"/>
+  </g>
+</svg>
