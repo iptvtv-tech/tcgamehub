@@ -82,15 +82,21 @@ export const Scores = {
     return 1 + localBest(game, period, mode).filter((e) => e.score > score).length;
   },
 
+  /** Ask the server for a one-time game ticket when a run starts (it times the game on its own clock).
+   *  Resolves to the ticket, or null if the leaderboard can't be reached. */
+  startSession(game, mode = 'normal') {
+    if (!ONLINE) return Promise.resolve(null);
+    return rpc('start_game', { p_game: game, p_mode: mode }).catch(() => null);
+  },
+
   /** Save a score. Returns { rank } or throws an Error with a friendly message. */
-  async submit({ game, name, score, level, durationMs, mode = 'normal' }) {
+  async submit({ game, name, score, level, mode = 'normal', session }) {
     const problem = nameProblem(name);
     if (problem) throw new Error(problem);
     if (ONLINE) {
-      const r = await rpc('submit_score', {
-        p_game: game, p_name: name, p_score: Math.floor(score), p_level: level,
-        p_duration_ms: Math.floor(durationMs), p_mode: mode,
-      });
+      const ticket = await session;
+      if (!ticket) throw new Error('The leaderboard couldn\'t be reached when this game started — play again to save a score.');
+      const r = await rpc('submit_score_v2', { p_session: ticket, p_name: name, p_score: Math.floor(score), p_level: level });
       return { rank: r.rank };
     }
     const d = Store.data;

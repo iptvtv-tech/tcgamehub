@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://*.supabase.co; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.goatcounter.com; font-src 'self'; connect-src 'self' https://*.supabase.co; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>About & Privacy · Quick Play Arcade</title>
@@ -37,7 +37,7 @@
     </ul>
 
     <h2>Fair play</h2>
-    <p>Scores are checked when they're submitted. Impossible scores, very short games and rapid-fire submissions are rejected, and rude names are blocked. If you see a name that is rude, hurtful or uses someone's real name without their permission, email us at <b data-contact>dance-ragged-finer@duck.com</b> and we'll remove it.</p>
+    <p>Scores are checked when they're submitted. Every game gets a one-time ticket from the server when it starts, so the server times each game itself — scores that are impossible for the time played, very short games and rapid-fire submissions are rejected, and rude names are blocked. If you see a name that is rude, hurtful or uses someone's real name without their permission, email us at <b data-contact>dance-ragged-finer@duck.com</b> and we'll remove it.</p>
 
     <h2>Health warning: flashing lights</h2>
     <p>Some games use brief screen flashes and fast-moving colours. We keep flashes soft and limit how often they happen, and they switch off completely if your device's "reduce motion" setting is on. If you or anyone playing has photosensitive epilepsy, please take care, and stop playing if you feel unwell.</p>
@@ -48,17 +48,18 @@
     <ul>
       <li><b>High scores you choose to save:</b> the nickname you type, your score, the level reached, the game and the time. These are shown publicly on the leaderboards. We keep them because running a public leaderboard is the point of the site (legitimate interests). Scores older than 90 days are deleted unless they are in a game's all-time top 20.</li>
       <li><b>Hall of Legends:</b> if you finish a Legend game and choose to sign the Hall, we store the nickname you type, the game, the date and a private restore code. Names in the Hall are kept until you ask us to remove them.</li>
-      <li><b>Spam protection:</b> when you save a score, a one-way scrambled (hashed) version of your connection (IP) address is stored briefly to limit spam, and deleted automatically, normally within an hour. It is never shown or shared.</li>
-      <li><b>On your own device:</b> your best scores, badges, game progress and sound settings are saved in your browser's local storage so the games remember them. This data never leaves your device, and clearing your browser data removes it. We don't use cookies, advertising or tracking.</li>
+      <li><b>Spam protection and fair play:</b> when a game starts and when you save a score, a one-way scrambled (hashed) version of your connection (IP) address is stored briefly, together with the game and the time it started, to limit spam and check scores. It is deleted automatically within a few hours. It is never shown or shared.</li>
+      <li><b>On your own device:</b> your best scores, badges, game progress, daily challenge streak and sound settings are saved in your browser's local storage so the games remember them. This data never leaves your device, and clearing your browser data removes it. We don't use cookies, advertising or cross-site tracking.</li>
+      <li data-stats hidden><b>Visitor statistics:</b> we count page visits and games played with GoatCounter, a privacy-friendly service that uses no cookies, stores nothing on your device and doesn't follow you across other sites. It receives the page address (without any names), the website that linked you here, your screen width and your browser's normal technical details. We use the totals only to see which games people enjoy. If your browser sends "Do Not Track", you aren't counted.</li>
     </ul>
     <p><b>Please use a nickname.</b> Don't enter your full real name or anyone else's.</p>
-    <p><b>Services we use:</b> the site is hosted by GitHub Pages (GitHub, Inc.), which receives your IP address like any web host does in order to deliver the pages, and the leaderboard is stored with Supabase. Some of these providers may process data outside the UK/EU under approved safeguards.</p>
+    <p><b>Services we use:</b> the site is hosted by GitHub Pages (GitHub, Inc.), which receives your IP address like any web host does in order to deliver the pages, and the leaderboard is stored with Supabase<span data-stats hidden>; visit counts are handled by GoatCounter</span>. Some of these providers may process data outside the UK/EU under approved safeguards.</p>
     <p><b>Your rights.</b> You can ask us to see or delete a score saved under your nickname, or object to how we use it. Email <b data-contact>dance-ragged-finer@duck.com</b> with the nickname, game and roughly when you played. If you're unhappy with how we handle your data, you can complain to the Data Protection Commission (Ireland) or the Information Commissioner's Office (UK).</p>
     <p><b>Children.</b> The games are suitable for all ages. We don't ask for age, email, location or any contact details, and there is no chat or messaging between players.</p>
-    <p class="muted small">Last updated: 27 September 2026</p>
+    <p class="muted small">Last updated: 30 September 2026</p>
 
     <h2>Credits</h2>
-    <p>Games, graphics and sound are made from code — no external image or audio files. Hosted on GitHub Pages; high scores powered by Supabase. No third-party fonts, trackers or ads are loaded.</p>
+    <p>Games, graphics and sound are made from code — no external image or audio files. Hosted on GitHub Pages; high scores powered by Supabase. No third-party fonts, tracking scripts or ads are loaded.</p>
   </main>
 
   <footer class="site-footer">

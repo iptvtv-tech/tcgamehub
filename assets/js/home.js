@@ -1,5 +1,5 @@
 import { CONFIG } from './config.js';
-import { GAMES, GLOBAL_ACHIEVEMENTS, ZONES, SLOTS, gameById, dailyGame } from './games.js';
+import { GAMES, GLOBAL_ACHIEVEMENTS, ZONES, SLOTS, gameById, dailyGame, crownIcon } from './games.js';
 import { Store } from './storage.js';
 import { Scores } from './scores.js';
 import { Legends } from './legends.js';
@@ -37,6 +37,15 @@ function tickCountdown() {
   cd.textContent = [s / 3600, (s % 3600) / 60, s % 60].map((v) => String(Math.floor(v)).padStart(2, '0')).join(':');
 }
 tickCountdown(); setInterval(tickCountdown, 1000);
+{
+  const { streak, best, today } = Store.dailyStreak();
+  const el = document.createElement('div');
+  el.className = 'daily-streak';
+  el.innerHTML = streak
+    ? `🔥 <b>${streak}-day streak</b> ${today ? '— done for today ✓' : '— play today to keep it going!'}`
+    : `🔥 Play daily to build a streak${best ? ` <span class="muted">(best: ${best})</span>` : ''}`;
+  dEl.querySelector('[data-daily-top]').after(el);
+}
 Scores.top(daily.id, 'today', 'daily', 1).then((r) => {
   dEl.querySelector('[data-daily-top]').innerHTML = r[0] ? `Leader: <b>${esc(r[0].name)}</b> — ${fmt(r[0].score)}` : 'No one has set a score yet — claim the top spot!';
 }).catch(() => {});
@@ -96,7 +105,7 @@ grid.innerHTML = ZONES.map((z) => {
     <div class="zone-head">
       <h3>${esc(z.name)}</h3>
       <span class="muted small">${esc(z.blurb)}</span>
-      <span class="crown ${crown ? 'won' : ''}" title="${crown ? 'You won this zone\'s crown!' : `Finish ${lg ? lg.title : 'the Legends game'} without losing a life to win the crown`}">${crown ? `${z.n === 1 ? '🥇' : '💎'} Crown won` : '👑 Crown: not yet'}</span>
+      <span class="crown ${crown ? 'won' : ''}" title="${crown ? 'You won this zone\'s crown!' : `Finish ${lg ? lg.title : 'the Legends game'} without losing a life to win the crown`}">${crown ? `${crownIcon(z.n)} Crown won` : '👑 Crown: not yet'}</span>
     </div>
     ${open ? '' : `<div class="zone-lock">🔒 <b>Zone ${z.n} is locked.</b> Play every Zone ${z.n - 1} game at least once to open it <span class="lock-meter"><i style="width:${Math.round(lock.played / lock.need * 100)}%"></i></span> <b>${lock.played} / ${lock.need}</b></div>`}
     <div class="game-grid">${SLOTS.filter((sl) => sl.zone === z).map(card).join('')}</div>

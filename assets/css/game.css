@@ -107,3 +107,5 @@ canvas { display: block; width: 100%; height: 100%; touch-action: none; user-sel
 .gold-pill { display: inline-block; margin: .15em; padding: .2em .65em; border-radius: 999px; font-size: .82em; font-weight: 700; color: #1c1003; background: linear-gradient(135deg, #fde68a, #f59e0b); }
 .btn.gold-btn { background: linear-gradient(135deg, #fde68a, #f59e0b); color: #1c1003; border: 0; }
 .legend-code b { font-family: ui-monospace, Consolas, monospace; letter-spacing: .08em; color: #fde68a; font-size: 1.15em; user-select: all; }
+.streak { color: #fdba74; margin: .3em 0; } .streak b { color: #fb923c; }
+.challenge { background: rgba(251,191,36,.12); border: 1px solid rgba(251,191,36,.45); border-radius: 12px; padding: .5em .8em; color: #fde68a; margin: .4em auto; max-width: 26em; } .challenge.won { background: rgba(52,211,153,.14); border-color: rgba(52,211,153,.5); color: #a7f3d0; }

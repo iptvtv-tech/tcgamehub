@@ -13,12 +13,13 @@ A static website of quick browser games with levels, bonus rounds, combos, badge
 | **Astro Blaster** | Colourful space shooter. ⚡ Shock asteroids go off with a bang, a flash and a shockwave that chain-reacts; plus splitting rocks, power-ups, comets and UFOs. Bonus: crystal storm. |
 | **Crazy Putt** | Crazy golf: hold to power up, aim line, windmills, water, bumpers and *hidden* traps (trapdoors, secret sand, speed pads, fake holes). Big hole-in-one bonus. Bonus: hole-in-one frenzy. |
 | **The Vault Job** | Stealth heist through a museum at night: guards with torch beams, cameras, guard dogs, lasers and hiding spots. 15 levels, and a secret for anyone who finishes without losing a life… |
-| **Snake Escape Puzzle** | Game 7 (Zone 2). A knot of snakes in a square — tap one and it slides out head-first, unless another snake is in the way (BONK = a life). Bigger, tighter puzzles, rocks and a clock. Bonus: Stampede. |
+| **Snake Escape Puzzle** | Game 7 (Zone 2). A knot of snakes where every snake blocks another. A tap slides a snake until it's blocked; clear the board within the move limit (pre-built, computer-solved puzzles; `node tools/gen-snake-puzzles.mjs`). Clock from level 12. Bonus: Stampede. |
 | **Neon Beat** | Game 8 (Zone 2). 4-lane rhythm game with its own beat — every note you hit plays the tune. Chords, hold notes, 16th runs and stealth notes; misses drain your energy. Bonus: Fever. |
 | **Tower Topple** | Game 9 (Zone 2). Drop swinging floors from a crane; real balance physics — lean too far and the tower topples. Wind, different widths, a bobbing crane, earthquakes and heavy steel floors. Bonus: Golden Rush. |
 | **Hyper Hex** | Game 10 (Zone 2, Extreme). Circle the core and slip through the gaps as hexagon walls close in and the world spins; survive the clock (20 s at level 1, up to 60 s). Spirals, tunnels and reversing spin. Bonus: Gem Rush. |
 | **Galactic Alien Shooter** | Hard formation space shooter. Fly anywhere in the lower half. Five alien warships with their own weapons; scarce power-ups (blaster, timed rockets, a rare laser once every 5 levels from a red-glowing carrier), shields, rescue your abducted ship for a twin fighter. Four different bosses on levels 9, 19, 29, 39 (then tougher Mk 2s). Bonus: Star Run. |
 | **Heist Planner** | Game 12 — Zone 2's **Legends game**. Plan every step of a thief, hacker and muscle, then watch the heist play out. 15 jobs, and a secret 16th for flawless crews that wins the Zone 2 crown. Bonus: Safe Cracker. |
+| **Turbo Rush** | Game 13 (Zone 3, Master). Pseudo-3D neon highway racer: reach each checkpoint before the clock runs out, weave through traffic, chain near-miss combos. Hills, trucks, night, lane-changers, rain and fog. Bonus: Coin Highway. |
 | **Prism Breaker** | Rainbow brick breaker with 10 layouts, tough, steel and explosive bricks, and 5 power-ups. Bonus round: a piñata party where the floor is shielded. |
 
 ---
@@ -49,7 +50,7 @@ Until Supabase is connected, scores are saved in your own browser only (the lead
    supabaseKey: 'sb_publishable_xxxxxxxxxxxx',
    ```
 
-> ✅ The publishable/anon key is **meant to be public**. The database only accepts scores through the `submit_score` function, which checks the name, rejects impossible scores and too-short games, and rate-limits spam.
+> ✅ The publishable/anon key is **meant to be public**. The database only accepts scores through the `submit_score_v2` function, which needs a one-time game ticket timed by the server, checks the name, rejects impossible scores and too-short games, and rate-limits spam.
 > ⛔ **Never** put the *secret* / *service_role* key in this project.
 
 > ℹ️ Supabase pauses free projects after about a week with no activity. A site people visit keeps it awake. If it does pause, press **Restore** in the dashboard.
@@ -116,6 +117,11 @@ See **[docs/ADDING_A_GAME.md](docs/ADDING_A_GAME.md)**. In short: copy `games/_t
 
 ## How the site keeps people playing
 
+- **Daily challenge streaks** (🔥 3 / 7 / 30-day badges) are counted in the player's own browser only.
+- **"Beat my score" links**: the WhatsApp share opens the game with a challenge banner (`?beat=12450&by=Sam`) and tells the friend if they won.
+- **Fair scores**: every game starts with a server-timed ticket (`start_game` → `submit_score_v2`), see `supabase/update-2026-10.sql`.
+- **Visitor stats (optional)**: set `goatcounter` in `assets/js/config.js` to your GoatCounter code. No cookies; only page paths and anonymous game start/finish events are counted.
+
 | Feature | Where |
 |---|---|
 | One-click **Play now** (picks a game you haven't tried) | Home |
@@ -135,6 +141,8 @@ See **[docs/ADDING_A_GAME.md](docs/ADDING_A_GAME.md)**. In short: copy `games/_t
 | **Installable / offline** (web-app manifest and service worker) | Site |
 
 ## Zones & difficulty
+
+Zone 3 (*Master Class*, games 13–18) opens once every Zone 2 game has been played. Turbo Rush is live; games 14–18 (18 = Zone 3's Legends game) are coming one at a time.
 
 Games are laid out in `ZONES` in `assets/js/games.js`: 6 games per zone, getting harder from #1 (Easy) to #12 (Extreme). The 6th game of every zone is its **Legends game**. Empty slots (`null`) show as "coming soon" cards. To add a game to a slot, put its id in place of the `null`.
 

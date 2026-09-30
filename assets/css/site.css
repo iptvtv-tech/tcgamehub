@@ -197,6 +197,7 @@ kbd { background: #2c2c5a; border: 1px solid #45458a; border-bottom-width: 2px; 
 .zone-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
 .zone-head h3 { margin: 0; font-size: 1.35em; }
 .zone-2 .zone-head h3 { color: #fda4af; }
+.zone-3 .zone-head h3 { color: #7dd3fc; }
 .zone-head .crown { margin-left: auto; font-size: .85em; font-weight: 700; padding: .2em .8em; border-radius: 999px; border: 1px dashed #a16207; color: #d6a84a; }
 .zone-head .crown.won { border-style: solid; background: #3b2a06; color: var(--gold); }
 .tier { display: inline-flex; align-items: center; gap: 6px; }
@@ -220,3 +221,4 @@ a.legend-banner.hall-door:hover { border-color: #fbbf24; transform: translateY(-
 .site-nav a.legend-link:not(.is-legend) { color: #d6b25e; }
 @media (max-width: 480px) { .site-nav a.legend-link .nav-label { display: none; } .site-nav { gap: 0; } }
 @media (max-width: 400px) { .site-nav a { padding: .45em .42em; font-size: .92em; } }
+.daily-streak { color: #fdba74; font-size: .95em; } .daily-streak b { color: #fb923c; }

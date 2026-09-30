@@ -218,6 +218,24 @@ export const GAMES = [
       { id: 'crown',       icon: '👑', title: 'The Golden Crown', desc: 'Find the treasure in the secret job', legendary: true, secret: true },
     ],
   },
+  {
+    id: 'turbo-rush',
+    gold: 'Golden Racer',           // golden character unlocked by the Zone 3 crown
+    title: 'Turbo Rush',
+    tagline: 'Race the clock down a neon highway. Weave through traffic, skim past cars for near-miss combos, and reach every checkpoint before time runs out.',
+    controls: 'Steer ← → (or A / D) · ↑ / W nitro boost · ↓ / S brake · touch: hold the left or right side to steer, the middle to boost',
+    color: '#f97316',
+    isNew: true,
+    achievements: [
+      { id: 'clean',    icon: '🧼', title: 'Clean Run',     desc: 'Clear level 3+ without crashing' },
+      { id: 'nearmiss', icon: '💨', title: 'Hair\'s Breadth', desc: 'Chain 10 near misses in one level' },
+      { id: 'photo',    icon: '📸', title: 'Photo Finish',  desc: 'Reach a checkpoint with under 2 seconds left' },
+      { id: 'coins',    icon: '🪙', title: 'Coin Highway',  desc: 'Collect 60 coins in one bonus round' },
+      { id: 'combo4',   icon: '🔥', title: 'On a Roll',     desc: 'Reach a x4 combo' },
+      { id: 'level10',  icon: '🏁', title: 'Road Warrior',  desc: 'Reach level 10' },
+      { id: 'score10k', icon: '🏅', title: 'Ten Grand',     desc: 'Score 10,000 in one run' },
+    ],
+  },
 ];
 
 // Badges that any game can earn (unlocked automatically by the engine).
@@ -227,12 +245,16 @@ export const GLOBAL_ACHIEVEMENTS = [
   { id: 'plays10', icon: '🔁', title: 'Regular',         desc: 'Play 10 rounds' },
   { id: 'plays50', icon: '🕹️', title: 'Arcade Legend',   desc: 'Play 50 rounds' },
   { id: 'daily',   icon: '📅', title: 'Daily Grinder',   desc: 'Play a daily challenge' },
+  { id: 'streak3', icon: '🔥', title: 'Warming Up',      desc: 'Play the daily challenge 3 days in a row' },
+  { id: 'streak7', icon: '🔥', title: 'On Fire',         desc: 'Play the daily challenge 7 days in a row' },
+  { id: 'streak30', icon: '🌟', title: 'Dedicated',      desc: 'Play the daily challenge 30 days in a row' },
   { id: 'bonus',   icon: '⭐', title: 'Bonus Hunter',    desc: 'Reach a bonus round' },
   { id: 'famous',  icon: '🏆', title: 'Famous',          desc: 'Put your name on a leaderboard' },
   { id: 'pb',      icon: '📈', title: 'Getting Better',  desc: 'Beat your own best score' },
   { id: 'legend',  icon: '👑', title: 'Legend',          desc: 'Finish a Legend game without losing a single life', legendary: true, secret: true },
   { id: 'crown1',  icon: '🥇', title: 'Zone 1 Crown',    desc: 'Become a Legend of Zone 1 — unlocks the golden characters in games 1–6', legendary: true, secret: true },
   { id: 'crown2',  icon: '💎', title: 'Zone 2 Crown',    desc: 'Become a Legend of Zone 2 — unlocks the golden characters in games 7–12', legendary: true, secret: true },
+  { id: 'crown3',  icon: '🔱', title: 'Zone 3 Crown',    desc: 'Become a Legend of Zone 3 — unlocks the golden characters in games 13–18', legendary: true, secret: true },
   { id: 'grand',   icon: '🏆', title: 'Grand Legend',    desc: 'Win the crown of every zone', legendary: true, secret: true },
 ];
 
@@ -245,6 +267,7 @@ export const TIERS = [
   { id: 'hard',    label: 'Hard',    color: '#fb923c', from: 5 },
   { id: 'expert',  label: 'Expert',  color: '#f43f5e', from: 7 },
   { id: 'extreme', label: 'Extreme', color: '#c084fc', from: 10 },
+  { id: 'master',  label: 'Master',  color: '#38bdf8', from: 13 },
 ];
 export const tierFor = (n) => [...TIERS].reverse().find((t) => n >= t.from);
 
@@ -256,7 +279,15 @@ export const ZONES = [
   { n: 2, name: 'Zone 2 · Hard Mode', blurb: 'Expert to Extreme — tougher than anything in Zone 1. Heist Planner is this zone\'s Legends game.',
     legendGame: 'heist-planner',
     slots: ['snake-escape-puzzle', 'neon-beat', 'tower-topple', 'hyper-hex', 'galactic-alien-shooter', 'heist-planner'] },
+  { n: 3, name: 'Zone 3 · Master Class', blurb: 'Master difficulty — for players who have beaten Zone 2. New games arriving one at a time.',
+    legendGame: null,
+    slots: ['turbo-rush', null, null, null, null, null] },
 ];
+
+/** Crown icon for each zone. */
+export const crownIcon = (n) => ({ 1: '🥇', 2: '💎', 3: '🔱' }[n] || '👑');
+/** Zones that have a Legends game yet (Grand Legend = the crown of every one of these). */
+export const legendZones = () => ZONES.filter((z) => z.legendGame);
 
 /** Every slot in order: { n, zone, tier, legendSlot, game|null } */
 export const SLOTS = ZONES.flatMap((z) => z.slots.map((id, i) => {

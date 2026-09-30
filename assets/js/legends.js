@@ -15,7 +15,7 @@
 //  and finalLevel / secretLevel to its runGame() settings. See docs/ADDING_A_GAME.md
 // ─────────────────────────────────────────────────────────────
 import { Store } from './storage.js';
-import { GAMES, ZONES, zoneOf } from './games.js';
+import { GAMES, ZONES, zoneOf, legendZones } from './games.js';
 import { rpc, ONLINE, nameProblem } from './scores.js';
 
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -63,7 +63,7 @@ export const Legends = {
   syncCrowns() {
     const c = this.crowns();
     for (const n of c) Store.unlockAch(`g:crown${n}`);
-    if (c.length && c.length === ZONES.length) Store.unlockAch('g:grand');
+    if (c.length && c.length >= legendZones().length) Store.unlockAch('g:grand');
   },
 
   /** Is the golden character unlocked for this game? (needs the crown of the game's zone) */

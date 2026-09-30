@@ -1,5 +1,5 @@
 // Hall of Legends — hidden page. Locked for everyone except Legends.
-import { GAMES, ZONES, gameById, zoneOf } from './games.js';
+import { GAMES, ZONES, gameById, zoneOf, crownIcon, legendZones } from './games.js';
 import { Store } from './storage.js';
 import { Legends } from './legends.js';
 import { siteChrome, esc } from './site.js';
@@ -55,7 +55,7 @@ async function open() {
       <p>Only players who finished a Legends game without losing a single life have found their way in here. Welcome, ${esc(me.name || Store.name() || 'Legend')}.</p>
       <div class="crowns">${ZONES.map((z) => {
         const won = Legends.hasCrown(z.n), lg = z.legendGame && gameById(z.legendGame);
-        return `<div class="crown-card${won ? ' won' : ''}"><span>${won ? (z.n === 1 ? '🥇' : '💎') : '🔒'}</span><b>Zone ${z.n} Crown</b><small>${won ? 'Won! Golden characters unlocked in this zone.' : lg ? `Finish ${esc(lg.title)} without losing a life.` : 'Its Legends game is coming soon…'}</small></div>`;
+        return `<div class="crown-card${won ? ' won' : ''}"><span>${won ? crownIcon(z.n) : '🔒'}</span><b>Zone ${z.n} Crown</b><small>${won ? 'Won! Golden characters unlocked in this zone.' : lg ? `Finish ${esc(lg.title)} without losing a life.` : 'Its Legends game is coming soon…'}</small></div>`;
       }).join('')}</div>
     </section>
     <div class="hall-grid">
@@ -104,8 +104,8 @@ async function open() {
     }
     const people = [...byName.values()];
     list.innerHTML = people.length ? people.map((p) => {
-      const grand = p.zones.size === ZONES.length;
-      return `<li class="${my && p.name.toLowerCase() === my ? 'me' : ''}${grand ? ' grand' : ''}"><b>${esc(p.name)} ${[...p.zones].sort().map((n) => n === 1 ? '🥇' : '💎').join('')}${grand ? ' <span class="grand-title">GRAND LEGEND</span>' : ''}</b><small>${esc([...new Set(p.games)].join(' · '))}<br>${date(p.at)}</small></li>`;
+      const grand = p.zones.size >= legendZones().length;
+      return `<li class="${my && p.name.toLowerCase() === my ? 'me' : ''}${grand ? ' grand' : ''}"><b>${esc(p.name)} ${[...p.zones].sort().map(crownIcon).join('')}${grand ? ' <span class="grand-title">GRAND LEGEND</span>' : ''}</b><small>${esc([...new Set(p.games)].join(' · '))}<br>${date(p.at)}</small></li>`;
     }).join('')
       : '<li class="muted">No names yet — you could be the first to sign!</li>';
   } catch { list.innerHTML = '<li class="muted">The Hall is closed for cleaning — try again in a minute.</li>'; }

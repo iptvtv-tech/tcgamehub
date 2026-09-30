@@ -1,6 +1,7 @@
 // Small helpers shared by the non-game pages.
 import { CONFIG } from './config.js';
 import { Legends } from './legends.js';
+import './stats.js';   // privacy-friendly visitor stats (off unless CONFIG.goatcounter is set)
 
 export const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export const fmt = (n) => Math.floor(n || 0).toLocaleString('en-GB');

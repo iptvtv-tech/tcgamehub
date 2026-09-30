@@ -17,6 +17,7 @@ import { makeRng, hashString, todayKey } from './rng.js';
 import { whatsappLink, WA_ICON } from './site.js';
 import { Legends } from './legends.js';
 import { ZoneLock } from './zones.js';
+import { event as statEvent } from './stats.js';
 
 const STEP = 1 / 120; // physics runs at a fixed 120 updates per second
 const REDUCED_MOTION = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -207,6 +208,9 @@ class Shell {
     this.mode = this.daily ? 'daily' : 'normal';
     this.checkpoints = this.computeCheckpoints();
     this.gold = !!this.meta.gold && Legends.goldOn(this.id);
+    // "Beat my score" links: ?beat=12450&by=Sam
+    const beat = parseInt(params.get('beat'), 10), by = cleanName(params.get('by') || '');
+    this.challenge = beat > 0 && beat < 1e9 ? { score: beat, by: by && !nameProblem(by) ? by : 'A friend' } : null;
     const wanted = parseInt(params.get('start'), 10);
     this.chosenStart = this.checkpoints.includes(wanted) ? wanted : 1;
 
@@ -350,12 +354,20 @@ class Shell {
     this.gold = !!this.meta.gold && Legends.goldOn(this.id);
     const seed = this.daily ? hashString(todayKey() + ':' + this.id) : (Math.random() * 4294967296) >>> 0;
     this.rng = makeRng(seed);
+    this.session = Scores.startSession(this.id, this.mode);
+    statEvent(this.daily ? 'daily' : 'start', this.id);     // one-time ticket; the server times the game
     Store.addPlay(this.id);
     this.unlock('first', true);
     if (GAMES.every((g) => Store.plays(g.id) > 0)) this.unlock('all', true);
     if (Store.totalPlays() >= 10) this.unlock('plays10', true);
     if (Store.totalPlays() >= 50) this.unlock('plays50', true);
-    if (this.daily) this.unlock('daily', true);
+    if (this.daily) {
+      this.unlock('daily', true);
+      const streak = Store.markDaily();
+      if (streak >= 3) this.unlock('streak3', true);
+      if (streak >= 7) this.unlock('streak7', true);
+      if (streak >= 30) this.unlock('streak30', true);
+    }
     this.hideOverlay();
     this.game.reset?.();
     if (Sound.musicOn && this.def.music !== false) Sound.startMusic(this.def.music || {});
@@ -620,7 +632,8 @@ class Shell {
     const cps = this.checkpoints;
     const o = this.showOverlay(`
       <div class="title-art" style="--c:${m.color}">${esc(m.title)}</div>
-      ${this.daily ? `<p class="pill daily big">📅 Daily Challenge · ${todayKey()}</p><p class="muted">Same level layout for everyone today. Own leaderboard.</p>` : `<p class="tagline">${esc(m.tagline || '')}</p>`}
+      ${this.daily ? `<p class="pill daily big">📅 Daily Challenge · ${todayKey()}</p><p class="muted">Same level layout for everyone today. Own leaderboard.</p>${streakNote()}` : `<p class="tagline">${esc(m.tagline || '')}</p>`}
+      ${this.challenge ? `<p class="challenge">🎯 <b>${esc(this.challenge.by)}</b> challenged you: beat <b>${fmt(this.challenge.score)}</b>!</p>` : ''}
       <p class="controls">🎮 ${esc(m.controls || '')}</p>
       ${this.def.titleHint ? `<p class="legend-hint">${esc(this.def.titleHint)}</p>` : ''}
       ${m.gold && Legends.goldUnlocked(this.id) ? `<p><button class="chip gold-chip${Legends.goldOn(this.id) ? ' on' : ''}" data-gold>✨ ${esc(m.gold)}: ${Legends.goldOn(this.id) ? 'ON' : 'OFF'}</button></p>` : ''}
@@ -705,7 +718,7 @@ class Shell {
       form.querySelector('button').disabled = true; msg.textContent = 'Signing…'; msg.className = 'form-msg';
       try {
         const { code } = await Legends.claim(this.id, name, this.playTime * 1000);
-        Scores.submit({ game: this.id, name, score, level: this.level, durationMs: this.playTime * 1000, mode: this.mode }).catch(() => {});
+        Scores.submit({ game: this.id, name, score, level: this.level, mode: this.mode, session: this.session }).catch(() => {});
         this.unlock('famous', true);
         this.sound.play('achieve');
         box.innerHTML = `<p class="rank-msg saved">✅ <b>${esc(name)}</b> is in the Hall of Legends.</p>
@@ -720,6 +733,7 @@ class Shell {
 
   async showGameOver() {
     this.state = 'over';
+    statEvent(this.won ? 'won' : 'over', this.id, this.level);
     this.overReady = false;
     setTimeout(() => { this.overReady = true; }, 450);
     const score = Math.floor(this.score);
@@ -733,9 +747,15 @@ class Shell {
     const others = GAMES.filter((g) => g.id !== this.id);
     const boardUrl = `../../leaderboard/?game=${this.id}&period=${this.daily ? 'daily' : 'today'}`;
     const gameUrl = location.origin + location.pathname + (this.daily ? '?daily=1' : '');
-    const shareText = score > 0
-      ? `🎮 I scored ${fmt(score)} on ${this.meta.title}${this.daily ? " (today's Daily Challenge)" : ''} and reached level ${this.level}! Can you beat me? ${gameUrl}`
-      : `🎮 Come play ${this.meta.title} with me, free in your browser: ${gameUrl}`;
+    // built when tapped, so it carries the name the player just saved
+    const makeShare = () => {
+      const me = Store.name();
+      const q = new URLSearchParams({ ...(this.daily ? { daily: '1' } : {}), beat: String(score), ...(me ? { by: me } : {}) });
+      return score > 0
+        ? `🎮 ${me ? `${me} scored` : 'I scored'} ${fmt(score)} on ${this.meta.title}${this.daily ? " (today's Daily Challenge)" : ''} and reached level ${this.level}! Can you beat me? ${location.origin}${location.pathname}?${q}`
+        : `🎮 Come play ${this.meta.title} with me, free in your browser: ${gameUrl}`;
+    };
+    const shareText = makeShare();
 
     let wonLine = '';
     if (this.won && this.def.sealedHint) {
@@ -745,6 +765,10 @@ class Shell {
       <h2 class="over-title">${this.won ? esc(this.def.winTitle || 'You made it!') : 'Game Over'}</h2>
       <div class="final-score">${fmt(score)}</div>
       <p class="muted">${this.won ? `All ${this.def.finalLevel || this.level} levels complete · ${this.livesLost ? `${this.livesLost} ${this.livesLost === 1 ? 'life' : 'lives'} lost` : 'no lives lost'}` : `Reached level ${this.level}`}${this.daily ? ' · Daily Challenge' : ''}</p>
+      ${this.daily ? streakNote(true) : ''}
+      ${this.challenge ? (score > this.challenge.score
+        ? `<p class="challenge won">🏆 You beat <b>${esc(this.challenge.by)}</b>'s ${fmt(this.challenge.score)}! Send it back to them 👇</p>`
+        : `<p class="challenge">🎯 <b>${fmt(this.challenge.score - score + 1)}</b> more to beat <b>${esc(this.challenge.by)}</b>'s ${fmt(this.challenge.score)} — try again!</p>`) : ''}
       ${wonLine}
       ${pbLine}
       <div class="rank-box" data-rank><span class="muted">Checking the leaderboard…</span></div>
@@ -760,6 +784,8 @@ class Shell {
       </div>`);
     const again = o.querySelector('[data-act="again"]');
     again.onclick = () => this.restart();
+    const wa = o.querySelector('.btn.wa');
+    wa.addEventListener('click', () => { wa.href = whatsappLink(makeShare()); });
     o.querySelector('[data-act="menu"]').onclick = () => { this.checkpoints = this.computeCheckpoints(); this.showTitle(); };
     again.focus({ preventScroll: true });
 
@@ -795,7 +821,7 @@ class Shell {
       if (problem) { msg.textContent = problem; msg.className = 'form-msg err'; return; }
       form.querySelector('button').disabled = true; msg.textContent = 'Saving…'; msg.className = 'form-msg';
       try {
-        const r = await Scores.submit({ game: this.id, name, score, level: this.level, durationMs: this.playTime * 1000, mode: this.mode });
+        const r = await Scores.submit({ game: this.id, name, score, level: this.level, mode: this.mode, session: this.session });
         Store.setName(name);
         this.unlock('famous', true);
         box.innerHTML = `<p class="rank-msg saved">✅ Saved! <b>${esc(name)}</b> is <b>#${r.rank}</b> today. <a href="${boardUrl}">See the board →</a></p>`;
@@ -806,6 +832,15 @@ class Shell {
       }
     };
   }
+}
+
+/** "🔥 4-day streak" line for daily-challenge screens (the streak lives only in this browser). */
+function streakNote(after = false) {
+  const { streak, best, today } = Store.dailyStreak();
+  if (after) return `<p class="streak">🔥 <b>${streak}-day</b> daily streak${streak > 1 ? '!' : ''} <span class="muted">Come back tomorrow to make it ${streak + 1}.${best > streak ? ` Best: ${best}.` : ''}</span></p>`;
+  if (today) return `<p class="streak">🔥 <b>${streak}-day</b> streak — today's counted ✓</p>`;
+  if (streak) return `<p class="streak">🔥 <b>${streak}-day</b> streak — play today to make it ${streak + 1}!</p>`;
+  return `<p class="streak muted">🔥 Play every day to build a streak${best ? ` (your best: ${best} days)` : ''}.</p>`;
 }
 
 // ── Small drawing helpers games can import ──────────────────────

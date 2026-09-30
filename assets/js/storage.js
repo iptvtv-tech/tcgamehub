@@ -1,5 +1,7 @@
 // Everything a visitor's browser remembers: name, bests, checkpoints, badges, settings.
 // Wrapped in try/catch so private-browsing modes never break the games.
+import { todayKey } from './rng.js';
+
 const KEY = 'arcade:v1';
 let data = null;
 
@@ -68,6 +70,26 @@ export const Store = {
     const d = load();
     if (d.ach[key]) return false;
     d.ach[key] = Date.now(); save(); return true;
+  },
+
+  // ── Daily challenge streak (kept only in this browser) ──
+  /** { streak, best, today }: streak = days in a row ending today or yesterday (0 once broken). */
+  dailyStreak() {
+    const d = load().daily;
+    if (!d) return { streak: 0, best: 0, today: false };
+    const today = todayKey(), yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const alive = d.last === today || d.last === yesterday;
+    return { streak: alive ? d.streak : 0, best: d.best || 0, today: d.last === today };
+  },
+  /** Call when a daily challenge run starts. Returns the new streak. */
+  markDaily() {
+    const d = load(), today = todayKey();
+    const cur = this.dailyStreak();
+    if (cur.today) return cur.streak;
+    const streak = cur.streak + 1;
+    d.daily = { last: today, streak, best: Math.max(streak, d.daily?.best || 0) };
+    save();
+    return streak;
   },
 
   setting(k) { return load().settings[k]; },
