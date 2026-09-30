@@ -276,6 +276,23 @@ export const GAMES = [
       { id: 'score10k',  icon: '🏅', title: 'Ten Grand',      desc: 'Score 10,000 in one run' },
     ],
   },
+  {
+    id: 'star-strike',
+    gold: 'Golden Fighter',         // golden character unlocked by the Zone 3 crown
+    title: 'Star Strike 3D',
+    tagline: 'Fly a starfighter down a 3D space corridor. Blast fighter waves, asteroids and mines, thread laser gates — and take down the Mothership.',
+    controls: 'Fly: arrows / WASD or mouse (touch: drag) · Fire: hold Space / mouse (touch fires automatically) · Bomb: B or 💣',
+    color: '#38bdf8',
+    isNew: true,
+    achievements: [
+      { id: 'ace',      icon: '🎖️', title: 'Ace Pilot',      desc: 'Clear sector 3+ without being hit' },
+      { id: 'boss',     icon: '🛸', title: 'Mothership Down', desc: 'Destroy a Mothership' },
+      { id: 'rings',    icon: '💫', title: 'Ring Master',    desc: 'Fly through 30 rings in one Ring Run' },
+      { id: 'combo4',   icon: '🔥', title: 'Hot Streak',     desc: 'Reach a x4 combo' },
+      { id: 'level10',  icon: '🚀', title: 'Deep Space',     desc: 'Reach sector 10' },
+      { id: 'score10k', icon: '🏅', title: 'Ten Grand',      desc: 'Score 10,000 in one run' },
+    ],
+  },
 ];
 
 // Badges that any game can earn (unlocked automatically by the engine).
@@ -321,7 +338,7 @@ export const ZONES = [
     slots: ['snake-escape-puzzle', 'neon-beat', 'tower-topple', 'hyper-hex', 'galactic-alien-shooter', 'heist-planner'] },
   { n: 3, name: 'Zone 3 · Master Class', blurb: 'Master difficulty — for players who have beaten Zone 2. New games arriving one at a time.',
     legendGame: null,
-    slots: ['turbo-rush', 'bubble-blitz', 'pinball-blast', null, null, null] },
+    slots: ['turbo-rush', 'bubble-blitz', 'pinball-blast', 'star-strike', null, null] },
 ];
 
 /** Crown icon for each zone. */

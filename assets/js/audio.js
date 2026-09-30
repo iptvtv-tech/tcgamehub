@@ -85,6 +85,9 @@ const PROGRESSIONS = {
   dream: [[50, 53, 57], [46, 50, 53], [48, 52, 55], [45, 49, 52]], // Dm Bb C A
   cosmic: [[52, 55, 59], [48, 52, 55], [45, 48, 52], [47, 51, 54]], // Em C Am B
   bubbly: [[53, 57, 60], [50, 53, 57], [46, 50, 53], [48, 52, 55]], // F Dm Bb C
+  hero:   [[57, 60, 64], [53, 57, 60], [55, 59, 62], [52, 56, 59]], // Am F G E
+  crypt:  [[48, 51, 55], [44, 48, 51], [41, 44, 48], [43, 47, 50]], // Cm Ab Fm G
+  chase:  [[50, 53, 57], [51, 55, 58], [50, 53, 57], [49, 52, 56]], // Dm Eb Dm C#dim — tense
 };
 const ARP = [0, 1, 2, 1, 0, 1, 2, 1], OCT = [12, 12, 12, 12, 24, 24, 24, 24];
 const music = { on: false, timer: null, step: 0, nextTime: 0, bpm: 110, prog: PROGRESSIONS.minor, lead: 'square', arp: ARP, oct: OCT, bass: 'half' };
@@ -132,7 +135,7 @@ export const Sound = {
     if (musicBus) musicBus.gain.setTargetAtTime(on ? 0.28 : 0, ctx.currentTime, 0.05);
   },
 
-  /** Start looping background music. style: 'minor' | 'major' | 'dream' | 'cosmic' | 'bubbly'.
+  /** Start looping background music. style: 'minor' | 'major' | 'dream' | 'cosmic' | 'bubbly' | 'hero' | 'crypt' | 'chase'.
    *  Optional: arp (8 chord-note indexes, 3-5 = an octave up), oct (8 octave offsets), bass: 'half' | 'drive'. */
   startMusic({ bpm = 110, style = 'minor', lead = 'square', arp = ARP, oct = OCT, bass = 'half' } = {}) {
     const c = ac(); if (!c) return;
