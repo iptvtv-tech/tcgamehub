@@ -1,39 +1,56 @@
 // ─────────────────────────────────────────────────────────────
 //  SNAKE ESCAPE PUZZLE — game 7 (Zone 2 · Expert)
-//  Snakes are knotted together in a square. Tap a snake and it slides out
-//  head-first… but only if nothing is in its way. Tap a blocked snake and
-//  it bonks into the one in front — that costs a life.
+//  A knot of snakes on a square board. Tap a snake and it slithers forward —
+//  along its own body and out through its head — until something is in the way.
+//  If nothing is, it leaves the board. Clear every snake within the move limit.
 //
-//  L1–3  learn it (5×5 → 6×6)          L4+  a countdown clock
-//  L6+   rocks that never move          bigger, longer, tighter knots every level (up to 12×12)
-//  Every 5th level: ★ STAMPEDE bonus — clear as many snakes as you can in 15 s, no lives lost
+//  The catch: stopping halfway is sometimes exactly what you need, and sometimes
+//  it jams two snakes against each other for good. Every snake blocks another.
 //
-//  Every puzzle is built so it can always be solved: snakes are placed one at a
-//  time and each new snake's escape path is clear of the snakes already there,
-//  so removing them newest-first always works (players have to find that order).
+//  Every puzzle is pre-built and solved exhaustively by tools/gen-snake-puzzles.mjs,
+//  so each one is solvable and we know the fewest moves ("par") it takes.
+//    L1–4  learn it (5×5 → 6×6, 2 spare moves)     L5+  1 spare move, rocks from L6
+//    L12+  a clock (restarting doesn't reset it)    L30+ 9×9 and NO spare moves
+//    L41+  the hard puzzles come back rotated and mirrored
+//  Stuck or out of moves = lose a life. ↺ Restart (or R) is always free.
+//  Every 5th level: ★ STAMPEDE bonus — the classic rules, free as many as you can in 15 s.
 // ─────────────────────────────────────────────────────────────
 import { runGame, roundRect, progressBar, clamp } from '../../assets/js/engine.js';
+import { makeBoard, occupancy, slide, reach, exitOffset, cleared } from './rules.js';
+import { PUZZLES } from './puzzles.js';
 
 const ID = 'snake-escape-puzzle';
 const W = 480, H = 720;
 const BOARD = 440, BX = (W - BOARD) / 2, BY = 112;
 const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];
 const ROCK = -2;
-const COLORS = ['#22d3ee', '#f472b6', '#a3e635', '#fbbf24', '#a78bfa', '#fb923c', '#34d399', '#f87171', '#60a5fa', '#e879f9'];
+const COLORS = ['#22d3ee', '#f472b6', '#a3e635', '#fbbf24', '#a78bfa', '#fb923c', '#34d399', '#f87171', '#60a5fa', '#e879f9', '#facc15', '#2dd4bf', '#c084fc'];
+const RESTART = { x: W / 2 - 80, y: BY + BOARD + 50, w: 160, h: 38 };
 
-// Level settings
-function spec(level, bonus) {
-  if (bonus) return { n: 7, fill: 0.72, maxLen: 4, rocks: 0, timed: false, tight: 0 };
-  const n = Math.min(10, 5 + Math.floor(level * 0.4));
-  return {
-    n,
-    fill: Math.min(0.9, 0.62 + level * 0.02),
-    maxLen: Math.min(10, 3 + Math.floor(level / 2)),
-    rocks: level >= 6 ? 1 + Math.floor(n * n * 0.03) : 0,
-    timed: level >= 4,
-    // how hard the generator works to build chains (0 = relaxed, 1 = only one or two moves open at a time)
-    tight: level <= 2 ? 0 : level === 3 ? 0.35 : Math.min(1, 0.6 + (level - 4) * 0.06),
+// spare moves on top of the fewest possible
+const slackFor = (L) => (L <= 4 ? 2 : L <= 29 ? 1 : 0);
+
+// ── Puzzle set: levels 1–40 are hand-checked; after that the hardest come back transformed ──
+const KEYS = Object.keys(PUZZLES).map(Number).sort((a, b) => a - b);
+function transform(p, t) {
+  const n = p.n, rot = t % 4, mir = t >= 4;
+  const pt = ([x, y]) => {
+    if (mir) x = n - 1 - x;
+    for (let r = 0; r < rot; r++) [x, y] = [n - 1 - y, x];
+    return [x, y];
   };
+  const dir = (d) => {
+    if (mir && d % 2 === 0) d = 2 - d;
+    return (d + rot) % 4;
+  };
+  return { n, opt: p.opt, rocks: (p.rocks || []).map(pt), snakes: p.snakes.map((s) => ({ body: s.body.map(pt), d: dir(s.d) })) };
+}
+function puzzleFor(L) {
+  if (PUZZLES[L]) return PUZZLES[L];
+  const pool = KEYS.filter((k) => k >= 21).length ? KEYS.filter((k) => k >= 21) : KEYS;
+  if (L <= 40) { const k = KEYS.filter((q) => q <= L).pop() ?? KEYS[0]; return transform(PUZZLES[k], 1); }
+  const i = L - 41;
+  return transform(PUZZLES[pool[i % pool.length]], 1 + Math.floor(i / pool.length) % 7);
 }
 
 runGame({
@@ -47,17 +64,19 @@ runGame({
   bonusTime: 15,
   music: { bpm: 104, style: 'dream', lead: 'sine', arp: [0, 2, 1, 3, 0, 2, 1, 4], oct: [12, 12, 12, 12, 12, 12, 12, 12] },
   levelInfo(level, bonus) {
-    if (bonus) return '★ STAMPEDE! Free as many snakes as you can in 15 seconds — wrong taps don\'t cost lives here.';
+    if (bonus) return '★ STAMPEDE! Classic rules: a snake only moves if its way out is clear. Free as many as you can in 15 seconds!';
     const notes = {
-      1: 'Tap a snake to send it out HEAD-first. If another snake is in the way it bonks — and you lose a life!',
-      2: 'Bigger knot. Look for the snakes with a clear path to the edge first.',
-      3: 'Find the right order — some snakes only get free after others leave.',
-      4: '⏱️ Beat the clock! From now on the knots are CHAINS — usually only one or two snakes can move at a time, and the helper line is gone.',
-      6: '🪨 Rocks never move — no snake can escape through one.',
-      8: 'Longer snakes, tighter knots…',
-      11: '10×10 — only the calmest heads get out of this one.',
+      1: 'Tap a snake: it slithers forward — along its body, out through its head — until something is in the way. Get them all off the board!',
+      2: 'A snake stops right where it gets blocked. That can be useful…',
+      3: 'Moves are limited! One snake parked in the wrong place can jam the board. ↺ Restart (or R) is free — getting stuck costs a life.',
+      4: 'Sometimes you must slide a snake only part of the way first. Plan the order!',
+      6: '🪨 Rocks never move. Only ONE spare move from now on.',
+      12: '⏱️ The clock starts ticking from here — and restarting doesn\'t reset it.',
+      21: '8×8 knots. Every snake is in somebody\'s way.',
+      31: '9×9 — and no spare moves at all. Only the perfect solution works.',
+      41: 'The hardest knots return… turned and mirrored. Good luck!',
     };
-    return notes[level] || 'Bigger and tighter. Think before you tap!';
+    return notes[level] || 'Think first, tap second. Every move counts.';
   },
   create: (shell) => new SnakeEscape(shell),
 });
@@ -65,8 +84,12 @@ runGame({
 class SnakeEscape {
   constructor(s) {
     this.s = s; this.t = 0;
-    this.hover = null; this.cursor = null;
+    this.hover = null; this.cursor = null; this.overRestart = false;
     this.bgDots = Array.from({ length: 50 }, () => ({ x: Math.random() * W, y: Math.random() * H, r: Math.random() * 1.6 + 0.4, ph: Math.random() * 6 }));
+    addEventListener('keydown', (e) => {
+      if (e.code !== 'KeyR' || e.repeat || e.target instanceof HTMLInputElement) return;
+      if (this.s.state === 'playing' && !this.bonus) { e.preventDefault(); this.restartBoard(true); }
+    });
     this.startLevel(1, false);
   }
 
@@ -74,155 +97,107 @@ class SnakeEscape {
 
   startLevel(level, bonus) {
     this.level = level; this.bonus = bonus;
-    this.sp = spec(level, bonus);
-    this.mistakes = 0; this.bonusCount = 0;
-    this.build();
+    this.bonusCount = 0; this.restarts = 0; this.fails = 0;
+    this.moving = []; this.pendingHurt = 0; this.pendingFail = 0;
+    if (bonus) this.buildStampede();
+    else this.loadPuzzle();
   }
 
-  // ── Puzzle generator ───────────────────────────────────────
-  // Snakes are placed one at a time; each new snake's escape path must be clear of
-  // everything already placed, so removing them newest-first always works. From
-  // level 4 the generator deliberately parks each new snake across the escape path
-  // of snakes that are still free, building long chains: only one or two snakes can
-  // move at any moment, so there are very few ways through.
-  build() {
-    const r = this.s.rng, sp = this.sp;
-    const tries = this.bonus ? 1 : 3 + Math.round(sp.tight * 9);
-    let best = null;
-    for (let attempt = 0; attempt < tries; attempt++) {
-      const p = this.generate(sp, r);
-      if (!best || p.score > best.score) best = p;
-    }
-    this.n = best.n; this.cell = BOARD / best.n;
-    this.occ = best.occ; this.snakes = best.snakes; this.rocks = best.rocks;
-    this.total = this.snakes.length;
-    this.stats = best.stats;
-    this.timeMax = sp.timed ? Math.round((10 + this.total * 2.6 + best.stats.depth * 1.5) / this.s.speed(0.03)) : 0;
+  // ── Puzzle mode ────────────────────────────────────────────
+  loadPuzzle() {
+    const P = puzzleFor(this.level);
+    this.P = P;
+    this.B = makeBoard(P);
+    this.n = P.n; this.cell = BOARD / P.n;
+    this.rocks = P.rocks || [];
+    this.par = P.opt;
+    this.limit = P.opt + slackFor(this.level);
+    this.total = P.snakes.length;
+    this.timeMax = this.level >= 12 ? 30 + P.opt * 6 : 0;
     this.timeLeft = this.timeMax;
-    this.moving = [];
+    this.snakes = this.B.snakes.map((sn, i) => ({
+      id: i, body: sn.body, d: sn.d, len: sn.len, color: COLORS[i % COLORS.length], ph: Math.random() * 6,
+      track: this.trackOf(sn), alive: true, vis: 0, v: 0, bump: null,
+    }));
+    this.restartBoard(false);
   }
 
-  generate(sp, r) {
-    const { n, fill, maxLen, rocks: rockCount, tight } = sp;
+  /** Grid cells along a snake's whole route, continuing past the edge so it can slide out of view. */
+  trackOf(sn) {
+    const out = [];
+    const [dx, dy] = DIRS[sn.d];
+    let last = null, k = 0;
+    for (const c of sn.path) {
+      if (c) { out.push(c); last = c; } else { k++; out.push([last[0] + dx * k, last[1] + dy * k]); }
+    }
+    for (let j = 0; j < 3; j++) { k++; out.push([last[0] + dx * k, last[1] + dy * k]); }
+    return out;
+  }
+
+  restartBoard(byPlayer) {
+    if (byPlayer) {
+      if (this.moves === 0 || this.busy()) return;
+      this.restarts++;
+      this.s.sound.play('click');
+      this.s.fx.text(W / 2, BY + BOARD / 2, '↺ RESTART', { color: '#a5f3fc', size: 26, life: 0.8 });
+    }
+    this.st = new Array(this.snakes.length).fill(0);
+    this.moves = 0;
+    for (const sn of this.snakes) { sn.alive = true; sn.vis = 0; sn.v = 0; sn.bump = null; }
+    this.refreshOcc();
+  }
+
+  refreshOcc() { this.occ = occupancy(this.B, this.st); }
+  busy() { return this.snakes.some((sn) => sn.alive && Math.abs(sn.vis - this.st[sn.id]) > 1e-3) || this.pendingFail > 0 || this.pendingHurt > 0; }
+
+  // ── Stampede bonus (classic rules) ─────────────────────────
+  buildStampede() {
+    const r = this.s.rng, n = 7;
+    let best = null;
+    for (let a = 0; a < 3; a++) { const p = this.generate(n, 0.72, 4, r); if (!best || p.filled > best.filled) best = p; }
+    this.n = n; this.cell = BOARD / n;
+    this.grid = best.occ; this.snakes = best.snakes; this.rocks = [];
+    this.total = this.snakes.length; this.timeMax = 0;
+  }
+
+  /** Snakes placed one by one, each new one's way out clear — so newest-first always works. */
+  generate(n, fill, maxLen, r) {
     const occ = Array.from({ length: n }, () => new Array(n).fill(-1));
     const inside = (x, y) => x >= 0 && y >= 0 && x < n && y < n;
-    const rocks = [];
-    for (let i = 0; i < rockCount * 4 && rocks.length < rockCount; i++) {
-      const x = r.int(1, n - 2), y = r.int(1, n - 2);
-      if (occ[y][x] === -1) { occ[y][x] = ROCK; rocks.push([x, y]); }
-    }
     const snakes = [];
-    let filled = rocks.length;
+    let filled = 0;
     const target = Math.floor(n * n * fill);
-    const owners = new Map();                         // cell → ids of placed snakes that need it to escape
-    const free = new Set();                           // placed snakes nothing has blocked yet
-    const freeOwnersAt = (k) => (owners.get(k) || []).filter((id) => free.has(id));
-    const candidate = () => {
+    for (let tries = 0; tries < 600 && filled < target; tries++) {
       const hx = r.int(0, n - 1), hy = r.int(0, n - 1);
-      if (occ[hy][hx] !== -1) return null;
+      if (occ[hy][hx] !== -1) continue;
       const d = r.int(0, 3), [dx, dy] = DIRS[d];
-      const ray = [];
-      let x = hx + dx, y = hy + dy;
-      while (inside(x, y)) { if (occ[y][x] !== -1) return null; ray.push(x + ',' + y); x += dx; y += dy; }
-      const rayset = new Set(ray);
-      const want = r.int(2, maxLen);
-      const body = [[hx, hy]];
-      const used = new Set([hx + ',' + hy]);
+      const ray = new Set(); let ok = true, x = hx + dx, y = hy + dy;
+      while (inside(x, y)) { if (occ[y][x] !== -1) { ok = false; break; } ray.add(x + ',' + y); x += dx; y += dy; }
+      if (!ok) continue;
+      const want = r.int(2, maxLen), body = [[hx, hy]], used = new Set([hx + ',' + hy]);
       for (let k = 1; k < want; k++) {
         const [tx, ty] = body[body.length - 1];
-        const opts = DIRS.map(([ex, ey]) => [tx + ex, ty + ey]).filter(([ax, ay]) =>
-          inside(ax, ay) && occ[ay][ax] === -1 && !used.has(ax + ',' + ay) && !rayset.has(ax + ',' + ay));
+        const opts = DIRS.map(([ex, ey]) => [tx + ex, ty + ey]).filter(([ax, ay]) => inside(ax, ay) && occ[ay][ax] === -1 && !used.has(ax + ',' + ay) && !ray.has(ax + ',' + ay));
         if (!opts.length) break;
-        opts.sort((p, q) => freeOwnersAt(q[0] + ',' + q[1]).length - freeOwnersAt(p[0] + ',' + p[1]).length);
-        const c = r.chance(0.35 + tight * 0.5) ? opts[0] : r.pick(opts);
-        body.push(c); used.add(c[0] + ',' + c[1]);
+        const c = r.pick(opts); body.push(c); used.add(c[0] + ',' + c[1]);
       }
-      if (body.length < 2) return null;
-      const blocked = new Set();
-      for (const [bx, by] of body) for (const id of freeOwnersAt(bx + ',' + by)) blocked.add(id);
-      // tight puzzles: block one or two free snakes (a chain), but not a crowd
-      const b = blocked.size;
-      const score = tight * (b === 0 ? -14 : Math.min(b, 2) * 12 - Math.max(0, b - 2) * 4) + b * (1 - tight) * 2 + body.length;
-      return { body, d, ray, blocked, score };
-    };
-    // A candidate that starts ON the escape path of a still-free snake (so it's guaranteed to block it),
-    // wanders a few cells, and puts its head at the far end facing a clear way out.
-    const targeted = () => {
-      const cells = [];
-      for (const [k, ids] of owners) if (ids.some((id) => free.has(id))) { const [x, y] = k.split(',').map(Number); if (occ[y][x] === -1) cells.push([x, y]); }
-      if (!cells.length) return null;
-      const start = r.pick(cells);
-      const want = r.int(2, maxLen);
-      const walk = [start], used = new Set([start[0] + ',' + start[1]]);
-      for (let k = 1; k < want; k++) {
-        const [tx, ty] = walk[walk.length - 1];
-        const opts = DIRS.map(([ex, ey]) => [tx + ex, ty + ey]).filter(([ax, ay]) => inside(ax, ay) && occ[ay][ax] === -1 && !used.has(ax + ',' + ay));
-        if (!opts.length) break;
-        const c = r.pick(opts); walk.push(c); used.add(c[0] + ',' + c[1]);
-      }
-      if (walk.length < 2) return null;
-      const body = walk.slice().reverse();              // the far end is the head
-      const [hx, hy] = body[0];
-      for (const d of [0, 1, 2, 3].sort(() => r.range(-1, 1))) {
-        const [dx, dy] = DIRS[d];
-        if (hx + dx === body[1][0] && hy + dy === body[1][1]) continue;
-        const ray = []; let ok = true, x = hx + dx, y = hy + dy;
-        while (inside(x, y)) { if (occ[y][x] !== -1 || used.has(x + ',' + y)) { ok = false; break; } ray.push(x + ',' + y); x += dx; y += dy; }
-        if (!ok) continue;
-        const blocked = new Set();
-        for (const [bx, by] of body) for (const id of freeOwnersAt(bx + ',' + by)) blocked.add(id);
-        const b = blocked.size;
-        return { body, d, ray, blocked, score: tight * (Math.min(b, 2) * 12 - Math.max(0, b - 2) * 4) + body.length + 2 };
-      }
-      return null;
-    };
-    const picks = 6 + Math.round(tight * 34);
-    for (let tries = 0; tries < 700 && filled < target; tries++) {
-      let best = null;
-      for (let k = 0; k < picks; k++) {
-        const c = r.chance(tight * 0.8) ? targeted() : candidate();
-        if (c && (!best || c.score > best.score)) best = c;
-      }
-      if (!best) continue;
+      if (body.length < 2) continue;
       const id = snakes.length;
-      for (const [bx, by] of best.body) occ[by][bx] = id;
-      for (const cell of best.ray) { if (!owners.has(cell)) owners.set(cell, []); owners.get(cell).push(id); }
-      for (const b of best.blocked) free.delete(b);
-      free.add(id);
-      snakes.push({ id, body: best.body, d: best.d, color: COLORS[id % COLORS.length], alive: true, bump: null, ph: r.range(0, 6) });
-      filled += best.body.length;
+      for (const [bx, by] of body) occ[by][bx] = id;
+      snakes.push({ id, body, d, len: body.length, color: COLORS[id % COLORS.length], alive: true, bump: null, ph: r.range(0, 6) });
+      filled += body.length;
     }
-    const stats = this.analyse({ n, occ, snakes });
-    // fewer choices at each step = harder; still reward a well-filled board
-    const score = filled / (n * n) * 20 - stats.branch * 6 * tight + stats.depth * tight;
-    return { n, occ, snakes, rocks, filled: filled / (n * n), stats, score };
+    return { occ, snakes, filled };
   }
 
-  /** Play the puzzle out greedily: how many moves are open on average, and how many "rounds" deep is it? */
-  analyse(b) {
-    const occ = b.occ.map((row) => row.slice());
-    const tmp = { n: b.n, occ, snakes: b.snakes };
-    const left = new Set(b.snakes.map((sn) => sn.id));
-    let depth = 0, sum = 0, steps = 0;
-    const startFree = b.snakes.filter((sn) => this.blockedAt(sn, tmp) < 0).length;
-    while (left.size) {
-      const freeNow = [...left].filter((id) => this.blockedAt(b.snakes[id], tmp) < 0);
-      if (!freeNow.length) break;
-      depth++;
-      for (const id of freeNow) { sum += left.size && freeNow.length; steps++; }
-      for (const id of freeNow) { for (const [x, y] of b.snakes[id].body) occ[y][x] = -1; left.delete(id); }
-    }
-    return { depth, branch: steps ? sum / steps : 0, startFree, solvable: left.size === 0 };
-  }
-
-  /** Distance to the first thing in a snake's way, or -1 if its path is clear. */
-  blockedAt(sn, b = this) {
+  /** Stampede: distance to the first thing in a snake's way, or -1 if its path is clear. */
+  blockedAt(sn) {
     const [dx, dy] = DIRS[sn.d];
     let [x, y] = sn.body[0], k = 0;
     for (;;) {
       x += dx; y += dy; k++;
-      if (x < 0 || y < 0 || x >= b.n || y >= b.n) return -1;
-      const o = b.occ[y][x];
+      if (x < 0 || y < 0 || x >= this.n || y >= this.n) return -1;
+      const o = this.grid[y][x];
       if (o !== -1 && o !== sn.id) return k;
     }
   }
@@ -235,13 +210,17 @@ class SnakeEscape {
   }
   snakeAt(c) {
     if (!c) return null;
-    const o = this.occ[c[1]][c[0]];
+    const o = this.bonus ? this.grid[c[1]][c[0]] : this.occ[c[1] * this.n + c[0]];
     return o >= 0 ? this.snakes[o] : null;
   }
-  onPointerMove(x, y) { this.hover = this.snakeAt(this.cellAt(x, y)); this.cursor = null; }
+  inRestart(x, y) { return !this.bonus && x >= RESTART.x && x <= RESTART.x + RESTART.w && y >= RESTART.y && y <= RESTART.y + RESTART.h; }
+  onPointerMove(x, y) { this.hover = this.snakeAt(this.cellAt(x, y)); this.overRestart = this.inRestart(x, y); this.cursor = null; }
   onAction(a, x, y) {
-    if (a === 'press') { this.tap(this.snakeAt(this.cellAt(x, y))); return; }
-    // keyboard: move a cursor, Space/Enter taps
+    if (a === 'press') {
+      if (this.inRestart(x, y)) { this.restartBoard(true); return; }
+      this.tap(this.snakeAt(this.cellAt(x, y)));
+      return;
+    }
     const moves = { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1] };
     if (moves[a]) {
       if (!this.cursor) this.cursor = [Math.floor(this.n / 2), Math.floor(this.n / 2)];
@@ -252,115 +231,143 @@ class SnakeEscape {
   }
 
   tap(sn) {
-    const s = this.s;
-    if (!sn || !sn.alive || sn.leaving || sn.bump || this.pendingHurt > 0) return;
-    const k = this.blockedAt(sn);
-    if (k < 0) this.escape(sn);
-    else {
-      // bonk! slide up to the blocker and back
-      sn.bump = { t: 0, dist: k - 0.62 };
-      s.sound.play('hit');
-      s.fx.shake(5, 0.2);
-      const [hx, hy] = sn.body[0], [dx, dy] = DIRS[sn.d];
-      const bx = BX + (hx + dx * k + 0.5) * this.cell, by = BY + (hy + dy * k + 0.5) * this.cell;
-      s.fx.burst(bx, by, { colors: ['#f87171', '#fff'], count: 16, speed: 160, life: 0.4 });
-      s.resetCombo();
-      if (this.bonus) { s.fx.text(bx, by - 20, 'Blocked!', { color: '#fca5a5', size: 16 }); return; }
-      this.mistakes++;
-      s.fx.text(bx, by - 20, 'BONK!', { color: '#f87171', size: 24 });
-      this.pendingHurt = 0.35;             // lose the life once the bonk animation lands
+    if (!sn || !sn.alive) return;
+    if (this.bonus) return this.tapStampede(sn);
+    if (this.busy()) return;
+    const s = this.s, i = sn.id;
+    const ns = slide(this.B, this.st, i);
+    if (!ns) { this.bonk(sn, 1, 'Blocked'); return; }
+    this.st = ns; this.moves++;
+    sn.v = 6;
+    this.refreshOcc();
+    const out = ns[i] >= exitOffset(this.B.snakes[i]);
+    const [hx, hy] = this.track(sn, sn.vis + sn.len - 1);
+    if (out) {
+      s.award((5 + sn.len * 3) * this.level, hx, hy - 14, { chain: true, color: this.color(sn), size: 18 });
+      s.sound.play('eat', Math.min(12, s.comboCount));
+      s.sound.tone({ freq: 300, to: 900, dur: 0.18, type: 'triangle', vol: 0.06 });
+    } else {
+      s.sound.tone({ freq: 260, to: 420, dur: 0.12, type: 'triangle', vol: 0.05 });
     }
   }
 
-  escape(sn) {
-    const s = this.s, L = this.level;
-    // build the slide path: tail → head, then straight on until the whole snake is off the board
+  tapStampede(sn) {
+    const s = this.s;
+    if (sn.leaving || sn.bump) return;
+    const k = this.blockedAt(sn);
+    if (k >= 0) { this.bonk(sn, k, 'Blocked!'); return; }
     const [dx, dy] = DIRS[sn.d];
     const path = sn.body.slice().reverse();
     let [x, y] = sn.body[0];
-    for (let i = 0; i < this.n + sn.body.length + 1; i++) { x += dx; y += dy; path.push([x, y]); }
-    sn.leaving = { path, p: 0, v: 14 + sn.body.length };
-    for (const [bx, by] of sn.body) this.occ[by][bx] = -1;
+    for (let i = 0; i < this.n + sn.len + 1; i++) { x += dx; y += dy; path.push([x, y]); }
+    sn.leaving = { path, p: 0, v: 14 + sn.len };
+    for (const [bx, by] of sn.body) this.grid[by][bx] = -1;
     this.moving.push(sn);
     const [hx, hy] = sn.body[0];
-    const px = BX + (hx + 0.5) * this.cell, py = BY + (hy + 0.5) * this.cell;
-    const base = this.bonus ? 5 : 5 + sn.body.length * 3;
-    s.award(base * L, px, py - 14, { chain: true, color: this.color(sn), size: 18 });
+    s.award(5 * this.level, BX + (hx + 0.5) * this.cell, BY + (hy + 0.5) * this.cell - 14, { chain: true, color: this.color(sn), size: 18 });
     s.sound.play('eat', Math.min(12, s.comboCount));
-    s.sound.tone({ freq: 300, to: 900, dur: 0.18, type: 'triangle', vol: 0.06 });
-    if (this.bonus) this.bonusCount++;
+    this.bonusCount++;
+    if (this.bonusCount >= 20) s.unlock('stampede');
+  }
+
+  bonk(sn, k, label) {
+    const s = this.s;
+    sn.bump = { t: 0, dist: Math.max(0.2, k - 0.62) };
+    s.sound.play('hit'); s.fx.shake(4, 0.15);
+    const pts = this.snakePoints(sn), [hx, hy] = pts[pts.length - 1];
+    s.fx.text(hx, hy - 22, label, { color: '#fca5a5', size: 16 });
   }
 
   color(sn) { return this.s.gold ? ['#fde047', '#fbbf24', '#f59e0b', '#fcd34d'][sn.id % 4] : sn.color; }
 
-  onLifeLost() { this.pendingHurt = 0; for (const sn of this.snakes) sn.bump = null; }
+  onLifeLost() {
+    this.pendingHurt = 0; this.pendingFail = 0;
+    if (this.bonus) { for (const sn of this.snakes) sn.bump = null; return; }
+    this.timeLeft = this.timeMax;
+    this.restartBoard(false);
+  }
 
   idle(dt) { this.t += dt; this.animate(dt); }
 
   animate(dt) {
+    for (const sn of this.snakes) if (sn.bump) { sn.bump.t += dt; if (sn.bump.t > 0.5) sn.bump = null; }
+    if (this.bonus) {
+      for (const sn of this.moving) {
+        const lv = sn.leaving;
+        lv.p += lv.v * dt; lv.v += 30 * dt;
+        if (lv.p >= lv.path.length - sn.len) sn.alive = false;
+      }
+      this.moving = this.moving.filter((sn) => sn.alive);
+      return;
+    }
     for (const sn of this.snakes) {
-      if (sn.bump) { sn.bump.t += dt; if (sn.bump.t > 0.5) sn.bump = null; }
+      if (!sn.alive) continue;
+      const goal = this.st[sn.id];
+      if (sn.vis < goal) {
+        sn.v = Math.min(22, sn.v + 40 * dt);
+        sn.vis = Math.min(goal, sn.vis + sn.v * dt);
+        if (sn.vis >= goal) { sn.v = 0; if (goal >= exitOffset(this.B.snakes[sn.id])) sn.alive = false; }
+      }
     }
-    for (const sn of this.moving) {
-      const lv = sn.leaving;
-      lv.p += lv.v * dt; lv.v += 30 * dt;
-      if (lv.p >= lv.path.length - sn.body.length) sn.alive = false;
-    }
-    this.moving = this.moving.filter((sn) => sn.alive);
   }
 
   // ── Update ─────────────────────────────────────────────────
   update(dt) {
-    const s = this.s, L = this.level;
+    const s = this.s;
     this.t += dt;
     this.animate(dt);
 
-    if (this.pendingHurt > 0) {
-      this.pendingHurt -= dt;
-      if (this.pendingHurt <= 0) { s.sound.play('boom'); s.hurt(); return; }
+    if (this.bonus) {
+      if (this.snakes.every((sn) => !sn.alive || sn.leaving) && !this.moving.length) {
+        s.fx.text(W / 2, BY + BOARD / 2, 'NEXT HERD!', { color: '#fde047', size: 30 });
+        s.sound.play('powerup');
+        this.buildStampede();
+      }
+      return;
     }
 
-    // clock
-    if (this.timeMax && !this.bonus) {
+    if (this.pendingFail > 0) {
+      this.pendingFail -= dt;
+      if (this.pendingFail <= 0) { this.fails++; s.sound.play('boom'); s.hurt(); }
+      return;
+    }
+
+    if (this.timeMax) {
       this.timeLeft -= dt;
       if (this.timeLeft <= 5 && Math.ceil(this.timeLeft) !== Math.ceil(this.timeLeft + dt)) s.sound.play('tick');
       if (this.timeLeft <= 0) {
         s.fx.text(W / 2, BY + BOARD / 2, 'TIME UP!', { color: '#f87171', size: 40, life: 1.4 });
-        s.sound.play('boom');
-        this.build();                     // a fresh knot for the next try
-        s.hurt();
+        this.pendingFail = 0.01;
         return;
       }
     }
 
-    // all snakes out?
-    if (this.snakes.every((sn) => !sn.alive || sn.leaving) && !this.moving.length) {
-      if (this.bonus) {
-        // Stampede: a fresh herd straight away
-        s.fx.text(W / 2, BY + BOARD / 2, 'NEXT HERD!', { color: '#fde047', size: 30 });
-        s.sound.play('powerup');
-        this.build();
-        if (this.bonusCount >= 20) s.unlock('stampede');
-        return;
-      }
-      this.clearLevel();
+    if (this.busy()) return;
+    if (cleared(this.B, this.st)) { this.clearLevel(); return; }
+    const canMove = this.snakes.some((sn) => sn.alive && reach(this.B, this.st, sn.id, this.occ) > 0);
+    if (!canMove || this.moves >= this.limit) {
+      s.fx.text(W / 2, BY + BOARD / 2, canMove ? 'OUT OF MOVES!' : 'STUCK!', { color: '#f87171', size: 36, life: 1.4 });
+      s.fx.shake(6, 0.25);
+      this.pendingFail = 0.7;
     }
   }
 
   clearLevel() {
     const s = this.s, L = this.level;
     if (s.state !== 'playing') return;
+    const spare = this.limit - this.moves;
+    if (spare > 0) s.award(spare * 60 * L, W / 2, BY + BOARD + 20, { color: '#a5f3fc', size: 20 });
     if (this.timeMax) {
-      const bonus = Math.floor(this.timeLeft) * 10 * L;
-      if (bonus > 0) s.award(bonus, W / 2, BY + BOARD + 40, { color: '#a5f3fc', size: 22 });
+      const bonus = Math.floor(this.timeLeft) * 8 * L;
+      if (bonus > 0) s.award(bonus, W / 2, BY + BOARD + 44, { color: '#a5f3fc', size: 20 });
       if (this.timeLeft >= this.timeMax / 2) s.unlock('quick');
     }
-    if (this.mistakes === 0 && L >= 3) {
+    if (this.moves === this.par && this.fails === 0) {
       s.award(100 * L, W / 2, BY + BOARD / 2, { color: '#fde047', size: 26 });
-      s.fx.text(W / 2, BY + BOARD / 2 - 40, 'CLEAN ESCAPE!', { color: '#fde047', size: 28, life: 1.3 });
-      s.unlock('clean');
+      s.fx.text(W / 2, BY + BOARD / 2 - 40, 'PERFECT SOLVE!', { color: '#fde047', size: 28, life: 1.3 });
+      if (L >= 3) s.unlock('clean');
     }
-    if (this.n >= 10) s.unlock('giant');
+    if (this.n >= 9) s.unlock('giant');
     s.completeLevel();
   }
 
@@ -390,7 +397,6 @@ class SnakeEscape {
     for (let y = 0; y < this.n; y++) for (let x = 0; x < this.n; x++) {
       ctx.beginPath(); ctx.arc(BX + (x + 0.5) * c, BY + (y + 0.5) * c, Math.max(1.5, c * 0.05), 0, Math.PI * 2); ctx.fill();
     }
-    // rocks
     for (const [x, y] of this.rocks) {
       const cx = BX + (x + 0.5) * c, cy = BY + (y + 0.5) * c, r = c * 0.42;
       const rg = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.4, 1, cx, cy, r);
@@ -401,20 +407,28 @@ class SnakeEscape {
       ctx.closePath(); ctx.fill();
     }
 
-    // hovered snake: faint arrow along its escape line
+    // helper for the first levels: the hovered snake's way out
     const hv = this.hover;
-    if (hv && hv.alive && !hv.leaving && s.state === 'playing' && (this.level <= 3 || this.bonus)) {   // the helper line is only for the first levels
-      const [hx, hy] = hv.body[0], [dx, dy] = DIRS[hv.d];
-      ctx.save(); ctx.strokeStyle = this.color(hv); ctx.globalAlpha = 0.35; ctx.lineWidth = 2; ctx.setLineDash([6, 8]);
-      ctx.beginPath(); ctx.moveTo(BX + (hx + 0.5) * c, BY + (hy + 0.5) * c);
-      let ex = hx, ey = hy; while (ex >= 0 && ey >= 0 && ex < this.n && ey < this.n) { ex += dx; ey += dy; }
-      ctx.lineTo(BX + (ex + 0.5) * c, BY + (ey + 0.5) * c); ctx.stroke(); ctx.restore();
+    if (hv && hv.alive && s.state === 'playing' && (this.bonus ? !hv.leaving : this.level <= 3 && !this.busy())) {
+      ctx.save(); ctx.strokeStyle = this.color(hv); ctx.globalAlpha = 0.4; ctx.lineWidth = 2; ctx.setLineDash([6, 8]);
+      ctx.beginPath();
+      if (this.bonus) {
+        const [hx, hy] = hv.body[0], [dx, dy] = DIRS[hv.d];
+        ctx.moveTo(BX + (hx + 0.5) * c, BY + (hy + 0.5) * c);
+        let ex = hx, ey = hy; while (ex >= 0 && ey >= 0 && ex < this.n && ey < this.n) { ex += dx; ey += dy; }
+        ctx.lineTo(BX + (ex + 0.5) * c, BY + (ey + 0.5) * c);
+      } else {
+        const from = this.st[hv.id] + hv.len - 1, to = this.B.snakes[hv.id].onBoard;
+        for (let k = from; k <= to && k < hv.track.length; k++) {
+          const [x, y] = hv.track[k], px = BX + (x + 0.5) * c, py = BY + (y + 0.5) * c;
+          k === from ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+        }
+      }
+      ctx.stroke(); ctx.restore();
     }
 
-    // snakes (clip leaving snakes to a slightly larger area so they slide out of view)
     for (const sn of this.snakes) if (sn.alive) this.drawSnake(ctx, sn, t);
 
-    // keyboard cursor
     if (this.cursor) {
       ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5;
       roundRect(ctx, BX + this.cursor[0] * c + 2, BY + this.cursor[1] * c + 2, c - 4, c - 4, 6); ctx.stroke();
@@ -422,51 +436,90 @@ class SnakeEscape {
 
     // HUD
     ctx.fillStyle = 'rgba(3,5,20,.7)'; ctx.fillRect(0, 0, W, 44);
-    const left = this.snakes.filter((sn) => sn.alive && !sn.leaving).length;
-    if (this.bonus) progressBar(ctx, 14, 12, W - 28, 20, s.bonusLeft / 15, '#e879f9', `★ STAMPEDE · ${this.bonusCount} freed · ${Math.ceil(s.bonusLeft)}s`);
-    else progressBar(ctx, 14, 12, W - 28, 20, 1 - left / this.total, '#2dd4bf', `Snakes free ${this.total - left} / ${this.total} · ${this.n}×${this.n}`);
-    if (this.timeMax && !this.bonus) {
-      const k = Math.max(0, this.timeLeft / this.timeMax);
-      const col = k < 0.25 ? '#f87171' : k < 0.5 ? '#fbbf24' : '#a5f3fc';
-      progressBar(ctx, BX, BY + BOARD + 22, BOARD, 16, k, col, `⏱ ${Math.ceil(Math.max(0, this.timeLeft))}s`);
-    }
+    const coarse = matchMedia('(pointer: coarse)').matches;
     ctx.save(); ctx.font = '700 13px system-ui'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(165,243,252,.65)';
-    ctx.fillText(matchMedia('(pointer: coarse)').matches ? 'Tap a snake to set it free' : 'Click a snake to set it free · or use arrows + Space', W / 2, H - 30);
-    if (s.gold) { ctx.fillStyle = '#fbbf24'; ctx.fillText('★ GOLDEN SNAKES', W / 2, H - 12); }
+    if (this.bonus) {
+      progressBar(ctx, 14, 12, W - 28, 20, s.bonusLeft / 15, '#e879f9', `★ STAMPEDE · ${this.bonusCount} freed · ${Math.ceil(s.bonusLeft)}s`);
+      ctx.fillText(coarse ? 'Tap a snake with a clear way out' : 'Click a snake with a clear way out · or arrows + Space', W / 2, H - 30);
+    } else {
+      const left = this.snakes.filter((sn) => sn.alive).length;
+      progressBar(ctx, 14, 12, W - 28, 20, 1 - left / this.total, '#2dd4bf', `Snakes out ${this.total - left} / ${this.total} · ${this.n}×${this.n}`);
+      // moves
+      const movesLeft = this.limit - this.moves;
+      ctx.font = '800 20px system-ui';
+      ctx.fillStyle = movesLeft <= 1 ? '#f87171' : movesLeft <= 3 ? '#fbbf24' : '#e2e8f0';
+      ctx.fillText(`Moves ${this.moves} / ${this.limit}`, W / 2, 76);
+      ctx.font = '600 12px system-ui'; ctx.fillStyle = 'rgba(165,243,252,.6)';
+      ctx.fillText(`Perfect solve: ${this.par} moves${slackFor(this.level) ? ` · ${slackFor(this.level)} spare` : ' · no spare moves'}`, W / 2, 96);
+      if (this.timeMax) {
+        const k = Math.max(0, this.timeLeft / this.timeMax);
+        const col = k < 0.25 ? '#f87171' : k < 0.5 ? '#fbbf24' : '#a5f3fc';
+        progressBar(ctx, BX, BY + BOARD + 18, BOARD, 16, k, col, `⏱ ${Math.ceil(Math.max(0, this.timeLeft))}s`);
+      }
+      // restart button
+      const on = this.moves > 0 && !this.busy();
+      ctx.globalAlpha = on ? 1 : 0.45;
+      ctx.fillStyle = this.overRestart && on ? '#134e4a' : '#0f2a33';
+      roundRect(ctx, RESTART.x, RESTART.y, RESTART.w, RESTART.h, 19); ctx.fill();
+      ctx.strokeStyle = '#2dd4bf'; ctx.lineWidth = 2; roundRect(ctx, RESTART.x, RESTART.y, RESTART.w, RESTART.h, 19); ctx.stroke();
+      ctx.fillStyle = '#ccfbf1'; ctx.font = '800 15px system-ui';
+      ctx.fillText(coarse ? '↺ Restart (free)' : '↺ Restart  ·  R', W / 2, RESTART.y + 25);
+      ctx.globalAlpha = 1;
+      ctx.font = '700 13px system-ui'; ctx.fillStyle = 'rgba(165,243,252,.65)';
+      ctx.fillText(coarse ? 'Tap a snake — it slides until something blocks it' : 'Click a snake — it slides until blocked · arrows + Space', W / 2, H - 30);
+    }
+    if (s.gold) { ctx.fillStyle = '#fbbf24'; ctx.font = '700 13px system-ui'; ctx.fillText('★ GOLDEN SNAKES', W / 2, H - 12); }
     ctx.restore();
   }
 
-  /** Points along the snake from tail to head (in pixels), taking slide/bonk into account. */
+  /** Pixel point at a (fractional) position along a puzzle snake's track. */
+  track(sn, q) {
+    const c = this.cell, tr = sn.track;
+    const i = Math.max(0, Math.min(tr.length - 2, Math.floor(q))), f = q - i;
+    const a = tr[i], b = tr[i + 1];
+    return [BX + (a[0] + (b[0] - a[0]) * f + 0.5) * c, BY + (a[1] + (b[1] - a[1]) * f + 0.5) * c];
+  }
+
+  /** Points along the snake from tail to head (in pixels), plus the way the head is facing. */
   snakePoints(sn) {
-    const c = this.cell, len = sn.body.length;
+    const c = this.cell, len = sn.len;
     const px = ([x, y]) => [BX + (x + 0.5) * c, BY + (y + 0.5) * c];
-    if (sn.leaving) {
+    let pts, dir;
+    if (!this.bonus) {
+      const p = sn.vis;
+      pts = [this.track(sn, p)];
+      for (let i = Math.floor(p) + 1; i < p + len - 1; i++) pts.push(px(sn.track[i]));
+      pts.push(this.track(sn, p + len - 1));
+      const hi = Math.min(sn.track.length - 2, Math.floor(p + len - 1));
+      dir = [sn.track[hi + 1][0] - sn.track[hi][0], sn.track[hi + 1][1] - sn.track[hi][1]];
+    } else if (sn.leaving) {
       const { path, p } = sn.leaving;
       const at = (q) => {
         const i = Math.min(path.length - 2, Math.floor(q)), f = q - i;
         const a = px(path[i]), b = px(path[i + 1]);
         return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
       };
-      const pts = [at(p)];
+      pts = [at(p)];
       for (let i = Math.ceil(p); i < p + len - 1; i++) if (i > p) pts.push(px(path[i]));
       pts.push(at(p + len - 1));
-      return pts;
+      dir = DIRS[sn.d];
+    } else {
+      pts = sn.body.slice().reverse().map(px);
+      dir = DIRS[sn.d];
     }
-    const pts = sn.body.slice().reverse().map(px);
     if (sn.bump) {
-      // head pushes forward then snaps back
       const k = sn.bump.t < 0.18 ? sn.bump.t / 0.18 : Math.max(0, 1 - (sn.bump.t - 0.18) / 0.3);
-      const [dx, dy] = DIRS[sn.d];
       const h = pts[pts.length - 1];
-      pts.push([h[0] + dx * c * sn.bump.dist * k, h[1] + dy * c * sn.bump.dist * k]);
+      pts.push([h[0] + dir[0] * c * sn.bump.dist * k, h[1] + dir[1] * c * sn.bump.dist * k]);
     }
+    pts.dir = dir;
     return pts;
   }
 
   drawSnake(ctx, sn, t) {
     const c = this.cell, col = this.color(sn);
     const pts = this.snakePoints(sn);
-    const hot = this.hover === sn && !sn.leaving;
+    const hot = this.hover === sn;
     ctx.save();
     ctx.beginPath(); ctx.rect(BX - 6, BY - 6, BOARD + 12, BOARD + 12); ctx.clip();
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
@@ -474,29 +527,26 @@ class SnakeEscape {
     ctx.strokeStyle = sn.bump ? '#f87171' : col; ctx.lineWidth = c * 0.62;
     ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke();
     ctx.shadowBlur = 0;
-    // belly stripe
     ctx.strokeStyle = 'rgba(255,255,255,.28)'; ctx.lineWidth = c * 0.16;
     ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke();
     // head
     const [hx, hy] = pts[pts.length - 1];
-    const [dx, dy] = DIRS[sn.d];
+    const [dx, dy] = pts.dir;
     ctx.fillStyle = sn.bump ? '#f87171' : col;
     ctx.beginPath(); ctx.arc(hx, hy, c * 0.36, 0, Math.PI * 2); ctx.fill();
-    // arrow nose so the direction is always readable
+    // arrow nose: which way it will go next
     ctx.fillStyle = 'rgba(255,255,255,.9)';
     ctx.beginPath();
     ctx.moveTo(hx + dx * c * 0.44, hy + dy * c * 0.44);
     ctx.lineTo(hx + dx * c * 0.2 - dy * c * 0.14, hy + dy * c * 0.2 + dx * c * 0.14);
     ctx.lineTo(hx + dx * c * 0.2 + dy * c * 0.14, hy + dy * c * 0.2 - dx * c * 0.14);
     ctx.closePath(); ctx.fill();
-    // eyes
     for (const side of [-1, 1]) {
       const ex = hx - dx * c * 0.04 + -dy * side * c * 0.17, ey = hy - dy * c * 0.04 + dx * side * c * 0.17;
       ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(ex, ey, c * 0.085, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#0f172a'; ctx.beginPath(); ctx.arc(ex + dx * c * 0.03, ey + dy * c * 0.03, c * 0.045, 0, Math.PI * 2); ctx.fill();
     }
-    // tongue flick
-    if (Math.sin(t * 3 + sn.ph) > 0.85 || sn.leaving) {
+    if (Math.sin(t * 3 + sn.ph) > 0.85 || sn.leaving || sn.v > 0) {
       ctx.strokeStyle = '#fb7185'; ctx.lineWidth = Math.max(1.5, c * 0.04);
       const tx = hx + dx * c * 0.5, ty = hy + dy * c * 0.5;
       ctx.beginPath(); ctx.moveTo(hx + dx * c * 0.36, hy + dy * c * 0.36); ctx.lineTo(tx, ty);

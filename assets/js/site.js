@@ -17,13 +17,19 @@ export function ago(ts) {
 export function siteChrome() {
   document.querySelectorAll('[data-site-name]').forEach((el) => { el.textContent = CONFIG.siteName; });
   document.querySelectorAll('[data-year]').forEach((el) => { el.textContent = new Date().getFullYear(); });
-  // Only Legends see the way into the Hall of Legends.
+  // Everyone can find the door to the Hall of Legends — only Legends get in.
   const nav = document.querySelector('.site-nav');
-  if (nav && Legends.isLegend() && !nav.querySelector('.legend-link')) {
+  if (nav && !nav.querySelector('.legend-link')) {
     const root = new URL('../../', import.meta.url);
     const a = document.createElement('a');
-    a.className = 'legend-link'; a.href = new URL('hall-of-legends/', root).href; a.textContent = '👑 Legends';
-    if (location.pathname.includes('/hall-of-legends/')) a.setAttribute('aria-current', 'page');
+    a.className = 'legend-link' + (Legends.isLegend() ? ' is-legend' : '');
+    a.href = new URL('hall-of-legends/', root).href;
+    a.innerHTML = `${Legends.isLegend() ? '👑' : '🏛️'}<span class="nav-label"> Legends</span>`;
+    a.title = 'Hall of Legends';
+    if (location.pathname.includes('/hall-of-legends/')) {
+      nav.querySelectorAll('[aria-current]').forEach((el) => el.removeAttribute('aria-current'));
+      a.setAttribute('aria-current', 'page');
+    }
     nav.appendChild(a);
   }
   if ('serviceWorker' in navigator && location.protocol === 'https:') {

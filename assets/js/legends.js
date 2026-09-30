@@ -96,9 +96,16 @@ export const Legends = {
     return { code, online: ONLINE };
   },
 
+  /** Tidy whatever was typed or pasted ("legend abc123", "ABC123", "Legend-abc 123") into LEGEND-XXXXXX. */
+  normalizeCode(raw) {
+    let t = String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (t.startsWith('LEGEND')) t = t.slice(6);
+    return 'LEGEND-' + t;
+  },
+
   /** Restore Legend status on a new device from a Legend code. */
   async restore(raw) {
-    const code = String(raw || '').trim().toUpperCase();
+    const code = Legends.normalizeCode(raw);
     if (!/^LEGEND-[A-Z0-9]{6}$/.test(code)) throw new Error('That doesn\'t look like a Legend code (LEGEND-XXXXXX).');
     let entry = null;
     if (ONLINE) entry = await rpc('restore_legend', { p_code: code });

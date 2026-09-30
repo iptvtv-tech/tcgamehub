@@ -15,8 +15,8 @@ const ID = 'hyper-hex';
 const W = 480, H = 720;
 const CX = W / 2, CY = 390;
 const SIDES = 6, SEG = (Math.PI * 2) / SIDES;
-const CORE = 42;              // radius of the centre hexagon
-const RP = 64;                // radius the player orbits at
+const CORE = 56;              // radius of the centre hexagon
+const RP = 86;                // radius the player orbits at
 const TAU = Math.PI * 2;
 const goalFor = (level) => Math.min(60, 20 + (level - 1) * 4);
 
@@ -62,9 +62,9 @@ class HyperHex {
     const s = this.s;
     this.level = level; this.bonus = bonus;
     this.goal = goalFor(level);
-    this.wallSpeed = Math.min(640, 320 * s.speed(0.055));
-    this.moveSpeed = Math.min(10.5, 7.2 * s.speed(0.02));
-    this.baseSpin = Math.min(3.6, 1.0 + level * 0.16);
+    this.wallSpeed = Math.min(600, 200 * s.speed(0.06));    // gentle start, ~70% faster by level 10
+    this.moveSpeed = Math.min(10.5, 6.6 * s.speed(0.025));
+    this.baseSpin = Math.min(3.2, 0.3 + level * 0.14);
     this.hue = (190 + level * 37) % 360;
     this.restart();
   }
@@ -83,7 +83,7 @@ class HyperHex {
   spawnPattern() {
     const r = this.s.rng, L = this.level;
     // rings are spaced in TIME so every pattern stays possible at any speed
-    const spacing = this.wallSpeed * Math.max(0.38, 0.66 - L * 0.015);
+    const spacing = this.wallSpeed * Math.max(0.47, 0.85 - L * 0.025);
     const th = 22 + Math.min(10, L);
     const off = r.int(0, SIDES - 1);
     const mir = r.chance(0.5) ? 1 : -1;
@@ -217,7 +217,7 @@ class HyperHex {
   render(ctx) {
     const s = this.s, t = this.t;
     const hue = this.bonus ? (t * 60) % 360 : this.hue;
-    const zoom = 1 + this.pulse * 0.035;
+    const zoom = 1;                       // no beat zoom — keeps the core steady and easy to see
     ctx.fillStyle = `hsl(${hue}, 45%, 8%)`; ctx.fillRect(0, 0, W, H);
     ctx.save();
     ctx.translate(CX, CY); ctx.scale(zoom, zoom); ctx.rotate(this.rot);
@@ -230,7 +230,7 @@ class HyperHex {
       ctx.closePath(); ctx.fill();
     }
     // walls (drawn as trapezoid slices of a hexagon)
-    ctx.fillStyle = this.bonus ? 'rgba(255,255,255,.18)' : `hsl(${hue}, 95%, ${62 + this.pulse * 12}%)`;
+    ctx.fillStyle = this.bonus ? 'rgba(255,255,255,.18)' : `hsl(${hue}, 95%, ${62 + this.pulse * 4}%)`;
     ctx.shadowColor = `hsl(${hue}, 100%, 60%)`; ctx.shadowBlur = this.bonus ? 0 : 12;
     for (const w of this.walls) {
       const r1 = Math.max(CORE, w.d), r2 = Math.max(CORE, w.d + w.th);
@@ -250,14 +250,14 @@ class HyperHex {
       ctx.restore();
     }
     // core hexagon
-    const cr = CORE - 6 + this.pulse * 5;
+    const cr = CORE - 6 + this.pulse * 1.5;
     ctx.fillStyle = `hsl(${hue}, 45%, 10%)`; ctx.strokeStyle = `hsl(${hue}, 95%, 65%)`; ctx.lineWidth = 5;
     ctx.beginPath(); for (let k = 0; k <= SIDES; k++) { const a = k * SEG; ctx.lineTo(Math.cos(a) * cr, Math.sin(a) * cr); } ctx.closePath(); ctx.fill(); ctx.stroke();
     // player arrow
     ctx.save(); ctx.rotate(this.angle); ctx.translate(RP, 0);
     ctx.fillStyle = s.gold ? '#fbbf24' : this.hitFlash > 0 ? '#f87171' : '#ffffff';
     ctx.shadowColor = s.gold ? '#fbbf24' : '#fff'; ctx.shadowBlur = 10;
-    ctx.beginPath(); ctx.moveTo(9, 0); ctx.lineTo(-5, -7); ctx.lineTo(-5, 7); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(12, 0); ctx.lineTo(-6, -9); ctx.lineTo(-6, 9); ctx.closePath(); ctx.fill();
     ctx.restore();
     ctx.restore();
 

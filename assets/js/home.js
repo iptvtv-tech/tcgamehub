@@ -148,4 +148,10 @@ if (Legends.isLegend()) {
   el.className = 'legend-banner';
   el.innerHTML = `<span style="font-size:1.8em">👑</span><div><b>You are a Legend.</b><br><span class="muted small">Crowns won: ${Legends.crowns().map((n) => `Zone ${n}`).join(' & ')}. Your golden characters are on in those zones' games — switch them from each game's menu.</span></div><a class="btn" href="hall-of-legends/">🏛️ Hall of Legends</a>`;
   document.getElementById('games').before(el);
+} else {
+  const el = document.createElement('a');
+  el.className = 'legend-banner hall-door';
+  el.href = 'hall-of-legends/';
+  el.innerHTML = `<span style="font-size:1.8em">🏛️</span><div><b>The Hall of Legends</b><br><span class="muted small">This door only opens for true Legends. Nobody has ever been told how to become one…</span></div><span class="btn">🔑 Enter a Legend code</span>`;
+  document.getElementById('games').after(el);
 }

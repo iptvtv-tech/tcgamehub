@@ -214,3 +214,9 @@ kbd { background: #2c2c5a; border: 1px solid #45458a; border-bottom-width: 2px; 
 .game-card.zone-locked .thumb img { filter: grayscale(.8) brightness(.6); }
 .game-card .lock-badge { position: absolute; top: 12px; right: 12px; z-index: 2; background: #1a1a3d; border: 1px solid #be185d; color: #fda4af; font-weight: 800; border-radius: 999px; padding: .25em .8em; font-size: .85em; }
 .game-card.zone-locked .play-cta { display: none; }
+
+a.legend-banner.hall-door { text-decoration: none; color: var(--text); margin: 22px 0 0; border-color: #a16207; background: linear-gradient(135deg, #1f1a0a, #14142e 70%); transition: border-color .2s, transform .2s; }
+a.legend-banner.hall-door:hover { border-color: #fbbf24; transform: translateY(-2px); }
+.site-nav a.legend-link:not(.is-legend) { color: #d6b25e; }
+@media (max-width: 480px) { .site-nav a.legend-link .nav-label { display: none; } .site-nav { gap: 0; } }
+@media (max-width: 400px) { .site-nav a { padding: .45em .42em; font-size: .92em; } }

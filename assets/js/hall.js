@@ -14,15 +14,24 @@ function locked() {
       <div class="vault-door" aria-hidden="true"><i></i><i></i><i></i></div>
       <h1>The Hall of Legends</h1>
       <p>This door only opens for true Legends. Nobody has ever been told how to become one…</p>
-      <p class="small">Already a Legend on another phone or computer? Enter your Legend code:</p>
+      <p class="small">Already a Legend on another phone or computer? Enter your Legend code — just the 6 letters and numbers is fine:</p>
       <form class="restore" autocomplete="off">
-        <input name="c" placeholder="LEGEND-XXXXXX" maxlength="13" aria-label="Legend code" spellcheck="false">
+        <input name="c" placeholder="LEGEND-XXXXXX" maxlength="20" aria-label="Legend code" spellcheck="false" autocapitalize="characters" autocomplete="off" inputmode="text">
         <button class="btn primary" type="submit">Unlock</button>
       </form>
       <p class="restore-msg" aria-live="polite"></p>
       <a class="btn" href="../">⌂ Back to the arcade</a>
     </section>`;
   const form = main.querySelector('form'), msg = main.querySelector('.restore-msg');
+  // Tidy the code as it's typed or pasted, and accept a restore link (…/hall-of-legends/#LEGEND-XXXXXX).
+  form.c.addEventListener('input', () => {
+    const t = Legends.normalizeCode(form.c.value).slice(7, 13);
+    form.c.value = t ? 'LEGEND-' + t : '';
+    msg.className = 'restore-msg'; msg.textContent = '';
+  });
+  const fromLink = decodeURIComponent(location.hash.slice(1));
+  if (/[A-Z0-9]{6}/i.test(fromLink)) { form.c.value = Legends.normalizeCode(fromLink); history.replaceState(null, '', location.pathname); }
+  if (matchMedia('(pointer: fine)').matches) form.c.focus();
   form.onsubmit = async (e) => {
     e.preventDefault();
     form.querySelector('button').disabled = true; msg.className = 'restore-msg'; msg.textContent = 'Checking…';
@@ -66,11 +75,17 @@ async function open() {
         </section>
         <section class="hall-card">
           <h2>🔑 Your Legend code</h2>
-          ${me.code ? `<p class="my-code">${esc(me.code)}</p><p class="muted small">Enter it on this page on any phone or computer to get your golden characters back.</p>`
+          ${me.code ? `<p class="my-code">${esc(me.code)}</p><p><button class="btn small" data-copy="code">📋 Copy code</button> <button class="btn small" data-copy="link">🔗 Copy restore link</button></p><p class="muted small copy-msg">Enter it on this page — tap <b>🏛️ Legends</b> at the top of any page — on any phone or computer to get your golden characters back. Or open your restore link there.</p>`
             : `<p class="muted small">Sign the Hall at the end of your Legend run to get a code for restoring your golden characters on another device.</p>`}
         </section>
       </div>
     </div>`;
+  main.querySelectorAll('[data-copy]').forEach((b) => b.onclick = async () => {
+    const text = b.dataset.copy === 'link' ? `${location.origin}${location.pathname}#${me.code}` : me.code;
+    try { await navigator.clipboard.writeText(text); b.textContent = '✅ Copied'; }
+    catch { prompt('Copy this:', text); }
+    setTimeout(() => { b.textContent = b.dataset.copy === 'link' ? '🔗 Copy restore link' : '📋 Copy code'; }, 1600);
+  });
   main.querySelectorAll('[data-gold]').forEach((b) => b.onclick = () => {
     const on = b.getAttribute('aria-checked') !== 'true';
     Legends.setGold(b.dataset.gold, on); b.setAttribute('aria-checked', on);

@@ -111,14 +111,14 @@ export const GAMES = [
     id: 'snake-escape-puzzle',
     gold: 'Golden Snakes',          // golden character unlocked by the Zone 2 crown
     title: 'Snake Escape Puzzle',
-    tagline: 'A knot of snakes, one way out each. Tap them in the right order — one wrong tap and BONK!',
-    controls: 'Tap / click a snake to send it out head-first · or arrow keys + Space',
+    tagline: 'A knot of snakes, every one in another\'s way. Each tap slides a snake until it\'s blocked — clear the board before you run out of moves.',
+    controls: 'Tap / click a snake to slide it · R or ↺ to restart the board (free) · arrow keys + Space',
     color: '#2dd4bf',
     isNew: true,
     achievements: [
-      { id: 'clean',    icon: '🧠', title: 'Clean Escape',  desc: 'Clear level 3+ without a single bonk' },
+      { id: 'clean',    icon: '🧠', title: 'Perfect Solve', desc: 'Clear level 3+ in the fewest possible moves' },
       { id: 'quick',    icon: '⏱️', title: 'Quick Thinker', desc: 'Clear a timed level with half the clock left' },
-      { id: 'giant',    icon: '🪢', title: 'Giant Knot',    desc: 'Untangle a 10×10 puzzle' },
+      { id: 'giant',    icon: '🪢', title: 'Giant Knot',    desc: 'Untangle a 9×9 puzzle' },
       { id: 'stampede', icon: '🐍', title: 'Stampede',      desc: 'Free 20 snakes in one bonus round' },
       { id: 'combo4',   icon: '🔥', title: 'Snake Charmer', desc: 'Reach a x4 combo' },
       { id: 'level10',  icon: '🏅', title: 'Knot Master',   desc: 'Reach level 10' },
