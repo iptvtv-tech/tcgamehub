@@ -224,7 +224,7 @@ export const GAMES = [
     title: 'Turbo Rush',
     tagline: 'Race the clock down a neon highway. Weave through traffic, skim past cars for near-miss combos, and reach every checkpoint before time runs out.',
     controls: 'Steer ← → (or A / D) · ↑ / W nitro boost · ↓ / S brake · touch: hold the left or right side to steer, the middle to boost',
-    color: '#f97316',
+    color: '#ef4444',
     isNew: true,
     achievements: [
       { id: 'clean',    icon: '🧼', title: 'Clean Run',     desc: 'Clear level 3+ without crashing' },

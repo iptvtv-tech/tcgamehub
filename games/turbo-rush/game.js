@@ -40,7 +40,8 @@ const THEMES = {
   fog:   { sky: ['#1f2937', '#4b5563', '#9ca3af'], sun: null, grass: ['#1f2a24', '#1b251f'], rumble: ['#fb7185', '#e5e7eb'], road: ['#2d3340', '#2a303c'], lane: '#f1f5f9', fog: '#8b93a1', city: '#374151', glow: '#fb7185' },
   gold:  { sky: ['#2a1403', '#7c2d12', '#fbbf24'], sun: '#fde68a', grass: ['#2b1705', '#241304'], rumble: ['#fbbf24', '#fff7ed'], road: ['#3a2a14', '#352612'], lane: '#fde68a', fog: '#7c2d12', city: '#451a03', glow: '#fbbf24' },
 };
-const CAR_COLS = ['#22d3ee', '#a78bfa', '#34d399', '#f472b6', '#60a5fa', '#facc15', '#fb923c', '#e879f9'];
+// traffic uses cool colours only, so the player's RED car always stands out
+const CAR_COLS = ['#22d3ee', '#a78bfa', '#34d399', '#60a5fa', '#facc15', '#e2e8f0', '#2dd4bf', '#818cf8'];
 
 function themeFor(level, bonus) {
   if (bonus) return 'gold';
@@ -468,7 +469,7 @@ class TurboRush {
     // the player's car
     if (!(this.invuln > 0 && Math.floor(t * 10) % 2)) {
       const bounce = Math.abs(this.playerX) > 1 && this.speed > 500 ? Math.sin(t * 60) * 2 : Math.sin(t * 25) * 0.6 * (this.speed / this.maxSpeed);
-      this.drawCar(ctx, W / 2, HORIZON + VS * CAM_H * (CAM_DEPTH / PLAYER_Z) + bounce, PLAYER_PX, s.gold ? '#fbbf24' : '#f97316', { player: true, tilt: this.steer * 0.05, gold: s.gold });
+      this.drawCar(ctx, W / 2, HORIZON + VS * CAM_H * (CAM_DEPTH / PLAYER_Z) + bounce, PLAYER_PX, s.gold ? '#fbbf24' : '#ef4444', { player: true, tilt: this.steer * 0.05, gold: s.gold });
     }
     ctx.restore();
     this.drawHud(ctx);
@@ -557,7 +558,12 @@ class TurboRush {
     const h = truck ? w * 0.95 : w * 0.46;
     ctx.save();
     ctx.translate(x, y); ctx.rotate(tilt);
-    // shadow
+    // shadow — and a glowing underlight for the player's car
+    if (player) {
+      const ug = ctx.createRadialGradient(0, 0, 2, 0, 0, w * 0.75);
+      ug.addColorStop(0, gold ? 'rgba(251,191,36,.55)' : 'rgba(239,68,68,.6)'); ug.addColorStop(1, 'rgba(239,68,68,0)');
+      ctx.fillStyle = ug; ctx.beginPath(); ctx.ellipse(0, 0, w * 0.75, w * 0.14, 0, 0, Math.PI * 2); ctx.fill();
+    }
     ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.beginPath(); ctx.ellipse(0, 0, w * 0.55, w * 0.07, 0, 0, Math.PI * 2); ctx.fill();
     if (truck) {
       ctx.fillStyle = '#cbd5e1'; roundRect(ctx, -w / 2, -h, w, h * 0.92, w * 0.05); ctx.fill();
@@ -566,7 +572,7 @@ class TurboRush {
     } else {
       // body
       const grad = ctx.createLinearGradient(0, -h, 0, 0);
-      grad.addColorStop(0, color); grad.addColorStop(1, gold ? '#b45309' : '#0f172a');
+      grad.addColorStop(0, color); grad.addColorStop(1, gold ? '#b45309' : player ? '#7f1d1d' : '#0f172a');
       ctx.fillStyle = grad;
       ctx.beginPath();
       ctx.moveTo(-w / 2, -h * 0.12); ctx.lineTo(-w / 2, -h * 0.55); ctx.lineTo(-w * 0.34, -h * 0.62);
@@ -577,6 +583,17 @@ class TurboRush {
       ctx.beginPath(); ctx.moveTo(-w * 0.22, -h * 0.93); ctx.lineTo(w * 0.22, -h * 0.93); ctx.lineTo(w * 0.29, -h * 0.66); ctx.lineTo(-w * 0.29, -h * 0.66); ctx.closePath(); ctx.fill();
       // neon edge
       if (w > 18) { ctx.strokeStyle = color; ctx.lineWidth = Math.max(1, w / 60); ctx.shadowColor = color; ctx.shadowBlur = player ? 14 : 6; ctx.stroke(); ctx.shadowBlur = 0; }
+      if (player) {
+        // white twin racing stripes
+        ctx.fillStyle = 'rgba(255,255,255,.92)';
+        ctx.fillRect(-w * 0.1, -h * 0.64, w * 0.06, h * 0.52); ctx.fillRect(w * 0.04, -h * 0.64, w * 0.06, h * 0.52);
+        ctx.fillRect(-w * 0.09, -h * 0.99, w * 0.05, h * 0.05); ctx.fillRect(w * 0.04, -h * 0.99, w * 0.05, h * 0.05);
+        // rear spoiler
+        ctx.fillStyle = gold ? '#92400e' : '#1f2937';
+        ctx.fillRect(-w * 0.3, -h * 0.74, w * 0.04, h * 0.14); ctx.fillRect(w * 0.26, -h * 0.74, w * 0.04, h * 0.14);
+        ctx.fillStyle = color; ctx.fillRect(-w * 0.44, -h * 0.82, w * 0.88, h * 0.1);
+        ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.fillRect(-w * 0.44, -h * 0.82, w * 0.88, h * 0.025);
+      }
     }
     // tail lights
     const lit = player && this.s.input.isDown('down') ? '#ff1f3d' : '#f43f5e';
