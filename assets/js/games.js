@@ -104,12 +104,12 @@ export const GAMES = [
       { id: 'shadow',   icon: '🌿', title: 'In the Shadows', desc: 'Stay hidden while a guard walks right past you' },
       { id: 'level10',  icon: '🔦', title: 'Night Shift',    desc: 'Reach level 10' },
       { id: 'score10k', icon: '🏅', title: 'Ten Grand',      desc: 'Score 10,000 in one run' },
-      { id: 'egg',      icon: '🥚', title: 'The Golden Egg', desc: 'Open the display case in the vault', legendary: true, secret: true },
+      { id: 'egg',      icon: '💎', title: 'The Display Case', desc: 'Open the display case in the vault', legendary: true, secret: true },
     ],
   },
   {
     id: 'snake-escape-puzzle',
-    gold: 'Golden Snakes',          // golden character unlocked by the Zone 2 crown
+    gold: 'Golden Snakes',          // golden character unlocked by the Zone 2 egg
     title: 'Snake Escape Puzzle',
     tagline: 'A knot of snakes, every one in another\'s way. Each tap slides a snake until it\'s blocked — clear the board before you run out of moves.',
     controls: 'Tap / click a snake to slide it · R or ↺ to restart the board (free) · arrow keys + Space',
@@ -127,7 +127,7 @@ export const GAMES = [
   },
   {
     id: 'neon-beat',
-    gold: 'Golden Notes',           // golden character unlocked by the Zone 2 crown
+    gold: 'Golden Notes',           // golden character unlocked by the Zone 2 egg
     title: 'Neon Beat',
     tagline: 'Hit the falling notes on the beat — every note you hit plays the tune. Chords, holds and stealth notes!',
     controls: '← ↓ ↑ → or A S W D · tap the lanes on touch screens · hold for long notes',
@@ -145,7 +145,7 @@ export const GAMES = [
   },
   {
     id: 'tower-topple',
-    gold: 'Golden Bricks',          // golden character unlocked by the Zone 2 crown
+    gold: 'Golden Bricks',          // golden character unlocked by the Zone 2 egg
     title: 'Tower Topple',
     tagline: 'Drop swinging floors from the crane and build sky-high. Off-centre floors make it lean… and TOPPLE!',
     controls: 'Tap / click / Space to drop the floor',
@@ -163,7 +163,7 @@ export const GAMES = [
   },
   {
     id: 'hyper-hex',
-    gold: 'Golden Arrow',           // golden character unlocked by the Zone 2 crown
+    gold: 'Golden Arrow',           // golden character unlocked by the Zone 2 egg
     title: 'Hyper Hex',
     tagline: 'Circle the core and slip through the gaps as hexagon walls close in and the world spins. Pure reflexes.',
     controls: 'Hold ← → or A / D · touch: hold the left or right side of the screen',
@@ -201,7 +201,7 @@ export const GAMES = [
 
   {
     id: 'heist-planner',
-    gold: 'Golden Heist Crew',      // golden character unlocked by the Zone 2 crown
+    gold: 'Golden Heist Crew',      // golden character unlocked by the Zone 2 egg
     title: 'Heist Planner',
     tagline: 'Plan every step of your crew — thief, hacker and muscle — then press GO and watch the heist play out.',
     controls: 'Arrows / tap next to a crew member to plan steps · Space wait · Tab switch crew · Enter GO',
@@ -215,12 +215,12 @@ export const GAMES = [
       { id: 'safecracker', icon: '🔐', title: 'Safe Cracker',   desc: 'Crack 4 safes in one bonus round' },
       { id: 'escape',      icon: '🚐', title: 'Clean Getaway',  desc: 'Finish job 15, The Crown Vault' },
       { id: 'level10',     icon: '🗺️', title: 'Criminal Genius', desc: 'Reach job 10' },
-      { id: 'crown',       icon: '👑', title: 'The Golden Crown', desc: 'Find the treasure in the secret job', legendary: true, secret: true },
+      { id: 'crown',       icon: '💰', title: 'The Royal Treasure', desc: 'Find the treasure in the secret job', legendary: true, secret: true },
     ],
   },
   {
     id: 'turbo-rush',
-    gold: 'Golden Racer',           // golden character unlocked by the Zone 3 crown
+    gold: 'Golden Racer',           // golden character unlocked by the Zone 3 egg
     title: 'Turbo Rush',
     tagline: 'Race the clock down a neon highway. Weave through traffic, skim past cars for near-miss combos, and reach every checkpoint before time runs out.',
     controls: 'Steer ← → (or A / D) · ↑ / W nitro boost · ↓ / S brake · touch: hold the left or right side to steer, the middle to boost',
@@ -238,7 +238,7 @@ export const GAMES = [
   },
   {
     id: 'bubble-blitz',
-    gold: 'Golden Launcher',        // golden character unlocked by the Zone 3 crown
+    gold: 'Golden Launcher',        // golden character unlocked by the Zone 3 egg
     title: 'Bubble Blitz',
     tagline: 'Fire coloured bubbles at the ceiling and pop groups of 3. Sparkly bubbles hide bonuses — or traps. The ceiling keeps dropping, so be quick!',
     controls: 'Aim with the mouse and click to fire · touch: drag to aim, let go to fire · ← → aim, Space fire, ↑ swap (or tap NEXT)',
@@ -257,7 +257,7 @@ export const GAMES = [
   },
   {
     id: 'pinball-blast',
-    gold: 'Golden Ball',            // golden character unlocked by the Zone 3 crown
+    gold: 'Golden Ball',            // golden character unlocked by the Zone 3 egg
     title: 'Pinball Blast Extreme',
     tagline: 'Neon pinball against the clock — and CHAOS: ghost balls, earthquakes, magnets, reversed flippers, hidden trap doors, portals and black holes. Hit the UFO for multiball jackpots!',
     controls: 'Flippers: ← → or A / D (touch: hold left / right half) · Launch: hold Space / touch, let go · Nudge: ↑ (too much = TILT)',
@@ -278,7 +278,7 @@ export const GAMES = [
   },
   {
     id: 'star-strike',
-    gold: 'Golden Fighter',         // golden character unlocked by the Zone 3 crown
+    gold: 'Golden Fighter',         // golden character unlocked by the Zone 3 egg
     title: 'Star Strike 3D',
     tagline: 'Fly a starfighter down a 3D space corridor. Blast fighter waves, asteroids and mines, thread laser gates — and take down the Mothership.',
     controls: 'Fly: arrows / WASD or mouse (touch: drag) · Fire: hold Space / mouse (touch fires automatically) · Bomb: B or 💣',
@@ -295,7 +295,7 @@ export const GAMES = [
   },
   {
     id: 'dungeon-escape',
-    gold: 'Golden Torch',           // golden character unlocked by the Zone 3 crown
+    gold: 'Golden Torch',           // golden character unlocked by the Zone 3 egg
     title: 'Dungeon Escape 3D',
     tagline: 'Lost in a 3D maze with a dying torch. Grab the keys, find the stairs — and keep one step ahead of the ghouls hunting you in the dark.',
     controls: 'Walk: ↑/↓ or W/S · Turn: ←/→ or A/D · Flash: Space or ✨ (touch: tap sides to turn, middle to walk, bottom to step back)',
@@ -313,7 +313,7 @@ export const GAMES = [
   },
   {
     id: 'crypt-of-crowns',
-    gold: 'Golden Explorer',        // golden character unlocked by the Zone 3 crown
+    gold: 'Golden Explorer',        // golden character unlocked by the Zone 3 egg
     title: 'Crypt of Crowns',
     tagline: 'A 3D dungeon crawl through 15 hand-built crypts. Find keys, work the levers, search for secret walls and time your way past skeleton patrols and spike traps.',
     controls: 'Step: ↑/↓ or W/S · Turn: ←/→ or A/D · Search: Space (touch: on-screen pad, or tap the view)',
@@ -346,10 +346,10 @@ export const GLOBAL_ACHIEVEMENTS = [
   { id: 'famous',  icon: '🏆', title: 'Famous',          desc: 'Put your name on a leaderboard' },
   { id: 'pb',      icon: '📈', title: 'Getting Better',  desc: 'Beat your own best score' },
   { id: 'legend',  icon: '👑', title: 'Legend',          desc: 'Finish a Legend game without losing a single life', legendary: true, secret: true },
-  { id: 'crown1',  icon: '🥇', title: 'Zone 1 Crown',    desc: 'Become a Legend of Zone 1 — unlocks the golden characters in games 1–6', legendary: true, secret: true },
-  { id: 'crown2',  icon: '💎', title: 'Zone 2 Crown',    desc: 'Become a Legend of Zone 2 — unlocks the golden characters in games 7–12', legendary: true, secret: true },
-  { id: 'crown3',  icon: '🔱', title: 'Zone 3 Crown',    desc: 'Become a Legend of Zone 3 — unlocks the golden characters in games 13–18', legendary: true, secret: true },
-  { id: 'grand',   icon: '🏆', title: 'Grand Legend',    desc: 'Win the crown of every zone', legendary: true, secret: true },
+  { id: 'crown1',  icon: '🥚', title: 'Golden Vault Egg', desc: 'Win Zone 1\'s Legends game perfectly — unlocks the golden characters in games 1–6', legendary: true, secret: true },
+  { id: 'crown2',  icon: '🥚', title: 'Golden Heist Egg', desc: 'Win Zone 2\'s Legends game perfectly — unlocks the golden characters in games 7–12', legendary: true, secret: true },
+  { id: 'crown3',  icon: '🥚', title: 'Golden Crypt Egg', desc: 'Win Zone 3\'s Legends game perfectly — unlocks the golden characters in games 13–18', legendary: true, secret: true },
+  { id: 'grand',   icon: '👑', title: 'The Golden Crown', desc: 'Collect all three Golden Eggs — opens the Crown Room', legendary: true, secret: true },
 ];
 
 // ── Difficulty tiers & zones ─────────────────────────────────
@@ -378,9 +378,9 @@ export const ZONES = [
     slots: ['turbo-rush', 'bubble-blitz', 'pinball-blast', 'star-strike', 'dungeon-escape', 'crypt-of-crowns'] },
 ];
 
-/** Crown icon for each zone. */
-export const crownIcon = (n) => ({ 1: '🥇', 2: '💎', 3: '🔱' }[n] || '👑');
-/** Zones that have a Legends game yet (Grand Legend = the crown of every one of these). */
+/** Icon for each zone's prize (a Golden Egg — see eggs.js for the full artwork). */
+export const crownIcon = () => '🥚';
+/** Zones that have a Legends game yet (The Golden Crown = the egg of every one of these). */
 export const legendZones = () => ZONES.filter((z) => z.legendGame);
 
 /** Every slot in order: { n, zone, tier, legendSlot, game|null } */

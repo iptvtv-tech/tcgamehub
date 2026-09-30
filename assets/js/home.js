@@ -1,8 +1,9 @@
 import { CONFIG } from './config.js';
-import { GAMES, GLOBAL_ACHIEVEMENTS, ZONES, SLOTS, gameById, dailyGame, crownIcon } from './games.js';
+import { GAMES, GLOBAL_ACHIEVEMENTS, ZONES, SLOTS, gameById, dailyGame } from './games.js';
 import { Store } from './storage.js';
 import { Scores } from './scores.js';
 import { Legends } from './legends.js';
+import { eggSVG, eggName } from './eggs.js';
 import { ZoneLock } from './zones.js';
 import { siteChrome, esc, fmt, ago, whatsappLink, WA_ICON } from './site.js';
 
@@ -46,8 +47,8 @@ tickCountdown(); setInterval(tickCountdown, 1000);
     : `🔥 Play daily to build a streak${best ? ` <span class="muted">(best: ${best})</span>` : ''}`;
   dEl.querySelector('[data-daily-top]').after(el);
 }
-Scores.top(daily.id, 'today', 'daily', 1).then((r) => {
-  dEl.querySelector('[data-daily-top]').innerHTML = r[0] ? `Leader: <b>${esc(r[0].name)}</b> — ${fmt(r[0].score)}` : 'No one has set a score yet — claim the top spot!';
+Promise.all([Scores.top(daily.id, 'today', 'daily', 1), Legends.crownNames().catch(() => null)]).then(([r]) => {
+  dEl.querySelector('[data-daily-top]').innerHTML = r[0] ? `Leader: <b>${esc(r[0].name)}</b>${Legends.crownMark(r[0].name)} — ${fmt(r[0].score)}` : 'No one has set a score yet — claim the top spot!';
 }).catch(() => {});
 
 // ── Continue where you left off ─────────────────────────────
@@ -73,7 +74,7 @@ const card = (sl) => {
     <div class="game-card soon${sl.legendSlot ? ' legend-slot' : ''}" style="--c:${sl.tier.color}">
       <div class="thumb"><span class="num">#${sl.n}</span><span style="font-size:3em">${sl.legendSlot ? '👑' : '🔒'}</span></div>
       <div class="body"><h3>${sl.legendSlot ? 'Legends game' : `Game ${sl.n}`}</h3>
-        <p>${sl.legendSlot ? `Zone ${sl.zone.n}'s Legends game is on its way. Win it perfectly to earn the Zone ${sl.zone.n} crown.` : 'A new game is being built for this slot — check back soon!'}</p>
+        <p>${sl.legendSlot ? `Zone ${sl.zone.n}'s Legends game is on its way. Win it perfectly to earn the ${eggName(sl.zone.n)}.` : 'A new game is being built for this slot — check back soon!'}</p>
         <div class="meta">${tierBar(sl)}<span>Coming soon</span></div></div>
     </div>`;
   const locked = !ZoneLock.isOpen(sl.zone.n);
@@ -105,17 +106,18 @@ grid.innerHTML = ZONES.map((z) => {
     <div class="zone-head">
       <h3>${esc(z.name)}</h3>
       <span class="muted small">${esc(z.blurb)}</span>
-      <span class="crown ${crown ? 'won' : ''}" title="${crown ? 'You won this zone\'s crown!' : `Finish ${lg ? lg.title : 'the Legends game'} without losing a life to win the crown`}">${crown ? `${crownIcon(z.n)} Crown won` : '👑 Crown: not yet'}</span>
+      <span class="crown ${crown ? 'won' : ''}" title="${crown ? `You won the ${eggName(z.n)}!` : `Finish ${lg ? lg.title : 'the Legends game'} without losing a life to win the ${eggName(z.n)}`}">${crown ? `${eggSVG(z.n, { size: 16 })} Egg won` : '🥚 Egg: not yet'}</span>
     </div>
     ${open ? '' : `<div class="zone-lock">🔒 <b>Zone ${z.n} is locked.</b> Play every Zone ${z.n - 1} game at least once to open it <span class="lock-meter"><i style="width:${Math.round(lock.played / lock.need * 100)}%"></i></span> <b>${lock.played} / ${lock.need}</b></div>`}
     <div class="game-grid">${SLOTS.filter((sl) => sl.zone === z).map(card).join('')}</div>
   </div>`;
 }).join('');
 
+const crowns = Legends.crownNames().catch(() => null);
 for (const g of GAMES) {
-  Scores.top(g.id, 'today', 'normal', 1).then((r) => {
+  Promise.all([Scores.top(g.id, 'today', 'normal', 1), crowns]).then(([r]) => {
     const el = grid.querySelector(`[data-top="${g.id}"]`);
-    el.innerHTML = r[0] ? `Today's top: <b>${esc(r[0].name)}</b> ${fmt(r[0].score)}` : 'Today\'s top: <b>up for grabs</b>';
+    el.innerHTML = r[0] ? `Today's top: <b>${esc(r[0].name)}</b>${Legends.crownMark(r[0].name)} ${fmt(r[0].score)}` : 'Today\'s top: <b>up for grabs</b>';
   }).catch(() => { grid.querySelector(`[data-top="${g.id}"]`).textContent = ''; });
 }
 
@@ -124,8 +126,9 @@ const ticker = document.getElementById('ticker');
 async function loadTicker() {
   try {
     const rows = await Scores.recent(15);
+    await crowns;
     if (!rows.length) { ticker.innerHTML = '<span>No scores yet — be the first name on the board!</span>'; return; }
-    ticker.innerHTML = rows.map((r) => `<span>🏆 <b>${esc(r.name)}</b> scored <b>${fmt(r.score)}</b> on ${esc(gameById(r.game)?.title || r.game)} · ${ago(r.at)}</span>`).join('');
+    ticker.innerHTML = rows.map((r) => `<span>🏆 <b>${esc(r.name)}</b>${Legends.crownMark(r.name)} scored <b>${fmt(r.score)}</b> on ${esc(gameById(r.game)?.title || r.game)} · ${ago(r.at)}</span>`).join('');
   } catch { ticker.innerHTML = '<span>Leaderboard is offline right now.</span>'; }
 }
 loadTicker(); setInterval(loadTicker, 60000);
@@ -155,7 +158,8 @@ document.getElementById('badge-count').textContent = `${got} / ${total} unlocked
 if (Legends.isLegend()) {
   const el = document.createElement('div');
   el.className = 'legend-banner';
-  el.innerHTML = `<span style="font-size:1.8em">👑</span><div><b>You are a Legend.</b><br><span class="muted small">Crowns won: ${Legends.crowns().map((n) => `Zone ${n}`).join(' & ')}. Your golden characters are on in those zones' games — switch them from each game's menu.</span></div><a class="btn" href="hall-of-legends/">🏛️ Hall of Legends</a>`;
+  const crowned = Legends.hasGoldenCrown();
+  el.innerHTML = `<span class="banner-eggs">${Legends.eggs().map((n) => eggSVG(n, { size: 26 })).join('')}</span><div><b>${crowned ? '👑 You hold the Golden Crown.' : 'You are a Legend.'}</b><br><span class="muted small">${crowned ? 'All three Golden Eggs. The Crown Room is yours — and so is the golden arcade.' : `Golden Eggs: ${Legends.eggs().map((n) => eggName(n).replace('Golden ', '')).join(' & ')}. Collect all three for the Golden Crown.`} Your golden characters are on in those zones' games — switch them from each game's menu.</span></div><span class="banner-btns">${crowned ? '<a class="btn gold-btn" href="crown-room/">👑 Crown Room</a>' : ''}<a class="btn" href="hall-of-legends/">🏛️ Hall of Legends</a></span>`;
   document.getElementById('games').before(el);
 } else {
   const el = document.createElement('a');

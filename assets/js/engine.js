@@ -9,13 +9,14 @@
 //  A game only has to describe itself and draw — see games/_template/game.js
 // ─────────────────────────────────────────────────────────────
 import { CONFIG } from './config.js';
-import { GAMES, GLOBAL_ACHIEVEMENTS, gameById, zoneOf } from './games.js';
+import { GAMES, GLOBAL_ACHIEVEMENTS, gameById, zoneOf, legendZones } from './games.js';
+import { eggSVG, eggName, crownSVG } from './eggs.js';
 import { Store } from './storage.js';
 import { Sound } from './audio.js';
 import { Scores, cleanName, nameProblem } from './scores.js';
 import { makeRng, hashString, todayKey } from './rng.js';
 import { whatsappLink, WA_ICON } from './site.js';
-import { Legends } from './legends.js';
+import { Legends, applyTheme } from './legends.js';
 import { ZoneLock } from './zones.js';
 import { event as statEvent } from './stats.js';
 
@@ -412,9 +413,13 @@ class Shell {
     this.state = 'legend';
     this.won = true;
     this.unlock('legend', true);
+    const hadCrown = Legends.hasGoldenCrown();
     Legends.grant(this.id);
-    for (const n of Legends.crowns()) this.unlock(`crown${n}`, true);
-    Legends.syncCrowns();                       // Grand Legend when every zone's crown is won
+    for (const n of Legends.eggs()) this.unlock(`crown${n}`, true);   // the zone's Golden Egg
+    this.crownWon = !hadCrown && Legends.hasGoldenCrown();
+    if (this.crownWon) this.unlock('grand', true);   // The Golden Crown — every zone's egg
+    Legends.syncCrowns();
+    if (this.crownWon) applyTheme();                  // the arcade turns gold
     if (this.def.legendBadge) this.unlock(this.def.legendBadge);
     Sound.stopMusic();
     this.after(this.def.legendRevealDelay ?? 6, () => this.showLegendPanel());
@@ -661,9 +666,9 @@ class Shell {
       o.querySelector('[data-act="play"]').focus({ preventScroll: true });
     });
     o.querySelector('[data-act="play"]').focus({ preventScroll: true });
-    Scores.top(this.id, 'today', this.mode, 1).then((rows) => {
+    Promise.all([Scores.top(this.id, 'today', this.mode, 1), Legends.crownNames().catch(() => null)]).then(([rows]) => {
       const el = o.querySelector('[data-top]'); if (!el) return;
-      el.innerHTML = rows[0] ? `Today's top: <b>${esc(rows[0].name)}</b> ${fmt(rows[0].score)}` : 'Be first on today\'s board!';
+      el.innerHTML = rows[0] ? `Today's top: <b>${esc(rows[0].name)}</b>${Legends.crownMark(rows[0].name)} ${fmt(rows[0].score)}` : 'Be first on today\'s board!';
     }).catch(() => { const el = o.querySelector('[data-top]'); if (el) el.textContent = ''; });
   }
 
@@ -688,7 +693,12 @@ class Shell {
     const unlocks = Legends.unlocks().filter((u) => u.zone === zone?.n);
     const shareText = `🥚👑 I found the secret at ${location.origin}/ … can you? Only true Legends get in.`;
     const o = this.showOverlay(`
-      <h2 class="legend-title">👑 ${zone ? `Zone ${zone.n} Crown won!` : 'You are a Legend'}</h2>
+      ${zone ? `<div class="legend-prize">${eggSVG(zone.n, { size: 84 })}</div>` : ''}
+      <h2 class="legend-title">${zone ? `${esc(eggName(zone.n))} won!` : '👑 You are a Legend'}</h2>
+      ${this.crownWon ? `<div class="crown-won">${crownSVG({ size: 150, cls: 'spin' })}<b>…and that's all ${legendZones().length} eggs: THE GOLDEN CROWN is yours!</b>
+        <p class="muted small">The Crown Room is open, the whole arcade can turn gold, and a 👑 now follows your name on the leaderboards.</p>
+        <a class="btn gold-btn" href="../../crown-room/">👑 Enter the Crown Room</a></div>`
+        : `<p class="muted small">Golden Eggs: <b>${Legends.eggs().length} / ${legendZones().length}</b>${Legends.hasGoldenCrown() ? ' · 👑 Golden Crown holder' : ' — win every zone\'s egg for the Golden Crown.'}</p>`}
       <p class="muted">Final score <b>${fmt(score)}</b> · ${this.def.finalLevel || ''} levels · not a single life lost</p>
       <div class="gold-unlocks"><small>Golden characters unlocked${zone ? ` in Zone ${zone.n}` : ''}</small>
         <div>${unlocks.map((u) => `<span class="gold-pill">✨ ${esc(u.gold)}</span>`).join('')}</div>
@@ -696,7 +706,7 @@ class Shell {
       <div class="rank-box" data-legend>
         <p class="rank-msg">Sign the <b>Hall of Legends</b>:</p>
         <form class="name-form" autocomplete="off">
-          <input name="n" maxlength="12" placeholder="Your name" value="${esc(Store.name())}" aria-label="Your name" enterkeyhint="done">
+          <input name="n" maxlength="12" placeholder="Your name" value="${esc(Legends.info()?.name || Store.name())}" aria-label="Your name" enterkeyhint="done">
           <button class="btn primary" type="submit">Sign</button>
         </form>
         <p class="form-msg" aria-live="polite"></p>
@@ -723,7 +733,7 @@ class Shell {
         this.sound.play('achieve');
         box.innerHTML = `<p class="rank-msg saved">✅ <b>${esc(name)}</b> is in the Hall of Legends.</p>
           <p class="legend-code">Your Legend code: <b>${esc(code)}</b></p>
-          <p class="muted small">Keep it safe. Enter it on the Hall of Legends page to get your golden characters back on another phone or computer.</p>`;
+          <p class="muted small">Keep it safe. Enter it on the Hall of Legends page to get your eggs and golden characters back on another phone or computer. Sign with the same name each time and one code holds all your eggs.</p>`;
       } catch (err) {
         form.querySelector('button').disabled = false;
         msg.textContent = err.message || 'Could not sign — try again.'; msg.className = 'form-msg err';

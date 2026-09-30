@@ -50,3 +50,22 @@
 .gold-row.locked { opacity: .55; }
 .legend-list li.grand b { color: #fde68a; }
 .grand-title { font-size: .7em; padding: .1em .6em; border-radius: 999px; background: linear-gradient(135deg, #fde68a, #f59e0b); color: #1c1003; vertical-align: middle; }
+
+/* Golden Eggs & the Golden Crown */
+.egg-shelf { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; margin-top: 16px; }
+.egg-stand { display: grid; justify-items: center; align-content: start; gap: 4px; width: 190px; padding: 14px 12px; border-radius: 14px; border: 1px dashed #a16207; background: rgba(0,0,0,.25); text-align: center; color: var(--text); text-decoration: none; }
+.egg-stand small { color: var(--muted); }
+.egg-stand.won { border-style: solid; background: linear-gradient(160deg, #3b2a06, #1a1a3d 85%); }
+.egg-stand.won .egg-svg { filter: drop-shadow(0 4px 12px rgba(251,191,36,.45)); }
+.egg-stand.won b { color: #fde68a; }
+.crown-stand .crown-ghost { font-size: 3.2em; line-height: 1.6; filter: grayscale(1) brightness(.55); }
+a.crown-stand:hover { box-shadow: 0 0 0 2px #fbbf24, 0 0 30px rgba(251,191,36,.35); }
+.crown-stand .crown-svg { max-width: 100%; height: auto; }
+.mini-eggs .egg-svg { vertical-align: -3px; margin-right: 1px; }
+.add-code { margin-top: 12px; }
+.add-code summary { cursor: pointer; color: var(--muted); font-size: .9em; }
+.add-code .restore { justify-content: flex-start; margin-top: 8px; }
+.add-code .restore input { width: 11em; font-size: .9em; }
+.grand-title { white-space: nowrap; display: inline-block; font-size: .62em; }
+:root[data-gold-theme] .hall-card { background: linear-gradient(160deg, #3b2a06, #1d1507 60%); }
+:root[data-gold-theme] .egg-stand.won { background: linear-gradient(160deg, #4a3508, #1d1507 85%); }

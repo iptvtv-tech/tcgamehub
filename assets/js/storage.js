@@ -71,6 +71,8 @@ export const Store = {
     if (d.ach[key]) return false;
     d.ach[key] = Date.now(); save(); return true;
   },
+  /** Take a badge back (used when a badge's meaning changes). */
+  lockAch(key) { const d = load(); if (d.ach[key]) { delete d.ach[key]; save(); } },
 
   // ── Daily challenge streak (kept only in this browser) ──
   /** { streak, best, today }: streak = days in a row ending today or yesterday (0 once broken). */

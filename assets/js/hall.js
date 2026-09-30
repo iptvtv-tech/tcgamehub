@@ -1,7 +1,8 @@
 // Hall of Legends — hidden page. Locked for everyone except Legends.
-import { GAMES, ZONES, gameById, zoneOf, crownIcon, legendZones } from './games.js';
+import { GAMES, gameById, legendZones } from './games.js';
 import { Store } from './storage.js';
-import { Legends } from './legends.js';
+import { Legends, hallPeople } from './legends.js';
+import { eggSVG, eggName, crownSVG } from './eggs.js';
 import { siteChrome, esc } from './site.js';
 
 siteChrome();
@@ -52,11 +53,15 @@ async function open() {
   main.innerHTML = `
     <section class="hall-head">
       <h1>🏛️ Hall of Legends</h1>
-      <p>Only players who finished a Legends game without losing a single life have found their way in here. Welcome, ${esc(me.name || Store.name() || 'Legend')}.</p>
-      <div class="crowns">${ZONES.map((z) => {
-        const won = Legends.hasCrown(z.n), lg = z.legendGame && gameById(z.legendGame);
-        return `<div class="crown-card${won ? ' won' : ''}"><span>${won ? crownIcon(z.n) : '🔒'}</span><b>Zone ${z.n} Crown</b><small>${won ? 'Won! Golden characters unlocked in this zone.' : lg ? `Finish ${esc(lg.title)} without losing a life.` : 'Its Legends game is coming soon…'}</small></div>`;
-      }).join('')}</div>
+      <p>Only players who finished a Legends game without losing a single life have found their way in here. Each one wins a Golden Egg — all three win the Golden Crown. Welcome, ${esc(me.name || Store.name() || 'Legend')}.</p>
+      <div class="egg-shelf">${legendZones().map((z) => {
+        const won = Legends.hasEgg(z.n), lg = gameById(z.legendGame);
+        return `<div class="egg-stand${won ? ' won' : ''}">${eggSVG(z.n, { size: 70, won })}<b>${esc(eggName(z.n))}</b><small>${won ? 'Won! Golden characters unlocked in Zone ' + z.n + '.' : `Finish ${esc(lg.title)} without losing a life.`}</small></div>`;
+      }).join('')}
+        ${Legends.hasGoldenCrown()
+          ? `<a class="egg-stand crown-stand won" href="../crown-room/">${crownSVG({ size: 110, cls: 'spin' })}<b>The Golden Crown</b><small>All three eggs! Enter the Crown Room →</small></a>`
+          : `<div class="egg-stand crown-stand"><span class="crown-ghost">👑</span><b>The Golden Crown</b><small>Collect all ${legendZones().length} Golden Eggs to win it — and open the Crown Room.</small></div>`}
+      </div>
     </section>
     <div class="hall-grid">
       <section class="hall-card">
@@ -69,14 +74,18 @@ async function open() {
           ${unlocks.map((u) => `
             <div class="gold-row${u.unlocked ? '' : ' locked'}">
               <img src="../games/${u.id}/thumb.svg" alt="">
-              <div><a href="../games/${u.id}/">${esc(u.title)}</a><small>${esc(u.gold)}${u.unlocked ? '' : ` · 🔒 needs the Zone ${u.zone} crown`}</small></div>
+              <div><a href="../games/${u.id}/">${esc(u.title)}</a><small>${esc(u.gold)}${u.unlocked ? '' : ` · 🔒 needs the ${esc(eggName(u.zone))}`}</small></div>
               ${u.unlocked ? `<button class="switch" role="switch" aria-checked="${Legends.goldOn(u.id)}" aria-label="${esc(u.gold)}" data-gold="${u.id}"></button>` : ''}
             </div>`).join('')}
         </section>
         <section class="hall-card">
           <h2>🔑 Your Legend code</h2>
           ${me.code ? `<p class="my-code">${esc(me.code)}</p><p><button class="btn small" data-copy="code">📋 Copy code</button> <button class="btn small" data-copy="link">🔗 Copy restore link</button></p><p class="muted small copy-msg">Enter it on this page — tap <b>🏛️ Legends</b> at the top of any page — on any phone or computer to get your golden characters back. Or open your restore link there.</p>`
-            : `<p class="muted small">Sign the Hall at the end of your Legend run to get a code for restoring your golden characters on another device.</p>`}
+            : `<p class="muted small">Sign the Hall at the end of your Legend run to get a code for restoring your eggs and golden characters on another device.</p>`}
+          <details class="add-code"><summary>Won an egg on another device? Add its Legend code</summary>
+            <form class="restore" autocomplete="off"><input name="c" placeholder="LEGEND-XXXXXX" maxlength="20" aria-label="Another Legend code" spellcheck="false" autocapitalize="characters"><button class="btn small" type="submit">Add</button></form>
+            <p class="restore-msg" aria-live="polite"></p>
+          </details>
         </section>
       </div>
     </div>`;
@@ -86,6 +95,18 @@ async function open() {
     catch { prompt('Copy this:', text); }
     setTimeout(() => { b.textContent = b.dataset.copy === 'link' ? '🔗 Copy restore link' : '📋 Copy code'; }, 1600);
   });
+  const add = main.querySelector('.add-code form'), addMsg = main.querySelector('.add-code .restore-msg');
+  add.onsubmit = async (e) => {
+    e.preventDefault();
+    const before = Legends.eggs().length;
+    add.querySelector('button').disabled = true; addMsg.className = 'restore-msg'; addMsg.textContent = 'Checking…';
+    try {
+      await Legends.restore(add.c.value);
+      const n = Legends.eggs().length - before;
+      addMsg.textContent = n > 0 ? `🥚 ${n} more egg${n > 1 ? 's' : ''} added!` : 'Done — no new eggs on that code.';
+      setTimeout(() => location.reload(), 1100);
+    } catch (err) { addMsg.className = 'restore-msg err'; addMsg.textContent = err.message; add.querySelector('button').disabled = false; }
+  };
   main.querySelectorAll('[data-gold]').forEach((b) => b.onclick = () => {
     const on = b.getAttribute('aria-checked') !== 'true';
     Legends.setGold(b.dataset.gold, on); b.setAttribute('aria-checked', on);
@@ -94,18 +115,11 @@ async function open() {
   try {
     const rows = await Legends.hall();
     const my = (me.name || '').toLowerCase();
-    // one line per Legend, with a crown for every zone they've won
-    const byName = new Map();
-    for (const r of rows) {
-      const k = r.name.toLowerCase();
-      if (!byName.has(k)) byName.set(k, { name: r.name, at: r.at, zones: new Set(), games: [] });
-      const e = byName.get(k); const z = zoneOf(r.game);
-      if (z) e.zones.add(z.n); e.games.push(gameById(r.game)?.title || r.game);
-    }
-    const people = [...byName.values()];
+    // one line per Legend, with an egg for every zone they've won
+    const people = hallPeople(rows);
     list.innerHTML = people.length ? people.map((p) => {
-      const grand = p.zones.size >= legendZones().length;
-      return `<li class="${my && p.name.toLowerCase() === my ? 'me' : ''}${grand ? ' grand' : ''}"><b>${esc(p.name)} ${[...p.zones].sort().map(crownIcon).join('')}${grand ? ' <span class="grand-title">GRAND LEGEND</span>' : ''}</b><small>${esc([...new Set(p.games)].join(' · '))}<br>${date(p.at)}</small></li>`;
+      const eggs = [...p.zones.keys()].sort().map((n) => eggSVG(n, { size: 18 })).join('');
+      return `<li class="${my && p.name.toLowerCase() === my ? 'me' : ''}${p.crown ? ' grand' : ''}"><b>${esc(p.name)} <span class="mini-eggs">${eggs}</span>${p.crown ? ' <span class="grand-title">👑 GOLDEN CROWN</span>' : ''}</b><small>${esc([...new Set(p.games.map((g) => gameById(g)?.title || g))].join(' · '))}<br>${date(p.at)}</small></li>`;
     }).join('')
       : '<li class="muted">No names yet — you could be the first to sign!</li>';
   } catch { list.innerHTML = '<li class="muted">The Hall is closed for cleaning — try again in a minute.</li>'; }

@@ -1,0 +1,25 @@
+/* The Crown Room */
+.crown-hero { text-align: center; padding: 36px 0 8px; }
+.crown-hero h1 { font-size: clamp(2.2em, 7vw, 3.6em); margin: 0; background: linear-gradient(90deg, #fde68a, #fbbf24, #fff7cc, #f59e0b); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.crown-sub { font-size: 1.2em; margin: .3em 0 0; }
+.crown-sub b { color: #fde68a; }
+.crown-stage { position: relative; display: grid; place-items: center; height: 250px; perspective: 800px; }
+.crown-stage .rays { position: absolute; width: 420px; height: 420px; max-width: 100vw; border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, rgba(253,230,138,.22) 0 8deg, transparent 8deg 24deg);
+  -webkit-mask: radial-gradient(circle, #000 20%, transparent 68%); mask: radial-gradient(circle, #000 20%, transparent 68%);
+  animation: spin 40s linear infinite; }
+.crown-svg.big { position: relative; filter: drop-shadow(0 0 30px rgba(251,191,36,.55)); max-width: 80vw; height: auto; }
+@media (prefers-reduced-motion: reduce) { .crown-svg.spin, .crown-stage .rays { animation: none; } }
+.pedestals { display: flex; flex-wrap: wrap; justify-content: center; gap: 28px; margin: 18px 0 8px; }
+.pedestal { display: grid; justify-items: center; gap: 2px; width: 170px; text-align: center; }
+.pedestal .egg-svg { filter: drop-shadow(0 8px 18px rgba(251,191,36,.35)); animation: egg-float 4s ease-in-out infinite; }
+.pedestal:nth-child(2) .egg-svg { animation-delay: -1.3s; } .pedestal:nth-child(3) .egg-svg { animation-delay: -2.6s; }
+@keyframes egg-float { 50% { transform: translateY(-6px); } }
+.pedestal i { width: 110px; height: 18px; margin-top: -4px; border-radius: 50%; background: radial-gradient(#a16207, #3b2a06 70%); box-shadow: 0 8px 20px #0008; }
+.pedestal b { color: #fde68a; margin-top: 6px; }
+.pedestal small { color: var(--muted); }
+.cert-preview { width: 100%; border-radius: 10px; border: 1px solid #a16207; margin: 6px 0; }
+.crown-sealed { display: grid; justify-items: center; text-align: center; gap: 14px; padding: 48px 0 24px; }
+.crown-sealed h1 { font-size: clamp(1.8em, 5vw, 2.6em); margin: 0; }
+.crown-sealed p { color: var(--muted); max-width: 32em; margin: 0; }
+.sealed-crown { font-size: 5em; filter: grayscale(1) brightness(.5); }

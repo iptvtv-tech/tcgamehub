@@ -3,6 +3,7 @@ import { GAMES, gameById, dailyGame } from './games.js';
 import { Store } from './storage.js';
 import { Scores } from './scores.js';
 import { siteChrome, esc, fmt, ago } from './site.js';
+import { Legends } from './legends.js';
 
 siteChrome();
 
@@ -32,7 +33,7 @@ async function render() {
   const id = ++loadId;
   board.innerHTML = `<div class="board-empty">Loading…</div>`;
   let rows;
-  try { rows = await Scores.top(game, isDaily ? 'today' : period, isDaily ? 'daily' : 'normal', CONFIG.boardSize); }
+  try { [rows] = await Promise.all([Scores.top(game, isDaily ? 'today' : period, isDaily ? 'daily' : 'normal', CONFIG.boardSize), Legends.crownNames().catch(() => null)]); }
   catch { if (id === loadId) board.innerHTML = `<div class="board-empty">The leaderboard is offline right now. Try again in a minute.</div>`; return; }
   if (id !== loadId) return;
 
@@ -45,7 +46,7 @@ async function render() {
         <thead><tr><th>Rank</th><th>Name</th><th class="num">Score</th><th class="num hide-sm">Level</th><th class="num hide-sm">When</th></tr></thead>
         <tbody>${rows.map((r, i) => `
           <tr class="${me && r.name.toLowerCase() === me ? 'me' : ''}">
-            <td>${medal(i)}</td><td>${esc(r.name)}</td>
+            <td>${medal(i)}</td><td>${esc(r.name)}${Legends.crownMark(r.name)}</td>
             <td class="num score">${fmt(r.score)}</td>
             <td class="num hide-sm">${r.level ?? ''}</td>
             <td class="num hide-sm muted">${ago(r.at)}</td>

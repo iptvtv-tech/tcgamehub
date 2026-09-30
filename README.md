@@ -149,6 +149,22 @@ See **[docs/ADDING_A_GAME.md](docs/ADDING_A_GAME.md)**. In short: copy `games/_t
 
 Zone 3 (*Master Class*, games 13–18) opens once every Zone 2 game has been played. All six are live: Turbo Rush, Bubble Blitz, Pinball Blast Extreme, Star Strike 3D, Dungeon Escape 3D and the Legends game Crypt of Crowns.
 
+### Golden Eggs & the Golden Crown
+
+Each zone ends with a **Legends game**. Finish it from level 1 without losing a single life and its secret level opens; completing that wins the zone's **Golden Egg**:
+
+| Zone | Legends game | Golden Egg | Also unlocks |
+|---|---|---|---|
+| 1 | The Vault Job | 🥚 Golden Vault Egg (diamonds, keyhole) | golden characters in games 1–6 |
+| 2 | Heist Planner | 🥚 Golden Heist Egg (sapphires, mask) | golden characters in games 7–12 |
+| 3 | Crypt of Crowns | 🥚 Golden Crypt Egg (amethysts, skull) | golden characters in games 13–18 |
+
+Every egg also opens the hidden **Hall of Legends** (`/hall-of-legends/`) and gives a Legend code for restoring your eggs on another device.
+
+All three eggs win **👑 The Golden Crown**: the hidden **Crown Room** (`/crown-room/`) with the Crown Roll of every crown holder and a downloadable certificate, a **golden theme** for the whole arcade (switch it in the Crown Room), and a 👑 next to your name on every leaderboard.
+
+Egg and crown artwork is drawn in code in `assets/js/eggs.js`. The badge ids `crown1`–`crown3` (eggs) and `grand` (the Golden Crown) are kept from the older "zone crown" names so nobody loses a badge. Run `supabase/eggs-crown-update.sql` once so one Legend code can hold all your eggs.
+
 Games are laid out in `ZONES` in `assets/js/games.js`: 6 games per zone, getting harder from #1 (Easy) to #12 (Extreme). The 6th game of every zone is its **Legends game**. Empty slots (`null`) show as "coming soon" cards. To add a game to a slot, put its id in place of the `null`.
 
 ## Legends (secret rewards)

@@ -222,3 +222,25 @@ a.legend-banner.hall-door:hover { border-color: #fbbf24; transform: translateY(-
 @media (max-width: 480px) { .site-nav a.legend-link .nav-label { display: none; } .site-nav { gap: 0; } }
 @media (max-width: 400px) { .site-nav a { padding: .45em .42em; font-size: .92em; } }
 .daily-streak { color: #fdba74; font-size: .95em; } .daily-streak b { color: #fb923c; }
+
+/* ── Golden Crown extras ─────────────────────────────────── */
+.crown-mark { font-size: .85em; margin-left: .2em; filter: drop-shadow(0 0 4px rgba(251,191,36,.6)); }
+.egg-svg { display: inline-block; vertical-align: middle; }
+.zone-head .crown .egg-svg { vertical-align: -3px; }
+.legend-banner .banner-eggs { display: flex; gap: 2px; flex: none; }
+.legend-banner .banner-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+
+/* The golden arcade — a theme for holders of the Golden Crown (switch it in the Crown Room) */
+:root[data-gold-theme] {
+  --bg: #120d04; --bg2: #1d1507; --card: #2a1e09; --card2: #3a2a0d; --line: #6b4e14;
+  --text: #fff8e7; --muted: #d4bd8a; --cyan: #fcd34d; --purple: #f59e0b; --pink: #fbbf24;
+}
+:root[data-gold-theme] body {
+  background: radial-gradient(1200px 600px at 10% -10%, #6b460a 0%, transparent 60%),
+              radial-gradient(900px 500px at 110% 10%, #4a3308 0%, transparent 55%), var(--bg);
+  background-attachment: fixed;
+}
+:root[data-gold-theme] .site-header, :root[data-gold-theme] .hud { background: #120d04e6; border-color: #6b4e1455; }
+.crown-svg.spin { animation: crown-turn 6s ease-in-out infinite; }
+@keyframes crown-turn { 0%, 100% { transform: rotateY(-25deg); } 50% { transform: rotateY(25deg) translateY(-6px); } }
+@media (prefers-reduced-motion: reduce) { .crown-svg.spin { animation: none; } }
