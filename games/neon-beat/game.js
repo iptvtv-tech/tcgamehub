@@ -41,9 +41,9 @@ runGame({
   bonusTime: 15,
   music: false,              // the game plays its own song, in time with the notes
   levelInfo(level, bonus) {
-    if (bonus) return '★ FEVER! 15 seconds of golden notes — no energy loss. Hit everything!';
+    if (bonus) return '★ FEVER! 15 seconds of golden notes — no energy loss, mash away. Hit everything!';
     const notes = {
-      1: 'Hit ← ↓ ↑ → (or A S W D, or tap the lanes) as notes cross the line. Misses drain your energy!',
+      1: 'Hit ← ↓ ↑ → (or A S W D, or tap the lanes) as notes cross the line. Misses drain your energy — and so does pressing when there\'s no note, so no button-mashing!',
       2: 'Off-beats join in. Listen to the music and feel it.',
       3: 'CHORDS: two notes at once — press both keys together.',
       4: 'HOLD notes: keep the key down until the tail ends.',
@@ -85,7 +85,8 @@ class NeonBeat {
     this.nextBeat = 0;
     this.notes = this.chart.map((n) => ({ ...n, state: 'live' }));
     this.hp = 100;
-    this.stats = { perfect: 0, great: 0, good: 0, miss: 0 };
+    this.stats = { perfect: 0, great: 0, good: 0, miss: 0, stray: 0 };
+    this.bad = [0, 0, 0, 0];
     this.feverHits = 0; this.holdsDone = 0;
     this.judge = null;
     this.endT = this.notes.length ? this.notes[this.notes.length - 1].t + (this.notes[this.notes.length - 1].hold || 0) + 1.2 : 4;
@@ -152,7 +153,7 @@ class NeonBeat {
       if (d <= this.win.good && (!best || d < Math.abs(best.t - t))) best = n;
       if (n.t - t > this.win.good) break;
     }
-    if (!best) return;
+    if (!best) { this.stray(lane); return; }
     const d = Math.abs(best.t - t);
     const j = d <= this.win.perfect ? 'perfect' : d <= this.win.great ? 'great' : 'good';
     this.hit(best, j, best.t - t);
@@ -174,6 +175,19 @@ class NeonBeat {
     this.bestStreak = Math.max(this.bestStreak || 0, s.comboCount);
     if (s.comboCount >= 100) s.unlock('streak100');
     if (this.bonus && this.feverHits >= 60) s.unlock('fever');
+  }
+
+  /** A press with no note to hit. Button-mashing costs energy and your combo — except in FEVER, where anything goes. */
+  stray(lane) {
+    if (this.bonus || this.songT < 0) return;
+    const s = this.s;
+    this.stats.stray++;
+    this.bad[lane] = 1;
+    s.resetCombo();
+    this.judge = { label: '✗ NO NOTE', color: '#fb7185', t: 0, early: '' };
+    s.sound.tone({ freq: 180, to: 110, dur: 0.06, type: 'square', vol: 0.03 });
+    this.hp -= Math.min(10, 4 + this.level * 0.3);
+    if (this.hp <= 0) { this.hp = 0; s.sound.play('boom'); s.fx.shake(8, 0.3); s.hurt(); }
   }
 
   miss(n) {
@@ -219,7 +233,7 @@ class NeonBeat {
   idle(dt) { this.t += dt; this.fade(dt); }
 
   fade(dt) {
-    for (let i = 0; i < LANES; i++) this.flash[i] = Math.max(0, this.flash[i] - dt * 5);
+    for (let i = 0; i < LANES; i++) { this.flash[i] = Math.max(0, this.flash[i] - dt * 5); this.bad[i] = Math.max(0, this.bad[i] - dt * 4); }
     this.pulse = Math.max(0, this.pulse - dt * 4);
     if (this.judge) this.judge.t += dt;
   }
@@ -258,7 +272,7 @@ class NeonBeat {
     const acc = total ? (st.perfect + st.great * 0.7 + st.good * 0.4) / total : 0;
     s.award(Math.round(acc * 100) * L * 3, W / 2, H * 0.4, { color: '#a5f3fc', size: 22 });
     s.fx.text(W / 2, H * 0.34, `Accuracy ${Math.round(acc * 100)}%`, { color: '#a5f3fc', size: 26, life: 1.4, rise: 10 });
-    if (st.miss === 0 && L >= 2) {
+    if (st.miss === 0 && st.stray === 0 && L >= 2) {
       s.award(150 * L, W / 2, H * 0.48, { color: '#fde047', size: 26 });
       s.fx.text(W / 2, H * 0.28, 'FULL COMBO!', { color: '#fde047', size: 34, life: 1.6, rise: 10 });
       s.unlock('fullcombo');
@@ -293,6 +307,7 @@ class NeonBeat {
       const x = LX + i * LW;
       const lg = ctx.createLinearGradient(0, TOP, 0, HIT_Y + 60);
       lg.addColorStop(0, 'rgba(255,255,255,0)'); lg.addColorStop(1, `rgba(255,255,255,${0.05 + this.flash[i] * 0.15})`);
+      if (this.bad[i] > 0) lg.addColorStop(1, `rgba(251,113,133,${this.bad[i] * 0.35})`);
       ctx.fillStyle = lg; ctx.fillRect(x + 3, TOP, LW - 6, HIT_Y + 60 - TOP);
       ctx.strokeStyle = 'rgba(167,139,250,.18)'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(x, TOP); ctx.lineTo(x, H - 40); ctx.stroke();
