@@ -106,7 +106,7 @@ grid.innerHTML = ZONES.map((z) => {
     <div class="zone-head">
       <h3>${esc(z.name)}</h3>
       <span class="muted small">${esc(z.blurb)}</span>
-      <span class="crown ${crown ? 'won' : ''}" title="${crown ? `You won the ${eggName(z.n)}!` : `Finish ${lg ? lg.title : 'the Legends game'} without losing a life to win the ${eggName(z.n)}`}">${crown ? `${eggSVG(z.n, { size: 16 })} Egg won` : '🥚 Egg: not yet'}</span>
+      ${z.legendGame ? `<span class="crown ${crown ? 'won' : ''}" title="${crown ? `You won the ${eggName(z.n)}!` : `Finish ${lg ? lg.title : 'the Legends game'} without losing a life to win the ${eggName(z.n)}`}">${crown ? `${eggSVG(z.n, { size: 16 })} Egg won` : '🥚 Egg: not yet'}</span>` : ''}
     </div>
     ${open ? '' : `<div class="zone-lock">🔒 <b>Zone ${z.n} is locked.</b> Play every Zone ${z.n - 1} game at least once to open it <span class="lock-meter"><i style="width:${Math.round(lock.played / lock.need * 100)}%"></i></span> <b>${lock.played} / ${lock.need}</b></div>`}
     <div class="game-grid">${SLOTS.filter((sl) => sl.zone === z).map(card).join('')}</div>

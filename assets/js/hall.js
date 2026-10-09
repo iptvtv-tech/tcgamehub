@@ -1,5 +1,5 @@
 // Hall of Legends — hidden page. Locked for everyone except Legends.
-import { GAMES, gameById, legendZones } from './games.js';
+import { GAMES, ZONES, gameById, legendZones } from './games.js';
 import { Store } from './storage.js';
 import { Legends, hallPeople } from './legends.js';
 import { eggSVG, eggName, crownSVG } from './eggs.js';
@@ -74,7 +74,7 @@ async function open() {
           ${unlocks.map((u) => `
             <div class="gold-row${u.unlocked ? '' : ' locked'}">
               <img src="../games/${u.id}/thumb.svg" alt="">
-              <div><a href="../games/${u.id}/">${esc(u.title)}</a><small>${esc(u.gold)}${u.unlocked ? '' : ` · 🔒 needs the ${esc(eggName(u.zone))}`}</small></div>
+              <div><a href="../games/${u.id}/">${esc(u.title)}</a><small>${esc(u.gold)}${u.unlocked ? '' : ` · 🔒 needs ${ZONES.find((z) => z.n === u.zone)?.legendGame ? `the ${esc(eggName(u.zone))}` : 'the Golden Crown'}`}</small></div>
               ${u.unlocked ? `<button class="switch" role="switch" aria-checked="${Legends.goldOn(u.id)}" aria-label="${esc(u.gold)}" data-gold="${u.id}"></button>` : ''}
             </div>`).join('')}
         </section>

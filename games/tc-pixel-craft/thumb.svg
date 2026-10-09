@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3b82f6"/><stop offset="1" stop-color="#bae6fd"/></linearGradient>
+    <linearGradient id="head" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f3f4f6"/><stop offset="1" stop-color="#6b7280"/></linearGradient>
+  </defs>
+  <rect width="120" height="120" rx="18" fill="url(#sky)"/>
+  <!-- a little isometric block stack -->
+  <g transform="translate(16 54)">
+    <path d="M24 0 L48 12 L24 24 L0 12 Z" fill="#6fcf45"/>
+    <path d="M0 12 L24 24 L24 50 L0 38 Z" fill="#7a4e25"/>
+    <path d="M24 24 L48 12 L48 38 L24 50 Z" fill="#9c6833"/>
+    <path d="M0 12 L24 24 L24 30 L0 18 Z" fill="#4ea52f"/>
+    <path d="M24 24 L48 12 L48 18 L24 30 Z" fill="#5fbf3a"/>
+  </g>
+  <g transform="translate(58 66)">
+    <path d="M20 0 L40 10 L20 20 L0 10 Z" fill="#959595"/>
+    <path d="M0 10 L20 20 L20 42 L0 32 Z" fill="#7b7b7b"/>
+    <path d="M20 20 L40 10 L40 32 L20 42 Z" fill="#8a8a8a"/>
+    <rect x="6" y="20" width="4" height="4" fill="#f472b6"><animate attributeName="opacity" values="1;.3;1" dur="1.2s" repeatCount="indefinite"/></rect>
+    <rect x="26" y="24" width="4" height="4" fill="#fde047"/>
+    <rect x="30" y="16" width="3" height="3" fill="#f472b6"><animate attributeName="opacity" values=".3;1;.3" dur="1.2s" repeatCount="indefinite"/></rect>
+  </g>
+  <!-- the pickaxe, swinging -->
+  <g>
+    <animateTransform attributeName="transform" type="rotate" values="-8 92 62;22 92 62;-8 92 62" dur="1s" repeatCount="indefinite"/>
+    <rect x="88" y="20" width="8" height="58" rx="2" fill="#7c4a1e" transform="rotate(30 92 50)"/>
+    <path d="M62 30 Q86 6 112 22 L106 27 Q86 16 68 34 Z" fill="url(#head)" transform="rotate(30 92 50)"/>
+  </g>
+</svg>

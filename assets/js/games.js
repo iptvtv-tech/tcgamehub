@@ -330,6 +330,25 @@ export const GAMES = [
       { id: 'crown',     icon: '👑', title: 'Crown of the Crypt Kings', desc: 'Find the crown in the secret vault', legendary: true, secret: true },
     ],
   },
+  {
+    id: 'tc-pixel-craft',
+    gold: 'Golden Pickaxe',         // golden character — unlocked by the Golden Crown until Zone 4 has its own Legends game
+    title: 'TC Pixel Craft',
+    tagline: 'A 3D block world. Dig down, mine the ore, build walls — and finish before night falls and the gloomlings come hunting.',
+    controls: 'WASD move · Mouse look (click the view) · Left click / E mine · Right click / Q build · Space jump (touch: stick, drag to look, MINE / BUILD / JUMP)',
+    color: '#84cc16',
+    isNew: true,
+    achievements: [
+      { id: 'crystal',    icon: '💎', title: 'Starstruck',       desc: 'Mine a pink starstone crystal' },
+      { id: 'tnt5',       icon: '🧨', title: 'Demolition Expert', desc: 'Blast 5 ores with one TNT explosion' },
+      { id: 'builder',    icon: '🧱', title: 'Master Builder',    desc: 'Place 25 blocks in one level' },
+      { id: 'nightwatch', icon: '🌙', title: 'Night Watch',       desc: 'Bonk 10 gloomlings in one run' },
+      { id: 'rush',       icon: '✨', title: 'Crystal Rush',      desc: 'Mine 30 ores in one Crystal Cavern bonus' },
+      { id: 'combo4',     icon: '🔥', title: 'Ore Streak',        desc: 'Reach a x4 combo' },
+      { id: 'level10',    icon: '⛏️', title: 'Deep Digger',       desc: 'Reach level 10' },
+      { id: 'score10k',   icon: '🏅', title: 'Ten Grand',         desc: 'Score 10,000 in one run' },
+    ],
+  },
 ];
 
 // Badges that any game can earn (unlocked automatically by the engine).
@@ -362,6 +381,7 @@ export const TIERS = [
   { id: 'expert',  label: 'Expert',  color: '#f43f5e', from: 7 },
   { id: 'extreme', label: 'Extreme', color: '#c084fc', from: 10 },
   { id: 'master',  label: 'Master',  color: '#38bdf8', from: 13 },
+  { id: 'ultra',   label: 'Ultra',   color: '#f472b6', from: 19 },
 ];
 export const tierFor = (n) => [...TIERS].reverse().find((t) => n >= t.from);
 
@@ -376,6 +396,9 @@ export const ZONES = [
   { n: 3, name: 'Zone 3 · Master Class', blurb: 'Master difficulty — for players who have beaten Zone 2. Crypt of Crowns is this zone\'s Legends game.',
     legendGame: 'crypt-of-crowns',
     slots: ['turbo-rush', 'bubble-blitz', 'pinball-blast', 'star-strike', 'dungeon-escape', 'crypt-of-crowns'] },
+  { n: 4, name: 'Zone 4 · Ultra', blurb: 'Ultra difficulty — for players who have played every Zone 3 game. More games are on the way.',
+    legendGame: null,
+    slots: ['tc-pixel-craft', null, null, null, null, null] },
 ];
 
 /** Icon for each zone's prize (a Golden Egg — see eggs.js for the full artwork). */

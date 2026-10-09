@@ -109,8 +109,9 @@ export const Legends = {
   goldThemeOn() { return this.hasGoldenCrown() && Store.setting('goldTheme') !== false; },
   setGoldTheme(on) { Store.setSetting('goldTheme', !!on); applyTheme(); },
 
-  /** Is the golden character unlocked for this game? (needs the egg of the game's zone) */
-  goldUnlocked(gameId) { const z = zoneOf(gameId); return !!z && this.hasEgg(z.n); },
+  /** Is the golden character unlocked for this game? (needs the egg of the game's zone;
+   *  in a zone that has no Legends game yet, the Golden Crown unlocks it instead) */
+  goldUnlocked(gameId) { const z = zoneOf(gameId); return !!z && (z.legendGame ? this.hasEgg(z.n) : this.hasGoldenCrown()); },
   /** Is the golden character switched on for this game? (on by default once unlocked) */
   goldOn(gameId) { return this.goldUnlocked(gameId) && Store.setting(`gold:${gameId}`) !== false; },
   setGold(gameId, on) { Store.setSetting(`gold:${gameId}`, !!on); },
