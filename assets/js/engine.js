@@ -297,7 +297,7 @@ class Shell {
     this.addScore(pts);
     this.sound.play('levelup');
     this.fx.confetti(this.W, this.H);
-    this.fx.text(this.W / 2, this.H * 0.42, this.bonus ? 'BONUS COMPLETE!' : 'LEVEL CLEAR!', { color: '#a3e635', size: 38, life: 1.3, rise: 20 });
+    this.fx.text(this.W / 2, this.H * 0.42, this.bonus ? 'BONUS COMPLETE!' : (this.def.clearText || 'LEVEL CLEAR!'), { color: '#a3e635', size: 38, life: 1.3, rise: 20 });
     this.fx.text(this.W / 2, this.H * 0.52, `+${fmt(pts)}`, { color: '#fff', size: 28, life: 1.3, rise: 20 });
     this.game.onLevelClear?.();
     const fin = this.def.finalLevel;
@@ -338,7 +338,7 @@ class Shell {
 
   // ── Run flow ─────────────────────────────────────────────────
   computeCheckpoints() {
-    if (this.daily) return [1];
+    if (this.daily || this.def.noCheckpoints) return [1];
     const max = Math.min(Store.maxLevel(this.id), this.def.finalLevel || Infinity), list = [1];
     for (let l = CONFIG.bonusEvery + 1; l <= max; l += CONFIG.bonusEvery) list.push(l);
     return list;
@@ -391,7 +391,7 @@ class Shell {
     this.updateHud();
     const info = this.def.levelInfo ? this.def.levelInfo(level, this.bonus) : '';
     const secret = this.isSecretLevel(level);
-    this.showBanner(secret ? (this.def.secretTitle || '??? SECRET LEVEL ???') : this.bonus ? '★ BONUS ROUND ★' : `Level ${level}`, info, this.bonus || secret);
+    this.showBanner(secret ? (this.def.secretTitle || '??? SECRET LEVEL ???') : this.bonus ? '★ BONUS ROUND ★' : (this.def.levelTitle ? this.def.levelTitle(level) : `Level ${level}`), info, this.bonus || secret);
     this.sound.play(this.bonus || secret ? 'bonus' : 'go');
     if (this.def.music?.bpm) Sound.setTempo(this.def.music.bpm * Math.min(1.45, 1 + (level - 1) * 0.025));
     this.state = 'banner';

@@ -96,6 +96,15 @@ Games are laid out in `ZONES` in `assets/js/games.js` (6 per zone, difficulty ri
 
 A zone opens once every game in the zone before it has been played. The zone's crown unlocks the golden characters of its 6 games (and a `crownN` badge — add it to `GLOBAL_ACHIEVEMENTS`).
 
+### 4e. (Optional) Open-world / day-based games
+Three optional `runGame({...})` settings for games that aren't built from separate levels (see TC Pixel Craft):
+
+```js
+noCheckpoints: true,                 // no "Start from level N" buttons — every run starts fresh
+levelTitle: (level) => `Day ${level}`, // banner text instead of "Level N"
+clearText: 'YOU SURVIVED!',          // text instead of "LEVEL CLEAR!"
+```
+
 ### 5. Add a thumbnail
 Put a square `thumb.svg` in the game folder. A small animated SVG looks great on the cards. You can copy one of the existing ones.
 

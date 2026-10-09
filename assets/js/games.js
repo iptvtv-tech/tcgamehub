@@ -332,21 +332,21 @@ export const GAMES = [
   },
   {
     id: 'tc-pixel-craft',
-    gold: 'Golden Pickaxe',         // golden character — unlocked by the Golden Crown until Zone 4 has its own Legends game
+    gold: 'Golden Hand',            // golden character — unlocked by the Golden Crown until Zone 4 has its own Legends game
     title: 'TC Pixel Craft',
-    tagline: 'A 3D block world. Dig down, mine the ore, build walls — and finish before night falls and the gloomlings come hunting.',
-    controls: 'WASD move · Mouse look (click the view) · Left click / E mine · Right click / Q build · Space jump (touch: stick, drag to look, MINE / BUILD / JUMP)',
+    tagline: 'An open-world survival block game. Start with nothing: punch trees, craft tools, mine deep, survive the night — and one day face the Shadow King.',
+    controls: 'WASD move · Mouse look (click the view) · Left click mine/hit · Right click place/use · E bag & crafting · L advancements (touch: stick, drag to look, HIT / USE / ⤒)',
     color: '#84cc16',
     isNew: true,
     achievements: [
-      { id: 'crystal',    icon: '💎', title: 'Starstruck',       desc: 'Mine a pink starstone crystal' },
-      { id: 'tnt5',       icon: '🧨', title: 'Demolition Expert', desc: 'Blast 5 ores with one TNT explosion' },
-      { id: 'builder',    icon: '🧱', title: 'Master Builder',    desc: 'Place 25 blocks in one level' },
-      { id: 'nightwatch', icon: '🌙', title: 'Night Watch',       desc: 'Bonk 10 gloomlings in one run' },
-      { id: 'rush',       icon: '✨', title: 'Crystal Rush',      desc: 'Mine 30 ores in one Crystal Cavern bonus' },
-      { id: 'combo4',     icon: '🔥', title: 'Ore Streak',        desc: 'Reach a x4 combo' },
-      { id: 'level10',    icon: '⛏️', title: 'Deep Digger',       desc: 'Reach level 10' },
-      { id: 'score10k',   icon: '🏅', title: 'Ten Grand',         desc: 'Score 10,000 in one run' },
+      { id: 'firstkill', icon: '⚔️', title: 'Monster Hunter', desc: 'Defeat your first hostile creature' },
+      { id: 'ironsuit',  icon: '🛡️', title: 'Suit Up',        desc: 'Wear a full set of iron armour' },
+      { id: 'crystal',   icon: '💎', title: 'Shiny!',         desc: 'Mine a crystal' },
+      { id: 'adv10',     icon: '🏆', title: 'Achiever',       desc: 'Earn 10 advancements in one world' },
+      { id: 'boss',      icon: '👑', title: 'Kingslayer',     desc: 'Defeat the Shadow King' },
+      { id: 'combo4',    icon: '🔥', title: 'On a Roll',      desc: 'Reach a x4 combo' },
+      { id: 'level10',   icon: '🌄', title: 'Seasoned',       desc: 'Reach the 10th sunrise' },
+      { id: 'score10k',  icon: '🏅', title: 'Ten Grand',      desc: 'Score 10,000 in one run' },
     ],
   },
 ];
