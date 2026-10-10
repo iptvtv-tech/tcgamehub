@@ -19,17 +19,19 @@ const ID = 'turbo-rush';
 const W = 480, H = 720;
 const HORIZON = 318;                 // screen y of the road's vanishing point
 const SEG = 200;                     // length of one road segment (world units)
-const ROAD = 1000;                   // half-width of the road (world units); road runs x = -1..1
+const ROAD = 1200;                   // half-width of the road (world units); road runs x = -1..1 (20% wider than v2, cars the same size)
+const CW = 1000 / ROAD;              // car widths are given at the old road width; this keeps them the same size on screen
 const CAM_H = 1000;                  // camera height
 const CAM_DEPTH = 0.84;              // ≈ 100° field of view
 const PLAYER_Z = CAM_H * CAM_DEPTH;  // distance from camera to the player's car
 const BASE_MAX = 12000;              // top speed at level 1 before scaling (world units / s)
 const LANES = [-2 / 3, 0, 2 / 3];
-const PLAYER_W = 0.36;
+const PLAYER_W = 0.36 * CW;
 const VS = 340;                      // vertical projection scale (puts the road under the player's car)
 const PLAYER_PX = PLAYER_W * ROAD * (CAM_DEPTH / PLAYER_Z) * W / 2;   // the player's car width on screen
 const PLAYER_Y = HORIZON + VS * CAM_H * (CAM_DEPTH / PLAYER_Z);
 const TUNNEL_H = 2300, TUNNEL_X = 1.28, WALL_X = 1.95;
+const WALL_GAP = 9 * SEG;             // traffic never fills all three lanes inside this stretch, so there's always a way through
 const HIT_FRONT = 190, HIT_BACK = 120; // how far ahead / behind your rear bumper a car's rear can be and still touch you
 
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -253,11 +255,11 @@ class TurboRush {
     this.decorate(r);
     this.cars = bonus ? [] : this.buildTraffic(r);
     this.pickups = this.buildPickups(r);
-    this.rival = this.feat.rival ? { rival: true, z: PLAYER_Z, x: LANES[2], lane: 2, speed: 0, w: 0.35, pace: Math.min(0.97, 0.89 + level * 0.004), done: false, boostT: 0 } : null;
+    this.rival = this.feat.rival ? { rival: true, z: PLAYER_Z, x: LANES[2], lane: 2, speed: 0, w: 0.35 * CW, pace: Math.min(0.97, 0.89 + level * 0.004), done: false, boostT: 0 } : null;
     this.police = null; this.policeNext = r.range(7, 12);
     this.levelT = 0; this.rec = []; this.recT = 0;
     this.ghostRun = bonus ? null : loadGhost(s.mode || 'normal', level);
-    this.ghost = this.ghostRun ? { ghost: true, z: 0, x: 0, w: 0.35, kind: 'sports', color: '#e0f2fe' } : null;
+    this.ghost = this.ghostRun ? { ghost: true, z: 0, x: 0, w: 0.35 * CW, kind: 'sports', color: '#e0f2fe' } : null;
     this.ghostDelta = null;
     const avg = Math.min(0.76, 0.62 + level * 0.01);            // average speed the clock expects (fraction of top speed)
     this.timeMax = bonus ? 0 : Math.round(this.finishZ / (this.maxSpeed * avg) + 3 + (this.closures.length ? 2 : 0));
@@ -384,7 +386,7 @@ class TurboRush {
       const kind = kindFor(truck);
       cars.push({
         z: i * SEG, x: LANES[lane], lane, truck, kind,
-        w: truck ? 0.5 : kind === 'suv' ? 0.37 : 0.36,
+        w: (truck ? 0.5 : kind === 'suv' ? 0.37 : 0.36) * CW,
         speed: this.maxSpeed * (truck ? r.range(0.2, 0.3) : r.range(0.28, 0.5 + Math.min(0.15, L * 0.01))),
         color: r.pick(CAR_COLS),
         changer: !truck && L >= 7 && r.chance(Math.min(0.35, 0.12 + (L - 7) * 0.03)),
@@ -395,10 +397,20 @@ class TurboRush {
         pairGap = 8;                                             // always room to get round a pair before the next car
         const l2 = (lane + r.int(1, 2)) % 3;
         if (this.nearClosure(l2, i * SEG)) continue;
-        cars.push({ z: i * SEG + r.range(-60, 60), x: LANES[l2], lane: l2, truck: false, kind: kindFor(false), w: 0.36, speed: cars[cars.length - 1].speed, color: r.pick(CAR_COLS), changer: false, blink: 0, nextChange: 99, scored: false, ahead: true });
+        cars.push({ z: i * SEG + r.range(-60, 60), x: LANES[l2], lane: l2, truck: false, kind: kindFor(false), w: 0.36 * CW, speed: cars[cars.length - 1].speed, color: r.pick(CAR_COLS), changer: false, blink: 0, nextChange: 99, scored: false, ahead: true });
       }
     }
     return cars;
+  }
+  /** would moving `car` into `lane` now cut you off, or fill the last open lane? */
+  cutsOff(car, lane, pz) {
+    if (this.closedAt(car.lane, car.z + 4 * SEG)) return false;     // it has to merge out of roadworks whatever happens
+    const dz = car.z - pz, close = Math.max(0, this.speed - car.speed);
+    // you'd reach it within ~0.7s (or you're alongside it) and you're in or heading for that lane
+    if (dz > -HIT_BACK - 60 && dz < Math.max(3 * SEG, close * 0.7) && Math.abs(this.playerX - LANES[lane]) < 0.55) return true;
+    const busy = [false, false, false]; busy[lane] = true;
+    for (const o of this.cars) if (o !== car && !o.police && Math.abs(o.z - car.z) < WALL_GAP) busy[o.lane] = true;
+    return busy[0] && busy[1] && busy[2];
   }
   /** is a closure in this lane within the stretch where a car starting here would meet it? */
   nearClosure(lane, z) { return this.closures.some((c) => c.lane === lane && z > c.z0 - 40 * SEG && z < c.z1 + 2 * SEG); }
@@ -469,7 +481,7 @@ class TurboRush {
     const pct = this.speed / max;
 
     // steering + the road pulling you wide on bends
-    const dx = dt * 2 * Math.min(1, pct + 0.15) * this.grip;
+    const dx = dt * (2 + 0.5 * clamp(pct, 0, 1.3)) * Math.min(1, pct + 0.15) * this.grip;   // quicker lane changes the faster you go
     if (c.left) this.playerX -= dx;
     if (c.right) this.playerX += dx;
     this.playerX -= dx * pct * seg.curve * this.centrifugal;
@@ -557,6 +569,17 @@ class TurboRush {
         const o = sorted[j];
         if (!o.police && Math.abs(o.x - car.x) < 0.4) v = Math.min(v, o.speed * 0.98);
       }
+      // never let traffic block all three lanes at once: the rearmost of the three drops back to open a gap
+      const busy = [false, false, false];
+      busy[car.lane] = true;
+      let slowest = Infinity;
+      for (let j = i + 1; j < sorted.length && sorted[j].z - car.z < WALL_GAP; j++) {
+        const o = sorted[j];
+        if (o.police || o.lane === car.lane) continue;
+        busy[o.lane] = true; if (o.to !== undefined && o.blink) busy[o.to] = true;
+        slowest = Math.min(slowest, o.speed);
+      }
+      if (busy[0] && busy[1] && busy[2]) v = Math.min(v, slowest * 0.8);
       const behindYou = pz - car.z;
       if (behindYou > 0 && behindYou < SEG * 4 && Math.abs(car.x - this.playerX) < 0.45) v = Math.min(v, this.speed * 0.9);
       car.braking = v < car.base * 0.92;
@@ -580,7 +603,11 @@ class TurboRush {
       }
       if (car.blink > 0) {
         car.blink -= dt;
-        if (car.blink <= 0) { car.blink = 0; car.lane = car.to; car.nextChange = s.rng.range(2.5, 5); }
+        if (car.blink <= 0) {
+          car.blink = 0;
+          if (this.cutsOff(car, car.to, pz)) car.nextChange = s.rng.range(1, 2);   // you're coming — wait for you to pass
+          else { car.lane = car.to; car.nextChange = s.rng.range(2.5, 5); }
+        }
       }
       const tx = LANES[car.lane], vx = (tx - car.x);
       car.x = lerp(car.x, tx, Math.min(1, dt * 2.2));
@@ -603,7 +630,7 @@ class TurboRush {
       if (justPassed && !car.scored) {
         car.scored = true;
         const x = W / 2 + (car.x - this.playerX) * 150, y = H - 150;
-        if (gapX < touch + 0.2) {
+        if (gapX < touch + 0.2 * CW) {
           this.near++; this.nearChain++;
           s.award(40 * L, x, y, { chain: true, color: '#fde047', size: 20 });
           s.fx.text(x, y - 26, this.nearChain >= 3 ? `NEAR MISS ×${this.nearChain}` : 'NEAR MISS!', { color: '#fde047', size: 18 });
@@ -643,7 +670,7 @@ class TurboRush {
 
     // pickups
     for (const p of this.pickups) {
-      if (p.got || Math.abs(p.z - pz) > 120 || Math.abs(p.x - this.playerX) > 0.26) continue;
+      if (p.got || Math.abs(p.z - pz) > 120 || Math.abs(p.x - this.playerX) > 0.26 * CW) continue;
       p.got = true;
       if (p.kind === 'nitro') {
         this.boost = 1;
@@ -680,7 +707,7 @@ class TurboRush {
       this.policeNext -= dt;
       if (this.policeNext <= 0 && pz < this.finishZ - 50 * SEG && this.speed > max * 0.3) {
         const lane = LANES.reduce((a, b, i) => (Math.abs(b - this.playerX) < Math.abs(LANES[a] - this.playerX) ? i : a), 0);
-        this.police = { police: true, kind: 'police', z: pz - 30 * SEG, x: LANES[lane], lane, speed: max, w: 0.36, color: '#0f172a', ahead: false, scored: true, locked: false, blink: 0 };
+        this.police = { police: true, kind: 'police', z: pz - 30 * SEG, x: LANES[lane], lane, speed: max, w: 0.36 * CW, color: '#0f172a', ahead: false, scored: true, locked: false, blink: 0 };
         this.cars.push(this.police);
       }
       return;
@@ -738,7 +765,7 @@ class TurboRush {
     rv.yawV = clamp((rv.x - ox) / dt * 0.35, -0.3, 0.3);
     // trading paint: bumping VIPER shoves you both apart
     const dzp = rv.z - pz, gx = this.playerX - rv.x;
-    if (dzp > -HIT_BACK && dzp < HIT_FRONT && Math.abs(gx) < 0.33 && !this.done) {
+    if (dzp > -HIT_BACK && dzp < HIT_FRONT && Math.abs(gx) < 0.33 * CW && !this.done) {
       const dir = Math.sign(gx) || 1;
       this.playerX += dir * 0.1; rv.x -= dir * 0.05; this.speed *= 0.92; rv.speed *= 0.95;
       if (!rv.bumpT || this.t - rv.bumpT > 0.4) { rv.bumpT = this.t; s.fx.burst(W / 2 - dir * 40, PLAYER_Y - 30, { colors: ['#fde047', '#fff', '#f97316'], count: 14, speed: 220, life: 0.4 }); s.sound.play('metal'); s.fx.shake(4, 0.15); }
