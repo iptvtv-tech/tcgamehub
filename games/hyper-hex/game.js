@@ -34,7 +34,9 @@ runGame({
   levelInfo(level, bonus) {
     if (bonus) return '★ GEM RUSH! The walls are ghosts — grab every gem you can in 15 seconds.';
     const notes = {
-      1: `Hold ← → (or A / D, or press the left / right half of the screen) to circle the core. Slip through the gaps and survive ${goalFor(1)} s!`,
+      1: matchMedia('(pointer: coarse)').matches
+        ? `Tap the left or right side to hop one lane — hold to keep circling. Slip through the gaps and survive ${goalFor(1)} s!`
+        : `Hold ← → (or A / D) to circle the core. Slip through the gaps and survive ${goalFor(1)} s!`,
       2: 'Walls come in pairs now. Plan your next move early.',
       3: '🌀 The world starts spinning the other way without warning.',
       4: '🌀 SPIRALS: follow the staircase round the core.',
@@ -47,16 +49,57 @@ runGame({
 });
 
 const sectorOf = (a) => Math.floor((((a % TAU) + TAU) % TAU) / SEG) % SIDES;
+const laneOf = (a) => Math.floor(a / SEG);              // unwrapped lane number
+const laneCentre = (lane) => lane * SEG + SEG / 2;
 
 class HyperHex {
   constructor(s) {
     this.s = s; this.t = 0;
-    this.angle = -Math.PI / 2 + SEG / 2;
+    this.angle = -Math.PI / 2;   // top lane, dead centre
     this.rot = 0; this.rotSpeed = 0.6; this.pulse = 0; this.hue = 190;
+    this.lite = matchMedia('(pointer: coarse)').matches;   // phones: skip the costly glow
+    this.setupTouch();
     this.startLevel(1, false);
   }
 
-  reset() { this.angle = -Math.PI / 2 + SEG / 2; }
+  // ── Touch controls ─────────────────────────────────────────
+  // Every finger is tracked on its own, so you can roll from one thumb to the
+  // other without the arrow stalling. The newest finger wins.
+  // A quick tap hops exactly one lane; holding keeps you circling, and when you
+  // let go the arrow settles in the middle of the lane you're in.
+  setupTouch() {
+    const s = this.s, cv = s.canvas;
+    this.touches = []; this.glide = null; this.touchMode = false;
+    const sideOf = (e) => { const r = cv.getBoundingClientRect(); return (e.clientX - r.left) / r.width * W > W / 2 ? 1 : -1; };
+    cv.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse') return;
+      this.touchMode = true;
+      this.touches = this.touches.filter((t) => t.id !== e.pointerId);
+      const dir = sideOf(e);
+      // tapping again while still hopping counts from the lane you're hopping to
+      const from = this.glide && this.glide.dir === dir ? this.glide.lane : laneOf(this.angle);
+      this.touches.push({ id: e.pointerId, dir });
+      this.pressLane = from; this.glide = null;
+    });
+    const up = (e) => {
+      const i = this.touches.findIndex((t) => t.id === e.pointerId);
+      if (i < 0) return;
+      const [t] = this.touches.splice(i, 1);
+      if (this.touches.length) { this.pressLane = laneOf(this.angle); return; }  // other thumb takes over
+      const cur = laneOf(this.angle);
+      const lane = t.dir * (cur - this.pressLane) >= 1 ? cur : this.pressLane + t.dir;
+      this.glide = { lane, dir: t.dir };
+    };
+    addEventListener('pointerup', up);
+    addEventListener('pointercancel', up);
+    const clear = () => { this.touches = []; this.glide = null; };
+    addEventListener('blur', clear);
+    document.addEventListener('visibilitychange', clear);
+  }
+
+  touchDir() { return this.touches.length ? this.touches[this.touches.length - 1].dir : 0; }
+
+  reset() { this.angle = -Math.PI / 2; this.glide = null; }
 
   startLevel(level, bonus) {
     const s = this.s;
@@ -77,6 +120,7 @@ class HyperHex {
     this.gemCount = 0; this.ringsPassed = 0;
     this.livesAtStart = this.s.lives;
     this.hitFlash = 0;
+    this.glide = null;
   }
 
   // ── Patterns (all distances in "rings"; one ring = spacing px) ──
@@ -143,11 +187,19 @@ class HyperHex {
 
     // player
     const dir = (s.input.isDown('right') ? 1 : 0) - (s.input.isDown('left') ? 1 : 0)
-      + (s.input.pointer.down ? (s.input.pointer.x > W / 2 ? 1 : -1) : 0);
+      + (s.input.pointer.down && !this.touchMode ? (s.input.pointer.x > W / 2 ? 1 : -1) : 0)
+      + this.touchDir();
     if (dir) {
+      this.glide = null;
       const na = this.angle + Math.sign(dir) * this.moveSpeed * dt;
       // walls block you from the side (you only crash if one hits you head-on)
       if (this.bonus || !this.hits(na)) this.angle = na;
+    } else if (this.glide) {
+      // finish a touch hop: slide to the middle of the target lane
+      const d = laneCentre(this.glide.lane) - this.angle;
+      const na = this.angle + Math.sign(d) * Math.min(Math.abs(d), this.moveSpeed * dt);
+      if (!this.bonus && this.hits(na)) this.glide = null;      // a wall's side is in the way: stay put
+      else { this.angle = na; if (Math.abs(d) < 1e-4) this.glide = null; }
     }
 
     // walls move in
@@ -231,21 +283,22 @@ class HyperHex {
     }
     // walls (drawn as trapezoid slices of a hexagon)
     ctx.fillStyle = this.bonus ? 'rgba(255,255,255,.18)' : `hsl(${hue}, 95%, ${62 + this.pulse * 4}%)`;
-    ctx.shadowColor = `hsl(${hue}, 100%, 60%)`; ctx.shadowBlur = this.bonus ? 0 : 12;
+    ctx.shadowColor = `hsl(${hue}, 100%, 60%)`; ctx.shadowBlur = this.bonus || this.lite ? 0 : 12;
+    ctx.beginPath();
     for (const w of this.walls) {
-      const r1 = Math.max(CORE, w.d), r2 = Math.max(CORE, w.d + w.th);
-      if (r2 <= r1) continue;
+      const r1 = Math.max(CORE, w.d), r2 = Math.min(900, Math.max(CORE, w.d + w.th));
+      if (r2 <= r1 || r1 > 700) continue;                   // off screen
       const a1 = w.side * SEG, a2 = (w.side + 1) * SEG;
-      ctx.beginPath();
       ctx.moveTo(Math.cos(a1) * r1, Math.sin(a1) * r1); ctx.lineTo(Math.cos(a2) * r1, Math.sin(a2) * r1);
       ctx.lineTo(Math.cos(a2) * r2, Math.sin(a2) * r2); ctx.lineTo(Math.cos(a1) * r2, Math.sin(a1) * r2);
-      ctx.closePath(); ctx.fill();
+      ctx.closePath();
     }
+    ctx.fill();
     ctx.shadowBlur = 0;
     // gems
     for (const g of this.gems) {
       ctx.save(); ctx.translate(Math.cos(g.a) * g.d, Math.sin(g.a) * g.d); ctx.rotate(g.spin);
-      ctx.fillStyle = '#fde047'; ctx.shadowColor = '#fde047'; ctx.shadowBlur = 12;
+      ctx.fillStyle = '#fde047'; ctx.shadowColor = '#fde047'; ctx.shadowBlur = this.lite ? 0 : 12;
       ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(7, 0); ctx.lineTo(0, 8); ctx.lineTo(-7, 0); ctx.closePath(); ctx.fill();
       ctx.restore();
     }
@@ -256,8 +309,11 @@ class HyperHex {
     // player arrow
     ctx.save(); ctx.rotate(this.angle); ctx.translate(RP, 0);
     ctx.fillStyle = s.gold ? '#fbbf24' : this.hitFlash > 0 ? '#f87171' : '#ffffff';
-    ctx.shadowColor = s.gold ? '#fbbf24' : '#fff'; ctx.shadowBlur = 10;
-    ctx.beginPath(); ctx.moveTo(12, 0); ctx.lineTo(-6, -9); ctx.lineTo(-6, 9); ctx.closePath(); ctx.fill();
+    ctx.shadowColor = s.gold ? '#fbbf24' : '#fff'; ctx.shadowBlur = this.lite ? 0 : 10;
+    if (this.lite) { ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.lineWidth = 3; }
+    ctx.beginPath(); ctx.moveTo(12, 0); ctx.lineTo(-6, -9); ctx.lineTo(-6, 9); ctx.closePath();
+    if (this.lite) ctx.stroke();
+    ctx.fill();
     ctx.restore();
     ctx.restore();
 
@@ -267,8 +323,18 @@ class HyperHex {
     else progressBar(ctx, 14, 12, W - 28, 20, clamp(this.clock / this.goal, 0, 1), `hsl(${hue},90%,60%)`, `Survive ${Math.max(0, this.goal - this.clock).toFixed(1)} s`);
     ctx.save(); ctx.font = '900 30px system-ui'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(255,255,255,.9)';
     if (!this.bonus) ctx.fillText(this.clock.toFixed(2), W / 2, 86);
+    if (this.touchMode || this.lite) {
+      const held = this.touchDir();
+      for (const d of [-1, 1]) {
+        const x = d < 0 ? 44 : W - 44;
+        ctx.fillStyle = held === d ? `hsla(${hue},95%,65%,.55)` : 'rgba(255,255,255,.08)';
+        ctx.beginPath(); ctx.arc(x, H - 46, 28, 0, TAU); ctx.fill();
+        ctx.strokeStyle = held === d ? '#fff' : 'rgba(255,255,255,.5)'; ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        ctx.beginPath(); ctx.moveTo(x - d * 4, H - 58); ctx.lineTo(x + d * 8, H - 46); ctx.lineTo(x - d * 4, H - 34); ctx.stroke();
+      }
+    }
     ctx.font = '700 12px system-ui'; ctx.fillStyle = 'rgba(255,255,255,.45)';
-    ctx.fillText(matchMedia('(pointer: coarse)').matches ? 'Hold the left or right side of the screen' : 'Hold ← / → (or A / D)', W / 2, H - 16);
+    ctx.fillText(this.lite || this.touchMode ? 'Tap a side to hop one lane · hold to keep turning' : 'Hold ← / → (or A / D)', W / 2, H - 16);
     ctx.restore();
   }
 }
