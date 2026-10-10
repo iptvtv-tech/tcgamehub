@@ -351,6 +351,7 @@ export const GAMES = [
       { id: 'combo4',    icon: '🔥', title: 'On a Roll',      desc: 'Reach a x4 combo' },
       { id: 'level10',   icon: '🌄', title: 'Seasoned',       desc: 'Live to see day 8' },
       { id: 'score10k',  icon: '🏅', title: 'Ten Grand',      desc: 'Score 10,000 in one run' },
+<<<<<<< HEAD
     ],
   },
   {
@@ -370,6 +371,8 @@ export const GAMES = [
       { id: 'combo4',   icon: '🔥', title: 'Coin Streak',      desc: 'Reach a x4 combo' },
       { id: 'level10',  icon: '🏁', title: 'Long Haul',        desc: 'Reach delivery 10' },
       { id: 'score10k', icon: '🏅', title: 'Ten Grand',        desc: 'Score 10,000 in one run' },
+=======
+>>>>>>> eac29e61696157c1231aef64573bf950577f148c
     ],
   },
 ];

@@ -297,7 +297,7 @@ class Shell {
     this.addScore(pts);
     this.sound.play('levelup');
     this.fx.confetti(this.W, this.H);
-    this.fx.text(this.W / 2, this.H * 0.42, this.bonus ? 'BONUS COMPLETE!' : 'LEVEL CLEAR!', { color: '#a3e635', size: 38, life: 1.3, rise: 20 });
+    this.fx.text(this.W / 2, this.H * 0.42, this.bonus ? 'BONUS COMPLETE!' : (this.def.clearText || 'LEVEL CLEAR!'), { color: '#a3e635', size: 38, life: 1.3, rise: 20 });
     this.fx.text(this.W / 2, this.H * 0.52, `+${fmt(pts)}`, { color: '#fff', size: 28, life: 1.3, rise: 20 });
     this.game.onLevelClear?.();
     const fin = this.def.finalLevel;
@@ -335,10 +335,12 @@ class Shell {
   }
 
   after(sec, fn) { this.timers.push({ t: sec, fn }); }
+  /** "level 7" — or the game's own wording, e.g. "day 6" (def.levelLabel / def.levelName) */
+  reachedText(lower) { const n = this.def.levelName || 'Level'; const v = this.def.levelLabel ? this.def.levelLabel(this.level, this.bonus) : this.level; return `${lower ? n.toLowerCase() : n} ${v}`; }
 
   // ── Run flow ─────────────────────────────────────────────────
   computeCheckpoints() {
-    if (this.daily) return [1];
+    if (this.daily || this.def.noCheckpoints) return [1];
     const max = Math.min(Store.maxLevel(this.id), this.def.finalLevel || Infinity), list = [1];
     for (let l = CONFIG.bonusEvery + 1; l <= max; l += CONFIG.bonusEvery) list.push(l);
     return list;
@@ -391,7 +393,7 @@ class Shell {
     this.updateHud();
     const info = this.def.levelInfo ? this.def.levelInfo(level, this.bonus) : '';
     const secret = this.isSecretLevel(level);
-    this.showBanner(secret ? (this.def.secretTitle || '??? SECRET LEVEL ???') : this.bonus ? '★ BONUS ROUND ★' : `Level ${level}`, info, this.bonus || secret);
+    this.showBanner(secret ? (this.def.secretTitle || '??? SECRET LEVEL ???') : this.bonus ? '★ BONUS ROUND ★' : (this.def.levelTitle ? this.def.levelTitle(level) : `Level ${level}`), info, this.bonus || secret);
     this.sound.play(this.bonus || secret ? 'bonus' : 'go');
     if (this.def.music?.bpm) Sound.setTempo(this.def.music.bpm * Math.min(1.45, 1 + (level - 1) * 0.025));
     this.state = 'banner';
@@ -523,7 +525,7 @@ class Shell {
         <a class="hud-home" href="../../" title="Back to the arcade">←<span> Arcade</span></a>
         <div class="hud-title">${esc(m.title)}${this.daily ? ' <span class="pill daily">Daily</span>' : ''}</div>
         <div class="hud-stats">
-          <div class="stat"><small>Level</small><b data-hud="level">1</b></div>
+          <div class="stat"><small>${esc(this.def.levelName || 'Level')}</small><b data-hud="level">1</b></div>
           <div class="stat score"><small>Score</small><b data-hud="score">0</b></div>
           <div class="stat combo" data-hud="combo-wrap"><small>Combo</small><b data-hud="combo">x1</b></div>
           <div class="stat" data-hud="lives-wrap" hidden><small>Lives</small><b data-hud="lives"></b></div>
@@ -571,7 +573,7 @@ class Shell {
 
   updateHud() {
     const h = this.hud;
-    h.level.textContent = this.isSecretLevel() ? '???' : this.bonus ? `${this.level}★` : this.level;
+    h.level.textContent = this.isSecretLevel() ? '???' : this.def.levelLabel ? this.def.levelLabel(this.level, this.bonus) : this.bonus ? `${this.level}★` : this.level;
     h.score.textContent = fmt(this.score);
     h.best.textContent = fmt(Math.max(Store.best(this.id), this.state === 'title' ? 0 : this.score));
     h.combo.textContent = `x${this.multiplier}`;
@@ -675,7 +677,7 @@ class Shell {
   showPause() {
     const o = this.showOverlay(`
       <h2>Paused</h2>
-      <p class="muted">Level ${this.level} · Score ${fmt(this.score)}</p>
+      <p class="muted">${esc(this.reachedText(false))} · Score ${fmt(this.score)}</p>
       <button class="btn primary big" data-act="resume">▶ Resume</button>
       <div class="row"><button class="btn" data-act="restart">↻ Restart</button><a class="btn" href="../../">⌂ Arcade</a></div>`);
     o.querySelector('[data-act="resume"]').onclick = () => this.resume();
@@ -762,7 +764,7 @@ class Shell {
       const me = Store.name();
       const q = new URLSearchParams({ ...(this.daily ? { daily: '1' } : {}), beat: String(score), ...(me ? { by: me } : {}) });
       return score > 0
-        ? `🎮 ${me ? `${me} scored` : 'I scored'} ${fmt(score)} on ${this.meta.title}${this.daily ? " (today's Daily Challenge)" : ''} and reached level ${this.level}! Can you beat me? ${location.origin}${location.pathname}?${q}`
+        ? `🎮 ${me ? `${me} scored` : 'I scored'} ${fmt(score)} on ${this.meta.title}${this.daily ? " (today's Daily Challenge)" : ''} and reached ${this.reachedText(true)}! Can you beat me? ${location.origin}${location.pathname}?${q}`
         : `🎮 Come play ${this.meta.title} with me, free in your browser: ${gameUrl}`;
     };
     const shareText = makeShare();
@@ -774,7 +776,7 @@ class Shell {
     const o = this.showOverlay(`
       <h2 class="over-title">${this.won ? esc(this.def.winTitle || 'You made it!') : 'Game Over'}</h2>
       <div class="final-score">${fmt(score)}</div>
-      <p class="muted">${this.won ? `All ${this.def.finalLevel || this.level} levels complete · ${this.livesLost ? `${this.livesLost} ${this.livesLost === 1 ? 'life' : 'lives'} lost` : 'no lives lost'}` : `Reached level ${this.level}`}${this.daily ? ' · Daily Challenge' : ''}</p>
+      <p class="muted">${this.won ? `${this.def.wonText ? esc(this.def.wonText(this.level)) : `All ${this.def.finalLevel || this.level} levels complete`} · ${this.livesLost ? `${this.livesLost} ${this.livesLost === 1 ? 'life' : 'lives'} lost` : 'no lives lost'}` : `Reached ${esc(this.reachedText(true))}`}${this.daily ? ' · Daily Challenge' : ''}</p>
       ${this.daily ? streakNote(true) : ''}
       ${this.challenge ? (score > this.challenge.score
         ? `<p class="challenge won">🏆 You beat <b>${esc(this.challenge.by)}</b>'s ${fmt(this.challenge.score)}! Send it back to them 👇</p>`
