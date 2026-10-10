@@ -162,7 +162,28 @@ export class UI {
       }
       const prot = g.protection();
       if (prot > 0) for (let i = 0; i < 10; i++) { const on = prot * 12.5 > i; ctx.fillStyle = on ? '#e5e7eb' : 'rgba(255,255,255,.2)'; roundRect(ctx, 18 + i * 21, 504, 14, 14, 3); ctx.fill(); }
-      if (g.air < 10) for (let i = 0; i < 10; i++) { if (g.air <= i) continue; ctx.strokeStyle = '#bae6fd'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(W - 22 - i * 19, 530, 7, 0, Math.PI * 2); ctx.stroke(); }
+      if (g.air < 10) for (let i = 0; i < 10; i++) { if (g.air <= i) continue; ctx.strokeStyle = '#bae6fd'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(W - 22 - i * 19, 511, 7, 0, Math.PI * 2); ctx.stroke(); }
+      // energy: ten bolts on the right, emptying from the left
+      const en = g.energy, low = en <= 6;
+      for (let i = 0; i < 10; i++) {
+        const v = en - (9 - i) * 2, fill = v >= 2 ? 1 : v > 0 ? v / 2 : 0;
+        this.bolt(ctx, W - 30 - (9 - i) * 19 - 0, 522, fill, low && Math.sin(g.t * 10) > 0 && fill < 1);
+      }
+      if (en <= 0 && !g.bonus) this.text(ctx, 'Starving!', W - 16, 500, { size: 13, align: 'right', col: '#fca5a5' });
+      // eating & bow bars
+      if (g.eatT) this.bar(ctx, W / 2 - 50, VIEW_H / 2 + 26, 100, g.eatT / 1.1, '#fde047');
+      if (g.bowT) this.bar(ctx, W / 2 - 50, VIEW_H / 2 + 26, 100, Math.min(1, g.bowT), g.bowT >= 1 ? '#f87171' : '#e5e7eb');
+      // compass to your grave / bed
+      const ct = g.compassTarget();
+      if (ct) {
+        const ang = Math.atan2(ct.x - g.p.x, ct.z - g.p.z) - g.yaw, dist = Math.hypot(ct.x - g.p.x, ct.z - g.p.z);
+        const cx = W / 2, cy = 30;
+        ctx.save(); ctx.fillStyle = 'rgba(0,0,0,.42)'; roundRect(ctx, cx - 46, 13, 92, 34, 17); ctx.fill();
+        ctx.translate(cx - 18, cy); ctx.rotate(ang);
+        ctx.fillStyle = '#fbbf24'; ctx.beginPath(); ctx.moveTo(0, -11); ctx.lineTo(7, 8); ctx.lineTo(0, 4); ctx.lineTo(-7, 8); ctx.closePath(); ctx.fill();
+        ctx.restore();
+        this.text(ctx, `${ct.icon} ${Math.round(dist)}m`, cx + 18, cy + 1, { size: 13, align: 'center' });
+      }
       // held item name
       if (g.heldNameT > 0 && g.held()) { ctx.globalAlpha = Math.min(1, g.heldNameT); this.text(ctx, nameOf(g.held().id), W / 2, 500, { size: 16, align: 'center' }); ctx.globalAlpha = 1; }
       // advancement toast
@@ -182,6 +203,15 @@ export class UI {
     if (this.msg) { ctx.globalAlpha = Math.min(1, this.msg.t * 2); this.text(ctx, this.msg.text, W / 2, this.open ? 548 : 470, { size: 15, align: 'center', col: this.msg.col }); ctx.globalAlpha = 1; }
   }
 
+  bolt(ctx, x, y, fill, blink) {
+    const path = () => { ctx.beginPath(); ctx.moveTo(x + 9, y - 2); ctx.lineTo(x + 2, y + 9); ctx.lineTo(x + 8, y + 9); ctx.lineTo(x + 5, y + 18); ctx.lineTo(x + 14, y + 5); ctx.lineTo(x + 8, y + 5); ctx.lineTo(x + 11, y - 2); ctx.closePath(); };
+    path(); ctx.fillStyle = blink ? '#fff' : 'rgba(30,20,0,.6)'; ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(0,0,0,.6)'; ctx.stroke();
+    if (fill > 0) { ctx.save(); path(); ctx.clip(); ctx.fillStyle = '#facc15'; ctx.fillRect(x, y + 18 - 20 * fill, 16, 20 * fill); ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.fillRect(x + 7, y, 2, 4); ctx.restore(); }
+  }
+  bar(ctx, x, y, w, k, col) {
+    ctx.fillStyle = 'rgba(0,0,0,.5)'; roundRect(ctx, x, y, w, 7, 3.5); ctx.fill();
+    ctx.fillStyle = col; roundRect(ctx, x, y, Math.max(7, w * clamp(k, 0, 1)), 7, 3.5); ctx.fill();
+  }
   heart(ctx, x, y, fill, blink) {
     const path = () => { ctx.beginPath(); ctx.moveTo(x + 8, y + 13); ctx.bezierCurveTo(x - 2, y + 6, x + 1, y - 3, x + 8, y + 2); ctx.bezierCurveTo(x + 15, y - 3, x + 18, y + 6, x + 8, y + 13); ctx.closePath(); };
     path(); ctx.fillStyle = blink ? '#fff' : 'rgba(40,0,0,.6)'; ctx.fill();
@@ -196,6 +226,8 @@ export class UI {
     const swing = g.swingT > 0 ? Math.sin(g.t * 26) * 0.55 + 0.25 : 0;
     const it = g.held();
     ctx.save();
+    const L = g.handLight ? g.handLight() : 1;
+    if (L < 0.97) ctx.filter = `brightness(${L.toFixed(2)})`;   // your hand is in the dark too
     ctx.translate(392 + bobX, 600 + bob + swing * 30);
     ctx.rotate(-0.42 - swing);
     // arm
@@ -244,7 +276,7 @@ export class UI {
       const lines = [
         locked ? 'Mouse look · Left click: mine / hit · Right click: place / use' : 'Click the view to look around with the mouse',
         'WASD move · Space jump / swim · Shift sprint · 1–9 / wheel: hotbar',
-        'E bag & crafting · L advancements · Q eat · Esc pause',
+        'E bag & crafting · L advancements · Q / right click eat · Esc pause',
       ];
       lines.forEach((l, i) => this.text(ctx, l, W / 2, 636 + i * 24, { size: 12.5, align: 'center', col: 'rgba(255,255,255,.72)', weight: 600 }));
     }
@@ -325,17 +357,17 @@ export class UI {
     this.text(ctx, '✕', 448, 32, { size: 22, align: 'center' });
     ADV.forEach((a, k) => {
       const col = k % 2, row = Math.floor(k / 2);
-      const x = 16 + col * 226, y = 56 + row * 49;
+      const x = 16 + col * 226, y = 52 + row * 41.5;
       const done = g.advs.has(a.id);
       ctx.fillStyle = done ? 'rgba(251,191,36,.16)' : 'rgba(255,255,255,.05)';
-      roundRect(ctx, x, y, 220, 44, 8); ctx.fill();
+      roundRect(ctx, x, y, 220, 38, 7); ctx.fill();
       if (done) { ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 1.5; ctx.stroke(); }
       ctx.globalAlpha = done ? 1 : 0.4;
-      this.text(ctx, a.icon, x + 20, y + 22, { size: 20, align: 'center' });
+      this.text(ctx, a.icon, x + 20, y + 19, { size: 18, align: 'center' });
       ctx.globalAlpha = 1;
-      this.text(ctx, a.name, x + 40, y + 14, { size: 13, col: done ? '#fde68a' : '#a8a29e' });
-      ctx.font = '600 10.5px system-ui'; ctx.fillStyle = done ? '#e7e5e4' : '#78716c'; ctx.textAlign = 'left';
-      ctx.fillText(done ? a.desc : '???', x + 40, y + 31);
+      this.text(ctx, a.name, x + 40, y + 12, { size: 12.5, col: done ? '#fde68a' : '#a8a29e' });
+      ctx.font = '600 9.5px system-ui'; ctx.fillStyle = done ? '#e7e5e4' : '#78716c'; ctx.textAlign = 'left';
+      ctx.fillText(done ? a.desc : '???', x + 40, y + 28);
     });
   }
 }

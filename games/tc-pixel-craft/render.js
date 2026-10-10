@@ -15,7 +15,7 @@ const LUT = Float32Array.from({ length: 16 }, (_, i) => Math.pow(0.8, 15 - i));
 export class Renderer {
   constructor(tex, sprites, startRes = 0) {
     this.tex = tex; this.sprites = sprites;
-    this.crack = Float32Array.from({ length: 256 }, (_, i) => { const u = i & 15, v = i >> 4; return ((u * 37 + v * 91 + ((u * v) % 7) * 13) % 97) / 97; });
+    this.crack = Float32Array.from({ length: 1024 }, (_, i) => { const u = (i & 31) >> 1, v = i >> 6; return ((u * 37 + v * 91 + ((u * v) % 7) * 13) % 97) / 97; });
     // cloud map 64×64 (cosmetic)
     this.clouds = new Uint8Array(64 * 64);
     let s = 12345; const rnd = () => ((s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
@@ -57,7 +57,7 @@ export class Renderer {
     const sunX = sun[0], sunY = sun[1], sunZ = sun[2];
     const maxDist = 44, fogStart = 22;
     const tg = env.target, tgx = tg ? tg.x : -99, tgy = tg ? tg.y : -99, tgz = tg ? tg.z : -99, crackK = env.crack || 0, crack = this.crack;
-    const shift = Math.floor(t * 4) & 15, lavaShift = Math.floor(t * 2) & 15;
+    const shift = Math.floor(t * 4) & 31, lavaShift = Math.floor(t * 2) & 31;
     const cloudOff = t * 0.6;
     const uw = env.underwater;
     const solidAt = (x, y, z) => { if (x < 0 || z < 0 || y < 0 || x >= SX || z >= SZ || y >= SY) return 0; const v = blocks[(y * SZ + z) * SX + x]; return v && !isClear(v) ? 1 : v === B.LEAVES ? 1 : 0; };
@@ -83,7 +83,7 @@ export class Renderer {
           if (tt > tMax) { sky = true; break; }
           if (x < 0 || z < 0 || x >= SX || z >= SZ || y >= SY || y < 0) { sky = true; break; }
           v = blocks[(y * SZ + z) * SX + x];
-          if (v === 0) { if (waterIn >= 0) { waterLen += tt - waterIn; waterIn = -1; } continue; }
+          if (v === 0 || v === B.BUSH || v === B.BUSH_RIPE || v === B.MUSHROOM) { if (waterIn >= 0) { waterLen += tt - waterIn; waterIn = -1; } continue; }
           if (v === B.WATER) {
             if (waterIn < 0) { waterIn = tt; if (side === 1 && sty < 0) waterSurf = 1; }
             continue;
@@ -147,10 +147,10 @@ export class Renderer {
             if (side === 1) { u = fxr; w = fzr; face = sty > 0 ? 2 : 0; sh = sty > 0 ? 0.55 : 1; }
             else if (side === 0) { u = stx > 0 ? fzr : 1 - fzr; w = 1 - fyr; face = 1; sh = 0.72 + 0.18 * Math.max(0, -stx * sunX); }
             else { u = stz > 0 ? 1 - fxr : fxr; w = 1 - fyr; face = 1; sh = 0.68 + 0.18 * Math.max(0, -stz * sunZ); }
-            let ui = (u * 16) | 0, vi = (w * 16) | 0;
-            if (ui > 15) ui = 15; if (vi > 15) vi = 15;
-            if (v === B.LAVA) { ui = (ui + lavaShift) & 15; vi = (vi + (lavaShift >> 1)) & 15; }
-            const to = (((v * 3 + face) << 8) + (vi << 4) + ui) * 3;
+            let ui = (u * 32) | 0, vi = (w * 32) | 0;
+            if (ui > 31) ui = 31; if (vi > 31) vi = 31;
+            if (v === B.LAVA) { ui = (ui + lavaShift) & 31; vi = (vi + (lavaShift >> 1)) & 31; }
+            const to = (((v * 3 + face) << 10) + (vi << 5) + ui) * 4;
             R = T[to]; G = T[to + 1]; Bc = T[to + 2];
             const flashing = v === B.ALTAR || (env.lit && env.lit.has((y * SZ + z) * SX + x));
             // light from the clear cell in front of this face
@@ -179,7 +179,7 @@ export class Renderer {
             // block you're aiming at: outline & cracks
             if (x === tgx && y === tgy && z === tgz) {
               if (u < 0.04 || u > 0.96 || w < 0.04 || w > 0.96) { R *= 0.2; G *= 0.2; Bc *= 0.2; }
-              else if (crackK > 0 && crack[(vi << 4) + ui] < crackK) { R *= 0.4; G *= 0.4; Bc *= 0.4; }
+              else if (crackK > 0 && crack[(vi << 5) + ui] < crackK) { R *= 0.4; G *= 0.4; Bc *= 0.4; }
             }
           }
           // fog

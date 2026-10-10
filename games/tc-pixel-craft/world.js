@@ -11,7 +11,7 @@ export const idx = (x, y, z) => (y * SZ + z) * SX + x;
 
 /** Blocks light (and sight) can pass through */
 const CLEAR = new Uint8Array(64);
-for (const b of [B.AIR, B.WATER, B.TORCH, B.LEAVES]) CLEAR[b] = 1;
+for (const b of [B.AIR, B.WATER, B.TORCH, B.LEAVES, B.BUSH, B.BUSH_RIPE, B.MUSHROOM, B.BED]) CLEAR[b] = 1;
 export const isClear = (v) => CLEAR[v] === 1;
 
 function makeNoise(rand) {
@@ -36,6 +36,9 @@ export class World {
     this.top = new Int8Array(SX * SZ);  // highest solid block per column
     this.queue = new Int32Array(N * 2);
     this.dirty = false;
+    this.edits = [];          // [x, z, …] changed since the last relight
+    this.lightEdits = [];     // the edits the last relight covered (the 3D view rebuilds near them)
+    this.lightVersion = 0;
   }
 
   get(x, y, z) {
@@ -49,6 +52,7 @@ export class World {
     if (!this.inside(x, y, z)) return;
     this.b[idx(x, y, z)] = v;
     this.dirty = true;
+    this.edits.push(x, z);
     this.updateTop(x, z);
   }
   updateTop(x, z) { let y = SY - 1; while (y > 0 && isClear(this.b[idx(x, y, z)]) && this.b[idx(x, y, z)] !== B.LEAVES) y--; this.top[z * SX + x] = y; }
@@ -135,9 +139,17 @@ export class World {
         this.tree(x, h, z, kind === 3, R);
       }
     }
+    // berry bushes on grass, glowcaps on dark cave floors
+    for (let z = 2; z < SZ - 2; z++) for (let x = 2; x < SX - 2; x++) {
+      const h = H[z * SX + x], kind = biome[z * SX + x];
+      if (b[idx(x, h, z)] === B.GRASS && b[idx(x, h + 1, z)] === B.AIR && (kind === 0 || kind === 1) && R() < 0.011) b[idx(x, h + 1, z)] = R() < 0.6 ? B.BUSH_RIPE : B.BUSH;
+      for (let y = 2; y < h - 3; y++) if (b[idx(x, y, z)] === B.AIR && b[idx(x, y - 1, z)] === B.STONE && R() < 0.022) b[idx(x, y, z)] = B.MUSHROOM;
+    }
     for (let z = 0; z < SZ; z++) for (let x = 0; x < SX; x++) this.updateTop(x, z);
     this.heights = H; this.biome = biome;
+    this.edits = [];
     this.relight();
+    this.lightEdits = null;   // null = everything changed
   }
 
   tree(x, g, z, spruce, R) {
@@ -179,30 +191,60 @@ export class World {
   }
 
   // ── Light (flood fill) ───────────────────────────────────
+  /**
+   * Recompute light. After a few block edits only the area around them is
+   * redone (light never travels more than 15 blocks); otherwise the whole island.
+   */
   relight() {
-    const b = this.b, sky = this.sky, blk = this.blk, q = this.queue;
-    sky.fill(0); blk.fill(0);
+    const e = this.edits;
+    let x0 = 0, x1 = SX - 1, z0 = 0, z1 = SZ - 1;
+    if (e.length && e.length <= 64) {
+      let ax = SX, bx = -1, az = SZ, bz = -1;
+      for (let k = 0; k < e.length; k += 2) { ax = Math.min(ax, e[k]); bx = Math.max(bx, e[k]); az = Math.min(az, e[k + 1]); bz = Math.max(bz, e[k + 1]); }
+      x0 = Math.max(0, ax - 15); x1 = Math.min(SX - 1, bx + 15); z0 = Math.max(0, az - 15); z1 = Math.min(SZ - 1, bz + 15);
+    }
+    this.relightBox(x0, x1, z0, z1);
+    this.dirty = false;
+    this.lightEdits = this.edits; this.edits = [];
+    this.lightVersion++;
+  }
+
+  relightBox(x0, x1, z0, z1) {
+    const b = this.b, sky = this.sky, blk = this.blk, q = this.queue, L = SX * SZ;
     let head = 0, tail = 0;
+    for (let y = 0; y < SY; y++) for (let z = z0; z <= z1; z++) { const r = y * L + z * SX; sky.fill(0, r + x0, r + x1 + 1); blk.fill(0, r + x0, r + x1 + 1); }
+    // light flowing in from just outside the box
+    const ring = (arr) => {
+      for (let y = 0; y < SY; y++) for (let z = z0 - 1; z <= z1 + 1; z++) for (let x = x0 - 1; x <= x1 + 1; x++) {
+        if (x >= x0 && x <= x1 && z >= z0 && z <= z1) { x = x1; continue; }
+        if (x < 0 || z < 0 || x >= SX || z >= SZ) continue;
+        const i = y * L + z * SX + x; if (arr[i] > 1) q[tail++] = i;
+      }
+    };
     // sky light pours straight down each column
-    for (let z = 0; z < SZ; z++) for (let x = 0; x < SX; x++) {
+    for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) {
       let l = 15;
       for (let y = SY - 1; y >= 0; y--) {
-        const i = idx(x, y, z), v = b[i];
+        const i = y * L + z * SX + x, v = b[i];
         if (!CLEAR[v]) break;
         if (v === B.LEAVES) l -= 2; else if (v === B.WATER) l -= 1;
         if (l <= 0) break;
         sky[i] = l; q[tail++] = i;
       }
     }
-    // …then spreads sideways and into caves, one less per step
+    ring(sky);
+    // …then spreads sideways and into caves, one less per step (only inside the box)
     const spread = (arr) => {
       while (head < tail) {
         const i = q[head++], l = arr[i];
         if (l <= 1) continue;
-        const x = i % SX, z = Math.floor(i / SX) % SZ, y = Math.floor(i / (SX * SZ));
-        const nb = [x > 0 ? i - 1 : -1, x < SX - 1 ? i + 1 : -1, z > 0 ? i - SX : -1, z < SZ - 1 ? i + SX : -1, y > 0 ? i - SX * SZ : -1, y < SY - 1 ? i + SX * SZ : -1];
-        for (const j of nb) {
-          if (j < 0) continue;
+        const x = i % SX, z = ((i / SX) | 0) % SZ, y = (i / L) | 0;
+        for (let d = 0; d < 6; d++) {
+          let j, nx = x, nz = z;
+          if (d === 0) { nx--; j = i - 1; } else if (d === 1) { nx++; j = i + 1; }
+          else if (d === 2) { nz--; j = i - SX; } else if (d === 3) { nz++; j = i + SX; }
+          else if (d === 4) { if (y <= 0) continue; j = i - L; } else { if (y >= SY - 1) continue; j = i + L; }
+          if (nx < x0 || nx > x1 || nz < z0 || nz > z1) continue;   // only change light inside the box
           const v = b[j];
           if (!CLEAR[v]) continue;
           const nl = l - (v === B.LEAVES || v === B.WATER ? 2 : 1);
@@ -211,22 +253,22 @@ export class World {
       }
     };
     spread(sky);
-    // torches and lava
+    // torches, glowcaps and lava
     head = 0; tail = 0;
-    for (let i = 0; i < N; i++) {
-      const v = b[i];
+    for (let y = 0; y < SY; y++) for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) {
+      const i = y * L + z * SX + x, v = b[i];
       if (v === B.TORCH) { blk[i] = 14; q[tail++] = i; }
+      else if (v === B.MUSHROOM) { blk[i] = 7; q[tail++] = i; }
       else if (v === B.LAVA) {
-        // lava lights the air around it
-        const x = i % SX, z = Math.floor(i / SX) % SZ, y = Math.floor(i / (SX * SZ));
         for (const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, 0, 1], [0, 0, -1]]) {
-          if (!this.inside(x + dx, y + dy, z + dz)) continue;
-          const j = idx(x + dx, y + dy, z + dz);
+          const nx = x + dx, ny = y + dy, nz = z + dz;
+          if (nx < x0 || nx > x1 || nz < z0 || nz > z1 || ny < 0 || ny >= SY) continue;
+          const j = i + dx + dy * L + dz * SX;
           if (CLEAR[b[j]] && blk[j] < 12) { blk[j] = 12; q[tail++] = j; }
         }
       }
     }
+    ring(blk);
     spread(blk);
-    this.dirty = false;
   }
 }

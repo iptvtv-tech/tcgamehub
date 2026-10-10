@@ -103,6 +103,9 @@ Three optional `runGame({...})` settings for games that aren't built from separa
 noCheckpoints: true,                 // no "Start from level N" buttons — every run starts fresh
 levelTitle: (level) => `Day ${level}`, // banner text instead of "Level N"
 clearText: 'YOU SURVIVED!',          // text instead of "LEVEL CLEAR!"
+levelName: 'Day',                    // the HUD box and game-over screen say "Day" instead of "Level"
+levelLabel: (level, bonus) => …,     // the number shown for a level (e.g. a day count that skips bonus rounds)
+wonText: (level) => 'You won!',      // win-screen line instead of "All N levels complete"
 ```
 
 ### 5. Add a thumbnail

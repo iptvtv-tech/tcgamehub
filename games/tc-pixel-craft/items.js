@@ -8,8 +8,9 @@ export const B = {
   AIR: 0, GRASS: 1, DIRT: 2, STONE: 3, COBBLE: 4, SAND: 5, SANDSTONE: 6, LOG: 7, LEAVES: 8, PLANKS: 9,
   TABLE: 10, FURNACE: 11, COAL_ORE: 12, IRON_ORE: 13, GOLD_ORE: 14, CRYSTAL_ORE: 15, BEDROCK: 16,
   WATER: 17, LAVA: 18, TORCH: 19, SNOW: 20, BED: 21, ALTAR: 22, GRAVEL: 23, CACTUS: 24, BRICKS: 25,
+  BUSH: 26, BUSH_RIPE: 27, MUSHROOM: 28,
 };
-export const NBLOCKS = 26;
+export const NBLOCKS = 29;
 
 // ── Items ───────────────────────────────────────────────────
 export const I = {
@@ -21,6 +22,7 @@ export const I = {
   W_SWORD: 92, S_SWORD: 93, I_SWORD: 94, C_SWORD: 95,
   I_HELM: 100, I_CHEST: 101, I_LEGS: 102, I_BOOTS: 103,
   C_HELM: 104, C_CHEST: 105, C_LEGS: 106, C_BOOTS: 107,
+  APPLE: 108, BERRIES: 109, MUSH_COOKED: 110, SILK: 111, BOW: 112, ARROW: 113,
 };
 
 const TIER_NAME = ['', 'Wooden', 'Stone', 'Iron', 'Crystal'];
@@ -57,6 +59,9 @@ def(B.ALTAR, { name: 'Summoning Altar', hard: 5, tool: 'pick', tier: 3, stack: 1
 def(B.GRAVEL, { name: 'Gravel', hard: 0.6, tool: 'shovel', dropChance: [[I.FLINT, 0.15]] });
 def(B.CACTUS, { name: 'Cactus', hard: 0.4 });
 def(B.BRICKS, { name: 'Stone Bricks', hard: 2, tool: 'pick', tier: 1 });
+def(B.BUSH, { name: 'Berry Bush', hard: 0.3, tool: 'axe', drop: 0, plant: true });
+def(B.BUSH_RIPE, { name: 'Berry Bush', hard: 0.3, tool: 'axe', drop: 0, plant: true });
+def(B.MUSHROOM, { name: 'Glowcap', hard: 0.05, food: 2, plant: true });
 
 def(I.STICK, { name: 'Stick' });
 def(I.COAL, { name: 'Coal' });
@@ -66,12 +71,18 @@ def(I.RAW_GOLD, { name: 'Raw Gold' });
 def(I.GOLD, { name: 'Gold Ingot' });
 def(I.CRYSTAL, { name: 'Crystal' });
 def(I.WOOL, { name: 'Wool' });
-def(I.MEAT, { name: 'Raw Meat', food: 2 });
+def(I.MEAT, { name: 'Raw Meat', food: 3 });
 def(I.COOKED, { name: 'Roast Meat', food: 8 });
 def(I.GEL, { name: 'Gloom Gel' });
 def(I.THORN, { name: 'Thorn' });
 def(I.SPORE, { name: 'Spore Dust' });
 def(I.FLINT, { name: 'Flint' });
+def(I.APPLE, { name: 'Apple', food: 4 });
+def(I.BERRIES, { name: 'Berries', food: 2 });
+def(I.MUSH_COOKED, { name: 'Roast Glowcap', food: 6 });
+def(I.SILK, { name: 'Silk' });
+def(I.BOW, { name: 'Bow', stack: 1, tool: 'bow', dur: 140, dmg: 1, col: '#a0743f' });
+def(I.ARROW, { name: 'Arrow' });
 
 // Tools: kind, tier (1 wood … 4 crystal)
 const TOOL_STATS = { 1: { speed: 2, dur: 60 }, 2: { speed: 4, dur: 132 }, 3: { speed: 6, dur: 250 }, 4: { speed: 9, dur: 1200 } };
@@ -105,11 +116,15 @@ r(B.FURNACE, 1, { [B.COBBLE]: 8 }, 'table');
 r(B.BRICKS, 4, { [B.STONE]: 4 }, 'table');
 for (const [mat, base] of [[I.IRON, I.I_HELM], [I.CRYSTAL, I.C_HELM]]) ARMOUR.forEach(([, , cost], k) => r(base + k, 1, { [mat]: cost }, 'table'));
 r(B.BED, 1, { [I.WOOL]: 3, [B.PLANKS]: 3 }, 'table');
+r(I.BOW, 1, { [I.STICK]: 3, [I.SILK]: 3 }, 'table');
+r(I.ARROW, 4, { [I.STICK]: 1, [I.FLINT]: 1 }, 'table');
+r(I.ARROW, 4, { [I.STICK]: 1, [I.THORN]: 1 }, 'table');
 r(B.ALTAR, 1, { [I.CRYSTAL]: 3, [I.GOLD]: 3, [I.GEL]: 6, [B.BRICKS]: 4 }, 'table');
 // smelting
 r(I.IRON, 1, { [I.RAW_IRON]: 1 }, 'furnace');
 r(I.GOLD, 1, { [I.RAW_GOLD]: 1 }, 'furnace');
 r(I.COOKED, 1, { [I.MEAT]: 1 }, 'furnace');
+r(I.MUSH_COOKED, 1, { [B.MUSHROOM]: 1 }, 'furnace');
 r(B.STONE, 1, { [B.COBBLE]: 1 }, 'furnace');
 r(I.COAL, 1, { [B.LOG]: 1 }, 'furnace');
 /** Fuel for one smelt, in the order it's used up. */
@@ -131,12 +146,16 @@ export const ADV = [
   { id: 'ironpick', icon: '🛠️', name: 'Isn\'t It Iron Pick', desc: 'Craft an iron pickaxe', pts: 600 },
   { id: 'deep',     icon: '🕳️', name: 'Into the Depths',    desc: 'Go down near the bottom of the world', pts: 400 },
   { id: 'food',     icon: '🍖', name: 'Well Fed',           desc: 'Eat roast meat', pts: 300 },
+  { id: 'forage',   icon: '🍎', name: 'Forager',            desc: 'Eat berries or an apple', pts: 200 },
+  { id: 'bow',      icon: '🏹', name: 'Sharpshooter',       desc: 'Hit a creature with an arrow', pts: 600 },
+  { id: 'grave',    icon: '🪦', name: 'Second Chance',      desc: 'Get your things back from your grave', pts: 800 },
+  { id: 'blood',    icon: '🩸', name: 'Red Night',          desc: 'Survive a Blood Moon', pts: 1200 },
   { id: 'bed',      icon: '🛏️', name: 'Sweet Dreams',       desc: 'Sleep through a night in a bed', pts: 500 },
   { id: 'armour',   icon: '🛡️', name: 'Suit Up',            desc: 'Wear a full set of iron armour', pts: 1500, badge: 'ironsuit' },
   { id: 'gold',     icon: '🪙', name: 'Gold Rush',          desc: 'Smelt a gold ingot', pts: 600 },
   { id: 'crystal',  icon: '💎', name: 'Shiny!',             desc: 'Mine a crystal', pts: 1000, badge: 'crystal' },
   { id: 'ctool',    icon: '✨', name: 'Crystal Clear',      desc: 'Craft a crystal tool', pts: 1500 },
-  { id: 'hunter',   icon: '🏹', name: 'Night Stalker',      desc: 'Defeat 10 hostile creatures', pts: 1000 },
+  { id: 'hunter',   icon: '🗡️', name: 'Night Stalker',      desc: 'Defeat 10 hostile creatures', pts: 1000 },
   { id: 'altar',    icon: '🔮', name: 'Summoner',           desc: 'Place a Summoning Altar at night', pts: 2000 },
   { id: 'boss',     icon: '👑', name: 'Kingslayer',         desc: 'Defeat the Shadow King', pts: 10000, badge: 'boss' },
 ];
@@ -146,6 +165,8 @@ export const isBlock = (id) => id > 0 && id < 64;
 export const nameOf = (id) => INFO[id]?.name || '?';
 export const stackOf = (id) => INFO[id]?.stack || 64;
 /** Blocks you walk through */
-export const PASSABLE = new Set([B.AIR, B.WATER, B.LAVA, B.TORCH]);
+export const PASSABLE = new Set([B.AIR, B.WATER, B.LAVA, B.TORCH, B.BUSH, B.BUSH_RIPE, B.MUSHROOM]);
 /** Blocks rays see through (drawn specially) */
-export const PLACEABLE = (id) => isBlock(id) && ![B.WATER, B.LAVA, B.BEDROCK].includes(id);
+export const PLACEABLE = (id) => isBlock(id) && ![B.WATER, B.LAVA, B.BEDROCK, B.BUSH_RIPE].includes(id);
+/** Drawn as two crossed pictures instead of a cube */
+export const isPlant = (v) => v === B.BUSH || v === B.BUSH_RIPE || v === B.MUSHROOM;

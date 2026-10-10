@@ -1,42 +1,58 @@
 // ─────────────────────────────────────────────────────────────
 //  TC PIXEL CRAFT — game 19 (Zone 4 · Ultra)
 //  An open-world survival block game. You start with nothing on an island:
-//  punch trees, craft tools, mine deeper, smelt iron, build a shelter before
-//  night — and one day summon and defeat the Shadow King.
+//  punch trees, craft tools, mine deeper, smelt iron, keep yourself fed,
+//  build a shelter before night — and one day summon and defeat the Shadow King.
 //
 //  Fits the arcade like every other game:
-//    • each sunrise is a new "level" (Day 2, Day 3 …) — surviving a night scores
-//    • every 5th sunrise is a ★ STARFALL bonus round (20 s, nothing can hurt you)
-//    • 3 lives: die and you respawn (at your bed if you slept in one) with your stuff
+//    • each sunrise is a new level (Day 2, Day 3 …) — surviving a night scores
+//    • every 5th level is a ★ STARFALL bonus round (20 s, nothing can hurt you)
+//    • 3 lives: die and everything you carry drops into a grave where you fell —
+//      get back to it to recover your things
+//    • difficulty rises ~7% a day, and something new turns up every day or two:
+//        D2 Thornbacks (archers) · D3 Boomcaps, starving can kill · D4 Crawlers
+//        D5 longer nights · D6 armoured monsters · D7+ Blood Moon nights
+//      while food (animals, apples, berries) gets scarcer every day
 //    • score: advancements, ores, creatures defeated (combos!), nights survived
 //    • the Daily Challenge gives everyone the same island
 //  Files: items.js (blocks, recipes, advancements) · world.js (island + light)
-//         textures.js (all the pixel art) · render.js (3D view) · ui.js (HUD & menus)
+//         blocktex.js + textures.js (all the pixel art) · glrender.js (GPU 3D view)
+//         render.js (software 3D view for devices without WebGL 2) · ui.js (HUD & menus)
 // ─────────────────────────────────────────────────────────────
 import { runGame, clamp } from '../../assets/js/engine.js';
-import { B, I, INFO, RECIPES, FUELS, ADV, ADV_BY_ID, isBlock, stackOf, PLACEABLE } from './items.js';
+import { B, I, INFO, FUELS, ADV_BY_ID, isBlock, stackOf, PLACEABLE } from './items.js';
 import { World, SX, SY, SZ, idx } from './world.js';
 import { makeTextures, makeIcons, SPRITES } from './textures.js';
 import { Renderer } from './render.js';
+import { GLRenderer } from './glrender.js';
 import { UI } from './ui.js';
 
 const ID = 'tc-pixel-craft';
 const W = 480, H = 720;
 export const VIEW_H = 560;
-// one day = 200 s: day until 125, sunset to 140, night to 190, sunrise to 200
-const CYCLE = 200, NIGHT_START = 138, NIGHT_END = 192;
+const CYCLE = 200;   // one day-night cycle, in seconds
 export const dayOfLevel = (L) => L - Math.floor(L / 5);
 
 const SOLID = new Uint8Array(64).fill(1);
-for (const b of [B.AIR, B.WATER, B.LAVA, B.TORCH]) SOLID[b] = 0;
+for (const b of [B.AIR, B.WATER, B.LAVA, B.TORCH, B.BUSH, B.BUSH_RIPE, B.MUSHROOM]) SOLID[b] = 0;
 
-// creature types
+// creature types (hp/damage/speed grow with the day — see stats())
 const MOB = {
   gloom: { hp: 16, w: 0.7, h: 0.9, sprH: 1.0, speed: 2.6, dmg: 3, pts: 60, hostile: true, drops: [[I.GEL, 1, 2]] },
-  thorn: { hp: 14, w: 0.8, h: 1.0, sprH: 1.05, speed: 2.0, dmg: 3, pts: 70, hostile: true, drops: [[I.THORN, 0, 2], [I.STICK, 0, 1]] },
+  thorn: { hp: 14, w: 0.8, h: 1.0, sprH: 1.05, speed: 2.0, dmg: 3, pts: 70, hostile: true, drops: [[I.THORN, 1, 2], [I.STICK, 0, 1]] },
   boom: { hp: 14, w: 0.7, h: 1.1, sprH: 1.15, speed: 2.4, dmg: 0, pts: 80, hostile: true, drops: [[I.SPORE, 1, 2]] },
-  fluff: { hp: 8, w: 0.8, h: 0.9, sprH: 1.0, speed: 1.4, dmg: 0, pts: 10, hostile: false, drops: [[I.WOOL, 1, 2], [I.MEAT, 1, 2]] },
+  crawler: { hp: 10, w: 0.95, h: 0.6, sprH: 0.75, speed: 3.6, dmg: 2, pts: 70, hostile: true, drops: [[I.SILK, 1, 2]] },
+  fluff: { hp: 8, w: 0.8, h: 0.9, sprH: 1.0, speed: 1.4, dmg: 0, pts: 10, hostile: false, drops: [[I.WOOL, 1, 2]] },
   king: { hp: 420, w: 2.4, h: 2.8, sprH: 3.0, speed: 3.2, dmg: 6, pts: 5000, hostile: true, drops: [] },
+};
+
+const HINTS = {
+  2: 'Something with thorns is watching from the trees…',
+  3: 'Spores drift on the wind. And your stomach rumbles…',
+  4: 'Skittering, deep in the caves…',
+  5: 'The nights are growing longer.',
+  6: 'The creatures have found armour.',
+  7: 'A red moon will rise tonight…',
 };
 
 let game = null;
@@ -49,15 +65,19 @@ runGame({
   maxMultiplier: 5,
   bonusTime: 20,
   noCheckpoints: true,
+  levelName: 'Day',
+  levelLabel: (L, bonus) => bonus ? '★' : String(dayOfLevel(L)),
   levelTitle: (L) => `Day ${dayOfLevel(L)}`,
   clearText: 'YOU SURVIVED THE NIGHT!',
   winTitle: '👑 The Shadow King has fallen!',
+  wonText: (L) => `Won on day ${dayOfLevel(L)}`,
   levelClearPoints: (L, bonus) => bonus ? 500 : 300 * dayOfLevel(L),
   music: { bpm: 84, style: 'dream', lead: 'triangle', arp: [0, 2, 1, 2, 0, 1, 2, 1], oct: [0, 12, 0, 12, 0, 0, 12, 0], bass: 'half' },
   levelInfo(level, bonus) {
     if (bonus) return '★ STARFALL! Catch the falling stars. Nothing can hurt you for 20 seconds.';
     if (level === 1) return 'A new island. You have nothing. (E = your bag & crafting)';
-    return 'The sun rises.';
+    const d = dayOfLevel(level);
+    return HINTS[d] || (d >= 8 && d % 2 === 1 ? 'Blood Moon tonight. Food is scarce.' : 'Food is getting harder to find.');
   },
   create: (shell) => (game = new PixelCraft(shell)),
 });
@@ -68,12 +88,17 @@ class PixelCraft {
     this.tex = makeTextures();
     this.icons = makeIcons(this.tex);
     this.touchUI = matchMedia('(pointer: coarse)').matches;
-    this.renderer = new Renderer(this.tex, SPRITES, this.touchUI ? 2 : 0);
+    this.clouds = new Uint8Array(64 * 64);
+    { let q = 12345; const rnd = () => ((q = (q * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff); for (let k = 0; k < 30; k++) { const cx = rnd() * 64, cz = rnd() * 64, rx = 2 + rnd() * 5, rz = 1.5 + rnd() * 3; for (let z = -8; z <= 8; z++) for (let x = -10; x <= 10; x++) if ((x / rx) ** 2 + (z / rz) ** 2 < 1) this.clouds[(((Math.floor(cz) + z) & 63) * 64) + ((Math.floor(cx) + x) & 63)] = 255; } }
+    this.gl = null;
+    const forceSoft = /[?&]soft=1/.test(location.search);
+    if (!forceSoft && GLRenderer.supported()) { try { this.gl = new GLRenderer(this.tex, SPRITES, this.clouds); } catch (e) { console.warn('WebGL renderer unavailable, using software 3D', e); this.gl = null; } }
+    if (!this.gl) this.renderer = new Renderer(this.tex, SPRITES, this.touchUI ? 2 : 0);
     this.world = new World();
     this.ui = new UI(this);
     this.keys = new Set();
-    this.joy = null; this.look = null; this.mineTouch = null; this.jumpTouch = null;
-    this.mineMouse = false; this.useQueued = false; this.perf = [];
+    this.joy = null; this.look = null; this.mineTouch = null; this.jumpTouch = null; this.useTouch = null;
+    this.mineMouse = false; this.useMouse = false; this.useQueued = false; this.perf = []; this.frameDt = [];
     this.bindInput();
     this.fresh = true;
     this.newGame();
@@ -85,16 +110,17 @@ class PixelCraft {
   newGame() {
     this.world.generate(this.s.rng);
     const sp = this.world.findSpawn();
-    this.spawn = sp.slice();
+    this.spawn = sp.slice(); this.bedSet = false;
     this.plantNear(sp);
+    this.gl?.invalidateAll();
     this.p = { x: sp[0], y: sp[1], z: sp[2], vx: 0, vy: 0, vz: 0, grounded: false, inWater: false };
     this.yaw = this.s.rng.range(0, Math.PI * 2); this.pitch = -0.1;
-    this.health = 20; this.air = 10; this.hurtCd = 0; this.regenT = 0; this.fallTop = sp[1]; this.burnT = 0;
+    this.health = 20; this.energy = 20; this.air = 10; this.hurtCd = 0; this.regenT = 0; this.fallTop = sp[1]; this.burnT = 0; this.starveT = 0;
     this.inv = new Array(36).fill(null); this.armour = [null, null, null, null]; this.sel = 0;
     this.advs = new Set(); this.kills = 0; this.crafted = new Set();
-    this.mobs = []; this.shots = []; this.stars = []; this.boss = null;
-    this.dayT = 6; this.day = 1; this.spawnT = 3; this.passiveT = 1;
-    this.mining = null; this.swingT = 0; this.attackCd = 0; this.useCd = 0;
+    this.mobs = []; this.shots = []; this.arrows = []; this.stars = []; this.boss = null; this.grave = null;
+    this.dayT = 6; this.day = 1; this.spawnT = 3; this.passiveT = 1; this.bushT = 5; this.bloodNight = false;
+    this.mining = null; this.swingT = 0; this.attackCd = 0; this.useCd = 0; this.eatT = 0; this.bowT = 0;
     this.sleepT = 0; this.relightT = 0; this.stationsT = 0; this.near = { table: false, furnace: false };
     this.toast = null; this.heldNameT = 0;
     this.ui.close();
@@ -122,6 +148,7 @@ class PixelCraft {
     this.level = level; this.bonus = bonus; this.day = dayOfLevel(level);
     this.sleepT = 0;
     if (level > 1) this.dayT = 2; // a fresh morning
+    this.bloodNight = !bonus && this.day >= 7 && this.day % 2 === 1;
     if (bonus) {
       this.stars = []; this.starT = 0; this.starsCaught = 0;
       for (const m of this.mobs) if (MOB[m.type].hostile && m.type !== 'king') this.poof(m);
@@ -129,6 +156,24 @@ class PixelCraft {
       this.shots = [];
     }
   }
+
+  // ── How hard things are today ───────────────────────────────
+  /** food scarcity: 1.2 on day 1, down to 0.3 */
+  foodK() { return clamp(1.2 - 0.09 * (this.day - 1), 0.3, 1.2); }
+  stats(type) {
+    const M = MOB[type], s = this.s;
+    if (type === 'king' || !M.hostile) return { hp: M.hp, dmg: M.dmg, speed: M.speed };
+    const armoured = this.day >= 6;
+    return {
+      hp: Math.round(M.hp * s.speed(0.07, 3) * (armoured ? 1.4 : 1)),
+      dmg: M.dmg ? M.dmg + Math.floor((this.day - 1) / 3) : 0,
+      speed: M.speed * s.speed(0.035, 1.5),
+      armoured,
+    };
+  }
+  /** energy used per second, before activity */
+  drainRate() { return 20 / Math.max(110, 280 / this.s.speed(0.08, 2.6)); }
+  sunsetAt() { return 135 - (this.day >= 5 ? Math.min(30, (this.day - 4) * 6) : 0); }
 
   // ── Input ───────────────────────────────────────────────────
   bindInput() {
@@ -144,12 +189,12 @@ class PixelCraft {
         if (c === 'KeyL' || c === 'Tab') { this.ui.toggle('adv'); return; }
         if (/^Digit[1-9]$/.test(c)) { this.select(+c.slice(5) - 1); }
         if (c === 'KeyK' && !this.ui.open) this.useQueued = true;
-        if (c === 'KeyQ' && !this.ui.open) this.eatHeld();
+        if (c === 'KeyQ' && !this.ui.open) this.startEat();
       }
       this.keys.add(c);
     });
     addEventListener('keyup', (e) => this.keys.delete(e.code));
-    addEventListener('blur', () => { this.keys.clear(); this.mineMouse = false; this.joy = this.look = this.mineTouch = this.jumpTouch = null; });
+    addEventListener('blur', () => { this.keys.clear(); this.mineMouse = this.useMouse = false; this.joy = this.look = this.mineTouch = this.jumpTouch = this.useTouch = null; });
 
     const logical = (e) => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) / r.width * W, (e.clientY - r.top) / r.height * H]; };
     cv.addEventListener('pointerdown', (e) => {
@@ -157,17 +202,16 @@ class PixelCraft {
       if (!playing()) return;
       if (e.pointerType !== 'mouse') this.touchUI = true;
       if (this.ui.open) { this.ui.click(x, y); return; }
-      // hotbar & on-screen buttons work for mouse and touch
       if (this.ui.hudClick(x, y, e.pointerType)) return;
       if (e.pointerType === 'mouse') {
         if (document.pointerLockElement !== cv) { this.lock(); }
         if (e.button === 0) this.mineMouse = true;
-        if (e.button === 2) this.useQueued = true;
+        if (e.button === 2) { this.useQueued = true; this.useMouse = true; }
         return;
       }
       const b = this.ui.touchButton(x, y);
       if (b === 'mine') this.mineTouch = e.pointerId;
-      else if (b === 'use') this.useQueued = true;
+      else if (b === 'use') { this.useQueued = true; this.useTouch = e.pointerId; }
       else if (b === 'jump') this.jumpTouch = e.pointerId;
       else if (y > VIEW_H && x < 170) { this.joy = { id: e.pointerId, dx: 0, dy: 0 }; this.moveJoy(x, y); }
       else if (y < VIEW_H) this.look = { id: e.pointerId, x, y, x0: x, y0: y, t: performance.now() };
@@ -183,16 +227,16 @@ class PixelCraft {
       }
     });
     const up = (e) => {
-      if (e.pointerType === 'mouse') { if (e.button === 0) this.mineMouse = false; return; }
+      if (e.pointerType === 'mouse') { if (e.button === 0) this.mineMouse = false; if (e.button === 2) this.useMouse = false; return; }
       this.ui.dragEnd?.();
       if (this.joy && e.pointerId === this.joy.id) this.joy = null;
       if (this.look && e.pointerId === this.look.id) {
-        // a quick tap on the view = use / place
-        const l = this.look; this.look = null;
+        const l = this.look; this.look = null;   // a quick tap on the view = use / place
         if (Math.hypot(l.x - l.x0, l.y - l.y0) < 10 && performance.now() - l.t < 250 && playing() && !this.ui.open) this.useQueued = true;
       }
       if (this.mineTouch === e.pointerId) this.mineTouch = null;
       if (this.jumpTouch === e.pointerId) this.jumpTouch = null;
+      if (this.useTouch === e.pointerId) this.useTouch = null;
     };
     addEventListener('pointerup', up);
     addEventListener('pointercancel', up);
@@ -209,7 +253,7 @@ class PixelCraft {
     }, { passive: false });
     document.addEventListener('pointerlockchange', () => {
       const locked = document.pointerLockElement === cv;
-      if (!locked) this.mineMouse = false;
+      if (!locked) this.mineMouse = this.useMouse = false;
       if (!locked && this.wasLocked && playing() && !this.ui.open && !this.quietUnlock) s.togglePause();
       this.quietUnlock = false;
       this.wasLocked = locked;
@@ -218,7 +262,8 @@ class PixelCraft {
   lock() { const cv = this.s.canvas; if (this.touchUI || !cv.requestPointerLock) return; try { const p = cv.requestPointerLock(); p?.catch?.(() => {}); } catch { /* ignore */ } }
   unlock() { if (document.pointerLockElement) { this.quietUnlock = true; document.exitPointerLock?.(); } }
   moveJoy(x, y) { const dx = x - 80, dy = y - 662, d = Math.hypot(dx, dy), m = Math.min(1, d / 48); this.joy.dx = d ? dx / d * m : 0; this.joy.dy = d ? dy / d * m : 0; }
-  select(i) { this.sel = i; this.heldNameT = 1.6; this.mining = null; }
+  select(i) { this.sel = i; this.heldNameT = 1.6; this.mining = null; this.eatT = 0; this.bowT = 0; }
+  useDown() { return this.useMouse || this.useTouch !== null || this.keys.has('KeyK'); }
 
   // ── Inventory ───────────────────────────────────────────────
   held() { return this.inv[this.sel]; }
@@ -250,8 +295,7 @@ class PixelCraft {
     for (const [id, n] of Object.entries(r.needs)) if (this.count(+id) < n) return false;
     if (r.at === 'furnace') {
       const f = this.fuelFor(); if (!f) return false;
-      // the fuel can't also be the thing you're smelting
-      const need = r.needs[f[0]] || 0; if (need && this.count(f[0]) < need + f[1]) return false;
+      const need = r.needs[f[0]] || 0; if (need && this.count(f[0]) < need + f[1]) return false;   // the fuel can't also be what you smelt
     }
     return true;
   }
@@ -274,21 +318,30 @@ class PixelCraft {
     if (info.tool && info.tier === 4) this.adv('ctool');
     return true;
   }
-  checkArmour() {
-    if (this.armour.every((a) => a && INFO[a.id].armour !== undefined)) this.adv('armour');
-  }
+  checkArmour() { if (this.armour.every((a) => a && INFO[a.id].armour !== undefined)) this.adv('armour'); }
   protection() { let p = 0; for (const a of this.armour) if (a) p += INFO[a.id].protect; return Math.min(0.8, p); }
 
-  eatHeld() {
+  // ── Food & energy ───────────────────────────────────────────
+  startEat() {
     const it = this.held();
-    if (!it || !INFO[it.id].food || this.health >= 20) return false;
-    this.health = Math.min(20, this.health + INFO[it.id].food);
-    if (it.id === I.COOKED) this.adv('food');
-    it.n--; if (!it.n) this.inv[this.sel] = null;
-    this.s.sound.play('eat');
-    this.s.fx.text(W / 2, VIEW_H * 0.55, '+♥', { color: '#f87171', size: 26 });
+    if (!it || !INFO[it.id].food) return false;
+    if (this.energy >= 20) { this.ui.say('You\'re not hungry.', '#e7e5e4'); return false; }
+    if (!this.eatT) { this.eatT = 0.001; this.eatId = it.id; }
     return true;
   }
+  finishEat() {
+    const it = this.held();
+    this.eatT = 0;
+    if (!it || it.id !== this.eatId) return;
+    const food = INFO[it.id].food;
+    this.energy = Math.min(20, this.energy + food);
+    if (it.id === I.COOKED || it.id === I.MUSH_COOKED) this.adv('food');
+    if (it.id === I.APPLE || it.id === I.BERRIES) this.adv('forage');
+    it.n--; if (!it.n) this.inv[this.sel] = null;
+    this.s.sound.play('eat');
+    this.s.fx.text(W / 2, VIEW_H * 0.55, `+${food} ⚡`, { color: '#fde047', size: 22 });
+  }
+  tire(n) { this.energy = Math.max(0, this.energy - n); }
 
   // ── Advancements ────────────────────────────────────────────
   adv(id) {
@@ -367,7 +420,6 @@ class PixelCraft {
     }
     if (this.sleepT) { this.sleepT -= dt; if (this.sleepT <= 0) { this.sleepT = 0; this.adv('bed'); return this.dawn(); } }
 
-    // nearby crafting table / furnace
     this.stationsT -= dt;
     if (this.stationsT <= 0) { this.stationsT = 0.4; this.findStations(); }
 
@@ -379,52 +431,88 @@ class PixelCraft {
     const frozen = this.ui.open || this.sleepT;
     let fwdIn = frozen ? 0 : (k.has('KeyW') ? 1 : 0) - (k.has('KeyS') ? 1 : 0);
     let strafe = frozen ? 0 : (k.has('KeyD') ? 1 : 0) - (k.has('KeyA') ? 1 : 0);
-    if (this.joy && !frozen) { fwdIn -= this.joy.dy; strafe += this.joy.dx; }
+    let sprintIn = k.has('ShiftLeft') || k.has('ShiftRight');
+    if (this.joy && !frozen) { fwdIn -= this.joy.dy; strafe += this.joy.dx; if (-this.joy.dy > 0.93) sprintIn = true; }
     const len = Math.hypot(fwdIn, strafe);
     if (len > 1) { fwdIn /= len; strafe /= len; }
     p.inWater = this.touching(p, 0.3, 1.0, B.WATER);
     const headWater = this.world.get(Math.floor(p.x), Math.floor(p.y + 1.62), Math.floor(p.z)) === B.WATER;
-    const sprint = k.has('ShiftLeft') || k.has('ShiftRight') ? 1.3 : 1;
-    const speed = (p.inWater ? 2.6 : 4.3) * (fwdIn > 0 ? sprint : 1);
+    const weak = this.energy <= 6;
+    const sprinting = sprintIn && fwdIn > 0 && !weak && !this.eatT && !this.bowT;
+    let speed = (p.inWater ? 2.6 : 4.3) * (sprinting ? 1.32 : 1) * (weak ? 0.85 : 1);
+    if (this.eatT || this.bowT) speed *= 0.45;
     const sy = Math.sin(this.yaw), cy = Math.cos(this.yaw);
     const tvx = (sy * fwdIn + cy * strafe) * speed, tvz = (cy * fwdIn - sy * strafe) * speed;
     const acc = p.grounded || p.inWater ? 12 : 4;
     p.vx += (tvx - p.vx) * Math.min(1, dt * acc); p.vz += (tvz - p.vz) * Math.min(1, dt * acc);
     const jump = !frozen && (k.has('Space') || this.jumpTouch !== null);
     if (p.inWater) { p.vy *= 0.92; if (jump) p.vy = Math.min(p.vy + 30 * dt, 3.4); }
-    else if (jump && p.grounded) p.vy = 8.6;
+    else if (jump && p.grounded) { p.vy = 8.6; this.tire(0.06); }
     const wasGrounded = p.grounded, vyBefore = p.vy;
     const { hitX, hitZ } = this.moveBody(p, dt, 0.3, 1.8, p.inWater ? 9 : 28);
     if ((hitX || hitZ) && p.grounded && len > 0.3) p.vy = 8.6; // step up single blocks
-    // fall damage
     if (p.inWater || p.grounded && vyBefore >= -1) this.fallTop = p.y;
     if (!p.grounded && !p.inWater) this.fallTop = Math.max(this.fallTop, p.y);
     if (p.grounded && !wasGrounded && !p.inWater) { const fall = this.fallTop - p.y; if (fall > 3.5) this.damage(Math.floor(fall - 3), 'fall'); this.fallTop = p.y; }
     if (p.y < 6) this.adv('deep');
+
+    // energy
+    if (!this.bonus) {
+      const moving = len > 0.2;
+      let drain = this.drainRate() * (1 + (sprinting ? 1.4 : 0) + (p.inWater && moving ? 0.6 : 0) + (this.mining ? 0.5 : 0));
+      if (this.sleepT) drain = 0;
+      this.tire(drain * dt);
+      if (this.energy <= 0) {
+        this.starveT += dt;
+        if (this.starveT > 4) { this.starveT = 0; if (this.day >= 3 || this.health > 2) this.damage(1, 'starve'); }
+      } else this.starveT = 0;
+    }
+
+    // grave
+    if (this.grave && Math.hypot(this.grave.x - p.x, this.grave.z - p.z) < 1.3 && Math.abs(this.grave.y - p.y) < 2) this.openGrave();
 
     // hazards
     if (this.touching(p, 0.3, 1.8, B.LAVA)) { this.burnT -= dt; if (this.burnT <= 0) { this.burnT = 0.5; this.damage(4, 'lava'); } }
     if (this.touching({ x: p.x, y: p.y, z: p.z }, 0.36, 1.8, B.CACTUS)) { this.burnT -= dt; if (this.burnT <= 0) { this.burnT = 0.6; this.damage(1, 'cactus'); } }
     if (headWater) { this.air = Math.max(0, this.air - dt); if (this.air <= 0) { this.burnT -= dt; if (this.burnT <= 0) { this.burnT = 1; this.damage(2, 'drown'); } } }
     else this.air = Math.min(10, this.air + dt * 4);
-    if (this.s.state !== 'playing') return;
+    if (s.state !== 'playing') return;
 
-    // health comes back slowly
+    // health only comes back while you're well fed
     this.regenT += dt;
-    if (this.regenT > 4 && this.health < 20 && this.hurtCd <= 0) { this.regenT = 0; this.health++; }
+    const regenEvery = this.energy >= 16 ? 3 : this.energy >= 8 ? 8 : Infinity;
+    if (this.regenT > regenEvery && this.health < 20 && this.hurtCd <= 0) { this.regenT = 0; this.health++; this.tire(0.4); }
 
-    // mine / attack / use
+    // eating / bow / hands
+    if (this.eatT) {
+      this.eatT += dt;
+      this.chewT = (this.chewT || 0) - dt;
+      if (this.chewT <= 0) { this.chewT = 0.28; s.sound.play('flap'); }
+      if (this.eatT >= 1.1) this.finishEat();
+    }
     if (!frozen) this.hands(dt);
 
-    // creatures & projectiles
+    // creatures, projectiles, bushes
     this.updateMobs(dt);
     if (s.state !== 'playing') return;
     this.updateShots(dt);
+    this.updateArrows(dt);
     if (this.bonus) this.updateStars(dt);
+    this.bushT -= dt;
+    if (this.bushT <= 0) { this.bushT = 5; this.regrowBush(); }
 
     // light
     this.relightT -= dt;
-    if (this.world.dirty && this.relightT <= 0) { this.relightT = 0.12; this.world.relight(); }
+    if (this.world.dirty && this.relightT <= 0) { this.relightT = 0.08; this.world.relight(); }
+  }
+
+  regrowBush() {
+    const r = this.s.rng, w = this.world;
+    if (!r.chance(0.3 * this.foodK())) return;
+    for (let tries = 0; tries < 30; tries++) {
+      const x = r.int(2, SX - 3), z = r.int(2, SZ - 3), y = w.top[z * SX + x] + 1;
+      if (w.get(x, y, z) === B.BUSH) { w.set(x, y, z, B.BUSH_RIPE); return; }
+    }
   }
 
   findStations() {
@@ -437,8 +525,8 @@ class PixelCraft {
   }
 
   // ── Sun ─────────────────────────────────────────────────────
-  sunAngle() { const t = this.dayT; return t < 135 ? Math.PI * (t + 5) / 140 : Math.PI + Math.PI * (t - 135) / 65; }
-  isNight() { return !this.bonus && this.dayT > NIGHT_START && this.dayT < NIGHT_END; }
+  sunAngle() { const t = this.dayT, S = this.sunsetAt(); return t < S ? Math.PI * (t + 5) / (S + 5) : Math.PI + Math.PI * (t - S) / (CYCLE - S); }
+  isNight() { return !this.bonus && this.dayT > this.sunsetAt() + 3 && this.dayT < CYCLE - 8; }
   daylight() { const a = this.sunAngle(); return clamp(Math.sin(a) * 3 + 0.35, 0, 1); }
 
   dawn() {
@@ -446,7 +534,7 @@ class PixelCraft {
     if (s.state !== 'playing') return;
     this.dayT = CYCLE;
     this.adv('night');
-    // creatures of the night burn away in the sunlight (cave dwellers stay)
+    if (this.bloodNight) this.adv('blood');
     for (const m of this.mobs) if (MOB[m.type].hostile && m.type !== 'king' && this.world.sky[this.cellIdx(m)] > 10) this.poof(m);
     this.mobs = this.mobs.filter((m) => !m.dead);
     s.completeLevel();
@@ -460,7 +548,16 @@ class PixelCraft {
     const target = this.castBlock();
     this.target = target;
     const it = this.held(), info = it ? INFO[it.id] : null;
-    if (mineHeld) {
+    // bow: hold USE to draw, let go to shoot
+    if (info && info.tool === 'bow') {
+      if (this.useDown() && !this.eatT) {
+        if (!this.bowT) { if (!this.count(I.ARROW)) { if (this.useQueued) this.ui.say('You have no arrows.'); this.useQueued = false; } else this.bowT = 0.001; }
+        else this.bowT = Math.min(1.2, this.bowT + dt);
+        this.useQueued = false;
+      } else if (this.bowT) { this.fireArrow(this.bowT); this.bowT = 0; }
+    } else this.bowT = 0;
+    if (this.eatT) { this.mining = null; this.useQueued = false; return; }
+    if (mineHeld && !this.bowT) {
       this.swingT = Math.max(this.swingT, 0.05);
       const foe = this.attackCd <= 0 && this.foeInFront(target ? target.t : 3.4);
       if (foe) { this.hit(foe); this.mining = null; }
@@ -490,34 +587,42 @@ class PixelCraft {
     const canDrop = !bi.tier || (tool && tool.tool === 'pick' && tool.tier >= bi.tier);
     let time = bi.hard * (canDrop ? 1.5 : 5);
     if (right) time /= tool.speed;
+    if (this.energy <= 6) time *= 1.3;
     return Math.max(0.05, time);
   }
 
   breakBlock(t, tool) {
-    const s = this.s, bi = INFO[t.v], v = t.v;
+    const s = this.s, bi = INFO[t.v], v = t.v, f = this.foodK();
     this.mining = null;
+    if (v === B.BUSH_RIPE) return this.harvest(t);
     this.world.set(t.x, t.y, t.z, B.AIR);
-    // things resting on top fall off (torches, cactus)
-    const above = this.world.get(t.x, t.y + 1, t.z);
-    if (above === B.TORCH) { this.world.set(t.x, t.y + 1, t.z, B.AIR); this.give(B.TORCH, 1); }
+    for (const up of [B.TORCH, B.BUSH, B.BUSH_RIPE, B.MUSHROOM]) if (this.world.get(t.x, t.y + 1, t.z) === up) { this.world.set(t.x, t.y + 1, t.z, B.AIR); if (up === B.TORCH || up === B.MUSHROOM) this.give(up, 1); }
     s.fx.burst(W / 2, VIEW_H / 2, { colors: this.particleCols(v), count: 14, speed: 160, gravity: 500, size: 4 });
     s.sound.play(bi.tool === 'pick' ? 'brick' : 'bounce', 4);
+    this.tire(0.05);
     const canDrop = !bi.tier || (tool && tool.tool === 'pick' && tool.tier >= bi.tier);
     if (canDrop) {
       const drop = bi.drop === undefined ? v : bi.drop;
       if (drop) this.give(drop, 1);
       for (const [id, ch] of bi.dropChance || []) if (s.rng.chance(ch)) this.give(id, 1);
+      if (v === B.LEAVES && s.rng.chance(0.07 * f)) { this.give(I.APPLE, 1); s.fx.text(W / 2, VIEW_H * 0.45, '🍎', { size: 24 }); }
       if (bi.ore) {
         s.award(bi.ore, W / 2, VIEW_H / 2 - 30, { chain: true, color: '#fde047' });
         s.sound.play(v === B.CRYSTAL_ORE ? 'golden' : 'gem', s.comboCount);
       }
-    } else if (bi.tier) {
-      s.fx.text(W / 2, VIEW_H * 0.58, 'Too hard for this tool…', { color: '#fca5a5', size: 16 });
-    }
+    } else if (bi.tier) s.fx.text(W / 2, VIEW_H * 0.58, 'Too hard for this tool…', { color: '#fca5a5', size: 16 });
     this.wearTool(tool && bi.tool && tool.tool ? 1 : 0);
-    if (v === B.BED) { this.spawn = this.world.findSpawn(); }
+    if (v === B.BED) { this.spawn = this.world.findSpawn(); this.bedSet = false; }
   }
-  particleCols(v) { const o = (v * 3 + 1) * 256 * 3; const c = (n) => `rgb(${this.tex[o + n * 3]},${this.tex[o + n * 3 + 1]},${this.tex[o + n * 3 + 2]})`; return [c(17), c(90), c(200), c(140)]; }
+  harvest(t) {
+    const s = this.s, f = this.foodK();
+    const n = 1 + (s.rng.chance(f * 0.6) ? 1 : 0) + (s.rng.chance(f * 0.3) ? 1 : 0);
+    this.world.set(t.x, t.y, t.z, B.BUSH);
+    this.give(I.BERRIES, n);
+    s.sound.play('eat'); s.fx.burst(W / 2, VIEW_H / 2, { colors: ['#dc2626', '#fecaca', '#2f8434'], count: 10, speed: 120 });
+    s.fx.text(W / 2, VIEW_H * 0.45, `+${n} berries`, { color: '#fca5a5', size: 18 });
+  }
+  particleCols(v) { const T = this.tex, o = (v * 3 + 1) * 1024 * 4; const c = (n) => `rgb(${T[o + n * 4]},${T[o + n * 4 + 1]},${T[o + n * 4 + 2]})`; return [c(70), c(300), c(620), c(900)]; }
 
   wearTool(n) {
     const it = this.held();
@@ -529,7 +634,8 @@ class PixelCraft {
   use(target) {
     const s = this.s, it = this.held(), id = it?.id;
     this.useCd = 0.2;
-    if (it && INFO[id].food && this.health < 20) return this.eatHeld();
+    if (target && target.v === B.BUSH_RIPE) return this.harvest(target);
+    if (it && INFO[id].food) { this.startEat(); return; }
     if (target) {
       if (target.v === B.TABLE || target.v === B.FURNACE) { this.findStations(); this.ui.toggle('inv'); return; }
       if (target.v === B.BED) return this.trySleep(target);
@@ -541,8 +647,8 @@ class PixelCraft {
     const cur = w.get(x, y, z);
     if (cur !== B.AIR && cur !== B.WATER) return;
     const overlap = (bx, by, bz, hw, h) => bx + hw > x && bx - hw < x + 1 && bz + hw > z && bz - hw < z + 1 && by + h > y && by < y + 1;
-    if (id !== B.TORCH && (overlap(this.p.x, this.p.y, this.p.z, 0.3, 1.8) || this.mobs.some((m) => overlap(m.x, m.y, m.z, MOB[m.type].w / 2, MOB[m.type].h)))) return;
-    if (id === B.TORCH && !this.solid(x, y - 1, z) && !this.solid(x + 1, y, z) && !this.solid(x - 1, y, z) && !this.solid(x, y, z + 1) && !this.solid(x, y, z - 1)) return;
+    if (id !== B.TORCH && id !== B.MUSHROOM && (overlap(this.p.x, this.p.y, this.p.z, 0.3, 1.8) || this.mobs.some((m) => overlap(m.x, m.y, m.z, MOB[m.type].w / 2, MOB[m.type].h)))) return;
+    if ((id === B.TORCH || id === B.MUSHROOM) && !this.solid(x, y - 1, z)) return;
     if (id === B.ALTAR) { if (!this.isNight()) { s.fx.text(W / 2, VIEW_H * 0.5, 'The altar only wakes at night…', { color: '#e9d5ff', size: 18 }); return; } if (this.boss) return; }
     w.set(x, y, z, id);
     it.n--; if (!it.n) this.inv[this.sel] = null;
@@ -554,9 +660,10 @@ class PixelCraft {
 
   trySleep(t) {
     const s = this.s;
-    this.spawn = [t.x + 0.5, t.y + 1, t.z + 0.5];
+    this.spawn = [t.x + 0.5, t.y + 1, t.z + 0.5]; this.bedSet = true;
     if (!this.isNight()) { s.fx.text(W / 2, VIEW_H * 0.5, 'Respawn point set. You can only sleep at night.', { color: '#e0e7ff', size: 16 }); return; }
     if (this.boss || this.mobs.some((m) => MOB[m.type].hostile && Math.hypot(m.x - this.p.x, m.z - this.p.z) < 10)) { s.fx.text(W / 2, VIEW_H * 0.5, 'You can\'t sleep — monsters nearby!', { color: '#fca5a5', size: 18 }); return; }
+    if (this.energy < 3) { s.fx.text(W / 2, VIEW_H * 0.5, 'Too hungry to sleep…', { color: '#fca5a5', size: 18 }); return; }
     this.sleepT = 1.6;
     s.sound.play('life');
   }
@@ -577,27 +684,56 @@ class PixelCraft {
     return best;
   }
 
-  hit(m) {
+  hit(m, dmgOverride, fromArrow) {
     const s = this.s, it = this.held(), info = it ? INFO[it.id] : null;
-    const dmg = info && info.dmg ? info.dmg : 1;
-    this.attackCd = 0.45; this.swingT = 0.3;
+    const dmg = dmgOverride ?? (info && info.dmg && info.tool !== 'bow' ? info.dmg : 1) * (this.energy <= 6 ? 0.75 : 1);
+    if (!fromArrow) { this.attackCd = 0.45; this.swingT = 0.3; this.tire(0.1); }
     m.hp -= dmg; m.flash = 0.15; m.aggro = true;
-    const [fx, , fz] = this.fwd(), n = Math.hypot(fx, fz) || 1, kb = m.type === 'king' ? 2 : 7;
-    m.vx = fx / n * kb; m.vz = fz / n * kb; m.vy = m.type === 'king' ? 0 : 5; m.stun = 0.4;
+    const kx = fromArrow ? fromArrow[0] : this.fwd()[0], kz = fromArrow ? fromArrow[1] : this.fwd()[2], n = Math.hypot(kx, kz) || 1, kb = m.type === 'king' ? 2 : 7;
+    m.vx = kx / n * kb; m.vz = kz / n * kb; m.vy = m.type === 'king' ? 0 : 5; m.stun = 0.4;
     if (m.type === 'boom') m.fuse = 0;
     s.sound.play('hit');
-    this.wearTool(info && info.dmg ? 1 : 0);
+    if (!fromArrow) this.wearTool(info && info.dmg && info.tool !== 'bow' ? 1 : 0);
     if (m.hp <= 0) this.kill(m);
+  }
+
+  fireArrow(charge) {
+    const s = this.s, k = Math.min(1, charge);
+    if (k < 0.15 || !this.count(I.ARROW)) return;
+    this.take(I.ARROW, 1);
+    const [ex, ey, ez] = this.eye(), [fx, fy, fz] = this.fwd(), sp = 14 + k * 24;
+    this.arrows.push({ x: ex + fx * 0.4, y: ey - 0.1 + fy * 0.4, z: ez + fz * 0.4, vx: fx * sp, vy: fy * sp, vz: fz * sp, dmg: 2 + k * 8, life: 4 });
+    this.wearTool(1);
+    s.sound.play('flap');
+  }
+  updateArrows(dt) {
+    for (const a of this.arrows) {
+      a.life -= dt; a.vy -= 12 * dt;
+      a.x += a.vx * dt; a.y += a.vy * dt; a.z += a.vz * dt;
+      if (this.solid(Math.floor(a.x), Math.floor(a.y), Math.floor(a.z))) { a.stuck = true; a.vx = a.vy = a.vz = 0; a.life = Math.min(a.life, 2); }
+      if (a.stuck) continue;
+      for (const m of this.mobs) {
+        const M = MOB[m.type];
+        if (Math.abs(a.x - m.x) < M.w * 0.6 && Math.abs(a.z - m.z) < M.w * 0.6 && a.y > m.y && a.y < m.y + M.h + 0.1) {
+          a.life = 0; this.adv('bow'); this.hit(m, a.dmg, [a.vx, a.vz]);
+          this.s.fx.text(W / 2, VIEW_H * 0.4, 'Hit!', { color: '#fde68a', size: 18 });
+          break;
+        }
+      }
+    }
+    this.arrows = this.arrows.filter((a) => a.life > 0);
   }
 
   kill(m, byPlayer = true) {
     const s = this.s, M = MOB[m.type];
+    if (m.dead) return;
     m.dead = true;
     s.fx.burst(W / 2, VIEW_H / 2, { colors: m.type === 'fluff' ? ['#f8fafc', '#fcd9b6'] : ['#7c3aed', '#c4b5fd', '#fde047', '#a3e635'], count: m.type === 'king' ? 80 : 20, speed: 260 });
     if (!byPlayer) return;
     for (const [id, a, b] of M.drops) { const n = s.rng.int(a, b); if (n) this.give(id, n); }
+    if (m.type === 'fluff') { const f = this.foodK(); this.give(I.MEAT, 1 + (s.rng.chance(f * 0.55) ? 1 : 0)); }
     if (M.hostile) {
-      s.award(M.pts, W / 2, VIEW_H / 2 - 30, { chain: true, color: '#c4b5fd' });
+      s.award(Math.round(M.pts * (m.armoured ? 1.5 : 1)), W / 2, VIEW_H / 2 - 30, { chain: true, color: '#c4b5fd' });
       s.sound.play('powerup');
       this.kills++;
       this.adv('kill');
@@ -616,19 +752,46 @@ class PixelCraft {
   damage(n, why) {
     const s = this.s;
     if (this.bonus || this.hurtCd > 0 || s.state !== 'playing' || n <= 0) return;
-    const prot = why === 'fall' || why === 'drown' || why === 'lava' ? 0 : this.protection();
+    const prot = why === 'fall' || why === 'drown' || why === 'lava' || why === 'starve' ? 0 : this.protection();
     const d = Math.max(1, Math.round(n * (1 - prot)));
     this.health -= d;
-    this.hurtCd = 0.5; this.regenT = 0;
-    if (prot > 0) for (const a of this.armour) if (a) { a.dur--; if (a.dur <= 0) this.armour[this.armour.indexOf(a)] = null; }
+    this.hurtCd = why === 'starve' ? 0 : 0.5; this.regenT = 0;
+    if (prot > 0) for (let i = 0; i < 4; i++) { const a = this.armour[i]; if (a) { a.dur--; if (a.dur <= 0) this.armour[i] = null; } }
     s.sound.play('hit'); s.fx.shake(5, 0.2); s.fx.flash('#ff2244', 0.22);
     this.hurtFlash = 0.35;
+    this.eatT = 0;
     if (this.health <= 0) {
       this.health = 0;
-      const msg = { fall: 'You fell too far', lava: 'You tried to swim in lava', drown: 'You drowned', cactus: 'You hugged a cactus', boom: 'You were blown up', thorn: 'You were shot by a Thornback', king: 'The Shadow King got you', gloom: 'A Gloomling got you' }[why] || 'You died';
+      const msg = { fall: 'You fell too far', lava: 'You tried to swim in lava', drown: 'You drowned', cactus: 'You hugged a cactus', boom: 'You were blown up', thorn: 'You were shot by a Thornback', king: 'The Shadow King got you', gloom: 'A Gloomling got you', crawler: 'A Crawler got you', starve: 'You starved' }[why] || 'You died';
       s.fx.text(W / 2, VIEW_H * 0.4, msg, { color: '#fca5a5', size: 22, life: 1.5 });
+      this.dropGrave();
       s.hurt();
     }
+  }
+
+  /** Everything you carry drops into a grave where you fell. */
+  dropGrave() {
+    const items = [...this.inv, ...this.armour].filter(Boolean);
+    this.inv = new Array(36).fill(null); this.armour = [null, null, null, null];
+    if (!items.length || this.s.lives <= 1) { this.grave = null; return; }
+    const p = this.p;
+    let y = Math.floor(p.y);
+    if (this.touching(p, 0.3, 1.8, B.LAVA) || y < 1) { // a grave in lava would be lost: put it on the nearest safe ground above
+      y = this.world.top[clamp(Math.floor(p.z), 0, SZ - 1) * SX + clamp(Math.floor(p.x), 0, SX - 1)] + 1;
+    }
+    this.grave = { x: p.x, y, z: p.z, items };
+  }
+  openGrave() {
+    const g = this.grave; this.grave = null;
+    for (const it of g.items) {
+      const a = INFO[it.id].armour;
+      if (a !== undefined && !this.armour[a]) { this.armour[a] = it; continue; }
+      const slot = this.inv.findIndex((x) => !x);
+      if (INFO[it.id].stack === 1 && slot >= 0) this.inv[slot] = it; else this.give(it.id, it.n);
+    }
+    this.adv('grave');
+    this.s.sound.play('life');
+    this.ui.say('You got your things back!', '#a7f3d0');
   }
 
   onLifeLost() {
@@ -636,7 +799,7 @@ class PixelCraft {
     [p.x, p.y, p.z] = this.spawn;
     if (this.collides(p.x, p.y, p.z, 0.3, 1.8)) { const sp = this.world.findSpawn(); [p.x, p.y, p.z] = sp; }
     p.vx = p.vy = p.vz = 0; this.fallTop = p.y;
-    this.health = 20; this.air = 10; this.hurtCd = 3;
+    this.health = 20; this.energy = Math.max(this.energy, 12); this.air = 10; this.hurtCd = 3; this.eatT = 0; this.bowT = 0;
     this.mobs = this.mobs.filter((m) => m.type === 'king' || !MOB[m.type].hostile || Math.hypot(m.x - p.x, m.z - p.z) > 14);
     this.shots = [];
     this.ui.close();
@@ -656,8 +819,8 @@ class PixelCraft {
   }
 
   spawnMob(type, x, y, z) {
-    const M = MOB[type];
-    const m = { type, x, y, z, vx: 0, vy: 0, vz: 0, hp: M.hp, flash: 0, stun: 0, t: this.s.rng.range(0, 3), grounded: false, wander: 0, wx: 0, wz: 0, fuse: 0, shotT: 2, aggro: false };
+    const st = this.stats(type);
+    const m = { type, x, y, z, vx: 0, vy: 0, vz: 0, hp: st.hp, maxHp: st.hp, dmg: st.dmg, speed: st.speed, armoured: !!st.armoured, flash: 0, stun: 0, t: this.s.rng.range(0, 3), grounded: false, wander: 0, wx: 0, wz: 0, fuse: 0, shotT: 2, aggro: false };
     this.mobs.push(m);
     return m;
   }
@@ -686,25 +849,35 @@ class PixelCraft {
     }
     return null;
   }
+  pickHostile() {
+    const r = this.s.rng, d = this.day, opts = [['gloom', 5]];
+    if (d >= 2) opts.push(['thorn', 3]);
+    if (d >= 3) opts.push(['boom', 2]);
+    if (d >= 4) opts.push(['crawler', 3]);
+    let k = r.next() * opts.reduce((a, o) => a + o[1], 0);
+    for (const [t, wgt] of opts) { k -= wgt; if (k <= 0) return t; }
+    return 'gloom';
+  }
 
   updateMobs(dt) {
     const s = this.s, p = this.p, r = s.rng;
-    // spawning
     if (!this.bonus) {
       this.spawnT -= dt;
       if (this.spawnT <= 0) {
-        this.spawnT = 2.2;
+        this.spawnT = Math.max(0.8, 2.4 - this.day * 0.12) / (this.bloodNight && this.isNight() ? 1.6 : 1);
         const hostiles = this.mobs.filter((m) => MOB[m.type].hostile && m.type !== 'king').length;
-        const cap = this.isNight() ? 4 + Math.min(this.day, 6) : 3;
+        const night = this.isNight();
+        const cap = night ? Math.round(Math.min(12, 3 + this.day) * (this.bloodNight ? 1.6 : 1)) : Math.min(6, 2 + Math.floor(this.day / 2));
         if (hostiles < cap) {
-          const cell = this.isNight() ? (r.chance(0.7) ? this.findSpawnCell(14, 26, 'surface') : this.findSpawnCell(10, 22, 'cave')) : this.findSpawnCell(10, 22, 'cave');
-          if (cell) { const pick = r.next(); this.spawnMob(pick < 0.5 ? 'gloom' : pick < 0.78 ? 'thorn' : 'boom', ...cell); }
+          const cell = night ? (r.chance(0.7) ? this.findSpawnCell(14, 26, 'surface') : this.findSpawnCell(10, 22, 'cave')) : this.findSpawnCell(10, 22, 'cave');
+          if (cell) this.spawnMob(this.pickHostile(), ...cell);
         }
       }
       this.passiveT -= dt;
       if (this.passiveT <= 0) {
-        this.passiveT = 5;
-        if (!this.isNight() && this.mobs.filter((m) => m.type === 'fluff').length < 6) { const cell = this.findSpawnCell(12, 28, 'grass'); if (cell) this.spawnMob('fluff', ...cell); }
+        const f = this.foodK();
+        this.passiveT = 5 / f;
+        if (!this.isNight() && this.mobs.filter((m) => m.type === 'fluff').length < Math.max(1, Math.round(6 * f))) { const cell = this.findSpawnCell(12, 28, 'grass'); if (cell) this.spawnMob('fluff', ...cell); }
       }
     }
     for (const m of this.mobs) {
@@ -719,9 +892,9 @@ class PixelCraft {
         tvx = flee ? -dx / d * 3.2 : m.wx * M.speed; tvz = flee ? -dz / d * 3.2 : m.wz * M.speed;
       } else if (m.type === 'thorn') {
         const want = d > 9 ? 1 : d < 5 ? -1 : 0;
-        tvx = dx / d * M.speed * want; tvz = dz / d * M.speed * want;
+        tvx = dx / d * m.speed * want; tvz = dz / d * m.speed * want;
         m.shotT -= dt;
-        if (m.shotT <= 0 && d < 18 && this.canSee(m)) { m.shotT = r.range(1.8, 2.6); this.shoot(m, 'dart', 13, 3); }
+        if (m.shotT <= 0 && d < 18 && this.canSee(m)) { m.shotT = r.range(1.8, 2.6) / s.speed(0.03, 1.4); this.shoot(m, 'dart', 13, m.dmg); }
       } else if (m.type === 'king') {
         const want = d > 5 ? 1 : -0.3;
         tvx = dx / d * M.speed * want; tvz = dz / d * M.speed * want;
@@ -729,8 +902,7 @@ class PixelCraft {
         if (m.shotT <= 0) { m.shotT = m.hp < M.hp / 2 ? 1.6 : 2.6; for (let k2 = -1; k2 <= 1; k2++) this.shoot(m, 'orb', 10, 5, k2 * 0.25); s.sound.play('flap'); }
         if (m.minionT <= 0) { m.minionT = 12; for (let k2 = 0; k2 < 2; k2++) { const c = this.findSpawnCell(4, 9, 'surface'); if (c) this.spawnMob('gloom', ...c); } }
       } else {
-        // gloom & boom: chase when close
-        if (d < 22 || m.aggro) { tvx = dx / d * M.speed * s.speed(0.03, 1.5); tvz = dz / d * M.speed * s.speed(0.03, 1.5); }
+        if (d < 22 || m.aggro) { tvx = dx / d * m.speed; tvz = dz / d * m.speed; }
         if (m.type === 'boom') {
           if (d < 2.4 && Math.abs(dy) < 2) { m.fuse += dt; tvx *= 0.2; tvz *= 0.2; if (m.fuse > 1.4) { this.explode(m); continue; } }
           else m.fuse = Math.max(0, m.fuse - dt * 2);
@@ -738,7 +910,6 @@ class PixelCraft {
       }
       if (m.stun > 0) { m.vx *= 0.97; m.vz *= 0.97; } else { m.vx += (tvx - m.vx) * Math.min(1, dt * 8); m.vz += (tvz - m.vz) * Math.min(1, dt * 8); }
       if (m.type === 'king') {
-        // hovers above the ground
         const ground = this.world.top[clamp(Math.floor(m.z), 0, SZ - 1) * SX + clamp(Math.floor(m.x), 0, SX - 1)] + 1;
         const wantY = Math.max(ground + 1.2 + Math.sin(m.t * 1.5) * 0.6, p.y - 0.5);
         m.vy += (wantY - m.y) * dt * 3; m.vy *= 0.96;
@@ -747,15 +918,16 @@ class PixelCraft {
         const inWater = this.touching(m, M.w / 2, 0.5, B.WATER);
         if (inWater) m.vy = Math.min(m.vy + 40 * dt, 2.5);
         const { hitX, hitZ } = this.moveBody(m, dt, M.w / 2, M.h, inWater ? 10 : 28);
-        if ((hitX || hitZ) && m.grounded && m.stun <= 0) m.vy = 8.2;
+        if ((hitX || hitZ) && m.stun <= 0) {
+          if (m.type === 'crawler') m.vy = Math.max(m.vy, 4.5);          // crawlers climb straight up walls
+          else if (m.grounded) m.vy = 8.2;
+        }
         if (this.touching(m, M.w / 2, M.h, B.LAVA) || m.y < -2) { this.kill(m, false); continue; }
       }
-      // contact damage
-      if (M.dmg && m.type !== 'thorn' && this.hurtCd <= 0) {
+      if (m.dmg && m.type !== 'thorn' && this.hurtCd <= 0) {
         const reach = m.type === 'king' ? 2.2 : 0.75;
-        if (d < reach && m.y < p.y + 1.8 && m.y + M.h > p.y) { this.damage(M.dmg, m.type); if (s.state !== 'playing') return; const n = d || 1; p.vx -= dx / n * -6; p.vz -= dz / n * -6; p.vy = 5; }
+        if (d < reach && m.y < p.y + 1.8 && m.y + M.h > p.y) { this.damage(m.dmg, m.type); if (s.state !== 'playing') return; const n = d || 1; p.vx += dx / n * 6; p.vz += dz / n * 6; p.vy = 5; }
       }
-      // wander too far → gone
       if (m.type !== 'king' && d > 44) m.dead = true;
     }
     this.mobs = this.mobs.filter((m) => !m.dead);
@@ -802,7 +974,7 @@ class PixelCraft {
     const d = Math.hypot(this.p.x - m.x, this.p.y + 0.9 - m.y, this.p.z - m.z);
     s.sound.play('boom'); s.fx.shake(Math.max(4, 16 - d * 2), 0.5);
     if (d < 9) s.fx.flash('#fde68a', 0.3);
-    if (d < 5) this.damage(Math.round(14 * (1 - d / 5)), 'boom');
+    if (d < 5) this.damage(Math.round((14 + Math.floor((this.day - 1) / 3) * 2) * (1 - d / 5)), 'boom');
   }
 
   updateStars(dt) {
@@ -837,9 +1009,33 @@ class PixelCraft {
     this.ui.update(dt);
   }
 
+  /** How lit your hand is (0.25 … 1) */
+  handLight() {
+    if (this.bonus) return 1;
+    const [ex, ey, ez] = this.eye(), [sk, bl] = this.world.light(Math.floor(ex), Math.floor(ey), Math.floor(ez));
+    const day = 0.16 + 0.84 * this.daylight();
+    return clamp(Math.max(Math.pow(0.8, 15 - sk * 15) * day, bl > 0 ? Math.pow(0.8, 15 - bl * 15) : 0), 0.25, 1);
+  }
+
+  /** Where the compass points: your grave first, then your bed. */
+  compassTarget() {
+    if (this.grave) return { x: this.grave.x, z: this.grave.z, icon: '🪦' };
+    if (this.bedSet) return { x: this.spawn[0], z: this.spawn[2], icon: '🛏️' };
+    return null;
+  }
+
   // ── Drawing ─────────────────────────────────────────────────
+  skyColours(day, sunY) {
+    const mix = (a, b, k) => a + (b - a) * k;
+    const dusk = Math.max(0, 1 - Math.abs(sunY) * 4) * (sunY > -0.25 ? 1 : 0);
+    const top = [mix(6, 70, day), mix(8, 140, day), mix(28, 235, day)];
+    const hor = [mix(mix(18, 175, day), 250, dusk * 0.6), mix(mix(24, 215, day), 150, dusk * 0.5), mix(mix(52, 255, day), 110, dusk * 0.5)];
+    if (this.bloodNight && this.isNight()) { hor[0] = Math.max(hor[0], 70); hor[1] *= 0.5; hor[2] *= 0.45; top[0] += 30; }
+    return { top: top.map((v) => v / 255), hor: hor.map((v) => v / 255) };
+  }
+
   render(ctx) {
-    const s = this.s, p = this.p;
+    const s = this.s;
     if (!['playing', 'banner', 'clear', 'dying'].includes(s.state) && document.pointerLockElement) this.unlock();
     const a = this.sunAngle();
     const sun = [Math.cos(a) * 0.92, Math.sin(a), 0.38];
@@ -847,30 +1043,74 @@ class PixelCraft {
     const day = this.bonus ? 0.25 : this.daylight();
     const [ex, ey, ez] = this.eye();
     const uw = this.world.get(Math.floor(ex), Math.floor(ey), Math.floor(ez)) === B.WATER;
-    const sprites = [];
-    const lightAt = (x, y, z) => { const [sk, bl] = this.world.light(Math.floor(x), Math.floor(y), Math.floor(z)); return Math.max(Math.pow(0.8, 15 - sk * 15) * (0.12 + 0.88 * day), bl > 0 ? Math.pow(0.8, 15 - bl * 15) : 0, 0.1); };
-    for (const m of this.mobs) {
-      const M = MOB[m.type];
-      const bob = m.type === 'gloom' ? Math.abs(Math.sin(m.t * 6)) * 0.1 : 0;
-      const fl = m.flash > 0 || (m.type === 'boom' && m.fuse > 0 && Math.sin(this.t * 30) > 0);
-      sprites.push({ x: m.x, y: m.y + bob, z: m.z, w: M.w * (m.type === 'king' ? 1.25 : 1.15), h: M.sprH, spr: m.type, flash: fl, light: lightAt(m.x, m.y + 0.5, m.z), flip: m.vx < 0 && m.type === 'fluff' });
-    }
-    for (const b of this.shots) sprites.push({ x: b.x, y: b.y - 0.2, z: b.z, w: 0.5, h: 0.5, spr: b.kind, light: 1 });
-    for (const st of this.stars) sprites.push({ x: st.x, y: st.y, z: st.z, w: 0.8, h: 0.8, spr: 'star', light: 1.1 + Math.sin(this.t * 10) * 0.1 });
-    const env = { day, sun, t: this.t, underwater: uw, target: s.state === 'playing' ? this.target : null, crack: this.mining?.k || 0 };
-    const t0 = performance.now();
-    const img = this.renderer.render(this.world, { x: ex, y: ey, z: ez, yaw: this.yaw, pitch: this.pitch }, env, sprites);
-    const ms = performance.now() - t0;
-    if (s.state === 'playing') {
-      this.perf.push(ms);
-      if (this.perf.length >= 45) {
-        const avg = this.perf.reduce((q, v) => q + v, 0) / this.perf.length; this.perf = [];
-        if (avg > 14 && this.renderer.resIdx < this.renderer.resLevels - 1) this.renderer.setRes(this.renderer.resIdx + 1);
+    const target = s.state === 'playing' ? this.target : null;
+    const crack = this.mining?.k || 0;
+    const cam = { x: ex, y: ey, z: ez, yaw: this.yaw, pitch: this.pitch };
+    const lightOf = (x, y, z) => this.world.light(Math.floor(x), Math.floor(y), Math.floor(z));
+    let drawn = null;
+    if (this.gl) {
+      const ents = [];
+      for (const m of this.mobs) {
+        const M = MOB[m.type];
+        const bob = m.type === 'gloom' ? Math.abs(Math.sin(m.t * 6)) * 0.1 : 0;
+        const fl = m.flash > 0 || (m.type === 'boom' && m.fuse > 0 && Math.sin(this.t * 30) > 0);
+        const yaw = m.type === 'fluff' && Math.hypot(m.vx, m.vz) > 0.2 ? Math.atan2(m.vx, m.vz) : Math.atan2(ex - m.x, ez - m.z);
+        const [sk, bl] = lightOf(m.x, m.y + 0.5, m.z);
+        ents.push({ x: m.x, y: m.y + bob, z: m.z, w: M.w * (m.type === 'king' ? 1.25 : 1.15) * (m.armoured ? 1.06 : 1), h: M.sprH, spr: m.type, yaw, flash: fl, sky: sk, blk: bl, gold: false });
       }
+      for (const b of this.shots) ents.push({ x: b.x, y: b.y - 0.2, z: b.z, w: 0.5, h: 0.5, spr: b.kind, yaw: Math.atan2(ex - b.x, ez - b.z), sky: 1, blk: 1 });
+      for (const a2 of this.arrows) ents.push({ x: a2.x, y: a2.y - 0.25, z: a2.z, w: 0.9, h: 0.9, spr: 'arrow', yaw: a2.stuck ? a2.yaw : (a2.yaw = Math.atan2(a2.vx, a2.vz) - Math.PI / 2), ...(() => { const [sk, bl] = lightOf(a2.x, a2.y, a2.z); return { sky: sk, blk: bl }; })() });
+      for (const st of this.stars) ents.push({ x: st.x, y: st.y, z: st.z, w: 0.8, h: 0.8, spr: 'star', yaw: this.t * 3, sky: 1, blk: 1 });
+      if (this.grave) { const [sk, bl] = lightOf(this.grave.x, this.grave.y + 0.5, this.grave.z); ents.push({ x: this.grave.x, y: this.grave.y, z: this.grave.z, w: 0.9, h: 0.9, spr: 'grave', yaw: Math.atan2(ex - this.grave.x, ez - this.grave.z), sky: sk, blk: Math.max(bl, 0.5) }); }
+      const { top, hor } = this.skyColours(day, sun[1]);
+      const env = { day, sun, t: this.t, underwater: uw, target, crack, blood: this.bloodNight && this.isNight() ? 1 : 0, torch: 0.94 + 0.06 * Math.sin(this.t * 13) * Math.sin(this.t * 7.3), top, horizon: hor, fogEnd: 34 + 30 * day };
+      const t0 = performance.now();
+      drawn = this.gl.render(this.world, cam, env, ents, W * s.scale, VIEW_H * s.scale);
+      this.trackFrame(performance.now() - t0);
+      if (drawn) { ctx.imageSmoothingEnabled = false; ctx.drawImage(drawn, 0, 0, W, VIEW_H); ctx.imageSmoothingEnabled = true; }
     }
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(img, 0, 0, this.renderer.RW, this.renderer.RH, 0, 0, W, VIEW_H);
-    ctx.imageSmoothingEnabled = true;
+    if (!drawn) {
+      if (!this.renderer) this.renderer = new Renderer(this.tex, SPRITES, 2);
+      const sprites = [];
+      const lightAt = (x, y, z) => { const [sk, bl] = lightOf(x, y, z); return Math.max(Math.pow(0.8, 15 - sk * 15) * (0.12 + 0.88 * day), bl > 0 ? Math.pow(0.8, 15 - bl * 15) : 0, 0.1); };
+      for (const m of this.mobs) {
+        const M = MOB[m.type];
+        const bob = m.type === 'gloom' ? Math.abs(Math.sin(m.t * 6)) * 0.1 : 0;
+        const fl = m.flash > 0 || (m.type === 'boom' && m.fuse > 0 && Math.sin(this.t * 30) > 0);
+        sprites.push({ x: m.x, y: m.y + bob, z: m.z, w: M.w * (m.type === 'king' ? 1.25 : 1.15), h: M.sprH, spr: m.type, flash: fl, light: lightAt(m.x, m.y + 0.5, m.z), flip: m.vx < 0 && m.type === 'fluff' });
+      }
+      for (const b of this.shots) sprites.push({ x: b.x, y: b.y - 0.2, z: b.z, w: 0.5, h: 0.5, spr: b.kind, light: 1 });
+      for (const a2 of this.arrows) sprites.push({ x: a2.x, y: a2.y - 0.25, z: a2.z, w: 0.7, h: 0.7, spr: 'arrow', light: 1 });
+      for (const st of this.stars) sprites.push({ x: st.x, y: st.y, z: st.z, w: 0.8, h: 0.8, spr: 'star', light: 1.1 });
+      if (this.grave) sprites.push({ x: this.grave.x, y: this.grave.y, z: this.grave.z, w: 0.9, h: 0.9, spr: 'grave', light: 1 });
+      const env = { day, sun, t: this.t, underwater: uw, target, crack };
+      const t0 = performance.now();
+      const img = this.renderer.render(this.world, cam, env, sprites);
+      const ms = performance.now() - t0;
+      if (s.state === 'playing') {
+        this.perf.push(ms);
+        if (this.perf.length >= 45) {
+          const avg = this.perf.reduce((q, v) => q + v, 0) / this.perf.length; this.perf = [];
+          if (avg > 14 && this.renderer.resIdx < this.renderer.resLevels - 1) this.renderer.setRes(this.renderer.resIdx + 1);
+        }
+      }
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(img, 0, 0, this.renderer.RW, this.renderer.RH, 0, 0, W, VIEW_H);
+      ctx.imageSmoothingEnabled = true;
+    }
     this.ui.draw(ctx);
+  }
+
+  /** On slow devices, draw the 3D view at a lower resolution. */
+  trackFrame() {
+    const now = performance.now();
+    if (this.lastFrame) this.frameDt.push(now - this.lastFrame);
+    this.lastFrame = now;
+    if (this.s.state !== 'playing') { this.frameDt = []; return; }
+    if (this.frameDt.length >= 90) {
+      const sorted = this.frameDt.slice().sort((a, b) => a - b), med = sorted[45];
+      this.frameDt = [];
+      if (med > 26 && this.gl.quality > 0.5) this.gl.quality = Math.max(0.5, this.gl.quality - 0.15);
+    }
   }
 }

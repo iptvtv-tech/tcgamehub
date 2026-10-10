@@ -334,8 +334,8 @@ export const GAMES = [
     id: 'tc-pixel-craft',
     gold: 'Golden Hand',            // golden character — unlocked by the Golden Crown until Zone 4 has its own Legends game
     title: 'TC Pixel Craft',
-    tagline: 'An open-world survival block game. Start with nothing: punch trees, craft tools, mine deep, survive the night — and one day face the Shadow King.',
-    controls: 'WASD move · Mouse look (click the view) · Left click mine/hit · Right click place/use · E bag & crafting · L advancements (touch: stick, drag to look, HIT / USE / ⤒)',
+    tagline: 'An open-world survival block game. Start with nothing: punch trees, craft tools, find food before your energy runs out, survive the nights — and one day face the Shadow King.',
+    controls: 'WASD move · Shift sprint · Mouse look (click the view) · Left click mine/hit · Right click place/use/eat · E bag & crafting · L advancements (touch: stick, drag to look, HIT / USE / ⤒)',
     color: '#84cc16',
     isNew: true,
     achievements: [
@@ -345,7 +345,7 @@ export const GAMES = [
       { id: 'adv10',     icon: '🏆', title: 'Achiever',       desc: 'Earn 10 advancements in one world' },
       { id: 'boss',      icon: '👑', title: 'Kingslayer',     desc: 'Defeat the Shadow King' },
       { id: 'combo4',    icon: '🔥', title: 'On a Roll',      desc: 'Reach a x4 combo' },
-      { id: 'level10',   icon: '🌄', title: 'Seasoned',       desc: 'Reach the 10th sunrise' },
+      { id: 'level10',   icon: '🌄', title: 'Seasoned',       desc: 'Live to see day 8' },
       { id: 'score10k',  icon: '🏅', title: 'Ten Grand',      desc: 'Score 10,000 in one run' },
     ],
   },
