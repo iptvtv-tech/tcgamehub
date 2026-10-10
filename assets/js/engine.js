@@ -444,6 +444,36 @@ class Shell {
     }
   }
   autoPause() { if (['playing', 'banner'].includes(this.state)) this.togglePause(); }
+
+  // ── Graphics detail (games that set `detail: true` in their def read shell.lowDetail) ──
+  /** true when the player (or the automatic check) chose LOW graphics. Shared by every game. */
+  get lowDetail() { return Store.setting('lowDetail') === true; }
+  detailChip() { return this.def.detail ? `<p><button class="chip${this.lowDetail ? '' : ' on'}" data-detail>🖥 Graphics: ${this.lowDetail ? 'LOW (smoother)' : 'HIGH'}</button></p>` : ''; }
+  wireDetailChip(o, focus) {
+    const b = o.querySelector('[data-detail]');
+    if (!b) return;
+    b.onclick = () => {
+      Store.setSetting('lowDetail', !this.lowDetail);
+      b.classList.toggle('on', !this.lowDetail); b.textContent = `🖥 Graphics: ${this.lowDetail ? 'LOW (smoother)' : 'HIGH'}`;
+      this.game.onDetailChange?.(this.lowDetail);
+      Sound.play('click');
+      focus?.focus({ preventScroll: true });
+    };
+  }
+  /** Watch the frame rate for a few seconds of play; if this device struggles, switch to LOW once (the player can switch back). */
+  checkFrameRate(dt) {
+    if (!this.def.detail || this.perfDone || Store.setting('lowDetail') !== undefined) return;
+    this.perfT = (this.perfT || 0) + dt;
+    if (this.perfT < 2) return;                                    // let the level settle first
+    this.perfN = (this.perfN || 0) + 1; this.perfS = (this.perfS || 0) + dt;
+    if (this.perfS < 5) return;
+    this.perfDone = true;
+    if (this.perfN / this.perfS < 40) {
+      Store.setSetting('lowDetail', true);
+      this.game.onDetailChange?.(true);
+      this.fx.text(this.W / 2, this.H * 0.3, '🖥 Low graphics on for smoother play', { color: '#e2e8f0', size: 16, life: 2.6 });
+    }
+  }
   resume() {
     if (this.state !== 'paused') return;
     this.hideOverlay();
@@ -473,6 +503,7 @@ class Shell {
     due.forEach((t) => t.fn());
 
     if (this.state === 'playing') {
+      this.checkFrameRate(dt);
       this.acc += dt;
       while (this.acc >= STEP) {
         this.acc -= STEP;
@@ -644,6 +675,7 @@ class Shell {
       <p class="controls">🎮 ${esc(m.controls || '')}</p>
       ${this.def.titleHint ? `<p class="legend-hint">${esc(this.def.titleHint)}</p>` : ''}
       ${m.gold && Legends.goldUnlocked(this.id) ? `<p><button class="chip gold-chip${Legends.goldOn(this.id) ? ' on' : ''}" data-gold>✨ ${esc(m.gold)}: ${Legends.goldOn(this.id) ? 'ON' : 'OFF'}</button></p>` : ''}
+      ${this.detailChip()}
       ${cps.length > 1 ? `<div class="checkpoints"><small>Start from</small>${cps.map((l) => `<button class="chip${l === this.chosenStart ? ' on' : ''}" data-start="${l}">Level ${l}</button>`).join('')}</div>` : ''}
       <button class="btn primary big" data-act="play">▶ Play</button>
       <p class="muted small">Press <kbd>Enter</kbd> or <kbd>Space</kbd> · <kbd>P</kbd> pause · <kbd>M</kbd> mute</p>
@@ -662,6 +694,7 @@ class Shell {
       Sound.play(on ? 'powerup' : 'click');
       o.querySelector('[data-act="play"]').focus({ preventScroll: true }); // so Enter starts the game
     };
+    this.wireDetailChip(o, o.querySelector('[data-act="play"]'));
     o.querySelectorAll('[data-start]').forEach((b) => b.onclick = () => {
       this.chosenStart = +b.dataset.start; Sound.play('click');
       o.querySelectorAll('[data-start]').forEach((x) => x.classList.toggle('on', x === b));
@@ -679,8 +712,10 @@ class Shell {
       <h2>Paused</h2>
       <p class="muted">${esc(this.reachedText(false))} · Score ${fmt(this.score)}</p>
       <button class="btn primary big" data-act="resume">▶ Resume</button>
-      <div class="row"><button class="btn" data-act="restart">↻ Restart</button><a class="btn" href="../../">⌂ Arcade</a></div>`);
+      <div class="row"><button class="btn" data-act="restart">↻ Restart</button><a class="btn" href="../../">⌂ Arcade</a></div>
+      ${this.detailChip()}`);
     o.querySelector('[data-act="resume"]').onclick = () => this.resume();
+    this.wireDetailChip(o, o.querySelector('[data-act="resume"]'));
     o.querySelector('[data-act="restart"]').onclick = () => { this.state = 'title'; this.restart(); };
     o.querySelector('[data-act="resume"]').focus({ preventScroll: true });
   }

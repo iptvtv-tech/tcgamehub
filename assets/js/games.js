@@ -222,8 +222,8 @@ export const GAMES = [
     id: 'turbo-rush',
     gold: 'Golden Racer',           // golden character unlocked by the Zone 3 egg
     title: 'Turbo Rush',
-    tagline: 'Race the clock down a neon highway. Weave through traffic, skim past cars for near-miss combos, and reach every checkpoint before time runs out.',
-    controls: 'Steer ← → (or A / D) · ↑ / W nitro boost · ↓ / S brake · touch: hold the left or right side to steer, the middle to boost',
+    tagline: 'Race the clock through neon cities, tunnels and storms. Skim past cars for near-miss combos, slipstream for free nitro, dodge roadworks and police — and beat VIPER in the rival duels.',
+    controls: 'Steer ← → (or A / D) · ↑ / W nitro boost · ↓ / S brake · tuck in behind a car to slipstream · touch: hold the left or right side to steer, the middle to boost',
     color: '#ef4444',
     isNew: true,
     achievements: [
@@ -231,6 +231,8 @@ export const GAMES = [
       { id: 'nearmiss', icon: '💨', title: 'Hair\'s Breadth', desc: 'Chain 10 near misses in one level' },
       { id: 'photo',    icon: '📸', title: 'Photo Finish',  desc: 'Reach a checkpoint with under 2 seconds left' },
       { id: 'coins',    icon: '🪙', title: 'Coin Highway',  desc: 'Collect 60 coins in one bonus round' },
+      { id: 'rival',    icon: '🐍', title: 'Viper Slayer',  desc: 'Beat VIPER to the checkpoint in a rival duel' },
+      { id: 'draft',    icon: '🌬️', title: 'Slipstreamer',  desc: 'Pull off 5 slipstreams in one level' },
       { id: 'combo4',   icon: '🔥', title: 'On a Roll',     desc: 'Reach a x4 combo' },
       { id: 'level10',  icon: '🏁', title: 'Road Warrior',  desc: 'Reach level 10' },
       { id: 'score10k', icon: '🏅', title: 'Ten Grand',     desc: 'Score 10,000 in one run' },
@@ -299,7 +301,7 @@ export const GAMES = [
   },
   {
     id: 'dungeon-escape',
-    gold: 'Golden Torch',           // golden character unlocked by the Zone 3 egg
+    gold: 'Golden Torch',           // golden character — unlocked by the Golden Crown until Zone 4 has its own Legends game
     title: 'Dungeon Escape 3D',
     tagline: 'Lost in a 3D maze with a dying torch. Grab the keys, find the stairs — and keep one step ahead of the ghouls hunting you in the dark.',
     controls: 'Walk: ↑/↓ or W/S · Turn: ←/→ or A/D · Flash: Space or ✨ (touch: tap sides to turn, middle to walk, bottom to step back)',
@@ -355,7 +357,7 @@ export const GAMES = [
   },
   {
     id: 'eggspress',
-    gold: 'Golden Egg Truck',       // golden character — unlocked by the Golden Crown until Zone 4 has its own Legends game
+    gold: 'Golden Egg Truck',       // golden character unlocked by the Zone 3 egg
     title: 'Eggspress 3D',
     tagline: 'Deliver one very loose egg over the hills to the farm. Ramps, chasms, wind and oil — hard landings crack it, and three cracks is SPLAT!',
     controls: 'Drive: → / D / Space · Brake & reverse: ← / A · in the air → tips back, ← tips forward (touch: hold right side to drive, left side to brake)',
@@ -418,10 +420,10 @@ export const ZONES = [
     slots: ['snake-escape-puzzle', 'neon-beat', 'tower-topple', 'hyper-hex', 'galactic-alien-shooter', 'heist-planner'] },
   { n: 3, name: 'Zone 3 · Master Class', blurb: 'Master difficulty — for players who have beaten Zone 2. Crypt of Crowns is this zone\'s Legends game.',
     legendGame: 'crypt-of-crowns',
-    slots: ['turbo-rush', 'bubble-blitz', 'pinball-blast', 'star-strike', 'dungeon-escape', 'crypt-of-crowns'] },
+    slots: ['turbo-rush', 'bubble-blitz', 'pinball-blast', 'star-strike', 'eggspress', 'crypt-of-crowns'] },
   { n: 4, name: 'Zone 4 · Ultra', blurb: 'Ultra difficulty — for players who have played every Zone 3 game. More games are on the way.',
     legendGame: null,
-    slots: ['tc-pixel-craft', 'eggspress', null, null, null, null] },
+    slots: ['tc-pixel-craft', 'dungeon-escape', null, null, null, null] },
 ];
 
 /** Icon for each zone's prize (a Golden Egg — see eggs.js for the full artwork). */

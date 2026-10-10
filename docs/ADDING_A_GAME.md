@@ -101,6 +101,8 @@ Three optional `runGame({...})` settings for games that aren't built from separa
 
 ```js
 noCheckpoints: true,                 // no "Start from level N" buttons — every run starts fresh
+detail: true,                        // show the "🖥 Graphics: HIGH / LOW" switch; read shell.lowDetail in render() and
+                                     // implement onDetailChange(low) if needed. Slow devices are switched to LOW automatically.
 levelTitle: (level) => `Day ${level}`, // banner text instead of "Level N"
 clearText: 'YOU SURVIVED!',          // text instead of "LEVEL CLEAR!"
 levelName: 'Day',                    // the HUD box and game-over screen say "Day" instead of "Level"

@@ -83,6 +83,7 @@ const BOSSES = ['mother', 'hydra', 'fortress'];
 
 runGame({
   id: ID,
+  detail: true,                      // offers the 🖥 Graphics HIGH / LOW switch
   width: W, height: H,
   lives: 3,
   comboWindow: 2.2,
@@ -506,7 +507,8 @@ class StarStrike {
   blowUp(e) {
     const r = this.s.rng, pal = PAL[e.kind] || PAL.rock, n = e.boss ? 40 : ['rock', 'cruiser', 'layer', 'seg', 'gun'].includes(e.kind) ? 14 : 8;
     for (let i = 0; i < n; i++) this.debris.push({ x: e.x, y: e.y, z: e.z, vx: r.range(-5, 5), vy: r.range(-4, 5), vz: r.range(-6, 6), life: r.range(0.5, 1.1), max: 1.1, col: pal[r.int(0, 1)], size: r.range(0.08, e.boss ? 0.5 : 0.22), rot: r.range(0, 6), vr: r.range(-10, 10) });
-    if (this.debris.length > 260) this.debris.splice(0, this.debris.length - 260);
+    const cap = this.s.lowDetail ? 70 : 260;
+    if (this.debris.length > cap) this.debris.splice(0, this.debris.length - cap);
   }
   updateDebris(dt) {
     for (const d of this.debris) { d.life -= dt; d.x += d.vx * dt; d.y += d.vy * dt; d.z += d.vz * dt - (this.bonus ? 0 : this.speed * 0.3 * dt); d.rot += d.vr * dt; d.vy -= 3 * dt; }
@@ -790,7 +792,7 @@ class StarStrike {
       }
       col = col.map((c, i) => Math.round(c * (1 - fog) + (fogC[i] * 0.12 + 6) * fog));
       ctx.fillStyle = `rgb(${col[0]},${col[1]},${col[2]})`; ctx.strokeStyle = ctx.fillStyle;
-      if (mat === 3 && glow && !flash) { ctx.shadowColor = pal[3]; ctx.shadowBlur = 10; } else ctx.shadowBlur = 0;
+      if (mat === 3 && glow && !flash && !this.s.lowDetail) { ctx.shadowColor = pal[3]; ctx.shadowBlur = 10; } else ctx.shadowBlur = 0;
       ctx.beginPath();
       const [p0, p1, p2] = [scr[fc.f[0]], scr[fc.f[1]], scr[fc.f[2]]];
       ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.lineTo(p2[0], p2[1]); ctx.closePath();

@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────
-//  EGGSPRESS 3D — game 20 (Zone 4 · Ultra)
+//  EGGSPRESS 3D — game 17 (Zone 3 · Master)
 //  Deliver one very loose egg, sitting in a shallow cup on your truck's roof,
 //  across the hills to the farm. Real physics: hard landings crack the egg
 //  (3 cracks = SPLAT), and if it falls off it's gone. Lose an egg and you
@@ -69,6 +69,7 @@ const THEME_ORDER = ['meadow', 'autumn', 'sunset', 'night', 'candy', 'moon'];
 
 runGame({
   id: 'eggspress',
+  detail: true,                      // offers the 🖥 Graphics HIGH / LOW switch
   width: W, height: H,
   lives: 3,
   comboWindow: 3,
@@ -584,7 +585,7 @@ class Eggspress {
     ctx.fillStyle = sg; ctx.fillRect(0, 0, W, H);
     if (T.stars) for (const st of this.stars) { ctx.globalAlpha = 0.3 + st.z * 0.6 * (0.6 + 0.4 * Math.sin(t * 2 + st.x)); ctx.fillStyle = '#fff'; ctx.fillRect(((st.x - this.cam.x * 0.01 * st.z) % W + W) % W, st.y, 1.5, 1.5); }
     ctx.globalAlpha = 1;
-    ctx.save(); ctx.shadowColor = T.sun; ctx.shadowBlur = 50; ctx.fillStyle = T.sun;
+    ctx.save(); ctx.shadowColor = T.sun; ctx.shadowBlur = this.s.lowDetail ? 0 : 50; ctx.fillStyle = T.sun;
     ctx.beginPath(); ctx.arc(W * 0.8, 70, T.stars ? 24 : 32, 0, TAU); ctx.fill(); ctx.restore();
     if (!T.stars) {
       ctx.fillStyle = 'rgba(255,255,255,.85)';
@@ -601,7 +602,8 @@ class Eggspress {
     // the land: back field → props behind → road → truck → front verge & cliff face
     const x0 = this.cam.x - 1100, x1 = this.cam.x + 1200;
     this.drawField(ctx, x0, x1, S.RW, 560, fog);
-    const behind = this.props.filter((p) => p.z > 0 && p.x > x0 - 200 && p.x < x1 + 200).sort((a, b) => b.z - a.z);
+    const lo = this.s.lowDetail;
+    const behind = this.props.filter((p, i) => p.z > 0 && p.x > x0 - 200 && p.x < x1 + 200 && !(lo && (i % 2 || p.z > 420))).sort((a, b) => b.z - a.z);
     for (const p of behind) this.drawProp(ctx, p, fog);
     this.drawFarm(ctx, fog);
     this.drawRoad(ctx, x0, x1);
