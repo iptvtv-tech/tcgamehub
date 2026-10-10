@@ -280,13 +280,17 @@ export const GAMES = [
     id: 'star-strike',
     gold: 'Golden Fighter',         // golden character unlocked by the Zone 3 egg
     title: 'Star Strike 3D',
-    tagline: 'Fly a starfighter down a 3D space corridor. Blast fighter waves, asteroids and mines, thread laser gates — and take down the Mothership.',
-    controls: 'Fly: arrows / WASD or mouse (touch: drag) · Fire: hold Space / mouse (touch fires automatically) · Bomb: B or 💣',
+    tagline: 'Fly a starfighter down a 3D space corridor. Grab spread, plasma, homing missiles and a wingman drone, blast 12 kinds of enemy and take down three different bosses.',
+    controls: 'Fly: arrows / WASD or mouse (touch: drag) · Fire: hold Space / mouse (touch fires automatically) · Bomb: B or 💣 · fly into or shoot power-up capsules',
     color: '#38bdf8',
     isNew: true,
     achievements: [
       { id: 'ace',      icon: '🎖️', title: 'Ace Pilot',      desc: 'Clear sector 3+ without being hit' },
       { id: 'boss',     icon: '🛸', title: 'Mothership Down', desc: 'Destroy a Mothership' },
+      { id: 'hydra',    icon: '🐉', title: 'Serpent Slayer',  desc: 'Destroy the Hydra' },
+      { id: 'fortress', icon: '🏯', title: 'Fortress Breaker', desc: 'Destroy the Star Fortress' },
+      { id: 'maxed',    icon: '🔋', title: 'Fully Charged',   desc: 'Power a weapon up to level 3' },
+      { id: 'chain',    icon: '🐝', title: 'Swarm Breaker',   desc: 'Shoot down a whole swarmer chain' },
       { id: 'rings',    icon: '💫', title: 'Ring Master',    desc: 'Fly through 30 rings in one Ring Run' },
       { id: 'combo4',   icon: '🔥', title: 'Hot Streak',     desc: 'Reach a x4 combo' },
       { id: 'level10',  icon: '🚀', title: 'Deep Space',     desc: 'Reach sector 10' },
@@ -332,21 +336,40 @@ export const GAMES = [
   },
   {
     id: 'tc-pixel-craft',
-    gold: 'Golden Pickaxe',         // golden character — unlocked by the Golden Crown until Zone 4 has its own Legends game
+    gold: 'Golden Hand',            // golden character — unlocked by the Golden Crown until Zone 4 has its own Legends game
     title: 'TC Pixel Craft',
-    tagline: 'A 3D block world. Dig down, mine the ore, build walls — and finish before night falls and the gloomlings come hunting.',
-    controls: 'WASD move · Mouse look (click the view) · Left click / E mine · Right click / Q build · Space jump (touch: stick, drag to look, MINE / BUILD / JUMP)',
+    tagline: 'An open-world survival block game. Start with nothing: punch trees, craft tools, find food before your energy runs out, survive the nights — and one day face the Shadow King.',
+    controls: 'WASD move · Shift sprint · Mouse look (click the view) · Left click mine/hit · Right click place/use/eat · E bag & crafting · L advancements (touch: stick, drag to look, HIT / USE / ⤒)',
     color: '#84cc16',
     isNew: true,
     achievements: [
-      { id: 'crystal',    icon: '💎', title: 'Starstruck',       desc: 'Mine a pink starstone crystal' },
-      { id: 'tnt5',       icon: '🧨', title: 'Demolition Expert', desc: 'Blast 5 ores with one TNT explosion' },
-      { id: 'builder',    icon: '🧱', title: 'Master Builder',    desc: 'Place 25 blocks in one level' },
-      { id: 'nightwatch', icon: '🌙', title: 'Night Watch',       desc: 'Bonk 10 gloomlings in one run' },
-      { id: 'rush',       icon: '✨', title: 'Crystal Rush',      desc: 'Mine 30 ores in one Crystal Cavern bonus' },
-      { id: 'combo4',     icon: '🔥', title: 'Ore Streak',        desc: 'Reach a x4 combo' },
-      { id: 'level10',    icon: '⛏️', title: 'Deep Digger',       desc: 'Reach level 10' },
-      { id: 'score10k',   icon: '🏅', title: 'Ten Grand',         desc: 'Score 10,000 in one run' },
+      { id: 'firstkill', icon: '⚔️', title: 'Monster Hunter', desc: 'Defeat your first hostile creature' },
+      { id: 'ironsuit',  icon: '🛡️', title: 'Suit Up',        desc: 'Wear a full set of iron armour' },
+      { id: 'crystal',   icon: '💎', title: 'Shiny!',         desc: 'Mine a crystal' },
+      { id: 'adv10',     icon: '🏆', title: 'Achiever',       desc: 'Earn 10 advancements in one world' },
+      { id: 'boss',      icon: '👑', title: 'Kingslayer',     desc: 'Defeat the Shadow King' },
+      { id: 'combo4',    icon: '🔥', title: 'On a Roll',      desc: 'Reach a x4 combo' },
+      { id: 'level10',   icon: '🌄', title: 'Seasoned',       desc: 'Live to see day 8' },
+      { id: 'score10k',  icon: '🏅', title: 'Ten Grand',      desc: 'Score 10,000 in one run' },
+    ],
+  },
+  {
+    id: 'eggspress',
+    gold: 'Golden Egg Truck',       // golden character — unlocked by the Golden Crown until Zone 4 has its own Legends game
+    title: 'Eggspress 3D',
+    tagline: 'Deliver one very loose egg over the hills to the farm. Ramps, chasms, wind and oil — hard landings crack it, and three cracks is SPLAT!',
+    controls: 'Drive: → / D / Space · Brake & reverse: ← / A · in the air → tips back, ← tips forward (touch: hold right side to drive, left side to brake)',
+    color: '#fb923c',
+    isNew: true,
+    achievements: [
+      { id: 'clean',    icon: '🥚', title: 'Handle With Care', desc: 'Make a perfect delivery (no cracks, no lives lost) on delivery 3 or later' },
+      { id: 'air',      icon: '🦅', title: 'Big Air',          desc: 'Land a 1.5 second jump with the egg still in its cup' },
+      { id: 'bounce',   icon: '🍄', title: 'Boing Boing',      desc: 'Bounce off a mushroom and land with the egg safe' },
+      { id: 'gap',      icon: '🌉', title: 'Mind the Gap',     desc: 'Jump a chasm with the egg safe' },
+      { id: 'coins50',  icon: '🪙', title: 'Coin Collector',   desc: 'Grab 50 coins in one run' },
+      { id: 'combo4',   icon: '🔥', title: 'Coin Streak',      desc: 'Reach a x4 combo' },
+      { id: 'level10',  icon: '🏁', title: 'Long Haul',        desc: 'Reach delivery 10' },
+      { id: 'score10k', icon: '🏅', title: 'Ten Grand',        desc: 'Score 10,000 in one run' },
     ],
   },
 ];
@@ -398,7 +421,7 @@ export const ZONES = [
     slots: ['turbo-rush', 'bubble-blitz', 'pinball-blast', 'star-strike', 'dungeon-escape', 'crypt-of-crowns'] },
   { n: 4, name: 'Zone 4 · Ultra', blurb: 'Ultra difficulty — for players who have played every Zone 3 game. More games are on the way.',
     legendGame: null,
-    slots: ['tc-pixel-craft', null, null, null, null, null] },
+    slots: ['tc-pixel-craft', 'eggspress', null, null, null, null] },
 ];
 
 /** Icon for each zone's prize (a Golden Egg — see eggs.js for the full artwork). */
