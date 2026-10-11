@@ -364,6 +364,27 @@ export const GAMES = [
     ],
   },
   {
+    id: 'void-breaker',
+    gold: 'Golden Gauntlet',        // golden character — unlocked by the Golden Crown until Zone 4 has its own Legends game
+    title: 'Void Breaker 3D',
+    is3d: true,
+    tagline: 'Stand at the heart of a glowing arena over the void as geometric invaders pour in from every side. Light-trail shots, shattering enemies, a NOVA shockwave — and a giant boss every 5th wave.',
+    controls: 'Aim: mouse (click to lock) or ← → · Fire: hold click / Space · Nova: ↑ / W · Turn round: ↓ / S (touch: drag to turn, hold to fire, NOVA and ⟲ buttons)',
+    color: '#a78bfa',
+    isNew: true,
+    achievements: [
+      { id: 'monolith',  icon: '🗿', title: 'Monolith Breaker', desc: 'Destroy The Monolith' },
+      { id: 'halo',      icon: '⭕', title: 'Halo Shattered',   desc: 'Destroy The Halo' },
+      { id: 'titan',     icon: '🔺', title: 'Titan Fall',       desc: 'Destroy The Prism Titan' },
+      { id: 'untouched', icon: '🛡️', title: 'Untouchable',      desc: 'Clear wave 3 or later without taking a hit' },
+      { id: 'nova8',     icon: '💥', title: 'Supernova',        desc: 'Break 8 enemies with one Nova' },
+      { id: 'stars',     icon: '⭐', title: 'Star Catcher',     desc: 'Shoot 60 stars in one Star Shower' },
+      { id: 'combo5',    icon: '🔥', title: 'Chain Breaker',    desc: 'Reach a x5 combo' },
+      { id: 'level10',   icon: '🌌', title: 'Void Walker',      desc: 'Reach wave 10' },
+      { id: 'score10k',  icon: '🏅', title: 'Ten Grand',        desc: 'Score 10,000 in one run' },
+    ],
+  },
+  {
     id: 'crypt-of-crowns',
     gold: 'Golden Explorer',        // golden character unlocked by the Zone 3 egg
     title: 'Crypt of Crowns 3D',
@@ -472,7 +493,7 @@ export const ZONES = [
     slots: ['turbo-rush', 'bubble-blitz', 'pinball-blast', 'star-strike', 'eggspress', 'crypt-of-crowns'] },
   { n: 4, name: 'Zone 4 · Ultra', blurb: 'Ultra difficulty — for players who have played every Zone 3 game. More games are on the way.',
     legendGame: null,
-    slots: ['tc-pixel-craft', 'dungeon-escape', 'neon-drift', 'crystal-cascade', null, null] },
+    slots: ['tc-pixel-craft', 'dungeon-escape', 'neon-drift', 'crystal-cascade', 'void-breaker', null] },
 ];
 
 /** Icon for each zone's prize (a Golden Egg — see eggs.js for the full artwork). */
