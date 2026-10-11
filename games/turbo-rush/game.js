@@ -217,7 +217,50 @@ class TurboRush {
     this.rain = Array.from({ length: 90 }, () => ({ x: Math.random() * W, y: Math.random() * H, v: 700 + Math.random() * 500 }));
     this.stars = Array.from({ length: 70 }, () => ({ x: Math.random() * W, y: Math.random() * HORIZON * 0.8, r: Math.random() * 1.3 + 0.3 }));
     this.sprites = {}; this.skies = {};
+    // ── Tilt steering ──────────────────────────────────────────
+    this.tiltGamma = null;          // null = no tilt data yet
+    this.tiltEnabled = false;       // true once we have a valid reading
+    this.tiltBase = 0;              // neutral calibration offset (set on first reading)
+    this.tiltCalibrated = false;
+    this._setupTilt();
     this.startLevel(1, false);
+  }
+
+  /** Set up DeviceOrientation tilt steering. iOS 13+ requires a permission gesture. */
+  _setupTilt() {
+    const isMobile = matchMedia('(pointer: coarse)').matches;
+    if (!isMobile) return;
+    const onOrientation = (e) => {
+      if (e.gamma === null) return;
+      if (!this.tiltCalibrated) { this.tiltBase = e.gamma; this.tiltCalibrated = true; }
+      this.tiltGamma = e.gamma;
+      this.tiltEnabled = true;
+    };
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+      // iOS 13+ — need a user gesture; we'll prompt on first tap
+      this._needsTiltPermission = true;
+    } else if (typeof DeviceOrientationEvent !== 'undefined') {
+      window.addEventListener('deviceorientation', onOrientation, { passive: true });
+      this._onOrientation = onOrientation;
+    }
+  }
+
+  /** Called on any tap/touch start (from controls). Requests iOS permission once. */
+  _requestTiltPermission() {
+    if (!this._needsTiltPermission) return;
+    this._needsTiltPermission = false;
+    DeviceOrientationEvent.requestPermission().then((r) => {
+      if (r === 'granted') {
+        const onOrientation = (e) => {
+          if (e.gamma === null) return;
+          if (!this.tiltCalibrated) { this.tiltBase = e.gamma; this.tiltCalibrated = true; }
+          this.tiltGamma = e.gamma;
+          this.tiltEnabled = true;
+        };
+        window.addEventListener('deviceorientation', onOrientation, { passive: true });
+        this._onOrientation = onOrientation;
+      }
+    }).catch(() => {});
   }
 
   reset() {}
@@ -245,6 +288,8 @@ class TurboRush {
       police: !bonus && level >= 9, timePU: !bonus && level >= 3, shieldPU: !bonus && level >= 6,
     };
     this.position = 0; this.speed = 0; this.playerX = 0; this.playerY = 0; this.steer = 0;
+    // Re-calibrate tilt neutral each level so players don't have to hold the phone perfectly flat
+    if (this.tiltEnabled && this.tiltGamma !== null) this.tiltBase = this.tiltGamma;
     this.skyOff = 0; this.boost = 1; this.boosting = false;
     this.invuln = 0; this.crashFx = 0; this.shakeT = 0;
     this.near = 0; this.nearChain = 0; this.passedCount = 0; this.crashes = 0; this.coinsGot = 0;
@@ -450,9 +495,33 @@ class TurboRush {
     const s = this.s, inp = s.input, p = inp.pointer;
     let left = inp.isDown('left'), right = inp.isDown('right'), boost = inp.isDown('up'), brake = inp.isDown('down');
     if (p.down) {
-      if (p.x < W * 0.36) left = true;
-      else if (p.x > W * 0.64) right = true;
-      else boost = true;
+      // Trigger iOS tilt permission on first touch
+      if (this._needsTiltPermission) this._requestTiltPermission();
+      if (this.tiltEnabled) {
+        // Tilt active: any tap in the middle 60% = boost; edges still steer as fallback
+        if (p.x < W * 0.2) left = true;
+        else if (p.x > W * 0.8) right = true;
+        else boost = true;
+      } else {
+        // No tilt: standard left / middle / right zones
+        if (p.x < W * 0.36) left = true;
+        else if (p.x > W * 0.64) right = true;
+        else boost = true;
+      }
+    }
+    // Tilt steering: gamma is left/right lean in degrees (portrait phone)
+    // Dead zone ±3°, full steer at ±20° from calibrated neutral
+    if (this.tiltEnabled && this.tiltGamma !== null) {
+      const DEAD = 3, MAX_TILT = 20;
+      const raw = this.tiltGamma - this.tiltBase;
+      const g = Math.abs(raw) < DEAD ? 0 : raw - Math.sign(raw) * DEAD;
+      const t = clamp(g / (MAX_TILT - DEAD), -1, 1);
+      if (t < -0.15) left = true;
+      if (t > 0.15) right = true;
+      // Store tilt fraction for the HUD indicator
+      this._tiltFrac = t;
+    } else {
+      this._tiltFrac = 0;
     }
     return { left, right, boost, brake };
   }
@@ -482,10 +551,17 @@ class TurboRush {
 
     // steering + the road pulling you wide on bends
     const dx = dt * (2 + 0.5 * clamp(pct, 0, 1.3)) * Math.min(1, pct + 0.15) * this.grip;   // quicker lane changes the faster you go
-    if (c.left) this.playerX -= dx;
-    if (c.right) this.playerX += dx;
+    if (this.tiltEnabled && this._tiltFrac) {
+      // Analogue tilt: scale dx by how far the phone is tilted; more expressive than binary keys
+      const tf = clamp(this._tiltFrac, -1, 1);
+      this.playerX += dx * tf * Math.abs(tf);   // square-law for fine control near centre
+      this.steer = lerp(this.steer || 0, tf, Math.min(1, dt * 10));
+    } else {
+      if (c.left) this.playerX -= dx;
+      if (c.right) this.playerX += dx;
+      this.steer = lerp(this.steer || 0, (c.right ? 1 : 0) - (c.left ? 1 : 0), Math.min(1, dt * 10));
+    }
     this.playerX -= dx * pct * seg.curve * this.centrifugal;
-    this.steer = lerp(this.steer || 0, (c.right ? 1 : 0) - (c.left ? 1 : 0), Math.min(1, dt * 10));
     this.braking = c.brake;
 
     // speed: foot down by default, boost burns nitro
@@ -1357,7 +1433,27 @@ class TurboRush {
     }
     // touch hint
     ctx.textAlign = 'center'; ctx.font = '600 12px system-ui'; ctx.fillStyle = 'rgba(226,232,240,.4)';
-    if (s.state === 'playing' && this.position < SEG * 60) ctx.fillText(matchMedia('(pointer: coarse)').matches ? 'Hold left / right side to steer · middle to boost' : '← → steer · ↑ boost · ↓ brake', W / 2, H - 10);
+    if (s.state === 'playing' && this.position < SEG * 60) {
+      const mobile = matchMedia('(pointer: coarse)').matches;
+      if (mobile && this.tiltEnabled) ctx.fillText('Tilt to steer · tap middle to boost', W / 2, H - 10);
+      else if (mobile && this._needsTiltPermission) ctx.fillText('Tap to enable tilt steering · or hold sides to steer', W / 2, H - 10);
+      else if (mobile) ctx.fillText('Hold left / right side to steer · middle to boost', W / 2, H - 10);
+      else ctx.fillText('← → steer · ↑ boost · ↓ brake', W / 2, H - 10);
+    }
+    // Tilt steering indicator (shown when tilt is active and playing)
+    if (this.tiltEnabled && s.state === 'playing') {
+      const bw = 80, bh = 10, bx = W / 2 - bw / 2, by = H - 28;
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      roundRect(ctx, bx, by, bw, bh, 5); ctx.fill();
+      const frac = clamp((this._tiltFrac || 0), -1, 1);
+      const fillW = Math.abs(frac) * (bw / 2 - 4);
+      const fillX = frac < 0 ? bw / 2 - fillW + bx : bw / 2 + bx;
+      const tcol = Math.abs(frac) > 0.7 ? '#f97316' : '#22d3ee';
+      ctx.fillStyle = tcol;
+      ctx.beginPath(); ctx.roundRect(fillX, by + 2, fillW, bh - 4, 3); ctx.fill();
+      ctx.fillStyle = 'rgba(226,232,240,0.7)';
+      ctx.fillRect(bx + bw / 2 - 1, by + 1, 2, bh - 2);
+    }
     if (s.gold) { ctx.fillStyle = '#fbbf24'; ctx.font = '700 12px system-ui'; ctx.fillText('★ GOLDEN RACER', W / 2, 78); }
     ctx.restore();
   }
