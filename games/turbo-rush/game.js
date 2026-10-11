@@ -13,7 +13,7 @@
 //  Every 5th level: ★ COIN HIGHWAY — no traffic, no clock, grab the coins.
 // ─────────────────────────────────────────────────────────────
 import { runGame, roundRect, progressBar, clamp } from '../../assets/js/engine.js';
-import { SPORTS, SEDAN, SUV, TRUCK, POLICE, drawCar, palette, rgb } from './models.js';
+import { SPORTS, SEDAN, SUV, TRUCK, POLICE, drawCar, palette, rgb } from '../../assets/js/car-models.js';
 
 const ID = 'turbo-rush';
 const W = 480, H = 720;

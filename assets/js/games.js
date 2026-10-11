@@ -323,6 +323,25 @@ export const GAMES = [
     ],
   },
   {
+    id: 'neon-drift',
+    gold: 'Golden Racer',           // golden character — unlocked by the Golden Crown until Zone 4 has its own Legends game
+    title: 'Neon Drift 3D',
+    is3d: true,
+    tagline: 'Race three rivals round glowing neon circuits. Throw the car sideways into every bend — chain drifts for huge combos, dodge the oil and take the chequered flag.',
+    controls: 'Steer: ← → or A/D · Handbrake drift: Space or ↓ (touch: hold the left or right half of the screen)',
+    color: '#ff4fa3',
+    isNew: true,
+    achievements: [
+      { id: 'drift3s',  icon: '💨', title: 'Sideways',        desc: 'Hold one drift for 3 seconds' },
+      { id: 'hattrick', icon: '🏎️', title: 'Hat-Trick',       desc: 'Overtake all three rivals in one lap' },
+      { id: 'winner',   icon: '🏁', title: 'Chequered Flag',  desc: 'Win a race' },
+      { id: 'clean',    icon: '✨', title: 'Clean Line',      desc: 'Win a race without touching a wall' },
+      { id: 'combo5',   icon: '🔥', title: 'Drift Chain',     desc: 'Reach a x5 combo' },
+      { id: 'level10',  icon: '🌃', title: 'Night Racer',     desc: 'Reach level 10' },
+      { id: 'score10k', icon: '🏅', title: 'Ten Grand',       desc: 'Score 10,000 in one run' },
+    ],
+  },
+  {
     id: 'crypt-of-crowns',
     gold: 'Golden Explorer',        // golden character unlocked by the Zone 3 egg
     title: 'Crypt of Crowns 3D',
@@ -431,7 +450,7 @@ export const ZONES = [
     slots: ['turbo-rush', 'bubble-blitz', 'pinball-blast', 'star-strike', 'eggspress', 'crypt-of-crowns'] },
   { n: 4, name: 'Zone 4 · Ultra', blurb: 'Ultra difficulty — for players who have played every Zone 3 game. More games are on the way.',
     legendGame: null,
-    slots: ['tc-pixel-craft', 'dungeon-escape', null, null, null, null] },
+    slots: ['tc-pixel-craft', 'dungeon-escape', 'neon-drift', null, null, null] },
 ];
 
 /** Icon for each zone's prize (a Golden Egg — see eggs.js for the full artwork). */

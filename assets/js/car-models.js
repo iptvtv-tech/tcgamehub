@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────
-//  TURBO RUSH — 3D car models and the little renderer that draws them.
+//  3D car models and the little renderer that draws them (Turbo Rush 3D, Neon Drift 3D).
 //  The road is classic "pseudo-3D", so each car is drawn as a real lit 3D
 //  mesh anchored on the road: we see it from behind, a little from above,
 //  and from the side when it's in another lane or on a bend.

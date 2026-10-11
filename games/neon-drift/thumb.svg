@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0a0418"/><stop offset="1" stop-color="#1f0b3a"/></linearGradient>
+    <linearGradient id="road" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#16122a"/><stop offset="1" stop-color="#262043"/></linearGradient>
+    <radialGradient id="under" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ff4fa3" stop-opacity=".75"/><stop offset="1" stop-color="#ff4fa3" stop-opacity="0"/></radialGradient>
+    <radialGradient id="underC" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#22d3ee" stop-opacity=".6"/><stop offset="1" stop-color="#22d3ee" stop-opacity="0"/></radialGradient>
+    <linearGradient id="paint" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fda4af"/><stop offset=".5" stop-color="#f43f5e"/><stop offset="1" stop-color="#881337"/></linearGradient>
+    <linearGradient id="side" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#be123c"/><stop offset="1" stop-color="#4c0519"/></linearGradient>
+    <linearGradient id="cpaint" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a5f3fc"/><stop offset=".5" stop-color="#22d3ee"/><stop offset="1" stop-color="#0e7490"/></linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#475569"/><stop offset="1" stop-color="#0b0b14"/></linearGradient>
+    <radialGradient id="smoke" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#e0dcff" stop-opacity=".55"/><stop offset="1" stop-color="#e0dcff" stop-opacity="0"/></radialGradient>
+    <filter id="gl" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.4"/></filter>
+  </defs>
+  <rect width="200" height="200" fill="url(#bg)"/>
+  <!-- neon floor grid in perspective -->
+  <g stroke="#7c3aed" stroke-opacity=".3" stroke-width="1">
+    <path d="M-40 200 L60 0 M30 200 L100 0 M100 200 L140 0 M170 200 L180 0 M240 200 L220 0"/>
+    <path d="M0 30 L200 22 M0 70 L200 60 M0 118 L200 106 M0 176 L200 162"/>
+  </g>
+  <!-- the circuit sweeping round a bend: run-off, asphalt, kerbs -->
+  <path d="M-10 210 C 10 140, 40 92, 110 70 C 160 54, 190 40, 214 6 L 232 30 C 206 70, 176 90, 128 104 C 76 120, 60 160, 56 214 Z" fill="#120a24"/>
+  <path d="M2 210 C 20 146, 48 100, 113 80 C 160 66, 188 52, 214 18 L 222 30 C 198 64, 172 82, 126 96 C 74 112, 54 156, 46 212 Z" fill="url(#road)"/>
+  <g stroke-width="4" stroke-dasharray="7 7"><path d="M2 210 C 20 146, 48 100, 113 80" stroke="#f472b6" fill="none"/><path d="M2 210 C 20 146, 48 100, 113 80" stroke="#f8fafc" stroke-dashoffset="7" fill="none"/></g>
+  <!-- glowing edge lines + wall tops -->
+  <g fill="none" stroke-linecap="round">
+    <path d="M2 210 C 20 146, 48 100, 113 80 C 160 66, 188 52, 214 18" stroke="#22d3ee" stroke-width="6" opacity=".35" filter="url(#gl)"/>
+    <path d="M2 210 C 20 146, 48 100, 113 80 C 160 66, 188 52, 214 18" stroke="#22d3ee" stroke-width="1.8"/>
+    <path d="M46 212 C 54 156, 74 112, 126 96 C 172 82, 198 64, 222 30" stroke="#22d3ee" stroke-width="1.8"/>
+    <path d="M-10 210 C 10 140, 40 92, 110 70 C 160 54, 190 40, 214 6" stroke="#f472b6" stroke-width="7" opacity=".35" filter="url(#gl)"/>
+    <path d="M-10 210 C 10 140, 40 92, 110 70 C 160 54, 190 40, 214 6" stroke="#f472b6" stroke-width="2.4"/>
+    <path d="M56 214 C 60 160, 76 120, 128 104 C 176 90, 206 70, 232 30" stroke="#f472b6" stroke-width="2.4"/>
+  </g>
+  <!-- neon tyre trails from the drift -->
+  <g fill="none" stroke="#ff4fa3" stroke-linecap="round">
+    <path d="M24 196 C 30 170, 40 150, 58 136" stroke-width="3" opacity=".35"/>
+    <path d="M36 200 C 42 176, 52 156, 70 142" stroke-width="3" opacity=".35"/>
+    <path d="M58 136 C 66 130, 70 128, 76 126" stroke-width="3.5" opacity=".75"/>
+    <path d="M70 142 C 78 136, 82 134, 88 132" stroke-width="3.5" opacity=".75"/>
+  </g>
+  <!-- rival ahead -->
+  <ellipse cx="160" cy="64" rx="22" ry="11" fill="url(#underC)"/>
+  <g transform="translate(160 62) rotate(-62)">
+    <rect x="-8" y="-15" width="16" height="30" rx="4" fill="url(#cpaint)"/>
+    <rect x="-6" y="-6" width="12" height="11" rx="2" fill="url(#glass)"/>
+    <rect x="-7" y="13" width="14" height="2" fill="#f43f5e"/>
+  </g>
+  <!-- tyre smoke -->
+  <circle cx="64" cy="140" r="14" fill="url(#smoke)"/><circle cx="50" cy="150" r="18" fill="url(#smoke)"/><circle cx="78" cy="138" r="11" fill="url(#smoke)"/>
+  <!-- your car, tail out mid-drift, seen from above at an angle -->
+  <ellipse cx="102" cy="120" rx="40" ry="20" fill="url(#under)"/>
+  <ellipse cx="104" cy="126" rx="28" ry="10" fill="#000" opacity=".4"/>
+  <g transform="translate(102 114) rotate(-28)">
+    <!-- body side (depth) -->
+    <path d="M-15 -26 L15 -26 L16 26 L-16 26 Z" fill="url(#side)" transform="translate(0 5)"/>
+    <rect x="-15" y="-28" width="30" height="56" rx="7" fill="url(#paint)"/>
+    <rect x="-3" y="-28" width="6" height="56" fill="#fff" opacity=".85"/>
+    <path d="M-11 -10 L11 -10 L9 12 L-9 12 Z" fill="url(#glass)"/>
+    <path d="M-9 -8 L-2 -8 L-6 4 Z" fill="#fff" opacity=".35"/>
+    <rect x="-15" y="24" width="30" height="5" rx="1.5" fill="#1f0a14"/>
+    <rect x="-13" y="25" width="7" height="3" fill="#ff2a45"/><rect x="6" y="25" width="7" height="3" fill="#ff2a45"/>
+    <rect x="-14" y="-29" width="7" height="3" fill="#fef9c3"/><rect x="7" y="-29" width="7" height="3" fill="#fef9c3"/>
+    <!-- wheels peeking out -->
+    <rect x="-18" y="-22" width="4" height="10" rx="1.5" fill="#0b0f19"/><rect x="14" y="-22" width="4" height="10" rx="1.5" fill="#0b0f19"/>
+    <rect x="-18" y="12" width="4" height="10" rx="1.5" fill="#0b0f19"/><rect x="14" y="12" width="4" height="10" rx="1.5" fill="#0b0f19"/>
+  </g>
+  <circle cx="86" cy="142" r="6" fill="#ff2a45" opacity=".5" filter="url(#gl)"/><circle cx="104" cy="148" r="6" fill="#ff2a45" opacity=".5" filter="url(#gl)"/>
+  <!-- DRIFT x4 pop -->
+  <text x="100" y="40" text-anchor="middle" font-family="system-ui, sans-serif" font-weight="900" font-size="22" fill="#ff4fa3" stroke="#0a0418" stroke-width="3" paint-order="stroke">DRIFT ×4</text>
+</svg>
