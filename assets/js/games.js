@@ -327,7 +327,7 @@ export const GAMES = [
     gold: 'Golden Racer',           // golden character — unlocked by the Golden Crown until Zone 4 has its own Legends game
     title: 'Neon Drift 3D',
     is3d: true,
-    tagline: 'Race three rivals round glowing neon circuits. Throw the car sideways into every bend — chain drifts for huge combos, dodge the oil and take the chequered flag.',
+    tagline: 'Chase-cam neon racing over rolling synthwave hills. Tune the radio, throw the car sideways into every bend — chain drifts for huge combos, dodge the oil and beat three rivals to the flag.',
     controls: 'Steer: ← → or A/D · Handbrake drift: Space or ↓ (touch: hold the left or right half of the screen)',
     color: '#ff4fa3',
     isNew: true,
