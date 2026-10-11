@@ -208,7 +208,7 @@ class CrystalCascade {
     this.nColors = bonus ? 4 : level >= 9 ? 6 : level >= 4 ? 5 : 4;
     this.geodesNeed = bonus ? 0 : level === 1 ? 1 : level < 6 ? 2 : 3;
     this.shattered = 0; this.rain = 0;
-    this.baseSpin = (bonus ? 0.26 : 0.17) * s.speed(0.045, 2.1);
+    this.baseSpin = (bonus ? 0.34 : 0.22) * s.speed(0.045, 2.1);
     this.spinDir = r.chance(0.5) ? 1 : -1; this.spinMag = 1;
     this.reverses = !bonus && level >= 6;
     this.surges = !bonus && level >= 11;
@@ -1073,7 +1073,7 @@ class CrystalCascade {
       if (this.freezeT > 0) { ctx.fillStyle = '#bae6fd'; ctx.fillText(`❄️ ${Math.ceil(this.freezeT)}s`, W - 14, 23); }
       else {
         ctx.fillStyle = this.revWarned ? (Math.sin(this.t * 16) > 0 ? '#fde047' : '#fff') : '#cbd5e1';
-        ctx.fillText(`${this.spin >= 0 ? '⟳' : '⟲'} ${Math.abs(this.spin / 0.17).toFixed(1)}×`, W - 14, 23);
+        ctx.fillText(`${this.spin >= 0 ? '⟳' : '⟲'} ${Math.abs(this.spin / 0.22).toFixed(1)}×`, W - 14, 23);
       }
     }
     // the rising floor: bar just under the HUD
