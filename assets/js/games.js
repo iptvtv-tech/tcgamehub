@@ -328,7 +328,7 @@ export const GAMES = [
     title: 'Neon Drift 3D',
     is3d: true,
     tagline: 'Chase-cam neon racing over rolling synthwave hills. Tune the radio, throw the car sideways into every bend — chain drifts for huge combos, dodge the oil and beat three rivals to the flag.',
-    controls: 'Steer: ← → or A/D · Handbrake drift: Space or ↓ (touch: hold the left or right half of the screen)',
+    controls: 'Steer: ← → or A/D · Handbrake drift: Space or ↓ (phone: tilt to steer and hold the middle to drift, or hold the left or right side)',
     color: '#ff4fa3',
     isNew: true,
     achievements: [

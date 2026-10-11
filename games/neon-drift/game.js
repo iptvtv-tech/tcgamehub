@@ -262,10 +262,46 @@ class NeonDrift {
       n: 0, i0: 0, bk: Array.from({ length: MAXN + 1 }, () => []), sk: Array.from({ length: MAXN + 1 }, () => []) };
     this.q = new Float32Array(7);
     this.needTune = true; this.tuneT = 0; this.dialF = STATIONS[this.station].freq;
+    // tilt steering (phones): gamma = left/right lean, calibrated to however the player holds the phone
+    this.tilt = null; this.tiltBase = 0; this.tiltOn = false; this.tiltFrac = 0; this.handTouch = false;
+    this.setupTilt();
     this.startLevel(1, false);      // the attract-mode race behind the title screen
     this.needTune = true; this.tuneT = 0;
   }
   reset() { this.needTune = true; }
+
+  // ── Tilt steering (same feel as Turbo Rush 3D) ──────────────
+  setupTilt() {
+    if (!matchMedia('(pointer: coarse)').matches || typeof DeviceOrientationEvent === 'undefined') return;
+    if (typeof DeviceOrientationEvent.requestPermission === 'function') this.needTiltPermission = true;   // iOS 13+: ask on first tap
+    else this.listenTilt();
+  }
+  listenTilt() {
+    window.addEventListener('deviceorientation', (e) => {
+      if (e.gamma == null) return;
+      // portrait uses gamma; if the phone is turned sideways, beta is the steering axis
+      const ang = (screen.orientation && screen.orientation.angle) ?? window.orientation ?? 0;
+      const v = ang === 90 ? e.beta : ang === -90 || ang === 270 ? -e.beta : e.gamma;
+      if (v == null) return;
+      if (!this.tiltOn) { this.tiltBase = v; this.tiltOn = true; }
+      this.tilt = v;
+    }, { passive: true });
+  }
+  askTilt() {
+    if (!this.needTiltPermission) return;
+    this.needTiltPermission = false;
+    DeviceOrientationEvent.requestPermission().then((r) => { if (r === 'granted') this.listenTilt(); }).catch(() => {});
+  }
+  calibrateTilt() { if (this.tiltOn && this.tilt != null) this.tiltBase = this.tilt; }
+  /** -1..1 from the phone's lean: ±3° dead zone, full lock at ±20°, gentle near the middle */
+  tiltSteer() {
+    if (!this.tiltOn || this.tilt == null) return (this.tiltFrac = 0);
+    let raw = this.tilt - this.tiltBase;
+    if (raw > 180) raw -= 360; else if (raw < -180) raw += 360;
+    const g = Math.abs(raw) < 3 ? 0 : raw - Math.sign(raw) * 3;
+    const t = clamp(g / 17, -1, 1);
+    return (this.tiltFrac = Math.sign(t) * Math.pow(Math.abs(t), 1.4));
+  }
 
   themeFor(level, bonus) { return bonus ? THEMES.gold : isIce(level) ? THEMES.ice : THEMES[STATIONS[this.station].theme]; }
 
@@ -273,6 +309,7 @@ class NeonDrift {
   startLevel(level, bonus) {
     const s = this.s, r = s.rng;
     this.level = level; this.bonus = bonus;
+    this.calibrateTilt();
     this.T = buildTrack(r, level, bonus);
     this.theme = this.themeFor(level, bonus);
     this.grip = isIce(level) ? 0.62 : 1;
@@ -363,6 +400,7 @@ class NeonDrift {
   }
   confirmTune() {
     this.tuneT = 0;
+    this.calibrateTilt();
     try { localStorage.setItem('nd-station', String(this.station)); } catch (e) { /* storage blocked */ }
     this.s.sound.play('powerup');
     this.s.fx.text(W / 2, H * 0.3, `📻 ${STATIONS[this.station].name}`, { color: this.theme.edge, size: 26, life: 1 });
@@ -370,7 +408,14 @@ class NeonDrift {
   tuneButtons() { return STATIONS.map((_, i) => ({ x: 52 + i * 128, y: 352, w: 120, h: 74 })); }
 
   // ── Input ───────────────────────────────────────────────────
+  /** touch: with tilt on, the screen edges still steer and the middle is the handbrake */
+  touchAt(x) {
+    if (!this.tiltOn) { this.touch = x < W / 2 ? -1 : 1; this.handTouch = false; return; }
+    this.touch = x < W * 0.2 ? -1 : x > W * 0.8 ? 1 : 0;
+    this.handTouch = this.touch === 0;
+  }
   onAction(a, x, y) {
+    if (a === 'press') this.askTilt();
     if (this.tuneT > 0) {
       if (a === 'left') this.setStation(this.station - 1);
       else if (a === 'right') this.setStation(this.station + 1);
@@ -381,11 +426,11 @@ class NeonDrift {
       }
       return;
     }
-    if (a === 'press') this.touch = x < W / 2 ? -1 : 1;
-    else if (a === 'release') this.touch = 0;
+    if (a === 'press') this.touchAt(x);
+    else if (a === 'release') { this.touch = 0; this.handTouch = false; }
   }
-  onPointerMove(x, y, down) { if (down && this.tuneT <= 0) this.touch = x < W / 2 ? -1 : 1; }
-  onLifeLost() { this.resetRace(); }
+  onPointerMove(x, y, down) { if (down && this.tuneT <= 0) this.touchAt(x); }
+  onLifeLost() { this.touch = 0; this.handTouch = false; this.resetRace(); }
 
   after(t, fn) { this.timers.push({ t, fn }); }
 
@@ -438,7 +483,7 @@ class NeonDrift {
 
   steerInput() {
     const i = this.s.input;
-    return clamp((i.isDown('right') ? 1 : 0) - (i.isDown('left') ? 1 : 0) + this.touch, -1, 1);
+    return clamp((i.isDown('right') ? 1 : 0) - (i.isDown('left') ? 1 : 0) + this.touch + this.tiltSteer(), -1, 1);
   }
 
   updatePlayer(dt, auto = false) {
@@ -449,7 +494,7 @@ class NeonDrift {
       steerIn = clamp(wrapA(Math.atan2(ax - p.x, az - p.z) - p.h) * 3, -1, 1);
     } else {
       steerIn = this.steerInput();
-      hand = s.input.isDown('down') || s.input.isDown('action');
+      hand = s.input.isDown('down') || s.input.isDown('action') || this.handTouch;
     }
     p.brake = hand;
     p.steer += (steerIn - p.steer) * Math.min(1, dt * 11);
@@ -1204,6 +1249,19 @@ class NeonDrift {
     ctx.fillStyle = 'rgba(5,3,15,0.6)'; roundRect(ctx, 10, H - 40, 140, 28, 10); ctx.fill();
     progressBar(ctx, 18, H - 31, 84, 10, f, p.boostT > 0 ? '#67e8f9' : th.edge, '');
     ctx.textAlign = 'right'; ctx.font = '900 14px system-ui'; ctx.fillStyle = '#fff'; ctx.fillText(`${Math.round(spd * 0.4)}`, 142, H - 20);
+    // phone controls: hint for the first few seconds, and a tilt meter while tilt is steering
+    const mobile = matchMedia('(pointer: coarse)').matches;
+    if (mobile && this.tuneT <= 0 && this.raceT < 6) {
+      ctx.textAlign = 'center'; ctx.font = '600 12px system-ui'; ctx.fillStyle = 'rgba(226,232,240,.6)';
+      ctx.fillText(this.tiltOn ? 'Tilt to steer · hold the middle to drift' : this.needTiltPermission ? 'Tap to enable tilt steering · or hold a side to steer' : 'Hold the left or right side to steer', W / 2, H - 52);
+    }
+    if (this.tiltOn && this.tuneT <= 0) {
+      const bw = 90, bh = 10, bx = W / 2 - bw / 2 + 40, by = H - 31, fr = clamp(this.tiltFrac, -1, 1), fw = Math.abs(fr) * (bw / 2 - 3);
+      ctx.fillStyle = 'rgba(5,3,15,0.6)'; roundRect(ctx, bx, by, bw, bh, 5); ctx.fill();
+      ctx.fillStyle = Math.abs(fr) > 0.6 ? (s.gold ? '#fde047' : '#ff4fa3') : th.edge;   // pink once you're at drift lock
+      if (fw > 0.5) { roundRect(ctx, fr < 0 ? bx + bw / 2 - fw : bx + bw / 2, by + 2, fw, bh - 4, 3); ctx.fill(); }
+      ctx.fillStyle = 'rgba(226,232,240,0.8)'; ctx.fillRect(bx + bw / 2 - 1, by + 1, 2, bh - 2);
+    }
     // countdown
     if (this.count > 0 && this.tuneT <= 0) {
       const n = Math.ceil(this.count / 0.7), ph = (this.count / 0.7) % 1;
