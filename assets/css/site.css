@@ -214,6 +214,7 @@ kbd { background: #2c2c5a; border: 1px solid #45458a; border-bottom-width: 2px; 
 .lock-meter { display: inline-block; width: 120px; height: 8px; border-radius: 4px; background: #26264a; overflow: hidden; }
 .lock-meter i { display: block; height: 100%; background: linear-gradient(90deg, #f472b6, #fbbf24); }
 .game-card.zone-locked .thumb img { filter: grayscale(.8) brightness(.6); }
+.game-card .chip3d { position: absolute; bottom: 10px; left: 12px; font-weight: 900; font-size: .75em; letter-spacing: .06em; color: #e0f2fe; background: linear-gradient(135deg, #0369a1, #7c3aed); border: 1px solid #38bdf8; padding: .15em .6em; border-radius: 999px; box-shadow: 0 0 10px rgba(56,189,248,.45); }
 .game-card .lock-badge { position: absolute; top: 12px; right: 12px; z-index: 2; background: #1a1a3d; border: 1px solid #be185d; color: #fda4af; font-weight: 800; border-radius: 999px; padding: .25em .8em; font-size: .85em; }
 .game-card.zone-locked .play-cta { display: none; }
 

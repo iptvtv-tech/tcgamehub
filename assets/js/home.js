@@ -81,7 +81,7 @@ const card = (sl) => {
   return `
     <a class="game-card${sl.legendSlot ? ' legend-slot' : ''}${locked ? ' zone-locked' : ''}" href="games/${g.id}/" style="--c:${g.color}">
       ${locked ? '<span class="lock-badge">🔒 Locked</span>' : ''}
-      <div class="thumb"><span class="num">#${sl.n}</span><img src="games/${g.id}/thumb.svg" alt="" width="120" height="120" loading="lazy"></div>
+      <div class="thumb"><span class="num">#${sl.n}</span><img src="games/${g.id}/thumb.svg" alt="" width="120" height="120" loading="lazy">${g.is3d ? '<span class="chip3d" title="Built with a 3D engine">3D</span>' : ''}</div>
       <span class="play-cta">PLAY ▶</span>
       <div class="body">
         <h3>${esc(g.title)} ${g.isNew ? '<span class="pill new">NEW</span>' : ''}${sl.legendSlot ? '<span class="pill legend-pill">👑 LEGENDS</span>' : ''}</h3>

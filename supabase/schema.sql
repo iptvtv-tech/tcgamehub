@@ -23,12 +23,12 @@ insert into public.games (id, title, max_points_per_second) values
   ('tower-topple', 'Tower Topple', 3000),
   ('hyper-hex', 'Hyper Hex', 3000),
   ('galactic-alien-shooter', 'Galactic Alien Shooter', 8000),
-  ('turbo-rush', 'Turbo Rush', 10000),
+  ('turbo-rush', 'Turbo Rush 3D', 10000),
   ('bubble-blitz', 'Bubble Blitz', 8000),
   ('pinball-blast', 'Pinball Blast Extreme', 15000),
   ('star-strike', 'Star Strike 3D', 12000),
   ('dungeon-escape', 'Dungeon Escape 3D', 12000),
-  ('tc-pixel-craft', 'TC Pixel Craft', 15000),
+  ('tc-pixel-craft', 'TC Pixel Craft 3D', 15000),
   ('eggspress', 'Eggspress 3D', 12000)
   -- ADD NEW GAMES HERE, e.g.  ,('my-game', 'My Game', 3000)
 on conflict (id) do update set title = excluded.title, max_points_per_second = excluded.max_points_per_second;
@@ -295,7 +295,7 @@ alter table public.games add column if not exists legend_min_ms integer not null
 insert into public.games (id, title, max_points_per_second, has_legend, legend_min_ms)
 values ('the-vault-job', 'The Vault Job', 8000, true, 90000),
        ('heist-planner', 'Heist Planner', 3000, true, 240000),
-       ('crypt-of-crowns', 'Crypt of Crowns', 6000, true, 150000)
+       ('crypt-of-crowns', 'Crypt of Crowns 3D', 6000, true, 150000)
 on conflict (id) do update set title = excluded.title, max_points_per_second = excluded.max_points_per_second,
   has_legend = excluded.has_legend, legend_min_ms = excluded.legend_min_ms;
 -- FUTURE LEGEND GAMES: add them the same way with has_legend = true.

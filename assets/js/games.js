@@ -221,7 +221,8 @@ export const GAMES = [
   {
     id: 'turbo-rush',
     gold: 'Golden Racer',           // golden character unlocked by the Zone 3 egg
-    title: 'Turbo Rush',
+    title: 'Turbo Rush 3D',
+    is3d: true,                     // 3D engine — shows the 3D chip on the home page
     tagline: 'Race the clock through neon cities, tunnels and storms. Skim past cars for near-miss combos, slipstream for free nitro, dodge roadworks and police — and beat VIPER in the rival duels.',
     controls: 'Steer ← → (or A / D) · ↑ / W nitro boost · ↓ / S brake · tuck in behind a car to slipstream · touch: hold the left or right side to steer, the middle to boost',
     color: '#ef4444',
@@ -282,6 +283,7 @@ export const GAMES = [
     id: 'star-strike',
     gold: 'Golden Fighter',         // golden character unlocked by the Zone 3 egg
     title: 'Star Strike 3D',
+    is3d: true,
     tagline: 'Fly a starfighter down a 3D space corridor. Grab spread, plasma, homing missiles and a wingman drone, blast 12 kinds of enemy and take down three different bosses.',
     controls: 'Fly: arrows / WASD or mouse (touch: drag) · Fire: hold Space / mouse (touch fires automatically) · Bomb: B or 💣 · fly into or shoot power-up capsules',
     color: '#38bdf8',
@@ -303,6 +305,7 @@ export const GAMES = [
     id: 'dungeon-escape',
     gold: 'Golden Torch',           // golden character — unlocked by the Golden Crown until Zone 4 has its own Legends game
     title: 'Dungeon Escape 3D',
+    is3d: true,
     tagline: 'Lost in a 3D maze with a dying torch. Grab the keys, find the stairs — and keep one step ahead of the ghouls hunting you in the dark.',
     controls: 'Walk: ↑/↓ or W/S · Turn: ←/→ or A/D · Flash: Space or ✨ (touch: tap sides to turn, middle to walk, bottom to step back)',
     color: '#f59e0b',
@@ -320,7 +323,8 @@ export const GAMES = [
   {
     id: 'crypt-of-crowns',
     gold: 'Golden Explorer',        // golden character unlocked by the Zone 3 egg
-    title: 'Crypt of Crowns',
+    title: 'Crypt of Crowns 3D',
+    is3d: true,
     tagline: 'A 3D dungeon crawl through 15 hand-built crypts. Find keys, work the levers, search for secret walls and time your way past skeleton patrols and spike traps.',
     controls: 'Step: ↑/↓ or W/S · Turn: ←/→ or A/D · Search: Space (touch: on-screen pad, or tap the view)',
     color: '#a78bfa',
@@ -339,7 +343,8 @@ export const GAMES = [
   {
     id: 'tc-pixel-craft',
     gold: 'Golden Hand',            // golden character — unlocked by the Golden Crown until Zone 4 has its own Legends game
-    title: 'TC Pixel Craft',
+    title: 'TC Pixel Craft 3D',
+    is3d: true,
     tagline: 'An open-world survival block game. Start with nothing: punch trees, craft tools, find food before your energy runs out, survive the nights — and one day face the Shadow King.',
     controls: 'WASD move · Shift sprint · Mouse look (click the view) · Left click mine/hit · Right click place/use/eat · E bag & crafting · L advancements (touch: stick, drag to look, HIT / USE / ⤒)',
     color: '#84cc16',
@@ -359,6 +364,7 @@ export const GAMES = [
     id: 'eggspress',
     gold: 'Golden Egg Truck',       // golden character unlocked by the Zone 3 egg
     title: 'Eggspress 3D',
+    is3d: true,
     tagline: 'Deliver one very loose egg over the hills to the farm. Ramps, chasms, wind and oil — hard landings crack it, and three cracks is SPLAT!',
     controls: 'Drive: → / D / Space · Brake & reverse: ← / A · in the air → tips back, ← tips forward (touch: hold right side to drive, left side to brake)',
     color: '#fb923c',
@@ -418,7 +424,7 @@ export const ZONES = [
   { n: 2, name: 'Zone 2 · Hard Mode', blurb: 'Expert to Extreme — tougher than anything in Zone 1. Heist Planner is this zone\'s Legends game.',
     legendGame: 'heist-planner',
     slots: ['snake-escape-puzzle', 'neon-beat', 'tower-topple', 'hyper-hex', 'galactic-alien-shooter', 'heist-planner'] },
-  { n: 3, name: 'Zone 3 · Master Class', blurb: 'Master difficulty — for players who have beaten Zone 2. Crypt of Crowns is this zone\'s Legends game.',
+  { n: 3, name: 'Zone 3 · Master Class', blurb: 'Master difficulty — for players who have beaten Zone 2. Crypt of Crowns 3D is this zone\'s Legends game.',
     legendGame: 'crypt-of-crowns',
     slots: ['turbo-rush', 'bubble-blitz', 'pinball-blast', 'star-strike', 'eggspress', 'crypt-of-crowns'] },
   { n: 4, name: 'Zone 4 · Ultra', blurb: 'Ultra difficulty — for players who have played every Zone 3 game. More games are on the way.',
