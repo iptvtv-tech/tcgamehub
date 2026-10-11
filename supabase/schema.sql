@@ -25,7 +25,7 @@ insert into public.games (id, title, max_points_per_second) values
   ('galactic-alien-shooter', 'Galactic Alien Shooter', 8000),
   ('turbo-rush', 'Turbo Rush 3D', 10000),
   ('bubble-blitz', 'Bubble Blitz 3D', 8000),
-  ('pinball-blast', 'Pinball Blast Extreme', 15000),
+  ('pinball-blast', 'Pinball Blast 3D', 15000),
   ('star-strike', 'Star Strike 3D', 12000),
   ('dungeon-escape', 'Dungeon Escape 3D', 12000),
   ('tc-pixel-craft', 'TC Pixel Craft 3D', 15000),

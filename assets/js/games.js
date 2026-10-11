@@ -262,8 +262,9 @@ export const GAMES = [
   {
     id: 'pinball-blast',
     gold: 'Golden Ball',            // golden character unlocked by the Zone 3 egg
-    title: 'Pinball Blast Extreme',
-    tagline: 'Neon pinball against the clock — and CHAOS: ghost balls, earthquakes, magnets, reversed flippers, hidden trap doors, portals and black holes. Hit the UFO for multiball jackpots!',
+    title: 'Pinball Blast 3D',
+    is3d: true,
+    tagline: 'Neon 3D pinball against the clock — and CHAOS: ghost balls, earthquakes, magnets, reversed flippers, hidden trap doors, portals and black holes. Hit the UFO for multiball jackpots!',
     controls: 'Flippers: ← → or A / D (touch: hold left / right half) · Launch: hold Space / touch, let go · Nudge: ↑ (too much = TILT)',
     color: '#f472b6',
     isNew: true,

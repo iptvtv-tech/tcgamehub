@@ -1,5 +1,8 @@
 // ─────────────────────────────────────────────────────────────
-//  PINBALL BLAST EXTREME — game 15 (Zone 3 · Master)
+//  PINBALL BLAST 3D — game 15 (Zone 3 · Master)
+//  The ball physics below run on the flat 480 × 720 table exactly as before;
+//  scene3d.js leans the table back in 3D and draws walls, bumpers, flippers,
+//  slingshots, targets, the UFO and a chrome ball as lit 3D shapes.
 //  A full neon pinball table: flippers, plunger, pop bumpers, slingshots,
 //  a drop-target bank, a kick-out saucer, N·E·O·N rollover lanes, a spinner,
 //  and a UFO that patrols the top of the table. Classic electro-mechanical
@@ -15,6 +18,7 @@
 //  Every 5th level: ★ MULTIBALL FRENZY — 3 balls, 15 s, drains don't count.
 // ─────────────────────────────────────────────────────────────
 import { runGame, roundRect, progressBar, clamp } from '../../assets/js/engine.js';
+import * as S from './scene3d.js';
 
 const ID = 'pinball-blast';
 const UFO_Y = 206;
@@ -34,6 +38,17 @@ const W = 480, H = 720;
 const R = 9;                                  // ball radius
 const LANE_X = 442, LANE_Y = 660;             // plunger rest spot
 const TAU = Math.PI * 2;
+
+// ── 3D models (mesh coords: x across, y = −height, z = along the table) ──
+const bumperCache = new Map();
+/** pop bumper: dark base ring, coloured skirt, chrome cap ring, glowing top. mats 0 colour · 1 dark · 2 chrome · 3 glow */
+const BUMPER = (r) => {
+  if (!bumperCache.has(r)) { const m = S.mk(); S.latheY(m, [[0, r + 2], [-5, r + 2], [-5, r - 2], [-15, r - 2], [-18, r - 5], [-18, 0.01]], 12, (b) => [1, 1, 0, 2, 3][b]); bumperCache.set(r, m); }
+  return bumperCache.get(r);
+};
+const PEG = (() => { const m = S.mk(); S.latheY(m, [[0, 6], [-14, 5], [-16, 3], [-16, 0.01]], 10, (b) => (b ? 2 : 0)); return m; })();
+/** the UFO: a flying saucer with a ring of lights and a glass dome. mats 0 hull · 1 underside · 2 glass · 3 lights */
+const SAUCER3D = (() => { const m = S.mk(); S.latheY(m, [[4, 0.01], [2, 14], [0, 24], [-3, 24], [-5, 13], [-6, 11], [-12, 9], [-15, 4], [-16, 0.01]], 16, (b, i) => [1, 1, i % 2 ? 3 : 0, 0, 0, 2, 2, 2][b]); return m; })();
 
 // ── Table geometry ───────────────────────────────────────────
 const WALLS = [];                             // [x1, y1, x2, y2, bounce]
@@ -80,6 +95,7 @@ runGame({
   width: W,
   height: H,
   lives: 3,
+  detail: true,                      // offers the 🖥 Graphics HIGH / LOW switch (LOW drops glows and star art)
   comboWindow: 2.5,
   comboStep: 4,
   maxMultiplier: 4,
@@ -113,6 +129,8 @@ class Pinball {
       { px: 300, py: 640, side: -1, a: 0.5, prev: null, key: 'right' },
     ];
     this.lights = Array.from({ length: 14 }, (_, i) => ({ ph: i * 0.45 }));
+    this.cam = new S.TableCam(W, H, { pivot: 640, tilt: 22, dist: 1100, centreY: 400, fitBottomY: 735, fitHalfWidth: 245 });
+    this.ballSpr = S.ballSprite(false); this.goldSpr = S.ballSprite(true);
     this.startLevel(1, false);
   }
 
@@ -195,7 +213,7 @@ class Pinball {
     const s = this.s;
     this.nudges = (this.nudges || 0) + 1;
     this.nudgeT = 2;
-    if (this.nudges > 3) { s.fx.text(W / 2, H * 0.45, 'TILT!', { color: '#f87171', size: 44, life: 1.2 }); this.tilted = 2; this.nudges = 0; return; }
+    if (this.nudges > 3) { s.fx.text(...this.sp(W / 2, H * 0.45), 'TILT!', { color: '#f87171', size: 44, life: 1.2 }); this.tilted = 2; this.nudges = 0; return; }
     for (const b of this.balls) if (b.inPlay) { b.vy -= 160; b.vx += (Math.random() - 0.5) * 120; }
     s.fx.shake(4, 0.15);
   }
@@ -240,7 +258,7 @@ class Pinball {
       if (this.mTime <= 10 && Math.ceil(this.mTime) !== Math.ceil(this.mTime + dt)) s.sound.play('tick');
       if (this.mTime <= 0) {
         this.mTime = 0;
-        s.fx.text(W / 2, H * 0.45, 'TIME UP!', { color: '#f87171', size: 40, life: 1.3 });
+        s.fx.text(...this.sp(W / 2, H * 0.45), 'TIME UP!', { color: '#f87171', size: 40, life: 1.3 });
         this.knocker(); s.hurt();
         return;
       }
@@ -313,18 +331,18 @@ class Pinball {
         if (this.bonus || this.t < b.saveUntil || (this.multiball && this.balls.some((o) => o.inPlay))) {
           if (!this.bonus && this.multiball && this.t >= b.saveUntil) continue;          // multiball: a lost ball is just gone
           // ball save: straight back into play
-          s.fx.text(W / 2, H * 0.55, 'BALL SAVED!', { color: '#4ade80', size: 26 });
+          s.fx.text(...this.sp(W / 2, H * 0.55), 'BALL SAVED!', { color: '#4ade80', size: 26 });
           s.sound.play('powerup');
           const nb = this.addBall(LANE_X, 560, 0, 0);
           this.launchBall(nb, 0.85);
           nb.saveUntil = 0;                                   // one save per ball
         }
       }
-      if (this.multiball && this.balls.filter((b) => b.inPlay).length <= 1) { this.multiball = false; s.fx.text(W / 2, H * 0.5, 'MULTIBALL OVER', { color: '#94a3b8', size: 20 }); }
+      if (this.multiball && this.balls.filter((b) => b.inPlay).length <= 1) { this.multiball = false; s.fx.text(...this.sp(W / 2, H * 0.5), 'MULTIBALL OVER', { color: '#94a3b8', size: 20 }); }
       if (!this.balls.some((b) => b.inPlay || b.limbo) && !this.plungerBall) {
         // last ball gone
         [392, 330, 262, 196].forEach((f, i) => s.sound.tone({ freq: f, dur: 0.25, type: 'triangle', vol: 0.09, delay: i * 0.16 }));
-        s.fx.text(W / 2, H * 0.5, 'DRAIN', { color: '#f87171', size: 36, life: 1.1 });
+        s.fx.text(...this.sp(W / 2, H * 0.5), 'DRAIN', { color: '#f87171', size: 36, life: 1.1 });
         s.hurt();
         return;
       }
@@ -340,7 +358,7 @@ class Pinball {
     this.charging = false; this.charge = 0; this.gateOpen = true;
     s.sound.noise({ dur: 0.12, vol: 0.18, freq: 800, to: 150 });
     s.sound.tone({ freq: 140, to: 60, dur: 0.1, type: 'square', vol: 0.08 });
-    if (power > 0.97 && !this.bonus) { s.fx.text(LANE_X - 30, 560, 'SKILL SHOT!', { color: '#fde047', size: 16 }); this.score(2000, LANE_X - 30, 540, 1000); s.unlock('skill'); }
+    if (power > 0.97 && !this.bonus) { s.fx.text(...this.sp(LANE_X - 30, 560), 'SKILL SHOT!', { color: '#fde047', size: 16 }); this.score(2000, LANE_X - 30, 540, 1000); s.unlock('skill'); }
   }
 
   tip(f) { return [f.px + f.side * Math.cos(f.a) * this.flen, f.py + Math.sin(f.a) * this.flen]; }
@@ -359,7 +377,7 @@ class Pinball {
       if (d < 12 * grow && b.inPlay) {
         b.inPlay = false; b.drained = true;
         this.s.sound.tone({ freq: 600, to: 40, dur: 0.5, type: 'sine', vol: 0.12 });
-        this.s.fx.burst(this.hole.x, this.hole.y, { colors: ['#a855f7', '#000', '#fff'], count: 24, speed: 140, life: 0.5 });
+        this.s.fx.burst(...this.sp(this.hole.x, this.hole.y), { colors: ['#a855f7', '#000', '#fff'], count: 24, speed: 140, life: 0.5 });
         this.hole = null;
         return;
       }
@@ -384,7 +402,7 @@ class Pinball {
         b.x = o.x + b.vx / sp * 20; b.y = o.y + b.vy / sp * 20;
         this.portalCool = 0.7;
         this.s.sound.tone({ freq: 300, to: 1200, dur: 0.15, type: 'sine', vol: 0.08 });
-        this.s.fx.ring(p.x, p.y, { color: p.col, radius: 30 }); this.s.fx.ring(o.x, o.y, { color: o.col, radius: 30 });
+        this.s.fx.ring(...this.sp(p.x, p.y), { color: p.col, radius: 30 }); this.s.fx.ring(...this.sp(o.x, o.y), { color: o.col, radius: 30 });
         this.score(250, o.x, o.y - 20, 100);
       });
     }
@@ -424,7 +442,7 @@ class Pinball {
     // kickback in the left outlane
     if (this.kickback && b.x < 60 && b.y > 600 && b.vy > 0) {
       b.vy = -1250; b.vx = 30; this.kickback = false;
-      this.knocker(); this.s.fx.text(90, 590, 'KICKBACK!', { color: '#4ade80', size: 18 });
+      this.knocker(); this.s.fx.text(...this.sp(90, 590), 'KICKBACK!', { color: '#4ade80', size: 18 });
     }
     for (const w of this.pinchWalls) this.hitSeg(b, w[0], w[1], w[2], w[3], w[4]);
     // UFO
@@ -561,7 +579,7 @@ class Pinball {
   }
   score(base, x, y, chimeVal = base, chain = false) {
     const s = this.s, pts = Math.round(base * (1 + (this.level - 1) * 0.15) * (this.bonus ? 2 : 1));
-    s.award(pts, x, y, { chain, color: '#fde047', size: pts >= 1000 ? 20 : 14 });
+    s.award(pts, ...this.sp(x, y), { chain, color: '#fde047', size: pts >= 1000 ? 20 : 14 });
     this.chime(chimeVal);
   }
   knocker() {
@@ -574,7 +592,7 @@ class Pinball {
     const s = this.s;
     s.sound.tone({ freq: 220, to: 90, dur: 0.09, type: 'square', vol: 0.09 });
     s.sound.noise({ dur: 0.08, vol: 0.15, freq: 1200, to: 200 });
-    s.fx.burst(bu.x, bu.y, { colors: ['#f472b6', '#fde047', '#fff'], count: 10, speed: 180, life: 0.35 });
+    s.fx.burst(...this.sp(bu.x, bu.y), { colors: ['#f472b6', '#fde047', '#fff'], count: 10, speed: 180, life: 0.35 });
     this.score(100, bu.x, bu.y - 30, 100, true);
     this.progress('bumpers', 1);
   }
@@ -584,11 +602,11 @@ class Pinball {
     this.targetsDown[i] = true;
     s.sound.tone({ freq: 130, to: 60, dur: 0.08, type: 'square', vol: 0.1 });
     s.sound.noise({ dur: 0.07, vol: 0.12, freq: 700 });
-    s.fx.burst(tg.x, tg.y + 11, { colors: ['#22d3ee', '#fff'], count: 10, speed: 140, life: 0.35 });
+    s.fx.burst(...this.sp(tg.x, tg.y + 11), { colors: ['#22d3ee', '#fff'], count: 10, speed: 140, life: 0.35 });
     this.score(500, tg.x - 30, tg.y, 100, true);
     if (this.targetsDown.every(Boolean)) {
       this.score(5000, 330, 360, 1000);
-      s.fx.text(330, 330, 'BANK DOWN!', { color: '#22d3ee', size: 22 }); s.unlock('bank');
+      s.fx.text(...this.sp(330, 330), 'BANK DOWN!', { color: '#22d3ee', size: 22 }); s.unlock('bank');
       this.knocker();
       this.progress('targets', 1);
       this.later(0.8, () => { this.targetsDown = [false, false, false, false, false]; this.s.sound.tone({ freq: 400, to: 800, dur: 0.2, type: 'triangle', vol: 0.05 }); });
@@ -603,7 +621,7 @@ class Pinball {
     this.score(500, LANES[i], 170, 100, true);
     if (this.lanesLit.every(Boolean)) {
       this.score(5000, 220, 200, 1000);
-      s.fx.text(220, 190, 'N·E·O·N!', { color: '#f472b6', size: 26 }); s.unlock('neon');
+      s.fx.text(...this.sp(220, 190), 'N·E·O·N!', { color: '#f472b6', size: 26 }); s.unlock('neon');
       this.knocker();
       this.progress('lanes', 1);
       this.later(0.8, () => { this.lanesLit = [false, false, false, false]; });
@@ -617,12 +635,12 @@ class Pinball {
     b.held = 1.1; b.saucerCool = 1.8;
     s.sound.noise({ dur: 0.1, vol: 0.2, freq: 500, to: 80 });
     this.score(3000, SAUCER.x + 30, SAUCER.y - 20, 1000, true);
-    s.fx.ring(SAUCER.x, SAUCER.y, { color: '#fde047', radius: 40 });
+    s.fx.ring(...this.sp(SAUCER.x, SAUCER.y), { color: '#fde047', radius: 40 });
     if (!this.bonus && !this.multiball) {
       this.locks++;
       if (this.level <= 3) this.kickback = true;                // saucer relights the kickback early on
       if (this.locks >= 2) this.startMultiball();
-      else s.fx.text(SAUCER.x + 50, SAUCER.y + 20, 'BALL LOCKED 1/2', { color: '#a5f3fc', size: 16 });
+      else s.fx.text(...this.sp(SAUCER.x + 50, SAUCER.y + 20), 'BALL LOCKED 1/2', { color: '#a5f3fc', size: 16 });
     }
     this.progress('saucer', 1);
     if (this.bonus) { this.frenzyJackpots++; if (this.frenzyJackpots >= 3) s.unlock('frenzy'); }
@@ -635,7 +653,7 @@ class Pinball {
     if (!pool.length) return;
     const kind = s.rng.pick(pool), c = CHAOS[kind];
     this.chaos = { kind, t: c.dur, max: c.dur };
-    s.fx.text(W / 2, H * 0.4, c.label, { color: c.col, size: 26, life: 1.4 });
+    s.fx.text(...this.sp(W / 2, H * 0.4), c.label, { color: c.col, size: 26, life: 1.4 });
     s.sound.tone({ freq: 660, to: 330, dur: 0.15, type: 'square', vol: 0.06 }); s.sound.tone({ freq: 660, to: 330, dur: 0.15, type: 'square', vol: 0.06, delay: 0.2 });
     if (kind === 'quake') { this.gx = (s.rng.chance(0.5) ? -1 : 1) * (320 + L * 12); s.sound.play('boom'); }
     if (kind === 'glitch') this.deadFlipper = s.rng.int(0, 1);
@@ -649,7 +667,7 @@ class Pinball {
     b.inPlay = false;                                                       // the ball drops into the secret passage…
     b.limbo = { t: 0.9, bad: s.rng.chance(Math.min(0.45, 0.1 + L * 0.03)) };
     s.sound.tone({ freq: 500, to: 60, dur: 0.4, type: 'triangle', vol: 0.1 });
-    s.fx.text(d.x, d.y - 20, '🚪 TRAP DOOR!', { color: '#fbbf24', size: 18 });
+    s.fx.text(...this.sp(d.x, d.y - 20), '🚪 TRAP DOOR!', { color: '#fbbf24', size: 18 });
   }
 
   /** A ball that fell through a trap door comes back out after a moment. */
@@ -659,12 +677,12 @@ class Pinball {
       if (b.limbo.bad) {
         // …and comes out of the drain chute. Ouch.
         const nb = this.addBall(220, 700, 0, 500); nb.saveUntil = 0;
-        s.fx.text(W / 2, H * 0.55, 'DOWN THE CHUTE!', { color: '#f87171', size: 24 });
+        s.fx.text(...this.sp(W / 2, H * 0.55), 'DOWN THE CHUTE!', { color: '#f87171', size: 24 });
       } else {
         // …and gets shot out at the top of the table
         const nb = this.addBall(220, 110, s.rng.range(-250, 250), 250); nb.saveUntil = 0;
         this.score(1500, 220, 140, 1000, true);
-        s.fx.text(W / 2, 160, 'SECRET PASSAGE!', { color: '#4ade80', size: 22 }); s.unlock('secret');
+        s.fx.text(...this.sp(W / 2, 160), 'SECRET PASSAGE!', { color: '#4ade80', size: 22 }); s.unlock('secret');
       }
       this.balls = this.balls.filter((x) => x !== b);
     }
@@ -673,7 +691,7 @@ class Pinball {
   startMultiball() {
     const s = this.s;
     this.locks = 0; this.multiball = true;
-    s.fx.text(W / 2, H * 0.42, 'MULTIBALL!', { color: '#f472b6', size: 40, life: 1.6 });
+    s.fx.text(...this.sp(W / 2, H * 0.42), 'MULTIBALL!', { color: '#f472b6', size: 40, life: 1.6 });
     s.fx.flash('#f472b6', 0.25); this.knocker(); s.sound.play('bonus'); s.unlock('multiball');
     for (let i = 0; i < 2; i++) this.later(0.3 + i * 0.6, () => { const nb = this.addBall(LANE_X, 560, 0, 0); nb.saveUntil = this.t + 3; this.launchBall(nb, 0.8); });
   }
@@ -683,10 +701,10 @@ class Pinball {
     u.cool = 0.35; u.flash = 1;
     s.sound.tone({ freq: 880, to: 220, dur: 0.18, type: 'square', vol: 0.07 });
     s.sound.tone({ freq: 1320, to: 660, dur: 0.12, type: 'sine', vol: 0.05, delay: 0.05 });
-    s.fx.burst(u.x, UFO_Y, { colors: ['#4ade80', '#a5f3fc', '#fff'], count: 12, speed: 170, life: 0.4 });
+    s.fx.burst(...this.sp(u.x, UFO_Y), { colors: ['#4ade80', '#a5f3fc', '#fff'], count: 12, speed: 170, life: 0.4 });
     if (this.multiball || this.bonus) {
       this.score(5000, u.x, UFO_Y - 30, 1000, true);
-      s.fx.text(u.x, UFO_Y - 50, 'JACKPOT!', { color: '#fde047', size: 24 }); s.unlock('jackpot');
+      s.fx.text(...this.sp(u.x, UFO_Y - 50), 'JACKPOT!', { color: '#fde047', size: 24 }); s.unlock('jackpot');
     } else this.score(750, u.x, UFO_Y - 26, 100, true);
     this.progress('ufo', 1);
   }
@@ -698,13 +716,13 @@ class Pinball {
     if (!m || m.have >= m.need) return;
     m.have = Math.min(m.need, m.have + n);
     if (m.have >= m.need) {
-      s.fx.text(W / 2, H * 0.36, `${MISSIONS[id].label} ✔`, { color: '#4ade80', size: 22, life: 1.4 });
+      s.fx.text(...this.sp(W / 2, H * 0.36), `${MISSIONS[id].label} ✔`, { color: '#4ade80', size: 22, life: 1.4 });
       s.sound.play('levelup');
     }
     if (this.missions.every((x) => x.have >= x.need)) {
       this.knocker();
       this.score(10000, W / 2, H * 0.3, 1000);
-      s.fx.text(W / 2, H * 0.25, 'MISSION COMPLETE!', { color: '#fde047', size: 32, life: 1.8 });
+      s.fx.text(...this.sp(W / 2, H * 0.25), 'MISSION COMPLETE!', { color: '#fde047', size: 32, life: 1.8 });
       if (s.lives === 3 && this.level >= 3) s.unlock('allballs');
       this.balls = [];
       this.plungerBall = null;
@@ -717,191 +735,291 @@ class Pinball {
   onLifeLost() { this.balls = []; this.multiball = false; this.hole = null; this.endChaos(); this.magnet = null; if (this.mTime <= 0) this.mTime = Math.min(this.mTimeMax, 40); this.newBall(); }
   onLevelClear() {}
 
-  // ── Draw ───────────────────────────────────────────────────
+  // ── Draw (3D) ─────────────────────────────────────────────
+  //  Table (x, y) + height → cam.at() → screen. Painted things go flat on the
+  //  table (plane()), standing things are lit meshes drawn far → near.
+  /** Run fn() with the canvas mapped onto the table at (x, y), h above it: draw in table units around (0, 0). */
+  plane(ctx, x, y, h, fn) {
+    const c = this.cam, o = c.at(x, y, h), a = c.at(x + 1, y, h), b = c.at(x, y + 1, h);
+    ctx.save(); ctx.transform(a[0] - o[0], a[1] - o[1], b[0] - o[0], b[1] - o[1], o[0], o[1]); fn(); ctx.restore();
+  }
+  /** table point → screen point (for score pop-ups and particles), at ball-centre height */
+  sp(x, y, h = R) { const q = this.cam.at(x, y, h); return [q[0], q[1]]; }
+
+  /**
+   * The camera never moves, so the scenery that never changes (backdrop, table art, walls) is drawn
+   * once into an off-screen layer at full screen resolution and reused every frame.
+   */
+  layer(ctx, key, paint) {
+    this.layers ??= new Map();
+    const cw = ctx.canvas.width, ch = ctx.canvas.height, k = `${key}|${cw}x${ch}`;
+    if (!this.layers.has(k)) {
+      if (this.layers.size > 12) this.layers.clear();
+      const cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
+      const c2 = cv.getContext('2d'); c2.scale(cw / W, ch / H); paint(c2);
+      this.layers.set(k, cv);
+    }
+    ctx.drawImage(this.layers.get(k), 0, 0, W, H);
+  }
+
   render(ctx) {
-    const s = this.s, t = this.t;
-    // cabinet background
+    const s = this.s, t = this.t, cam = this.cam, lo = s.lowDetail;
+    const pull = this.charging ? this.charge * 40 : 0;
+    this.layer(ctx, `base|${this.bonus}|${lo}`, (c) => this.paintBase(c, lo));
+    this.paintTable(ctx, lo, pull);
+    this.layer(ctx, `walls|${lo}|${this.pinchWalls.map((w) => w[0]).join(',')}`, (c) => this.drawWalls(c, lo));
+    this.drawWallLights(ctx, lo);
+    this.drawStanding(ctx, lo, pull);
+    this.drawHud(ctx);
+  }
+
+  /** Backdrop, table top and the painted art — the parts that never change. */
+  paintBase(ctx, lo) {
+    const t = 0, cam = this.cam;
+    // cabinet backdrop: dark, with the glow of the backbox above the table
     ctx.fillStyle = '#05030f'; ctx.fillRect(0, 0, W, H);
-    // playfield
+    const bg = ctx.createRadialGradient(W / 2, 40, 10, W / 2, 40, 320);
+    bg.addColorStop(0, this.bonus ? 'rgba(232,121,249,.35)' : 'rgba(99,102,241,.32)'); bg.addColorStop(1, 'rgba(5,3,15,0)');
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+
+    // ── the playfield, painted flat on the tilted table
+    const shell = [[20, 760], [20, 232], ...arc, [460, 760]].map(([x, y]) => cam.at(x, y));
     ctx.save();
-    ctx.beginPath(); ctx.moveTo(20, 740); ctx.lineTo(20, 232);
-    for (const [x, y] of arc) ctx.lineTo(x, y);
-    ctx.lineTo(460, 740); ctx.closePath();
-    const pg = ctx.createLinearGradient(0, 60, 0, H);
-    pg.addColorStop(0, this.bonus ? '#3b0a3a' : '#0b1a4a'); pg.addColorStop(1, this.bonus ? '#1e0b3a' : '#140a2e');
+    ctx.beginPath(); shell.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath();
+    const pg = ctx.createLinearGradient(0, shell[1][1] - 120, 0, H);
+    pg.addColorStop(0, this.bonus ? '#4a0d48' : '#0e2160'); pg.addColorStop(1, this.bonus ? '#1e0b3a' : '#120828');
     ctx.fillStyle = pg; ctx.fill();
     ctx.clip();
-    // star art
-    for (let i = 0; i < 30; i++) { ctx.fillStyle = `rgba(255,255,255,${0.15 + 0.15 * Math.sin(t * 2 + i)})`; ctx.fillRect((i * 97) % 400 + 30, (i * 61) % 560 + 90, 2, 2); }
-    // centre art
-    ctx.save(); ctx.globalAlpha = 0.14; ctx.font = '900 54px system-ui'; ctx.textAlign = 'center'; ctx.fillStyle = '#f472b6';
-    ctx.fillText('PINBALL', 220, 470); ctx.fillStyle = '#22d3ee'; ctx.fillText('BLAST', 220, 520); ctx.restore();
-    // insert lights (chasing arrows)
-    for (let i = 0; i < 5; i++) {
-      const on = (Math.floor(t * 6) + i) % 5 === 0;
-      ctx.fillStyle = on ? '#fde047' : 'rgba(253,224,71,.18)';
-      const y = 560 - i * 22;
-      ctx.beginPath(); ctx.moveTo(220, y - 8); ctx.lineTo(230, y + 4); ctx.lineTo(210, y + 4); ctx.closePath(); ctx.fill();
+    if (!lo) for (let i = 0; i < 30; i++) {
+      const [x, y, k] = cam.at((i * 97) % 400 + 30, (i * 61) % 560 + 90);
+      ctx.fillStyle = `rgba(255,255,255,${0.15 + 0.15 * Math.sin(t * 2 + i)})`; ctx.fillRect(x, y, 2 * k, 2 * k);
     }
+    this.plane(ctx, 220, 495, 0, () => {
+      ctx.globalAlpha = 0.16; ctx.font = '900 54px system-ui'; ctx.textAlign = 'center';
+      ctx.fillStyle = '#f472b6'; ctx.fillText('PINBALL', 0, -25); ctx.fillStyle = '#22d3ee'; ctx.fillText('BLAST', 0, 25);
+      ctx.font = '900 22px system-ui'; ctx.fillStyle = '#fde047'; ctx.fillText('3D', 0, 52);
+    });
+    // shooter lane floor
+    const ln = [[425, 262], [459, 262], [459, 760], [425, 760]].map(([x, y]) => cam.at(x, y));
+    ctx.fillStyle = '#080c24'; ctx.beginPath(); ln.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.fill();
     ctx.restore();
+  }
 
-    // shooter lane
-    ctx.fillStyle = '#0a0f2a'; ctx.fillRect(425, 262, 34, 480);
-
-    // walls
-    ctx.strokeStyle = '#a78bfa'; ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.shadowColor = '#a78bfa'; ctx.shadowBlur = 10;
-    ctx.beginPath(); for (const w of WALLS) { ctx.moveTo(w[0], w[1]); ctx.lineTo(w[2], w[3]); }
-    for (const w of this.pinchWalls) { ctx.moveTo(w[0], w[1]); ctx.lineTo(w[2], w[3]); }
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-    if (!this.gateOpen) { ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(GATE[0], GATE[1]); ctx.lineTo(GATE[2], GATE[3]); ctx.stroke(); }
-
-    // top lanes
-    'NEON'.split('').forEach((ch, i) => {
-      const x = LANES[i], lit = this.lanesLit[i];
+  /** Everything painted flat on the table that changes: lights, holes, portals, doors, shadows. */
+  paintTable(ctx, lo, pull) {
+    const t = this.t, cam = this.cam;
+    for (let i = 0; i < 5; i++) {                                       // chasing arrow inserts
+      const on = (Math.floor(t * 6) + i) % 5 === 0;
+      this.plane(ctx, 220, 560 - i * 22, 0, () => {
+        ctx.fillStyle = on ? '#fde047' : 'rgba(253,224,71,.18)';
+        if (on && !lo) { ctx.shadowColor = '#fde047'; ctx.shadowBlur = 12; }
+        ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(10, 4); ctx.lineTo(-10, 4); ctx.closePath(); ctx.fill();
+      });
+    }
+    // N·E·O·N rollover lights
+    'NEON'.split('').forEach((ch, i) => this.plane(ctx, LANES[i], 172, 0, () => {
+      const lit = this.lanesLit[i];
       ctx.fillStyle = lit ? '#f472b6' : 'rgba(244,114,182,.18)';
-      ctx.shadowColor = '#f472b6'; ctx.shadowBlur = lit ? 16 : 0;
-      ctx.beginPath(); ctx.arc(x, 172, 10, 0, TAU); ctx.fill(); ctx.shadowBlur = 0;
-      ctx.fillStyle = lit ? '#fff' : 'rgba(255,255,255,.5)'; ctx.font = '900 12px system-ui'; ctx.textAlign = 'center'; ctx.fillText(ch, x, 176);
+      if (lit && !lo) { ctx.shadowColor = '#f472b6'; ctx.shadowBlur = 16; }
+      ctx.beginPath(); ctx.arc(0, 0, 10, 0, TAU); ctx.fill(); ctx.shadowBlur = 0;
+      ctx.fillStyle = lit ? '#fff' : 'rgba(255,255,255,.5)'; ctx.font = '900 12px system-ui'; ctx.textAlign = 'center'; ctx.fillText(ch, 0, 4);
+    }));
+    // kickback light
+    if (this.kickback || (!this.bonus && this.level <= 3)) this.plane(ctx, 40, 630, 0, () => {
+      ctx.fillStyle = this.kickback ? `rgba(74,222,128,${0.6 + 0.4 * Math.sin(t * 6)})` : 'rgba(74,222,128,.15)';
+      ctx.beginPath(); ctx.moveTo(0, 10); ctx.lineTo(10, -6); ctx.lineTo(-10, -6); ctx.closePath(); ctx.fill();
     });
-
-    // slingshots
-    SLINGS.forEach((sl, i) => {
-      ctx.fillStyle = this.slingFlash[i] > 0 ? '#fde047' : '#1e293b';
-      ctx.beginPath(); ctx.moveTo(...sl.a); ctx.lineTo(...sl.b); ctx.lineTo(...sl.c); ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = '#f472b6'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(...sl.a); ctx.lineTo(...sl.c); ctx.stroke();
+    // saucer: a hole in the table
+    this.plane(ctx, SAUCER.x, SAUCER.y, 0, () => {
+      const hg = ctx.createRadialGradient(0, -4, 1, 0, 0, SAUCER.r);
+      hg.addColorStop(0, '#000'); hg.addColorStop(1, '#1e1b4b');
+      ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(0, 0, SAUCER.r, 0, TAU); ctx.fill();
+      ctx.strokeStyle = `rgba(253,224,71,${0.5 + 0.5 * Math.sin(t * 5)})`; ctx.lineWidth = 3; ctx.stroke();
     });
-
     // black hole
     if (this.hole) {
       const hl = this.hole, k = Math.min(1, (4 - hl.t) * 2, hl.t * 2);
-      ctx.save(); ctx.translate(hl.x, hl.y);
-      const hg = ctx.createRadialGradient(0, 0, 2, 0, 0, 60 * k);
-      hg.addColorStop(0, '#000'); hg.addColorStop(0.35, 'rgba(88,28,135,.9)'); hg.addColorStop(1, 'rgba(88,28,135,0)');
-      ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(0, 0, 60 * k, 0, TAU); ctx.fill();
-      ctx.strokeStyle = 'rgba(216,180,254,.7)'; ctx.lineWidth = 2;
-      for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(0, 0, (14 + i * 12) * k, t * (4 - i) + i, t * (4 - i) + i + 2.2); ctx.stroke(); }
-      ctx.restore();
+      this.plane(ctx, hl.x, hl.y, 0, () => {
+        const hg = ctx.createRadialGradient(0, 0, 2, 0, 0, 60 * k);
+        hg.addColorStop(0, '#000'); hg.addColorStop(0.35, 'rgba(88,28,135,.9)'); hg.addColorStop(1, 'rgba(88,28,135,0)');
+        ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(0, 0, 60 * k, 0, TAU); ctx.fill();
+        ctx.strokeStyle = 'rgba(216,180,254,.7)'; ctx.lineWidth = 2;
+        for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(0, 0, (14 + i * 12) * k, t * (4 - i) + i, t * (4 - i) + i + 2.2); ctx.stroke(); }
+      });
     }
-
-    // orbit diverter
-    this.divFlash = Math.max(0, (this.divFlash || 0) - 0.05);
-    ctx.strokeStyle = this.divFlash > 0 ? '#fde047' : '#f472b6'; ctx.lineWidth = 4; ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(24, 292); ctx.lineTo(56, 306); ctx.stroke();
-
-    // spinner (left lane)
-    ctx.save(); ctx.translate((SPINNER.x1 + SPINNER.x2) / 2, SPINNER.y);
-    ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-19, 0); ctx.lineTo(19, 0); ctx.stroke();
-    const sh = Math.cos(this.spinA) * 9;
-    ctx.fillStyle = this.spin > 20 ? '#fde047' : '#e2e8f0'; ctx.fillRect(-15, -Math.abs(sh), 30, Math.max(2, Math.abs(sh) * 2));
-    ctx.restore();
-
-    // UFO
-    if (this.ufo) {
-      const u = this.ufo, bob = Math.sin(t * 4) * 3;
-      ctx.save(); ctx.translate(u.x, UFO_Y + bob);
-      ctx.fillStyle = 'rgba(74,222,128,.14)'; ctx.beginPath(); ctx.moveTo(-10, 8); ctx.lineTo(10, 8); ctx.lineTo(22, 40); ctx.lineTo(-22, 40); ctx.fill();
-      ctx.fillStyle = u.flash > 0 ? '#fde047' : '#94a3b8'; ctx.shadowColor = this.multiball ? '#fde047' : '#4ade80'; ctx.shadowBlur = 14 + u.flash * 20;
-      ctx.beginPath(); ctx.ellipse(0, 0, 24, 9, 0, 0, TAU); ctx.fill();
-      ctx.fillStyle = '#a5f3fc'; ctx.beginPath(); ctx.ellipse(0, -6, 11, 9, 0, Math.PI, 0); ctx.fill(); ctx.shadowBlur = 0;
-      for (let i = -2; i <= 2; i++) { ctx.fillStyle = (Math.floor(t * 8) + i) % 2 ? '#f472b6' : '#fde047'; ctx.beginPath(); ctx.arc(i * 9, 2, 2, 0, TAU); ctx.fill(); }
-      if (this.multiball) { ctx.fillStyle = '#fde047'; ctx.font = '900 10px system-ui'; ctx.textAlign = 'center'; ctx.fillText('JACKPOT', 0, -18); }
-      ctx.restore();
-    }
-
     // teleport portals
-    if (this.portals) PORTALS.forEach((p) => {
-      ctx.save(); ctx.translate(p.x, p.y);
-      ctx.strokeStyle = p.col; ctx.shadowColor = p.col; ctx.shadowBlur = 12; ctx.lineWidth = 3;
-      for (let i = 0; i < 2; i++) { ctx.beginPath(); ctx.arc(0, 0, 13 - i * 5, t * (3 + i) , t * (3 + i) + 4.2); ctx.stroke(); }
-      ctx.restore();
-    });
+    if (this.portals) PORTALS.forEach((p) => this.plane(ctx, p.x, p.y, 0.5, () => {
+      ctx.strokeStyle = p.col; if (!lo) { ctx.shadowColor = p.col; ctx.shadowBlur = 12; } ctx.lineWidth = 3;
+      for (let i = 0; i < 2; i++) { ctx.beginPath(); ctx.arc(0, 0, 13 - i * 5, t * (3 + i), t * (3 + i) + 4.2); ctx.stroke(); }
+    }));
     // trap doors: invisible until found (a faint crack on the early levels)
     for (const d of this.doors) {
       const a = d.open > 0 ? 1 : d.found ? 0.5 : this.level <= 3 ? 0.07 : 0;
       if (!a) continue;
-      ctx.save(); ctx.globalAlpha = a; ctx.translate(d.x, d.y);
-      ctx.fillStyle = d.open > 0 ? '#000' : 'rgba(0,0,0,.35)'; ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2;
-      roundRect(ctx, -13, -9, 26, 18, 3); ctx.fill(); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(0, -9); ctx.lineTo(0, 9); ctx.stroke();
-      ctx.restore();
+      this.plane(ctx, d.x, d.y, 0, () => {
+        ctx.globalAlpha = a; ctx.fillStyle = d.open > 0 ? '#000' : 'rgba(0,0,0,.35)'; ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2;
+        roundRect(ctx, -13, -9, 26, 18, 3); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, -9); ctx.lineTo(0, 9); ctx.stroke();
+      });
     }
-    // magnet
-    if (this.magnet) {
-      const m = this.magnet;
-      ctx.save(); ctx.translate(m.x, m.y);
+    // magnet field
+    if (this.magnet) this.plane(ctx, this.magnet.x, this.magnet.y, 0, () => {
       ctx.strokeStyle = `rgba(248,113,113,${0.3 + 0.3 * Math.sin(t * 10)})`; ctx.lineWidth = 2;
       for (let r = 90; r > 25; r -= 25) { ctx.beginPath(); ctx.arc(0, 0, Math.max(2, r - ((t * 60) % 25)), 0, TAU); ctx.stroke(); }
-      ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(0, 0, 10, Math.PI, 0); ctx.lineTo(10, 8); ctx.lineTo(4, 8); ctx.lineTo(4, 0); ctx.arc(0, 0, 4, 0, Math.PI, true); ctx.lineTo(-4, 8); ctx.lineTo(-10, 8); ctx.closePath(); ctx.fill();
-      ctx.restore();
-    }
-
-    // centre post + kickback light
-    if (this.post) { ctx.fillStyle = '#e2e8f0'; ctx.beginPath(); ctx.arc(POST.x, POST.y, POST.r, 0, TAU); ctx.fill(); }
-    if (this.kickback || (!this.bonus && this.level <= 3)) {
-      ctx.fillStyle = this.kickback ? `rgba(74,222,128,${0.6 + 0.4 * Math.sin(t * 6)})` : 'rgba(74,222,128,.15)';
-      ctx.beginPath(); ctx.moveTo(40, 640); ctx.lineTo(50, 624); ctx.lineTo(30, 624); ctx.closePath(); ctx.fill();
-    }
-
-    // bumpers
-    this.bumpers.forEach((bu, i) => {
-      const f = this.bumperFlash[i];
-      ctx.save(); ctx.translate(bu.x, bu.y);
-      ctx.fillStyle = '#0f172a'; ctx.beginPath(); ctx.arc(0, 0, bu.r + 3, 0, TAU); ctx.fill();
-      const g = ctx.createRadialGradient(-6, -6, 2, 0, 0, bu.r);
-      g.addColorStop(0, '#fff'); g.addColorStop(0.4, f > 0 ? '#fde047' : ['#f472b6', '#22d3ee', '#a3e635'][i]); g.addColorStop(1, '#1e1b4b');
-      ctx.fillStyle = g; ctx.shadowColor = ['#f472b6', '#22d3ee', '#a3e635'][i]; ctx.shadowBlur = 10 + f * 24;
-      ctx.beginPath(); ctx.arc(0, 0, bu.r - 2 + f * 3, 0, TAU); ctx.fill();
-      ctx.shadowBlur = 0; ctx.fillStyle = '#fff'; ctx.font = '900 10px system-ui'; ctx.textAlign = 'center'; ctx.fillText('100', 0, 4);
-      ctx.restore();
     });
+    // knocked-down drop targets leave a slot
+    TARGETS.forEach((tg, i) => { if (this.targetsDown[i]) this.plane(ctx, tg.x, tg.y, 0, () => { ctx.fillStyle = 'rgba(34,211,238,.25)'; ctx.fillRect(-5, 0, 10, tg.h); }); });
+    // ball shadows (the light is up-left, so they fall down-right)
+    for (const b of this.balls) {
+      if (b.limbo || (this.chaos?.kind === 'ghost' && b.inPlay)) continue;
+      const by = b === this.plungerBall ? b.y + pull : b.y;
+      this.plane(ctx, b.x + 4, by + 5, 0, () => { ctx.fillStyle = 'rgba(0,0,8,.45)'; ctx.beginPath(); ctx.ellipse(0, 0, R * 1.05, R * 0.95, 0, 0, TAU); ctx.fill(); });
+    }
+  }
 
+  /** The walls stand up off the table: a lit face plus a glowing neon top edge. */
+  drawWalls(ctx, lo) {
+    const cam = this.cam, WH = 24;
+    const segs = WALLS.concat(this.pinchWalls).map((w) => ({ w, z: Math.min(w[1], w[3]) })).sort((a, b) => a.z - b.z);
+    for (const { w } of segs) {
+      const [x1, y1, x2, y2] = w, len = Math.hypot(x2 - x1, y2 - y1) || 1;
+      const nx = -(y2 - y1) / len, ny = (x2 - x1) / len;
+      const lit = 0.35 + 0.65 * Math.abs(nx * -0.5 + ny * -0.86);
+      const q = [cam.at(x1, y1), cam.at(x2, y2), cam.at(x2, y2, WH), cam.at(x1, y1, WH)];
+      ctx.fillStyle = `rgb(${Math.round(30 + 80 * lit)},${Math.round(22 + 58 * lit)},${Math.round(70 + 130 * lit)})`;
+      ctx.beginPath(); q.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath(); ctx.fill();
+    }
+    ctx.save();
+    ctx.strokeStyle = '#c4b5fd'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+    if (!lo) { ctx.shadowColor = '#a78bfa'; ctx.shadowBlur = 10; }
+    ctx.beginPath();
+    for (const { w } of segs) { const a = cam.at(w[0], w[1], WH), b = cam.at(w[2], w[3], WH); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  /** The two wall pieces that light up or move: the shooter-lane gate and the orbit diverter. */
+  drawWallLights(ctx, lo) {
+    const cam = this.cam;
+    ctx.save(); ctx.lineCap = 'round'; ctx.lineWidth = 3;
+    if (!lo) ctx.shadowBlur = 10;
+    if (!this.gateOpen) {
+      ctx.strokeStyle = '#fbbf24'; ctx.shadowColor = '#fbbf24';
+      const a = cam.at(GATE[0], GATE[1], 8), b = cam.at(GATE[2], GATE[3], 8);
+      ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+    }
+    // orbit diverter
+    this.divFlash = Math.max(0, (this.divFlash || 0) - 0.05);
+    ctx.strokeStyle = this.divFlash > 0 ? '#fde047' : '#f472b6'; ctx.shadowColor = ctx.strokeStyle; ctx.lineWidth = 4;
+    const d0 = cam.at(24, 292, 10), d1 = cam.at(56, 306, 10);
+    ctx.beginPath(); ctx.moveTo(d0[0], d0[1]); ctx.lineTo(d1[0], d1[1]); ctx.stroke();
+    ctx.restore();
+  }
+
+  /** Everything that stands on the table, plus the balls — sorted far → near so they overlap properly. */
+  drawStanding(ctx, lo, pull) {
+    const s = this.s, t = this.t, cam = this.cam;
+    const xf = ([x, y, z]) => cam.world(x, z, -y);                          // mesh coords: x, −height, table y
+    const at = (gx, gy, sc = 1) => ([x, y, z]) => cam.world(gx + x * sc, gy + z * sc, -y * sc);
+    const list = [];
+    const mesh = (z, items, after) => list.push({ z, draw: () => { S.drawMeshes(ctx, cam, items, { edges: !lo }); after?.(); } });
+
+    // pop bumpers
+    this.bumpers.forEach((bu, i) => {
+      const f = this.bumperFlash[i], col = ['#f472b6', '#22d3ee', '#a3e635'][i], cap = ['#fbcfe8', '#cffafe', '#ecfccb'][i];
+      mesh(bu.y, [{ mesh: BUMPER(bu.r), xf: at(bu.x, bu.y, 1 + f * 0.08), pal: [col, '#0f172a', '#e2e8f0', f > 0 ? '#fde047' : cap] }], () => {
+        if (f > 0 && !lo) { const [px, py, k] = cam.at(bu.x, bu.y, 18); const gl = ctx.createRadialGradient(px, py, 2, px, py, 46 * k); gl.addColorStop(0, 'rgba(253,224,71,' + 0.5 * f + ')'); gl.addColorStop(1, 'rgba(253,224,71,0)'); ctx.fillStyle = gl; ctx.fillRect(px - 50 * k, py - 50 * k, 100 * k, 100 * k); }
+        this.plane(ctx, bu.x, bu.y, 18.5 * (1 + f * 0.08), () => { ctx.fillStyle = '#1e1b4b'; ctx.font = '900 10px system-ui'; ctx.textAlign = 'center'; ctx.fillText('100', 0, 4); });
+      });
+    });
+    // slingshots
+    SLINGS.forEach((sl, i) => {
+      const m = S.mk(), fl = this.slingFlash[i] > 0;
+      S.extrude(m, [sl.a, sl.b, sl.c], 0, 15, (e) => (e === 2 ? 3 : 0), 1);
+      mesh(sl.b[1], [{ mesh: m, xf, pal: ['#2a1238', fl ? '#fde047' : '#4a1650', '#e2e8f0', fl ? '#fde047' : '#f472b6'] }]);
+    });
     // drop targets
     TARGETS.forEach((tg, i) => {
-      if (this.targetsDown[i]) { ctx.fillStyle = 'rgba(34,211,238,.15)'; ctx.fillRect(tg.x - 5, tg.y, 10, tg.h); return; }
-      ctx.fillStyle = '#22d3ee'; ctx.shadowColor = '#22d3ee'; ctx.shadowBlur = 10;
-      roundRect(ctx, tg.x - 6, tg.y, 12, tg.h, 3); ctx.fill(); ctx.shadowBlur = 0;
+      if (this.targetsDown[i]) return;
+      const m = S.mk(); S.box(m, [tg.x - 5, -18, tg.y], [tg.x + 5, 0, tg.y + tg.h], 0, 1, 0);
+      mesh(tg.y + tg.h / 2, [{ mesh: m, xf, pal: ['#0891b2', '#a5f3fc', '#e2e8f0'] }]);
     });
-
-    // saucer
-    ctx.save(); ctx.translate(SAUCER.x, SAUCER.y);
-    ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(0, 0, SAUCER.r, 0, TAU); ctx.fill();
-    ctx.strokeStyle = `rgba(253,224,71,${0.5 + 0.5 * Math.sin(t * 5)})`; ctx.lineWidth = 3; ctx.stroke();
-    ctx.restore();
-
+    // centre post
+    if (this.post) mesh(POST.y, [{ mesh: PEG, xf: at(POST.x, POST.y), pal: ['#cbd5e1', '#475569', '#f8fafc'] }]);
+    // spinner: a plate hanging from a wire across the left lane, spinning when hit
+    {
+      const cx = (SPINNER.x1 + SPINNER.x2) / 2, m = S.mk(), a = this.spinA, H0 = 22;
+      S.box(m, [SPINNER.x1 + 1, -H0 - 1, SPINNER.y - 1], [SPINNER.x2 - 1, -H0 + 1, SPINNER.y + 1], 2);
+      S.box(m, [SPINNER.x1, -H0 - 2, SPINNER.y - 2], [SPINNER.x1 + 4, 0, SPINNER.y + 2], 1); S.box(m, [SPINNER.x2 - 4, -H0 - 2, SPINNER.y - 2], [SPINNER.x2, 0, SPINNER.y + 2], 1);
+      const corner = (u, v) => [cx + u, -(H0 - Math.cos(a) * v), SPINNER.y + Math.sin(a) * v];
+      const plate = S.mk(); plate.v.push(corner(-15, 0), corner(15, 0), corner(15, 17), corner(-15, 17)); plate.f.push([0, 1, 2, 0], [0, 2, 3, 0]);
+      mesh(SPINNER.y, [{ mesh: m, xf, pal: ['#94a3b8', '#475569', '#cbd5e1'] }, { mesh: plate, xf, twoSided: true, pal: [this.spin > 20 ? '#fde047' : '#e2e8f0'] }]);
+    }
     // flippers
     for (const f of this.flippers) {
-      const [tx, ty] = this.tip(f);
-      ctx.lineCap = 'round';
-      const dead = this.deadFlipper === this.flippers.indexOf(f), rev = this.chaos?.kind === 'reverse';
-      ctx.strokeStyle = dead ? '#475569' : rev ? '#a78bfa' : '#ef4444'; ctx.lineWidth = 17; ctx.beginPath(); ctx.moveTo(f.px, f.py); ctx.lineTo(tx, ty); ctx.stroke();
-      if (dead && Math.random() < 0.3) this.s.fx.burst(tx, ty, { colors: ['#fde047', '#fff'], count: 2, speed: 90, life: 0.2 });
-      ctx.strokeStyle = dead ? '#94a3b8' : '#f8fafc'; ctx.lineWidth = 11; ctx.beginPath(); ctx.moveTo(f.px, f.py); ctx.lineTo(tx, ty); ctx.stroke();
-      ctx.fillStyle = '#94a3b8'; ctx.beginPath(); ctx.arc(f.px, f.py, 4, 0, TAU); ctx.fill();
+      const [tx, ty] = this.tip(f), dead = this.deadFlipper === this.flippers.indexOf(f), rev = this.chaos?.kind === 'reverse';
+      if (dead && Math.random() < 0.3) this.s.fx.burst(...this.sp(tx, ty), { colors: ['#fde047', '#fff'], count: 2, speed: 90, life: 0.2 });
+      const m = S.mk(); S.extrude(m, S.capsule(f.px, f.py, 9, tx, ty, 5.5), 0, 12, 0, 1);
+      const cap = S.mk(); S.latheY(cap, [[-12, 4.5], [-15, 4.5], [-15, 0.01]], 10, 2, [f.px, 0, f.py]);
+      mesh(Math.max(f.py, ty), [{ mesh: m, xf, pal: [dead ? '#475569' : rev ? '#8b5cf6' : '#dc2626', dead ? '#94a3b8' : '#f8fafc'] }, { mesh: cap, xf, pal: ['#94a3b8', '#94a3b8', '#cbd5e1'] }]);
     }
-
     // plunger
-    const pull = this.charging ? this.charge * 40 : 0;
-    ctx.fillStyle = '#94a3b8'; ctx.fillRect(LANE_X - 6, LANE_Y + R + 2 + pull, 12, 50);
-    ctx.fillStyle = '#ef4444'; ctx.fillRect(LANE_X - 10, LANE_Y + R + 2 + pull, 20, 6);
-
+    {
+      const m = S.mk(), y0 = LANE_Y + R + 2 + pull;
+      S.box(m, [LANE_X - 5, -9, y0 + 6], [LANE_X + 5, -2, y0 + 50], 2, 2, 2);
+      S.box(m, [LANE_X - 10, -13, y0], [LANE_X + 10, 0, y0 + 6], 0, 0, 0);
+      mesh(y0, [{ mesh: m, xf, pal: ['#ef4444', '#94a3b8', '#cbd5e1'] }], () => {
+        if (this.charging) { const a = cam.at(LANE_X - 14, 700), b = cam.at(LANE_X - 14, 700 - this.charge * 80); ctx.strokeStyle = '#fde047'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); }
+      });
+    }
+    // the UFO hovers above the table, beam down
+    if (this.ufo) {
+      const u = this.ufo, hov = 30 + Math.sin(t * 4) * 3;
+      const lightsOn = Math.floor(t * 8) % 2 ? '#f472b6' : '#fde047';
+      list.push({ z: UFO_Y - 1, draw: () => {
+        const b0 = cam.at(u.x - 9, UFO_Y, hov - 4), b1 = cam.at(u.x + 9, UFO_Y, hov - 4), b2 = cam.at(u.x + 24, UFO_Y, 0), b3 = cam.at(u.x - 24, UFO_Y, 0);
+        ctx.fillStyle = this.multiball ? 'rgba(253,224,71,.16)' : 'rgba(74,222,128,.16)';
+        ctx.beginPath(); ctx.moveTo(b0[0], b0[1]); ctx.lineTo(b1[0], b1[1]); ctx.lineTo(b2[0], b2[1]); ctx.lineTo(b3[0], b3[1]); ctx.closePath(); ctx.fill();
+        this.plane(ctx, u.x, UFO_Y, 0, () => { ctx.fillStyle = this.multiball ? 'rgba(253,224,71,.25)' : 'rgba(74,222,128,.25)'; ctx.beginPath(); ctx.ellipse(0, 0, 24, 12, 0, 0, TAU); ctx.fill(); });
+      } });
+      mesh(UFO_Y, [{ mesh: SAUCER3D, xf: ([x, y, z]) => cam.world(u.x + x, UFO_Y + z, hov - y), pal: [u.flash > 0 ? '#fde047' : '#94a3b8', '#475569', '#a5f3fc', lightsOn] }], () => {
+        if (!lo) { const [px, py, k] = cam.at(u.x, UFO_Y, hov); const gl = ctx.createRadialGradient(px, py, 4, px, py, 44 * k); const c = this.multiball ? '253,224,71' : '74,222,128'; gl.addColorStop(0, `rgba(${c},${0.18 + u.flash * 0.4})`); gl.addColorStop(1, `rgba(${c},0)`); ctx.fillStyle = gl; ctx.fillRect(px - 46 * k, py - 46 * k, 92 * k, 92 * k); }
+        if (this.multiball) { const [px, py] = cam.at(u.x, UFO_Y, hov + 22); ctx.fillStyle = '#fde047'; ctx.font = '900 10px system-ui'; ctx.textAlign = 'center'; ctx.fillText('JACKPOT', px, py); }
+      });
+    }
+    // magnet: a red horseshoe floating over its field
+    if (this.magnet) {
+      const m = this.magnet;
+      list.push({ z: m.y, draw: () => {
+        const [px, py, k] = cam.at(m.x, m.y, 16);
+        ctx.save(); ctx.translate(px, py); ctx.scale(k, k);
+        ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(0, 0, 10, Math.PI, 0); ctx.lineTo(10, 8); ctx.lineTo(4, 8); ctx.lineTo(4, 0); ctx.arc(0, 0, 4, 0, Math.PI, true); ctx.lineTo(-4, 8); ctx.lineTo(-10, 8); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#e2e8f0'; ctx.fillRect(-10, 6, 6, 2); ctx.fillRect(4, 6, 6, 2);
+        ctx.restore();
+      } });
+    }
     // balls
     for (const b of this.balls) {
       if (b.limbo) continue;
-      const ghost = this.chaos?.kind === 'ghost' && b.inPlay;
-      if (ghost) {                                                          // 👻 invisible, with a rare flicker
-        const flick = Math.sin(t * 9 + b.x * 0.05) > 0.93;
-        ctx.strokeStyle = `rgba(226,232,240,${flick ? 0.55 : 0.05})`; ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.arc(b.x, b.y, R, 0, TAU); ctx.stroke();
-        continue;
-      }
       const y = b === this.plungerBall ? b.y + pull : b.y;
-      const g = ctx.createRadialGradient(b.x - 3, y - 3, 1, b.x, y, R);
-      if (s.gold) { g.addColorStop(0, '#fffbeb'); g.addColorStop(0.5, '#fbbf24'); g.addColorStop(1, '#92400e'); }
-      else { g.addColorStop(0, '#ffffff'); g.addColorStop(0.5, '#cbd5e1'); g.addColorStop(1, '#475569'); }
-      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(b.x, y, R, 0, TAU); ctx.fill();
+      list.push({ z: y, draw: () => {
+        const [px, py, k] = cam.at(b.x, y, R), rr = R * k;
+        if (this.chaos?.kind === 'ghost' && b.inPlay) {                       // 👻 invisible, with a rare flicker
+          const flick = Math.sin(t * 9 + b.x * 0.05) > 0.93;
+          ctx.strokeStyle = `rgba(226,232,240,${flick ? 0.55 : 0.05})`; ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.arc(px, py, rr, 0, TAU); ctx.stroke();
+          return;
+        }
+        ctx.drawImage(s.gold ? this.goldSpr : this.ballSpr, px - rr, py - rr, rr * 2, rr * 2);
+      } });
     }
+    list.sort((a, b) => a.z - b.z);
+    for (const it of list) it.draw();
+  }
 
+  /** Missions, clock and messages — flat on the screen, over the 3D table. */
+  drawHud(ctx) {
+    const s = this.s, t = this.t;
     // HUD: missions
     ctx.fillStyle = 'rgba(3,5,20,.8)'; ctx.fillRect(0, 0, W, 44);
     if (this.bonus) progressBar(ctx, 14, 12, W - 28, 20, s.bonusLeft / 15, '#e879f9', `★ MULTIBALL FRENZY · ${Math.ceil(s.bonusLeft)}s`);
