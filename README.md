@@ -194,6 +194,7 @@ assets/js/engine.js        shared game engine (loop, input, levels, game over…
 assets/js/scores.js        leaderboard (Supabase or local fallback)
 assets/js/audio.js         synthesised sounds + music
 assets/js/legends.js       Legends: golden characters, Hall of Legends, Legend codes
+assets/js/tilt.js          phone tilt steering for the racers (asks iOS for motion permission on a real tap)
 hall-of-legends/           the hidden Hall of Legends page
 assets/css/                styles
 supabase/schema.sql        database setup (run once)

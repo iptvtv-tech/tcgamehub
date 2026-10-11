@@ -23,6 +23,7 @@
 // ─────────────────────────────────────────────────────────────
 import { runGame, roundRect, progressBar, clamp } from '../../assets/js/engine.js';
 import { SPORTS, drawCar, palette, rgb } from '../../assets/js/car-models.js';
+import { tilt } from '../../assets/js/tilt.js';
 
 const ID = 'neon-drift';
 const W = 480, H = 720;
@@ -263,45 +264,19 @@ class NeonDrift {
     this.q = new Float32Array(7);
     this.needTune = true; this.tuneT = 0; this.dialF = STATIONS[this.station].freq;
     // tilt steering (phones): gamma = left/right lean, calibrated to however the player holds the phone
-    this.tilt = null; this.tiltBase = 0; this.tiltOn = false; this.tiltFrac = 0; this.handTouch = false;
-    this.setupTilt();
+    this.tiltFrac = 0; this.handTouch = false;
+    this.tiltDev = tilt();          // shared phone-tilt reader (asks iOS for permission on a real tap)
     this.startLevel(1, false);      // the attract-mode race behind the title screen
     this.needTune = true; this.tuneT = 0;
   }
   reset() { this.needTune = true; }
 
   // ── Tilt steering (same feel as Turbo Rush 3D) ──────────────
-  setupTilt() {
-    if (!matchMedia('(pointer: coarse)').matches || typeof DeviceOrientationEvent === 'undefined') return;
-    if (typeof DeviceOrientationEvent.requestPermission === 'function') this.needTiltPermission = true;   // iOS 13+: ask on first tap
-    else this.listenTilt();
-  }
-  listenTilt() {
-    window.addEventListener('deviceorientation', (e) => {
-      if (e.gamma == null) return;
-      // portrait uses gamma; if the phone is turned sideways, beta is the steering axis
-      const ang = (screen.orientation && screen.orientation.angle) ?? window.orientation ?? 0;
-      const v = ang === 90 ? e.beta : ang === -90 || ang === 270 ? -e.beta : e.gamma;
-      if (v == null) return;
-      if (!this.tiltOn) { this.tiltBase = v; this.tiltOn = true; }
-      this.tilt = v;
-    }, { passive: true });
-  }
-  askTilt() {
-    if (!this.needTiltPermission) return;
-    this.needTiltPermission = false;
-    DeviceOrientationEvent.requestPermission().then((r) => { if (r === 'granted') this.listenTilt(); }).catch(() => {});
-  }
-  calibrateTilt() { if (this.tiltOn && this.tilt != null) this.tiltBase = this.tilt; }
+  get tiltOn() { return this.tiltDev.on; }
+  get needTiltPermission() { return this.tiltDev.need; }
+  calibrateTilt() { this.tiltDev.calibrate(); }
   /** -1..1 from the phone's lean: ±3° dead zone, full lock at ±20°, gentle near the middle */
-  tiltSteer() {
-    if (!this.tiltOn || this.tilt == null) return (this.tiltFrac = 0);
-    let raw = this.tilt - this.tiltBase;
-    if (raw > 180) raw -= 360; else if (raw < -180) raw += 360;
-    const g = Math.abs(raw) < 3 ? 0 : raw - Math.sign(raw) * 3;
-    const t = clamp(g / 17, -1, 1);
-    return (this.tiltFrac = Math.sign(t) * Math.pow(Math.abs(t), 1.4));
-  }
+  tiltSteer() { return (this.tiltFrac = this.tiltDev.steer(3, 20, 1.4)); }
 
   themeFor(level, bonus) { return bonus ? THEMES.gold : isIce(level) ? THEMES.ice : THEMES[STATIONS[this.station].theme]; }
 
@@ -415,7 +390,6 @@ class NeonDrift {
     this.handTouch = this.touch === 0;
   }
   onAction(a, x, y) {
-    if (a === 'press') this.askTilt();
     if (this.tuneT > 0) {
       if (a === 'left') this.setStation(this.station - 1);
       else if (a === 'right') this.setStation(this.station + 1);

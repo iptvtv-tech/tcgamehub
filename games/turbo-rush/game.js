@@ -14,6 +14,7 @@
 // ─────────────────────────────────────────────────────────────
 import { runGame, roundRect, progressBar, clamp } from '../../assets/js/engine.js';
 import { SPORTS, SEDAN, SUV, TRUCK, POLICE, drawCar, palette, rgb } from '../../assets/js/car-models.js';
+import { tilt } from '../../assets/js/tilt.js';
 
 const ID = 'turbo-rush';
 const W = 480, H = 720;
@@ -218,50 +219,13 @@ class TurboRush {
     this.stars = Array.from({ length: 70 }, () => ({ x: Math.random() * W, y: Math.random() * HORIZON * 0.8, r: Math.random() * 1.3 + 0.3 }));
     this.sprites = {}; this.skies = {};
     // ── Tilt steering ──────────────────────────────────────────
-    this.tiltGamma = null;          // null = no tilt data yet
-    this.tiltEnabled = false;       // true once we have a valid reading
-    this.tiltBase = 0;              // neutral calibration offset (set on first reading)
-    this.tiltCalibrated = false;
-    this._setupTilt();
+    this.tiltDev = tilt();          // shared phone-tilt reader (asks iOS for permission on a real tap)
     this.startLevel(1, false);
   }
 
-  /** Set up DeviceOrientation tilt steering. iOS 13+ requires a permission gesture. */
-  _setupTilt() {
-    const isMobile = matchMedia('(pointer: coarse)').matches;
-    if (!isMobile) return;
-    const onOrientation = (e) => {
-      if (e.gamma === null) return;
-      if (!this.tiltCalibrated) { this.tiltBase = e.gamma; this.tiltCalibrated = true; }
-      this.tiltGamma = e.gamma;
-      this.tiltEnabled = true;
-    };
-    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-      // iOS 13+ — need a user gesture; we'll prompt on first tap
-      this._needsTiltPermission = true;
-    } else if (typeof DeviceOrientationEvent !== 'undefined') {
-      window.addEventListener('deviceorientation', onOrientation, { passive: true });
-      this._onOrientation = onOrientation;
-    }
-  }
-
-  /** Called on any tap/touch start (from controls). Requests iOS permission once. */
-  _requestTiltPermission() {
-    if (!this._needsTiltPermission) return;
-    this._needsTiltPermission = false;
-    DeviceOrientationEvent.requestPermission().then((r) => {
-      if (r === 'granted') {
-        const onOrientation = (e) => {
-          if (e.gamma === null) return;
-          if (!this.tiltCalibrated) { this.tiltBase = e.gamma; this.tiltCalibrated = true; }
-          this.tiltGamma = e.gamma;
-          this.tiltEnabled = true;
-        };
-        window.addEventListener('deviceorientation', onOrientation, { passive: true });
-        this._onOrientation = onOrientation;
-      }
-    }).catch(() => {});
-  }
+  /** tilt is steering once real sensor readings arrive (see assets/js/tilt.js) */
+  get tiltEnabled() { return this.tiltDev.on; }
+  get _needsTiltPermission() { return this.tiltDev.need; }
 
   reset() {}
 
@@ -289,7 +253,7 @@ class TurboRush {
     };
     this.position = 0; this.speed = 0; this.playerX = 0; this.playerY = 0; this.steer = 0;
     // Re-calibrate tilt neutral each level so players don't have to hold the phone perfectly flat
-    if (this.tiltEnabled && this.tiltGamma !== null) this.tiltBase = this.tiltGamma;
+    this.tiltDev.calibrate();
     this.skyOff = 0; this.boost = 1; this.boosting = false;
     this.invuln = 0; this.crashFx = 0; this.shakeT = 0;
     this.near = 0; this.nearChain = 0; this.passedCount = 0; this.crashes = 0; this.coinsGot = 0;
@@ -495,8 +459,6 @@ class TurboRush {
     const s = this.s, inp = s.input, p = inp.pointer;
     let left = inp.isDown('left'), right = inp.isDown('right'), boost = inp.isDown('up'), brake = inp.isDown('down');
     if (p.down) {
-      // Trigger iOS tilt permission on first touch
-      if (this._needsTiltPermission) this._requestTiltPermission();
       if (this.tiltEnabled) {
         // Tilt active: any tap in the middle 60% = boost; edges still steer as fallback
         if (p.x < W * 0.2) left = true;
@@ -511,11 +473,8 @@ class TurboRush {
     }
     // Tilt steering: gamma is left/right lean in degrees (portrait phone)
     // Dead zone ±3°, full steer at ±20° from calibrated neutral
-    if (this.tiltEnabled && this.tiltGamma !== null) {
-      const DEAD = 3, MAX_TILT = 20;
-      const raw = this.tiltGamma - this.tiltBase;
-      const g = Math.abs(raw) < DEAD ? 0 : raw - Math.sign(raw) * DEAD;
-      const t = clamp(g / (MAX_TILT - DEAD), -1, 1);
+    if (this.tiltEnabled) {
+      const t = this.tiltDev.steer(3, 20);
       if (t < -0.15) left = true;
       if (t > 0.15) right = true;
       // Store tilt fraction for the HUD indicator
