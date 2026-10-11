@@ -19,6 +19,26 @@
 // ─────────────────────────────────────────────────────────────
 import { Store } from './storage.js';
 import { GAMES, ZONES, zoneOf, legendZones } from './games.js';
+
+/** After restoring a Legend code, ensure zone-progress is sufficient to open all zones
+ *  up to and including every zone whose Legends game is in the restored list.
+ *  Only marks a game as played if it has never been played on this device — it never
+ *  overwrites a real score or play count. */
+function restoreZoneAccess(restoredGameIds) {
+  // find the highest zone number reached by the restored eggs
+  const zoneNums = restoredGameIds.map((id) => zoneOf(id)?.n).filter(Boolean);
+  if (!zoneNums.length) return;
+  const maxZone = Math.max(...zoneNums);
+  // for zones 1 … maxZone: if any game in the previous zone has 0 plays, add 1
+  // (zone 1 has no predecessor so it's always open; zone N needs all of zone N-1 played)
+  for (let n = 2; n <= maxZone; n++) {
+    const prev = ZONES.find((z) => z.n === n - 1);
+    if (!prev) continue;
+    for (const id of prev.slots.filter(Boolean)) {
+      if (Store.plays(id) === 0) Store.addPlay(id);
+    }
+  }
+}
 import { rpc, ONLINE, nameProblem } from './scores.js';
 
 let crownSet = null, crownPromise = null;
@@ -175,6 +195,7 @@ export const Legends = {
     entry.game = games[0]; entry.games = games;
     Store.unlockAch('g:legend');
     this.syncCrowns();
+    restoreZoneAccess(games);
     Store.save();
     return entry;
   },

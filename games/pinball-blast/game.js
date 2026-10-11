@@ -693,7 +693,15 @@ class Pinball {
     this.locks = 0; this.multiball = true;
     s.fx.text(...this.sp(W / 2, H * 0.42), 'MULTIBALL!', { color: '#f472b6', size: 40, life: 1.6 });
     s.fx.flash('#f472b6', 0.25); this.knocker(); s.sound.play('bonus'); s.unlock('multiball');
-    for (let i = 0; i < 2; i++) this.later(0.3 + i * 0.6, () => { const nb = this.addBall(LANE_X, 560, 0, 0); nb.saveUntil = this.t + 3; this.launchBall(nb, 0.8); });
+    // Eject extra balls from the saucer (inside the table) rather than the shooter lane —
+    // launching from the lane can trap them behind the gate when the main ball is already in play.
+    for (let i = 0; i < 2; i++) {
+      this.later(0.3 + i * 0.6, () => {
+        const nb = this.addBall(SAUCER.x + 40, SAUCER.y - 30, 200 + i * 80, -400 - i * 60);
+        nb.saveUntil = this.t + 3;
+        s.sound.noise({ dur: 0.12, vol: 0.18, freq: 800, to: 150 });
+      });
+    }
   }
 
   ufoHit(u) {
