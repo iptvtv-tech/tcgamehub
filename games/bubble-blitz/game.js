@@ -1,5 +1,9 @@
 // ─────────────────────────────────────────────────────────────
-//  BUBBLE BLITZ — game 14 (Zone 3 · Master)
+//  BUBBLE BLITZ 3D — game 14 (Zone 3 · Master)
+//  The rules below run on a flat 480 × 720 board exactly as the 2D game did;
+//  scene3d.js stands the board up as a tilted 3D table (lit sphere bubbles,
+//  solid ceiling and rails, a 3D launcher) and maps the mouse / finger back
+//  onto the board, so aiming works on the 3D view.
 //  Blow coloured bubbles up from the launcher. They stick to the ceiling and to
 //  each other. Make a group of 3+ of one colour and it POPS — anything left
 //  hanging falls for double points. Quick play: the ceiling drops every few shots
@@ -11,7 +15,8 @@
 //  Knock a sparkly bubble DOWN instead of popping it and you keep a bonus / defuse a trap.
 //  Every 5th level: ★ BUBBLE BONANZA — rainbow shots, the board keeps coming, no way to lose.
 // ─────────────────────────────────────────────────────────────
-import { runGame, roundRect, progressBar, clamp } from '../../assets/js/engine.js';
+import { runGame, progressBar, clamp } from '../../assets/js/engine.js';
+import * as S from './scene3d.js';
 
 const ID = 'bubble-blitz';
 const W = 480, H = 720;
@@ -35,6 +40,7 @@ runGame({
   id: ID,
   width: W, height: H,
   lives: 3,
+  detail: true,                // offers the 🖥 Graphics HIGH / LOW switch (LOW skips shadows, stars and the table grid)
   comboWindow: 0,            // the combo keeps going as long as every shot pops something
   comboStep: 2,
   maxMultiplier: 6,
@@ -59,6 +65,10 @@ class BubbleBlitz {
   constructor(s) {
     this.s = s; this.t = 0;
     this.aim = Math.PI / 2;
+    this.cam = new S.TableCam(W, H, { pivot: GUN_Y });
+    this.spr = COLORS.map((c, i) => S.bubbleSprite(c, SHADES[i]));
+    this.stoneSpr = S.stoneSprite(); this.shadeSpr = S.shadingSprite();
+    this.stars = Array.from({ length: 70 }, () => ({ x: Math.random() * W, y: Math.random() * H * 0.45, r: Math.random() * 1.3 + 0.3, p: Math.random() * 6 }));
     this.floaters = Array.from({ length: 18 }, () => ({ x: Math.random() * W, y: Math.random() * H, r: 6 + Math.random() * 22, v: 8 + Math.random() * 18, h: Math.floor(Math.random() * 6) }));
     this.startLevel(1, false);
   }
@@ -144,10 +154,16 @@ class BubbleBlitz {
     const a = Math.atan2(GUN_Y - y, x - GUN_X);
     this.aim = clamp(a, 0.12, Math.PI - 0.12);
   }
-  onPointerMove(x, y) { if (y < GUN_Y + 10) this.setAimFrom(x, y); }
+  /** screen point → the board point under it (at bubble-centre height, where shots fly) */
+  toBoard(x, y) { return this.cam.unproject(x, y, R); }
+  /** board point → screen point, for score pop-ups and particles */
+  sp(x, y) { const q = this.cam.at(x, y, R); return [q[0], q[1]]; }
+  onPointerMove(x, y) { [x, y] = this.toBoard(x, y); if (y < GUN_Y + 10) this.setAimFrom(x, y); }
   onAction(a, x, y) {
     const s = this.s;
-    if (a === 'press') { if (Math.hypot(x - NEXT_X, y - NEXT_Y) < 30) { this.swap(); this.swapTap = true; return; } this.swapTap = false; if (y < GUN_Y + 10) this.setAimFrom(x, y); return; }
+    const sx = x, sy = y;
+    if (x != null) [x, y] = this.toBoard(x, y);
+    if (a === 'press') { const nb = this.cam.at(NEXT_X, NEXT_Y, 8 + R * 0.8); if (Math.hypot(sx - nb[0], sy - nb[1]) < 32) { this.swap(); this.swapTap = true; return; } this.swapTap = false; if (y < GUN_Y + 10) this.setAimFrom(x, y); return; }
     if (a === 'release') { if (this.swapTap) { this.swapTap = false; return; } if (y < GUN_Y + 30) { this.setAimFrom(x, y); this.fire(); } return; }
     if (a === 'action') this.fire();
     if (a === 'up' && !s.input.pointer.down) this.swap();
@@ -299,7 +315,7 @@ class BubbleBlitz {
       popped += this.pop(grp, effects);
       // secrets found in popped bubbles go off (and can set off more)
       for (let guard = 0; effects.length && guard < 30; guard++) popped += this.trigger(effects.shift(), effects);
-      const [x, y] = this.xy(row, c);
+      const [x, y] = this.sp(...this.xy(row, c));
       s.award(popped * 10 * L, x, y - 10, { chain: true, color: COLORS[grp.length ? this.popColour : 0] || '#fff', size: 20 });
       if (sh.bounces > 0) s.unlock('bank');
       if (this.bonus) { this.popsBonus += popped; if (this.popsBonus >= 100) s.unlock('bonanza'); }
@@ -328,7 +344,7 @@ class BubbleBlitz {
       const [x, y] = this.xy(row, c);
       this.popColour = b.c;
       this.popping.push({ x, y, col: b.stone ? '#94a3b8' : COLORS[b.c], t: 0 });
-      this.s.fx.burst(x, y, { colors: [b.stone ? '#94a3b8' : COLORS[b.c], '#fff'], count: 7, speed: 160, life: 0.35, size: 2.5 });
+      this.s.fx.burst(...this.sp(x, y), { colors: [b.stone ? '#94a3b8' : COLORS[b.c], '#fff'], count: 7, speed: 160, life: 0.35, size: 2.5 });
       if (b.secret) effects.push({ kind: b.secret, row, c });
       this.grid[row][c] = null;
       n++;
@@ -348,16 +364,16 @@ class BubbleBlitz {
   }
 
   trigger(e, effects) {
-    const s = this.s, L = this.level, [x, y] = this.xy(e.row, e.c);
+    const s = this.s, L = this.level, [x, y] = this.xy(e.row, e.c), [px, py] = this.sp(x, y);
     const bonus = BONUSES.includes(e.kind);
-    s.fx.text(clamp(x, 95, W - 95), y - 24, `${ICON[e.kind]} ${LABEL[e.kind]}`, { color: bonus ? '#fde047' : '#fca5a5', size: 18, life: 1.2 });
+    s.fx.text(clamp(px, 95, W - 95), py - 24, `${ICON[e.kind]} ${LABEL[e.kind]}`, { color: bonus ? '#fde047' : '#fca5a5', size: 18, life: 1.2 });
     if (bonus) { this.found = (this.found || 0) + 1; if (this.found >= 8) s.unlock('treasure'); s.sound.play('powerup'); }
     else { s.sound.play('hit'); s.fx.shake(5, 0.2); }
     let n = 0;
     switch (e.kind) {
       case 'bomb': {
         const list = this.cells().filter(([rr, cc]) => { const [bx, by] = this.xy(rr, cc); return Math.hypot(bx - x, by - y) < D * 2.1; }).map(([rr, cc]) => [rr, cc]);
-        s.fx.ring(x, y, { color: '#fb923c', radius: D * 2.2, width: 4 }); s.sound.play('boom');
+        s.fx.ring(px, py, { color: '#fb923c', radius: D * 2.2 * this.cam.at(x, y, R)[2], width: 4 }); s.sound.play('boom');
         n = this.pop(list, effects); break;
       }
       case 'bolt': {
@@ -366,7 +382,7 @@ class BubbleBlitz {
         n = this.pop(list, effects); break;
       }
       case 'rainbow': this.rainbowShots += 2; break;
-      case 'star': s.award(250 * L, x, y, { color: '#fde047', size: 22 }); break;
+      case 'star': s.award(250 * L, px, py, { color: '#fde047', size: 22 }); break;
       case 'freeze': this.freeze = 8; break;
       case 'sight': this.sight = 6; break;
       case 'stone': {
@@ -399,26 +415,26 @@ class BubbleBlitz {
     let n = 0;
     for (const [row, c, b] of this.cells()) {
       if (seen.has(row + ',' + c)) continue;
-      const [x, y] = this.xy(row, c);
+      const [x, y] = this.xy(row, c), [px, py] = this.sp(x, y);
       this.falling.push({ x, y, vx: s.rng.range(-60, 60), vy: s.rng.range(-120, 0), col: b.stone ? '#94a3b8' : COLORS[b.c], stone: b.stone });
       if (b.secret) {
         if (BONUSES.includes(b.secret)) {
-          s.fx.text(clamp(x, 70, W - 70), y, `${ICON[b.secret]} KEPT!`, { color: '#fde047', size: 16 });
+          s.fx.text(clamp(px, 70, W - 70), py, `${ICON[b.secret]} KEPT!`, { color: '#fde047', size: 16 });
           this.found = (this.found || 0) + 1; if (this.found >= 8) s.unlock('treasure');
-          if (b.secret === 'star') s.award(250 * L, x, y - 20, { color: '#fde047' });
+          if (b.secret === 'star') s.award(250 * L, px, py - 20, { color: '#fde047' });
           else if (b.secret === 'rainbow') this.rainbowShots += 2;
           else if (b.secret === 'freeze') this.freeze = 8;
           else if (b.secret === 'sight') this.sight = 6;
-          else s.award(100 * L, x, y - 20, { color: '#fde047' });          // bomb / lightning: cashed in for points
-        } else s.fx.text(clamp(x, 80, W - 80), y, `${ICON[b.secret]} DEFUSED`, { color: '#a7f3d0', size: 14 });
+          else s.award(100 * L, px, py - 20, { color: '#fde047' });          // bomb / lightning: cashed in for points
+        } else s.fx.text(clamp(px, 80, W - 80), py, `${ICON[b.secret]} DEFUSED`, { color: '#a7f3d0', size: 14 });
       }
       this.grid[row][c] = null;
       n++;
     }
     if (n) {
-      s.award(Math.round(n * 20 * L * Math.min(2.5, 1 + Math.floor(n / 5) * 0.5)), W / 2, this.top + 120, { color: '#a5f3fc', size: 22 });
+      s.award(Math.round(n * 20 * L * Math.min(2.5, 1 + Math.floor(n / 5) * 0.5)), W / 2, this.sp(W / 2, this.top + 120)[1], { color: '#a5f3fc', size: 22 });
       [0, 3, 7, 12].forEach((st, i) => s.sound.tone({ freq: s.sound.note(76 - st), dur: 0.08, type: 'triangle', vol: 0.07, delay: i * 0.05 }));
-      if (n >= 5) s.fx.text(W / 2, this.top + 90, `${n} DROPPED!`, { color: '#a5f3fc', size: 24 });
+      if (n >= 5) s.fx.text(W / 2, this.sp(W / 2, this.top + 90)[1], `${n} DROPPED!`, { color: '#a5f3fc', size: 24 });
     }
     while (this.grid.length && this.grid[this.grid.length - 1].every((b) => !b)) this.grid.pop();
     return n;
@@ -454,7 +470,7 @@ class BubbleBlitz {
     for (const [row] of this.cells()) {
       if (this.xy(row, 0)[1] + R > DANGER) {
         this.failing = 0.6;
-        this.s.fx.text(W / 2, DANGER - 40, 'TOO LOW!', { color: '#f87171', size: 36, life: 1.2 });
+        this.s.fx.text(W / 2, this.sp(W / 2, DANGER)[1] - 40, 'TOO LOW!', { color: '#f87171', size: 36, life: 1.2 });
         return;
       }
     }
@@ -469,130 +485,206 @@ class BubbleBlitz {
 
   onLevelClear() { if (this.bonus && this.popsBonus >= 100) this.s.unlock('bonanza'); }
 
-  // ── Draw ──────────────────────────────────────────────────
+  // ── Draw (3D) ─────────────────────────────────────────────
+  //  Board (x, y) → cam.at(x, y, height) → screen. Far things are drawn first.
   render(ctx) {
-    const s = this.s, t = this.t;
-    const g = ctx.createLinearGradient(0, 0, 0, H);
-    if (this.bonus) { g.addColorStop(0, '#3b0764'); g.addColorStop(1, '#7c2d12'); }
-    else { g.addColorStop(0, '#0c1445'); g.addColorStop(1, '#3b0f5c'); }
-    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-    for (const f of this.floaters) {
-      ctx.globalAlpha = 0.08; ctx.strokeStyle = COLORS[f.h]; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(f.x + Math.sin(t + f.r) * 6, f.y, f.r, 0, Math.PI * 2); ctx.stroke();
-    }
-    ctx.globalAlpha = 1;
+    const s = this.s, cam = this.cam, lo = s.lowDetail;
+    this.drawBackdrop(ctx, lo);
+    this.drawTable(ctx, lo);
+    this.drawWalls(ctx);
 
-    // walls, ceiling and the danger line
-    ctx.fillStyle = 'rgba(255,255,255,.04)'; ctx.fillRect(LEFT, this.top, COLS * D, DANGER - this.top);
-    const cg = ctx.createLinearGradient(0, this.top - 14, 0, this.top);
-    cg.addColorStop(0, '#475569'); cg.addColorStop(1, '#94a3b8');
-    ctx.fillStyle = cg; ctx.fillRect(LEFT - 6, TOP0 - 14, COLS * D + 12, this.top - TOP0 + 14);
-    ctx.fillStyle = '#1e293b';
-    for (let x = LEFT + 14; x < W - LEFT; x += 40) { ctx.beginPath(); ctx.arc(x, this.top - 7, 2.5, 0, Math.PI * 2); ctx.fill(); }
-    ctx.fillStyle = '#64748b'; ctx.fillRect(LEFT - 6, TOP0 - 14, 4, H); ctx.fillRect(W - LEFT + 2, TOP0 - 14, 4, H);
-    const low = this.cells().reduce((m, [row]) => Math.max(m, this.xy(row, 0)[1] + R), 0);
-    const warn = !this.bonus && low > DANGER - ROWH * 2;
-    ctx.strokeStyle = warn ? `rgba(248,113,113,${0.5 + 0.5 * Math.sin(t * 10)})` : 'rgba(248,113,113,.35)';
-    ctx.setLineDash([8, 8]); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(LEFT, DANGER); ctx.lineTo(W - LEFT, DANGER); ctx.stroke(); ctx.setLineDash([]);
-
-    // bubbles
-    for (const [row, c, b] of this.cells()) { const [x, y] = this.xy(row, c); this.drawBubble(ctx, x, y, R, b); }
+    // bubbles: shadows on the table first, then the spheres (top rows are farthest away)
+    const cells = this.cells();
+    if (!lo) for (const [row, c] of cells) this.drawShadow(ctx, ...this.xy(row, c), R);
+    for (const [row, c, b] of cells) { const [x, y] = this.xy(row, c); this.drawBubble(ctx, x, y, R, b); }
     for (const p of this.popping) {
-      const k = p.t / 0.25;
-      ctx.globalAlpha = 1 - k; ctx.strokeStyle = p.col; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.arc(p.x, p.y, R * (1 + k * 0.7), 0, Math.PI * 2); ctx.stroke();
+      const k = p.t / 0.25, [px, py, sc] = cam.at(p.x, p.y, R);
+      ctx.globalAlpha = 1 - k; ctx.strokeStyle = p.col; ctx.lineWidth = 3 * sc;
+      ctx.beginPath(); ctx.arc(px, py, R * sc * (1 + k * 0.7), 0, Math.PI * 2); ctx.stroke();
     }
     ctx.globalAlpha = 1;
-    for (const f of this.falling) this.drawBubble(ctx, f.x, f.y, R, { c: COLORS.indexOf(f.col), stone: f.stone });
+    for (const f of this.falling) if (f.y < GUN_Y) this.drawBubble(ctx, f.x, f.y, R, { c: COLORS.indexOf(f.col), stone: f.stone });
 
     // aim guide
     if (s.state === 'playing' && !this.shot && this.fog <= 0) this.drawGuide(ctx);
 
     // flying shot
-    if (this.shot) this.drawBubble(ctx, this.shot.x, this.shot.y, R, { c: this.shot.c, rainbow: this.shot.rainbow });
+    if (this.shot) {
+      if (!lo) this.drawShadow(ctx, this.shot.x, this.shot.y, R);
+      this.drawBubble(ctx, this.shot.x, this.shot.y, R, { c: this.shot.c, rainbow: this.shot.rainbow });
+    }
 
     this.drawLauncher(ctx);
+    for (const f of this.falling) if (f.y >= GUN_Y) this.drawBubble(ctx, f.x, f.y, R, { c: COLORS.indexOf(f.col), stone: f.stone });
     this.drawHud(ctx);
   }
 
+  drawBackdrop(ctx, lo) {
+    const t = this.t;
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    if (this.bonus) { g.addColorStop(0, '#2e0657'); g.addColorStop(0.5, '#5b1a4a'); g.addColorStop(1, '#7c2d12'); }
+    else { g.addColorStop(0, '#050a2e'); g.addColorStop(0.5, '#0c1445'); g.addColorStop(1, '#3b0f5c'); }
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    if (!lo) {
+      for (const st of this.stars) { ctx.globalAlpha = 0.35 + 0.35 * Math.sin(t * 2 + st.p); ctx.fillStyle = '#e0f2fe'; ctx.fillRect(st.x, st.y, st.r, st.r); }
+      // a far-off glowing bubble planet
+      const px = W * 0.8, py = 44, pr = 60;
+      const pg = ctx.createRadialGradient(px - 18, py - 20, 4, px, py, pr);
+      pg.addColorStop(0, this.bonus ? '#fdba74' : '#a5b4fc'); pg.addColorStop(0.6, this.bonus ? '#9a3412' : '#4338ca'); pg.addColorStop(1, 'rgba(30,27,75,0)');
+      ctx.globalAlpha = 0.55; ctx.fillStyle = pg; ctx.beginPath(); ctx.arc(px, py, pr, 0, Math.PI * 2); ctx.fill();
+    }
+    for (const f of this.floaters) {
+      ctx.globalAlpha = 0.07; ctx.strokeStyle = COLORS[f.h]; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(f.x + Math.sin(t + f.r) * 6, f.y * 0.5, f.r * 0.6, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  /** The table top: a sheet of dark glass leaning back, with the bubble grid etched into it. */
+  drawTable(ctx, lo) {
+    const cam = this.cam, x0 = LEFT - 14, x1 = W - LEFT + 14, y0 = TOP0 - 26, y1 = H + 80;
+    const c = [cam.at(x0, y0), cam.at(x1, y0), cam.at(x1, y1), cam.at(x0, y1)];
+    const g = ctx.createLinearGradient(0, c[0][1], 0, H);
+    if (this.bonus) { g.addColorStop(0, '#2a0b3d'); g.addColorStop(1, '#4a1d1a'); }
+    else { g.addColorStop(0, '#0d1236'); g.addColorStop(0.7, '#1c1550'); g.addColorStop(1, '#2a1252'); }
+    ctx.fillStyle = g; ctx.beginPath(); c.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath(); ctx.fill();
+    if (!lo) {
+      // soft reflection band
+      const r0 = cam.at(x0, 300), r1 = cam.at(x1, 300), r2 = cam.at(x1, 420), r3 = cam.at(x0, 420);
+      const rg = ctx.createLinearGradient(0, r0[1], 0, r2[1]);
+      rg.addColorStop(0, 'rgba(255,255,255,0)'); rg.addColorStop(0.5, 'rgba(165,180,252,.05)'); rg.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = rg; ctx.beginPath(); ctx.moveTo(r0[0], r0[1]); ctx.lineTo(r1[0], r1[1]); ctx.lineTo(r2[0], r2[1]); ctx.lineTo(r3[0], r3[1]); ctx.closePath(); ctx.fill();
+      // the grid: a dimple where every bubble could sit
+      ctx.fillStyle = 'rgba(165,180,252,.10)';
+      for (let row = 0; this.xy(row, 0)[1] < DANGER; row++) {
+        for (let col = 0; col < this.ncols(row); col++) {
+          if (this.at(row, col)) continue;
+          const [x, y] = this.xy(row, col), [px, py, k] = cam.at(x, y);
+          ctx.beginPath(); ctx.ellipse(px, py, 3 * k, 2.2 * k, 0, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+    }
+    // the danger line, painted on the glass
+    const low = this.cells().reduce((m, [row]) => Math.max(m, this.xy(row, 0)[1] + R), 0);
+    const warn = !this.bonus && low > DANGER - ROWH * 2;
+    const a = cam.at(LEFT, DANGER), b = cam.at(W - LEFT, DANGER);
+    ctx.strokeStyle = warn ? `rgba(248,113,113,${0.5 + 0.5 * Math.sin(this.t * 10)})` : 'rgba(248,113,113,.4)';
+    ctx.setLineDash([8, 8]); ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); ctx.setLineDash([]);
+    if (warn) {
+      const z = cam.at(LEFT, DANGER + 60);
+      const wg = ctx.createLinearGradient(0, a[1], 0, z[1]);
+      wg.addColorStop(0, `rgba(248,113,113,${0.12 + 0.08 * Math.sin(this.t * 10)})`); wg.addColorStop(1, 'rgba(248,113,113,0)');
+      ctx.fillStyle = wg; ctx.fillRect(0, a[1], W, z[1] - a[1]);
+    }
+  }
+
+  /** The ceiling block (it slides down when the ceiling drops) and the two side rails — solid lit 3D shapes. */
+  drawWalls(ctx) {
+    const cam = this.cam, top = this.top, x0 = LEFT - 14, x1 = W - LEFT + 14;
+    const xf = ([x, y, z]) => cam.world(x, z, -y);       // mesh coords: x across, y = −height, z = board y
+    const ceil = S.mk();
+    S.box(ceil, [x0, -R * 2.4, TOP0 - 26], [x1, 0, top], 0, 1, 2);
+    S.box(ceil, [x0, -R * 1.25, top - 1], [x1, -R * 0.95, top + 1.5], 3, 3, 3);        // glowing strip
+    for (let x = LEFT + 14; x < W - LEFT; x += 40) S.box(ceil, [x - 3, -R * 2.1, top], [x + 3, -R * 1.6, top + 2.5], 4, 4, 4);   // rivets
+    const rails = S.mk();
+    S.box(rails, [x0, -R * 2.2, TOP0 - 26], [LEFT - 3, 0, H + 80], 0, 1, 2);
+    S.box(rails, [W - LEFT + 3, -R * 2.2, TOP0 - 26], [x1, 0, H + 80], 0, 1, 2);
+    const k = this.pushEvery ? clamp(this.pushT / this.pushEvery, 0, 1) : 0;
+    const strip = this.freeze > 0 ? '#7dd3fc' : this.pushEvery && k > 0.8 ? '#f87171' : this.bonus ? '#f472b6' : '#a78bfa';
+    const pal = this.bonus ? ['#6b2160', '#8a3468', '#3b0d33', strip, '#fbcfe8'] : ['#38425f', '#4b587d', '#1e2541', strip, '#cbd5e1'];
+    S.drawMeshes(ctx, cam, [{ mesh: ceil, xf, pal }, { mesh: rails, xf, pal }]);
+  }
+
+  /** Soft contact shadow on the table under a bubble (the light is up-left, so it falls down-right). */
+  drawShadow(ctx, x, y, r) {
+    const cam = this.cam, sx = x + r * 0.35, sy = y + r * 0.3;
+    const [px, py, k] = cam.at(sx, sy), up = cam.at(sx, sy - r)[1], dn = cam.at(sx, sy + r)[1];
+    ctx.fillStyle = 'rgba(0,0,10,.35)';
+    ctx.beginPath(); ctx.ellipse(px, py, r * k * 0.95, Math.max(1, (dn - up) / 2 * 0.95), 0, 0, Math.PI * 2); ctx.fill();
+  }
+
   drawGuide(ctx) {
-    const max = this.sight > 0 ? 9999 : this.guideLen;
+    const cam = this.cam, max = this.sight > 0 ? 9999 : this.guideLen;
     let x = GUN_X, y = GUN_Y, vx = Math.cos(this.aim), vy = -Math.sin(this.aim), len = 0;
-    ctx.fillStyle = this.sight > 0 ? 'rgba(248,113,113,.9)' : 'rgba(255,255,255,.55)';
+    ctx.fillStyle = this.sight > 0 ? 'rgba(248,113,113,.95)' : 'rgba(255,255,255,.6)';
     const cells = this.cells().map(([row, c]) => this.xy(row, c));
     for (let i = 0; i < 400 && len < max; i++) {
       x += vx * 6; y += vy * 6; len += 6;
       if (x < LEFT + R) { x = LEFT + R; vx = -vx; }
       if (x > W - LEFT - R) { x = W - LEFT - R; vx = -vx; }
       if (y - R <= this.top || cells.some(([bx, by]) => (bx - x) ** 2 + (by - y) ** 2 < (D * 0.86) ** 2)) break;
-      if (i % 3 === 0 && i > 5) { ctx.beginPath(); ctx.arc(x, y, 2.4, 0, Math.PI * 2); ctx.fill(); }
+      if (i % 3 === 0 && i > 5) { const [px, py, k] = cam.at(x, y, R); ctx.beginPath(); ctx.arc(px, py, 2.6 * k, 0, Math.PI * 2); ctx.fill(); }
     }
   }
 
   drawLauncher(ctx) {
-    const s = this.s, gold = s.gold;
-    // base
-    ctx.save();
-    ctx.fillStyle = gold ? '#b45309' : '#1e293b';
-    ctx.beginPath(); ctx.arc(GUN_X, GUN_Y + 34, 46, Math.PI, 0); ctx.fill();
-    // barrel
-    ctx.translate(GUN_X, GUN_Y); ctx.rotate(-this.aim + Math.PI / 2);
-    const bg = ctx.createLinearGradient(-14, 0, 14, 0);
-    bg.addColorStop(0, gold ? '#92400e' : '#334155'); bg.addColorStop(0.5, gold ? '#fde68a' : '#94a3b8'); bg.addColorStop(1, gold ? '#92400e' : '#334155');
-    ctx.fillStyle = bg; roundRect(ctx, -13, -58, 26, 58, 8); ctx.fill();
-    ctx.fillStyle = gold ? '#fbbf24' : '#cbd5e1'; ctx.fillRect(-15, -62, 30, 8);
-    ctx.restore();
-    // loaded bubble + shot clock ring
-    if (!this.shot) this.drawBubble(ctx, GUN_X, GUN_Y, R, { c: this.cur, rainbow: this.bonus || this.rainbowShots > 0 });
+    const s = this.s, cam = this.cam, gold = s.gold;
+    const k = clamp(this.clock / this.clockMax, 0, 1);
+    const clockCol = this.bonus ? '#f472b6' : this.freeze > 0 ? '#7dd3fc' : k < 0.3 ? '#f87171' : '#fde047';
+    const pal = gold ? ['#b45309', '#78350f', '#fde68a', clockCol] : ['#334155', '#0f172a', '#94a3b8', clockCol];
+    const barrelPal = gold ? ['#d97706', '#78350f', '#fef3c7', '#fde047'] : ['#64748b', '#1e293b', '#e2e8f0', '#38bdf8'];
+    const at = (gx, gy, rot = 0) => { const c = Math.cos(rot), sn = Math.sin(rot); return ([x, y, z]) => cam.world(gx + x * c - z * sn, gy + x * sn + z * c, -y); };
+    const items = [
+      { mesh: S.TURRET, xf: at(GUN_X, GUN_Y), pal },
+      { mesh: S.BARREL, xf: at(GUN_X, GUN_Y, Math.PI / 2 - this.aim), pal: barrelPal },
+    ];
+    if (!this.bonus) items.push({ mesh: S.PEDESTAL, xf: at(NEXT_X, NEXT_Y), pal: gold ? ['#92400e', '#451a03', '#fbbf24'] : ['#1e293b', '#0b1020', '#64748b'] });
+    S.drawMeshes(ctx, cam, items);
+
+    // shot clock: a ring of light around the hub
     if (!this.bonus) {
-      const k = clamp(this.clock / this.clockMax, 0, 1);
-      ctx.strokeStyle = this.freeze > 0 ? '#7dd3fc' : k < 0.3 ? '#f87171' : '#fde047'; ctx.lineWidth = 4;
-      ctx.beginPath(); ctx.arc(GUN_X, GUN_Y, R + 7, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (this.freeze > 0 ? 1 : k)); ctx.stroke();
+      const sweep = Math.PI * 2 * (this.freeze > 0 ? 1 : k);
+      ctx.strokeStyle = clockCol; ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.beginPath();
+      for (let i = 0; i <= 40; i++) {
+        const a = -Math.PI / 2 + sweep * i / 40, [px, py] = cam.at(GUN_X + Math.cos(a) * (R + 9), GUN_Y + Math.sin(a) * (R + 9), 22.5);
+        i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+      }
+      ctx.stroke(); ctx.lineCap = 'butt';
     }
-    // next bubble
-    ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.font = '700 10px system-ui'; ctx.textAlign = 'center';
-    ctx.fillText(this.bonus ? '' : 'NEXT ⇄', NEXT_X, NEXT_Y - 26);
+    // loaded bubble sits in the hub
+    if (!this.shot) this.drawBubble(ctx, GUN_X, GUN_Y, R, { c: this.cur, rainbow: this.bonus || this.rainbowShots > 0 }, 30);
+
+    // next bubble on its stand
     if (!this.bonus) {
-      if (this.fog > 0) { ctx.fillStyle = '#64748b'; ctx.beginPath(); ctx.arc(NEXT_X, NEXT_Y, R * 0.8, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#e2e8f0'; ctx.font = '900 16px system-ui'; ctx.textBaseline = 'middle'; ctx.fillText('?', NEXT_X, NEXT_Y + 1); ctx.textBaseline = 'alphabetic'; }
-      else this.drawBubble(ctx, NEXT_X, NEXT_Y, R * 0.8, { c: this.next });
+      const [lx, ly, lk] = cam.at(NEXT_X, NEXT_Y, 8 + R * 0.8);
+      ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.font = '700 10px system-ui'; ctx.textAlign = 'center';
+      ctx.fillText('NEXT ⇄', lx, ly - R * 0.8 * lk - 8);
+      if (this.fog > 0) {
+        const [px, py, pk] = cam.at(NEXT_X, NEXT_Y, 8 + R * 0.8);
+        ctx.fillStyle = '#64748b'; ctx.beginPath(); ctx.arc(px, py, R * 0.8 * pk, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#e2e8f0'; ctx.font = '900 16px system-ui'; ctx.textBaseline = 'middle'; ctx.fillText('?', px, py + 1); ctx.textBaseline = 'alphabetic';
+      } else this.drawBubble(ctx, NEXT_X, NEXT_Y, R * 0.8, { c: this.next }, 8 + R * 0.8);
     }
-    if (gold) { ctx.fillStyle = '#fbbf24'; ctx.font = '700 11px system-ui'; ctx.fillText('★ GOLDEN LAUNCHER', GUN_X, H - 8); }
+    if (gold) { ctx.fillStyle = '#fbbf24'; ctx.font = '700 11px system-ui'; ctx.textAlign = 'center'; ctx.fillText('★ GOLDEN LAUNCHER', GUN_X, H - 26); }
   }
 
-  drawBubble(ctx, x, y, r, b) {
-    ctx.save();
+  /** A bubble on the board at (x, y), its centre `h` above the table (default: resting on it). */
+  drawBubble(ctx, x, y, r, b, h = r) {
+    const [px, py, k] = this.cam.at(x, y, h), rr = r * k;
     if (b.stone) {
-      const sg = ctx.createRadialGradient(x - r * 0.3, y - r * 0.35, 2, x, y, r);
-      sg.addColorStop(0, '#cbd5e1'); sg.addColorStop(1, '#475569');
-      ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(x, y, r - 1, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = 'rgba(15,23,42,.6)'; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.moveTo(x - r * 0.4, y - r * 0.2); ctx.lineTo(x, y + r * 0.1); ctx.lineTo(x + r * 0.2, y + r * 0.5); ctx.moveTo(x, y + r * 0.1); ctx.lineTo(x + r * 0.45, y - r * 0.15); ctx.stroke();
-      ctx.restore(); return;
+      ctx.drawImage(this.stoneSpr, px - rr, py - rr, rr * 2, rr * 2);
+      ctx.strokeStyle = 'rgba(15,23,42,.6)'; ctx.lineWidth = 1.5 * k;
+      ctx.beginPath(); ctx.moveTo(px - rr * 0.4, py - rr * 0.2); ctx.lineTo(px, py + rr * 0.1); ctx.lineTo(px + rr * 0.2, py + rr * 0.5); ctx.moveTo(px, py + rr * 0.1); ctx.lineTo(px + rr * 0.45, py - rr * 0.15); ctx.stroke();
+      return;
     }
     if (b.rainbow) {
-      const rg = ctx.createConicGradient ? ctx.createConicGradient(this.t * 4, x, y) : null;
+      const rg = ctx.createConicGradient ? ctx.createConicGradient(this.t * 4, px, py) : null;
       if (rg) { COLORS.forEach((col, i) => rg.addColorStop(i / COLORS.length, col)); rg.addColorStop(1, COLORS[0]); ctx.fillStyle = rg; }
       else ctx.fillStyle = '#fff';
-    } else {
-      const k = b.c < 0 ? 0 : b.c;
-      const gr = ctx.createRadialGradient(x - r * 0.35, y - r * 0.4, r * 0.1, x, y, r);
-      gr.addColorStop(0, '#fff'); gr.addColorStop(0.25, COLORS[k]); gr.addColorStop(1, SHADES[k]);
-      ctx.fillStyle = gr;
-    }
-    ctx.beginPath(); ctx.arc(x, y, r - 1, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.beginPath(); ctx.ellipse(x - r * 0.35, y - r * 0.42, r * 0.28, r * 0.16, -0.6, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(px, py, rr * 0.98, 0, Math.PI * 2); ctx.fill();
+      ctx.drawImage(this.shadeSpr, px - rr, py - rr, rr * 2, rr * 2);
+    } else ctx.drawImage(this.spr[b.c < 0 ? 0 : b.c], px - rr, py - rr, rr * 2, rr * 2);
     // a hidden surprise: an occasional sparkle
     if (b.secret) {
       const ph = (this.t * 1.3 + (x * 7 + y * 3) % 10 / 10) % 2;
       if (ph < 0.5) {
-        const a = Math.sin(ph / 0.5 * Math.PI), sx = x + r * 0.35, sy = y - r * 0.3, sz = r * 0.5 * a;
+        const a = Math.sin(ph / 0.5 * Math.PI), sx = px + rr * 0.35, sy = py - rr * 0.3, sz = rr * 0.5 * a;
         ctx.fillStyle = `rgba(255,255,255,${a})`;
         ctx.beginPath(); ctx.moveTo(sx, sy - sz); ctx.lineTo(sx + sz * 0.25, sy - sz * 0.25); ctx.lineTo(sx + sz, sy); ctx.lineTo(sx + sz * 0.25, sy + sz * 0.25);
         ctx.lineTo(sx, sy + sz); ctx.lineTo(sx - sz * 0.25, sy + sz * 0.25); ctx.lineTo(sx - sz, sy); ctx.lineTo(sx - sz * 0.25, sy - sz * 0.25); ctx.closePath(); ctx.fill();
       }
     }
-    if (this.s.gold && b.c >= 0 && !b.rainbow && Math.sin(this.t * 2 + x) > 0.97) { ctx.fillStyle = '#fde047'; ctx.beginPath(); ctx.arc(x + r * 0.3, y + r * 0.3, 2, 0, Math.PI * 2); ctx.fill(); }
-    ctx.restore();
+    if (this.s.gold && b.c >= 0 && !b.rainbow && Math.sin(this.t * 2 + x) > 0.97) { ctx.fillStyle = '#fde047'; ctx.beginPath(); ctx.arc(px + rr * 0.3, py + rr * 0.3, 2 * k, 0, Math.PI * 2); ctx.fill(); }
   }
 
   drawHud(ctx) {

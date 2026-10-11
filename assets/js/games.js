@@ -242,8 +242,9 @@ export const GAMES = [
   {
     id: 'bubble-blitz',
     gold: 'Golden Launcher',        // golden character unlocked by the Zone 3 egg
-    title: 'Bubble Blitz',
-    tagline: 'Fire coloured bubbles at the ceiling and pop groups of 3. Sparkly bubbles hide bonuses — or traps. The ceiling keeps dropping, so be quick!',
+    title: 'Bubble Blitz 3D',
+    is3d: true,
+    tagline: 'Fire glossy 3D bubbles up the table and pop groups of 3. Sparkly bubbles hide bonuses — or traps. The ceiling keeps dropping, so be quick!',
     controls: 'Aim with the mouse and click to fire · touch: drag to aim, let go to fire · ← → aim, Space fire, ↑ swap (or tap NEXT)',
     color: '#ec4899',
     isNew: true,

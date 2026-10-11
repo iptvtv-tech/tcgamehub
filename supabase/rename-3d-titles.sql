@@ -3,3 +3,4 @@
 update public.games set title = 'Turbo Rush 3D'      where id = 'turbo-rush';
 update public.games set title = 'Crypt of Crowns 3D' where id = 'crypt-of-crowns';
 update public.games set title = 'TC Pixel Craft 3D'  where id = 'tc-pixel-craft';
+update public.games set title = 'Bubble Blitz 3D'    where id = 'bubble-blitz';
