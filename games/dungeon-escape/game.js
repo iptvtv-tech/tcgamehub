@@ -1,5 +1,7 @@
 // ─────────────────────────────────────────────────────────────
 //  DUNGEON ESCAPE 3D — game 20 (Zone 4 · Ultra)
+//  Drawn with the HD first-person engine (raycast-hd.js + raycast-art.js): real
+//  torchlight that shrinks as your fuel runs down, sconces, glowing ghoul eyes.
 //  First-person maze escape. A new maze every level: find the keys, reach the
 //  golden stairs — before your torch burns out and before the ghouls catch you.
 //  Your torch light shrinks as the fuel runs down; grab spare torches.
@@ -8,7 +10,9 @@
 //  Every 5th level: ★ TREASURE VAULT — 15 s to scoop up gold, nothing can hurt you.
 // ─────────────────────────────────────────────────────────────
 import { runGame, progressBar, clamp } from '../../assets/js/engine.js';
-import { Raycaster, makeTextures, makeSprites, tryMove, canSee } from '../../assets/js/raycast.js';
+import { tryMove, canSee } from '../../assets/js/raycast.js';
+import { HDRaycaster } from '../../assets/js/raycast-hd.js';
+import { makeHDTextures, makeHDSprites, drawTorchHand } from '../../assets/js/raycast-art.js';
 
 const ID = 'dungeon-escape';
 const W = 480, H = 720;
@@ -19,6 +23,7 @@ runGame({
   id: ID,
   width: W, height: H,
   lives: 3,
+  detail: true,                 // 🖥 Graphics HIGH / LOW (LOW = a smaller picture)
   comboWindow: 4,
   comboStep: 3,
   maxMultiplier: 4,
@@ -41,8 +46,9 @@ runGame({
 class DungeonEscape {
   constructor(s) {
     this.s = s; this.t = 0;
-    this.rc = new Raycaster({ ...VIEW, cols: 160 });
-    this.tex = makeTextures(); this.spr = makeSprites();
+    this.rc = new HDRaycaster(VIEW);
+    const art = makeHDTextures();
+    this.tex = art.tex; this.floors = art.floors; this.spr = makeHDSprites();
     this.startLevel(1, false);
   }
 
@@ -90,6 +96,7 @@ class DungeonEscape {
     this.fuelMax = Math.round(40 + n * n * 1.1);
     this.fuel = this.fuelMax;
     this.placePlayer();
+    this.setupLight();
   }
 
   newGhoul(c) { return { x: c.x + 0.5, y: c.y + 0.5, home: c, tx: c.x, ty: c.y, stun: 0, hunting: false, growlT: 0 }; }
@@ -131,6 +138,40 @@ class DungeonEscape {
     this.ghouls = []; this.spikes = []; this.keysNeed = 0;
     this.fuel = this.fuelMax = 99;
     this.placePlayer();
+    this.setupLight();
+  }
+
+  // ── Lighting ───────────────────────────────────────────────
+  /** Texture ids for the HD engine, a few wall sconces (the maze stays mostly dark — your torch matters), then the light map. */
+  setupLight() {
+    const HD = { 2: 40, 3: 41, 1: this.bonus ? 1 : 42 };
+    this.ids = new Int16Array(this.gw * this.gh);
+    for (let y = 0; y < this.gh; y++) for (let x = 0; x < this.gw; x++) { const v = this.map[y][x]; this.ids[y * this.gw + x] = v ? (HD[v] || v) : 0; }
+    this.sconces = new Map(); this.sconceLights = [];
+    const placed = [];
+    const gap = this.bonus ? 3.2 : 5.5;
+    for (let y = 1; y < this.gh - 1; y++) for (let x = 1; x < this.gw - 1; x++) {
+      if (!this.map[y][x] || this.map[y][x] === 13) continue;
+      for (const [dx, dy] of [[0, 1], [1, 0], [0, -1], [-1, 0]]) {
+        if (!this.open(x + dx, y + dy)) continue;
+        const lx = x + 0.5 + dx * 0.8, ly = y + 0.5 + dy * 0.8;
+        if (placed.some(([ax, ay]) => Math.hypot(ax - lx, ay - ly) < gap) || Math.abs((x * 73856093) ^ (y * 19349663) ^ (dx * 83492791 + dy * 7)) % 100 < 35) continue;   // fixed pattern: doesn't touch the game's random numbers
+        placed.push([lx, ly]);
+        this.sconces.set(((y * 64 + x) * 4) + (dx === 1 ? 0 : dy === 1 ? 1 : dx === -1 ? 2 : 3), true);
+        this.sconceLights.push({ x: lx, y: ly, r: 1.05, g: 0.52, b: 0.2, rad: this.bonus ? 3.6 : 3 });
+      }
+    }
+    this.relight();
+  }
+  relight() {
+    const lights = [...this.sconceLights];
+    for (const it of this.items) {
+      if (it.got) continue;
+      if (it.kind === 'torch') lights.push({ x: it.x, y: it.y, r: 1.1, g: 0.6, b: 0.25, rad: 2.6 });
+      else if (it.kind === 'key') lights.push({ x: it.x, y: it.y, r: 0.6, g: 0.45, b: 0.1, rad: 1.8 });
+      else if (it.kind === 'exit') lights.push({ x: it.x, y: it.y, r: 0.6, g: 0.5, b: 0.18, rad: 2.6 });
+    }
+    this.rc.buildLights(this.gw, this.gh, lights, (x, y) => !this.open(x, y));
   }
 
   placePlayer() {
@@ -237,8 +278,8 @@ class DungeonEscape {
       if (it.got || Math.hypot(it.x - p.x, it.y - p.y) > 0.5) continue;
       if (it.kind === 'coin') { it.got = true; this.coins++; s.award((this.bonus ? 15 : 20) * L, W / 2, VIEW.y + 260, { chain: this.bonus, color: '#fde047', size: 14 }); s.sound.play('coin', this.coins % 8); if (this.bonus && this.coins >= 100) s.unlock('hoard'); }
       else if (it.kind === 'chest') { it.got = true; s.award(500 * L, W / 2, VIEW.y + 240, { color: '#fde047', size: 22 }); s.sound.play('powerup'); }
-      else if (it.kind === 'key') { it.got = true; this.keysHave++; s.award(300 * L, W / 2, VIEW.y + 220, { chain: true, color: '#fbbf24', size: 20 }); s.fx.text(W / 2, VIEW.y + 180, this.keysHave >= this.keysNeed ? '🔑 ALL KEYS! Find the golden stairs!' : `🔑 KEY ${this.keysHave} / ${this.keysNeed}`, { color: '#fbbf24', size: 22 }); [0, 4, 7, 12].forEach((st, i) => s.sound.tone({ freq: s.sound.note(84 + st), dur: 0.1, type: 'triangle', vol: 0.07, delay: i * 0.05 })); }
-      else if (it.kind === 'torch') { it.got = true; this.fuel = Math.min(this.fuelMax, this.fuel + 20); s.award(50 * L, W / 2, VIEW.y + 240, { color: '#fb923c', size: 16 }); s.fx.text(W / 2, VIEW.y + 200, '🔥 +20s TORCH', { color: '#fb923c', size: 20 }); s.sound.noise({ dur: 0.3, vol: 0.12, freq: 900, type: 'bandpass' }); }
+      else if (it.kind === 'key') { it.got = true; this.relight(); this.keysHave++; s.award(300 * L, W / 2, VIEW.y + 220, { chain: true, color: '#fbbf24', size: 20 }); s.fx.text(W / 2, VIEW.y + 180, this.keysHave >= this.keysNeed ? '🔑 ALL KEYS! Find the golden stairs!' : `🔑 KEY ${this.keysHave} / ${this.keysNeed}`, { color: '#fbbf24', size: 22 }); [0, 4, 7, 12].forEach((st, i) => s.sound.tone({ freq: s.sound.note(84 + st), dur: 0.1, type: 'triangle', vol: 0.07, delay: i * 0.05 })); }
+      else if (it.kind === 'torch') { it.got = true; this.relight(); this.fuel = Math.min(this.fuelMax, this.fuel + 20); s.award(50 * L, W / 2, VIEW.y + 240, { color: '#fb923c', size: 16 }); s.fx.text(W / 2, VIEW.y + 200, '🔥 +20s TORCH', { color: '#fb923c', size: 20 }); s.sound.noise({ dur: 0.3, vol: 0.12, freq: 900, type: 'bandpass' }); }
       else if (it.kind === 'exit') {
         if (this.keysHave >= this.keysNeed) return this.escape();
         if (!this.exitWarn || this.t - this.exitWarn > 2) { this.exitWarn = this.t; s.fx.text(W / 2, VIEW.y + 200, `🔒 Need ${this.keysNeed - this.keysHave} more key${this.keysNeed - this.keysHave > 1 ? 's' : ''}`, { color: '#fca5a5', size: 20 }); s.sound.tone({ freq: 160, dur: 0.15, type: 'square', vol: 0.06 }); }
@@ -308,42 +349,55 @@ class DungeonEscape {
 
   // ── Draw ───────────────────────────────────────────────────
   render(ctx) {
-    const s = this.s, p = this.p, t = this.t;
+    const s = this.s, p = this.p, t = this.t, lo = s.lowDetail, spr = this.spr;
     ctx.fillStyle = '#050505'; ctx.fillRect(0, 0, W, H);
-    const light = this.bonus ? 9 : 2.2 + 4.8 * Math.min(1, this.fuel / 30) + Math.sin(t * 13) * 0.12;
+    const fuelK = this.bonus ? 1 : Math.min(1, this.fuel / 30);
+    const flick = 0.9 + 0.06 * Math.sin(t * 11.3) + 0.05 * Math.sin(t * 17.9 + 2) + 0.03 * Math.sin(t * 31.7);
+    const light = this.bonus ? 9 : 2.2 + 4.8 * fuelK + Math.sin(t * 13) * 0.12;
     const sprites = [];
     for (const it of this.items) {
       if (it.got) continue;
-      const img = { coin: this.spr.coin, key: this.spr.key, torch: this.spr.torch, exit: this.spr.stairs, chest: this.spr.chest }[it.kind];
-      sprites.push({ x: it.x, y: it.y, img, scale: it.kind === 'coin' ? 0.6 : it.kind === 'exit' ? 1 : 0.55, lift: it.kind === 'key' ? 0.08 + Math.sin(t * 3) * 0.04 : 0, glow: it.kind !== 'coin' });
+      const o = { x: it.x, y: it.y };
+      if (it.kind === 'coin') sprites.push({ ...o, ...spr.coin, scale: 0.6, wide: 0.2 + 0.8 * Math.abs(Math.cos(t * 2.6 + it.x * 3)), minLight: 0.3 });
+      else if (it.kind === 'key') sprites.push({ ...o, ...spr.key, scale: 0.55, lift: 0.08 + Math.sin(t * 3) * 0.04, minLight: 0.6 });
+      else if (it.kind === 'torch') sprites.push({ ...o, ...spr.torch[Math.floor(t * 9 + it.x) % 3], scale: 0.55, minLight: 0.45 });
+      else if (it.kind === 'exit') sprites.push({ ...o, ...spr.stairs, scale: 1, minLight: 0.45 });
+      else if (it.kind === 'chest') sprites.push({ ...o, ...spr.chest, scale: 0.55, minLight: 0.35 });
     }
-    for (const sp of this.spikes) sprites.push({ x: sp.x + 0.5, y: sp.y + 0.5, img: sp.up ? this.spr.spikes : this.spr.spikesdown, scale: 0.9 });
-    for (const g of this.ghouls) sprites.push({ x: g.x, y: g.y, img: this.spr.ghoul, scale: 0.85, alpha: g.stun > 0 ? 0.45 + 0.3 * Math.sin(t * 20) : 1, lift: Math.sin(t * 4 + g.home.x) * 0.03 });
+    for (const sp of this.spikes) sprites.push({ x: sp.x + 0.5, y: sp.y + 0.5, ...(sp.up ? spr.spikes : spr.spikesdown), scale: 0.9, minLight: 0.25 });
+    for (const g of this.ghouls) sprites.push({ x: g.x, y: g.y, ...spr.ghoul, scale: 0.85, minLight: 0.12, alpha: g.stun > 0 ? 0.45 + 0.3 * Math.sin(t * 20) : 1, lift: Math.sin(t * 4 + g.home.x) * 0.03 });
     const bob = Math.sin(p.walk) * 5;
-    this.rc.render(ctx, (x, y) => (x < 0 || y < 0 || x >= this.gw || y >= this.gh ? 2 : this.map[y][x]), p, {
-      tex: this.tex, light, sprites, bob,
-      ceil: [this.bonus ? '#422006' : '#1c1917'], floor: [this.bonus ? '#78350f' : '#3f3a36'],
+    const sconceBase = this.bonus ? 33 : null, flash = this.flashT > 0 ? this.flashT * 3 : 0;
+    this.rc.setRes(lo ? 240 : 360);
+    this.rc.render(ctx, { x: p.x, y: p.y, a: p.a, bob }, {
+      ids: this.ids, mapW: this.gw, mapH: this.gh, tex: this.tex,
+      floor: (this.bonus ? this.floors.treasure : this.floors.crypt).floor, ceil: (this.bonus ? this.floors.treasure : this.floors.crypt).ceil,
+      faceTex: (x, y, fx, fy, id) => {
+        if (!this.sconces.has(((y * 64 + x) * 4) + (fx === 1 ? 0 : fy === 1 ? 1 : fx === -1 ? 2 : 3))) return id;
+        const base = id === 1 ? 33 : id >= 40 && id <= 42 ? 43 + (id - 40) * 3 : sconceBase;
+        return base ? base + Math.floor(t * 9 + x * 7 + y * 3) % 3 : id;
+      },
+      light, fogDist: this.bonus ? 12 : 8, flicker: flick,
+      ambient: this.bonus ? [0.12 + flash, 0.085 + flash, 0.05 + flash] : [0.03 + flash, 0.034 + flash, 0.055 + flash],
+      fogCol: this.bonus ? [18, 10, 5] : [3, 5, 10],
+      torch: (s.gold ? [0.95, 0.8, 0.45] : [0.92, 0.68, 0.46]).map((v) => v * (0.93 + flick * 0.07) * (0.55 + 0.45 * fuelK)),
+      sprites,
     });
-    // torchlight glow & hurt flash
-    const tg = ctx.createRadialGradient(W / 2, PANEL_Y, 30, W / 2, PANEL_Y, 360);
-    tg.addColorStop(0, 'rgba(251,146,60,.14)'); tg.addColorStop(1, 'rgba(251,146,60,0)');
-    ctx.fillStyle = tg; ctx.fillRect(0, VIEW.y, W, VIEW.h);
-    if (this.flashT > 0) { ctx.fillStyle = `rgba(224,242,254,${this.flashT * 2})`; ctx.fillRect(0, VIEW.y, W, VIEW.h); }
+    if (this.flashT > 0) { ctx.fillStyle = `rgba(224,242,254,${this.flashT * 1.2})`; ctx.fillRect(0, VIEW.y, W, VIEW.h); }
     if (this.nearest < 3 && !this.bonus) { ctx.fillStyle = `rgba(127,29,29,${(3 - this.nearest) * 0.08 * (0.6 + 0.4 * Math.sin(t * 8))})`; ctx.fillRect(0, VIEW.y, W, VIEW.h); }
-    this.drawHand(ctx, bob);
+    drawTorchHand(ctx, VIEW, { t, flick, gold: s.gold, sway: bob * 1.2, size: this.bonus ? 1 : Math.min(1, this.fuel / 25) });
+    this.drawVignette(ctx);
     this.drawPanel(ctx);
   }
 
-  drawHand(ctx, bob) {
-    const t = this.t, x = W - 110, y = PANEL_Y - 20 + bob * 1.4;
-    ctx.save();
-    ctx.fillStyle = '#78350f'; ctx.beginPath(); ctx.moveTo(x - 10, y + 30); ctx.lineTo(x + 6, y - 60); ctx.lineTo(x + 20, y - 58); ctx.lineTo(x + 12, y + 30); ctx.fill();
-    const f = this.bonus ? 1 : Math.min(1, this.fuel / 25);
-    const fg = ctx.createRadialGradient(x + 13, y - 80, 2, x + 13, y - 76, 36 * (0.5 + f * 0.5));
-    fg.addColorStop(0, '#fef9c3'); fg.addColorStop(0.4, '#fb923c'); fg.addColorStop(1, 'rgba(234,88,12,0)');
-    ctx.fillStyle = fg; ctx.beginPath(); ctx.ellipse(x + 13, y - 80 + Math.sin(t * 15) * 2, 22 * (0.5 + f * 0.5), 34 * (0.5 + f * 0.5), 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = this.s.gold ? '#fbbf24' : '#d6a57a'; ctx.beginPath(); ctx.ellipse(x + 2, y + 34, 26, 16, -0.3, 0, Math.PI * 2); ctx.fill();
-    ctx.restore();
+  drawVignette(ctx) {
+    if (!this.vig) {
+      const c = document.createElement('canvas'); c.width = VIEW.w; c.height = VIEW.h; const g = c.getContext('2d');
+      const gr = g.createRadialGradient(VIEW.w / 2, VIEW.h * 0.52, VIEW.h * 0.28, VIEW.w / 2, VIEW.h * 0.52, VIEW.h * 0.82);
+      gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,.55)'); g.fillStyle = gr; g.fillRect(0, 0, VIEW.w, VIEW.h);
+      this.vig = c;
+    }
+    ctx.drawImage(this.vig, VIEW.x, VIEW.y);
   }
 
   drawPanel(ctx) {

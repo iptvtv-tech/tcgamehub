@@ -1,27 +1,56 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
   <defs>
-    <linearGradient id="wl" x1="0" x2="1"><stop offset="0" stop-color="#09090b"/><stop offset="1" stop-color="#3f3f46"/></linearGradient>
-    <linearGradient id="wr" x1="1" x2="0"><stop offset="0" stop-color="#09090b"/><stop offset="1" stop-color="#3f3f46"/></linearGradient>
-    <radialGradient id="glow" cx=".5" cy=".42" r=".45"><stop offset="0" stop-color="#fde68a" stop-opacity=".75"/><stop offset=".5" stop-color="#a78bfa" stop-opacity=".25"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+    <radialGradient id="light" cx=".55" cy=".62" r=".75"><stop offset="0" stop-color="#ffb35c" stop-opacity=".55"/><stop offset=".55" stop-color="#7c3a12" stop-opacity=".2"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+    <linearGradient id="wallL" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#6b6457"/><stop offset="1" stop-color="#1c1a1f"/></linearGradient>
+    <linearGradient id="wallR" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stop-color="#8a7a63"/><stop offset="1" stop-color="#1c1a1f"/></linearGradient>
+    <linearGradient id="floor" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#5a4c3c"/><stop offset="1" stop-color="#0d0c0e"/></linearGradient>
+    <linearGradient id="ceil" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2e2a2c"/><stop offset="1" stop-color="#0b0a0d"/></linearGradient>
+    <radialGradient id="flame" cx=".5" cy=".6" r=".5"><stop offset="0" stop-color="#fff7d6"/><stop offset=".4" stop-color="#ffb02e"/><stop offset="1" stop-color="#ff5a10" stop-opacity="0"/></radialGradient>
+    <radialGradient id="eye" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffd0c0"/><stop offset=".35" stop-color="#ff3b28"/><stop offset="1" stop-color="#ff3b28" stop-opacity="0"/></radialGradient>
+    <linearGradient id="crown" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff2b0"/><stop offset=".5" stop-color="#f5b82e"/><stop offset="1" stop-color="#8a540a"/></linearGradient>
+    <radialGradient id="halo" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fde68a" stop-opacity=".6"/><stop offset="1" stop-color="#fde68a" stop-opacity="0"/></radialGradient>
   </defs>
-  <rect width="200" height="200" fill="#0b0716"/>
-  <polygon points="0,0 60,50 60,150 0,200" fill="url(#wl)"/>
-  <polygon points="200,0 140,50 140,150 200,200" fill="url(#wr)"/>
-  <polygon points="0,200 60,150 140,150 200,200" fill="#1c1917"/>
-  <polygon points="0,0 60,50 140,50 200,0" fill="#050308"/>
-  <rect x="60" y="50" width="80" height="100" fill="#27272a"/>
-  <g stroke="#09090b" stroke-width="2"><path d="M60 75h80M60 100h80M60 125h80M85 50v25M115 50v25M72 75v25M100 75v25M128 75v25M85 100v25M115 100v25M72 125v25M128 125v25"/></g>
-  <path d="M0 60l60 25M0 120l60 12M0 180l60-18M200 60l-60 25M200 120l-60 12" stroke="#18181b" stroke-width="2"/>
-  <rect width="200" height="200" fill="url(#glow)"/>
-  <g transform="translate(100 88)">
-    <path d="M-30 12 l-3-30 14 16 19-26 19 26 14-16 -3 30z" fill="#fbbf24" stroke="#b45309" stroke-width="2"/>
-    <rect x="-30" y="12" width="60" height="11" fill="#f59e0b" stroke="#b45309" stroke-width="2"/>
-    <circle cx="0" cy="17" r="4" fill="#ef4444"/><circle cx="-16" cy="17" r="3" fill="#22d3ee"/><circle cx="16" cy="17" r="3" fill="#22d3ee"/>
+  <rect width="200" height="200" fill="#060507"/>
+  <!-- corridor in perspective -->
+  <polygon points="0,0 200,0 128,70 72,70" fill="url(#ceil)"/>
+  <polygon points="0,200 200,200 128,122 72,122" fill="url(#floor)"/>
+  <polygon points="0,0 72,70 72,122 0,200" fill="url(#wallL)"/>
+  <polygon points="200,0 128,70 128,122 200,200" fill="url(#wallR)"/>
+  <rect x="72" y="70" width="56" height="52" fill="#141217"/>
+  <!-- stone courses on the walls -->
+  <g stroke="#000" stroke-opacity=".55" stroke-width="1.5" fill="none">
+    <path d="M0 40 L72 84 M0 80 L72 98 M0 120 L72 110 M0 160 L72 116"/>
+    <path d="M200 40 L128 84 M200 80 L128 98 M200 120 L128 110 M200 160 L128 116"/>
+    <path d="M30 18 L30 172 M54 52 L54 140 M170 18 L170 172 M146 52 L146 140"/>
+    <path d="M40 200 L88 122 M160 200 L112 122 M18 178 L182 178 M46 150 L154 150 M62 134 L138 134"/>
+    <path d="M30 0 L84 70 M170 0 L116 70"/>
   </g>
-  <g transform="translate(42 142)" stroke="#e7e5e4" stroke-width="3" stroke-linecap="round" fill="none">
-    <circle cx="0" cy="-26" r="7" fill="#e7e5e4"/><path d="M0-18v20M-9-12h18M-8-6h16M0-14l-12 10M0-14l11 9M0 2l-6 16M0 2l6 16"/>
-    <path d="M11-5l8-22" stroke="#94a3b8" stroke-width="2"/>
+  <!-- beams across the ceiling -->
+  <g fill="#3b2412"><polygon points="12,10 188,10 176,22 24,22"/><polygon points="50,46 150,46 144,52 56,52"/></g>
+  <!-- the crown glinting far down the hall -->
+  <circle cx="100" cy="94" r="22" fill="url(#halo)"/>
+  <polygon points="90,100 91,88 95,94 100,84 105,94 109,88 110,100" fill="url(#crown)"/><rect x="90" y="99" width="20" height="4" fill="url(#crown)"/>
+  <circle cx="100" cy="100" r="1.4" fill="#ef4444"/>
+  <!-- skeleton guard with glowing eyes -->
+  <g transform="translate(60 92)" stroke="#e9e2cf" stroke-linecap="round" fill="none">
+    <line x1="0" y1="8" x2="0" y2="28" stroke-width="2.5"/>
+    <g stroke-width="1.6"><line x1="-6" y1="12" x2="6" y2="12"/><line x1="-6" y1="16" x2="6" y2="16"/><line x1="-5" y1="20" x2="5" y2="20"/></g>
+    <line x1="0" y1="10" x2="-9" y2="22" stroke-width="2"/><line x1="0" y1="10" x2="9" y2="14" stroke-width="2"/>
+    <line x1="9" y1="14" x2="15" y2="-6" stroke="#94a3b8" stroke-width="2"/>
+    <line x1="0" y1="28" x2="-5" y2="44" stroke-width="2.4"/><line x1="0" y1="28" x2="5" y2="44" stroke-width="2.4"/>
+    <circle cx="0" cy="0" r="6.5" fill="#e9e2cf" stroke="none"/>
   </g>
-  <g transform="translate(160 150) rotate(-15)"><rect x="-8" y="-4" width="16" height="20" fill="#44403c"/><path d="M-8-4l5-9 5 9M0-4l5-9 5 9" fill="#d6d3d1"/></g>
-  <g fill="#fde047"><circle cx="78" cy="160" r="4"/><circle cx="122" cy="166" r="4"/><circle cx="100" cy="174" r="4"/></g>
+  <circle cx="57.5" cy="92" r="4" fill="url(#eye)"/><circle cx="62.5" cy="92" r="4" fill="url(#eye)"/>
+  <!-- torchlight on everything -->
+  <rect width="200" height="200" fill="url(#light)"/>
+  <!-- wall sconce -->
+  <rect x="150" y="70" width="6" height="12" fill="#1b1b1f"/><rect x="151.5" y="58" width="3" height="12" fill="#4a2a12"/>
+  <ellipse cx="153" cy="50" rx="7" ry="11" fill="url(#flame)"/>
+  <!-- your torch -->
+  <g transform="translate(168 158) rotate(18)">
+    <rect x="-5" y="0" width="10" height="60" fill="#5b3418"/><rect x="-7" y="-3" width="14" height="5" fill="#3a3a42"/>
+    <ellipse cx="0" cy="-14" rx="13" ry="20" fill="url(#flame)"/>
+  </g>
+  <!-- secret crack -->
+  <path d="M38 96 L42 108 L37 118 L43 130" stroke="#000" stroke-width="1.6" fill="none"/><path d="M39 96 L43 108 L38 118 L44 130" stroke="#fff" stroke-opacity=".2" stroke-width="1" fill="none"/>
 </svg>

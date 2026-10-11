@@ -1,23 +1,42 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0c1445"/><stop offset="1" stop-color="#3b0f5c"/></linearGradient>
-    <radialGradient id="r" cx=".3" cy=".3" r=".8"><stop offset="0" stop-color="#fff"/><stop offset=".3" stop-color="#f43f5e"/><stop offset="1" stop-color="#9f1239"/></radialGradient>
-    <radialGradient id="y" cx=".3" cy=".3" r=".8"><stop offset="0" stop-color="#fff"/><stop offset=".3" stop-color="#facc15"/><stop offset="1" stop-color="#a16207"/></radialGradient>
-    <radialGradient id="g" cx=".3" cy=".3" r=".8"><stop offset="0" stop-color="#fff"/><stop offset=".3" stop-color="#22c55e"/><stop offset="1" stop-color="#15803d"/></radialGradient>
-    <radialGradient id="b" cx=".3" cy=".3" r=".8"><stop offset="0" stop-color="#fff"/><stop offset=".3" stop-color="#3b82f6"/><stop offset="1" stop-color="#1d4ed8"/></radialGradient>
-    <radialGradient id="p" cx=".3" cy=".3" r=".8"><stop offset="0" stop-color="#fff"/><stop offset=".3" stop-color="#a855f7"/><stop offset="1" stop-color="#6b21a8"/></radialGradient>
+    <radialGradient id="bg" cx=".5" cy=".3" r=".8"><stop offset="0" stop-color="#1e1b6b"/><stop offset="1" stop-color="#050a2e"/></radialGradient>
+    <linearGradient id="table" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#121842"/><stop offset="1" stop-color="#2d1462"/></linearGradient>
+    <linearGradient id="rail" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7c8db5"/><stop offset="1" stop-color="#38425f"/></linearGradient>
+    <radialGradient id="r" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#fff"/><stop offset=".22" stop-color="#fb7185"/><stop offset="1" stop-color="#881337"/></radialGradient>
+    <radialGradient id="y" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#fff"/><stop offset=".22" stop-color="#fde047"/><stop offset="1" stop-color="#a16207"/></radialGradient>
+    <radialGradient id="g" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#fff"/><stop offset=".22" stop-color="#4ade80"/><stop offset="1" stop-color="#14532d"/></radialGradient>
+    <radialGradient id="b" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#fff"/><stop offset=".22" stop-color="#60a5fa"/><stop offset="1" stop-color="#1e3a8a"/></radialGradient>
+    <radialGradient id="p" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#fff"/><stop offset=".22" stop-color="#c084fc"/><stop offset="1" stop-color="#581c87"/></radialGradient>
+    <radialGradient id="sh" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#000" stop-opacity=".55"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+    <linearGradient id="turret" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1e293b"/><stop offset=".5" stop-color="#94a3b8"/><stop offset="1" stop-color="#1e293b"/></linearGradient>
   </defs>
   <rect width="200" height="200" fill="url(#bg)"/>
-  <rect x="8" y="10" width="184" height="10" fill="#94a3b8"/>
+  <g fill="#e0f2fe" opacity=".7"><circle cx="20" cy="18" r="1"/><circle cx="160" cy="12" r="1.2"/><circle cx="182" cy="40" r=".8"/><circle cx="40" cy="44" r=".8"/></g>
+  <!-- the tilted table -->
+  <polygon points="44,30 156,30 196,200 4,200" fill="url(#table)"/>
+  <polygon points="44,30 38,30 -2,200 4,200" fill="url(#rail)"/><polygon points="156,30 162,30 202,200 196,200" fill="url(#rail)"/>
+  <polygon points="38,22 162,22 162,32 38,32" fill="#4b587d"/><rect x="38" y="30" width="124" height="3" fill="#a78bfa"/>
+  <!-- bubbles: rows shrink with distance -->
   <g>
-    <circle cx="24" cy="34" r="14" fill="url(#r)"/><circle cx="52" cy="34" r="14" fill="url(#r)"/><circle cx="80" cy="34" r="14" fill="url(#y)"/><circle cx="108" cy="34" r="14" fill="url(#b)"/><circle cx="136" cy="34" r="14" fill="url(#b)"/><circle cx="164" cy="34" r="14" fill="url(#g)"/>
-    <circle cx="38" cy="58" r="14" fill="url(#p)"/><circle cx="66" cy="58" r="14" fill="url(#y)"/><circle cx="94" cy="58" r="14" fill="url(#y)"/><circle cx="122" cy="58" r="14" fill="url(#b)"/><circle cx="150" cy="58" r="14" fill="url(#g)"/><circle cx="178" cy="58" r="14" fill="url(#p)"/>
-    <circle cx="52" cy="82" r="14" fill="url(#g)"/><circle cx="80" cy="82" r="14" fill="url(#p)"/><circle cx="136" cy="82" r="14" fill="url(#r)"/>
+    <g transform="translate(0,0)">
+      <circle cx="54" cy="44" r="8" fill="url(#r)"/><circle cx="71" cy="44" r="8" fill="url(#y)"/><circle cx="88" cy="44" r="8" fill="url(#y)"/><circle cx="105" cy="44" r="8" fill="url(#b)"/><circle cx="122" cy="44" r="8" fill="url(#g)"/><circle cx="139" cy="44" r="8" fill="url(#p)"/><circle cx="156" cy="44" r="8" fill="url(#r)" opacity="0"/>
+      <circle cx="61" cy="58" r="8.6" fill="url(#g)"/><circle cx="79" cy="58" r="8.6" fill="url(#b)"/><circle cx="97" cy="58" r="8.6" fill="url(#b)"/><circle cx="115" cy="58" r="8.6" fill="url(#r)"/><circle cx="133" cy="58" r="8.6" fill="url(#y)"/>
+      <circle cx="50" cy="74" r="9.3" fill="url(#p)"/><circle cx="69" cy="74" r="9.3" fill="url(#p)"/><circle cx="88" cy="74" r="9.3" fill="url(#g)"/><circle cx="107" cy="74" r="9.3" fill="url(#r)"/><circle cx="126" cy="74" r="9.3" fill="url(#b)"/><circle cx="145" cy="74" r="9.3" fill="url(#y)"/>
+      <circle cx="78" cy="91" r="10" fill="url(#y)"/><circle cx="99" cy="91" r="10" fill="url(#r)"/><circle cx="120" cy="91" r="10" fill="url(#g)"/>
+    </g>
+    <g fill="#fff"><path d="M131 69 l1.2 3 3 1.2 -3 1.2 -1.2 3 -1.2 -3 -3 -1.2 3 -1.2z"/></g>
   </g>
-  <path d="M142 74 l2 6 6 2 -6 2 -2 6 -2 -6 -6 -2 6 -2z" fill="#fff"/>
-  <g fill="none" stroke="#fde047" stroke-width="3"><circle cx="108" cy="96" r="10" opacity=".7"/><circle cx="108" cy="96" r="18" opacity=".35"/></g>
-  <g fill="#fff" opacity=".7"><circle cx="104" cy="118" r="2.5"/><circle cx="102" cy="132" r="2.5"/><circle cx="101" cy="146" r="2.5"/></g>
-  <path d="M60 200 a40 40 0 0 1 80 0z" fill="#1e293b"/>
-  <g transform="translate(100 172) rotate(-4)"><rect x="-11" y="-34" width="22" height="34" rx="6" fill="#94a3b8"/><rect x="-13" y="-38" width="26" height="6" fill="#cbd5e1"/></g>
-  <circle cx="100" cy="172" r="13" fill="url(#y)"/>
+  <!-- aim dots -->
+  <g fill="#fff" opacity=".7"><circle cx="100" cy="150" r="2"/><circle cx="102" cy="136" r="1.8"/><circle cx="104" cy="123" r="1.6"/><circle cx="106" cy="112" r="1.4"/><circle cx="108" cy="103" r="1.2"/></g>
+  <!-- flying shot -->
+  <ellipse cx="112" cy="122" rx="8" ry="3" fill="url(#sh)"/><circle cx="110" cy="114" r="10.5" fill="url(#b)"/>
+  <!-- 3D launcher turret -->
+  <ellipse cx="100" cy="190" rx="44" ry="14" fill="#0f172a"/>
+  <ellipse cx="100" cy="184" rx="42" ry="14" fill="#334155"/>
+  <ellipse cx="100" cy="180" rx="34" ry="11" fill="#475569"/>
+  <polygon points="92,182 108,182 105,150 95,150" fill="url(#turret)"/><ellipse cx="100" cy="150" rx="6" ry="2.5" fill="#e2e8f0"/>
+  <rect x="98.5" y="154" width="3" height="22" fill="#38bdf8"/>
+  <ellipse cx="100" cy="180" rx="22" ry="7" fill="none" stroke="#fde047" stroke-width="3" stroke-dasharray="90 40"/>
+  <circle cx="100" cy="176" r="12" fill="url(#r)"/>
 </svg>

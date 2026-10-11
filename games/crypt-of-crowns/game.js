@@ -13,7 +13,7 @@
 // ─────────────────────────────────────────────────────────────
 import { runGame, roundRect, clamp } from '../../assets/js/engine.js';
 import { HDRaycaster } from '../../assets/js/raycast-hd.js';
-import { makeCryptTextures, makeCryptSprites } from './art.js';
+import { makeHDTextures, makeHDSprites, drawTorchHand } from '../../assets/js/raycast-art.js';
 import { LEVELS } from './levels.js';
 import { TICK, ACT, DIRS, parse, skelAt, spikeUp, freshState, tryAct, applyAct, pickKey, danger, jammed } from './sim.js';
 
@@ -61,8 +61,8 @@ class CryptOfCrowns {
   constructor(s) {
     this.s = s; this.t = 0;
     this.rc = new HDRaycaster(VIEW);
-    const art = makeCryptTextures();
-    this.tex = art.tex; this.floors = art.floors; this.spr = makeCryptSprites();
+    const art = makeHDTextures();
+    this.tex = art.tex; this.floors = art.floors; this.spr = makeHDSprites();
     this.dust = Array.from({ length: 46 }, () => ({ x: Math.random() * VIEW.w, y: VIEW.y + Math.random() * VIEW.h, v: 4 + Math.random() * 9, p: Math.random() * 7, r: Math.random() < 0.3 ? 1.6 : 1 }));
     this.chestsRun = 0;
     this.startLevel(1, false);
@@ -85,6 +85,7 @@ class CryptOfCrowns {
     this.seen = this.W.grid.map((r) => r.map(() => bonus || this.secret));
     this.see();
     this.placeSconces();
+    this.placeMark();
     this.relight();
   }
 
@@ -107,6 +108,25 @@ class CryptOfCrowns {
       });
     }
   }
+  /** Crypts 13-15: a crown carved into the wall nearest the exit. It glows gold while your run is flawless… */
+  placeMark() {
+    this.mark = null;
+    const W = this.W;
+    if (this.bonus || this.secret || this.level < 13 || !W.exit) return;
+    const open = new Set(['.', 'c', 'k', 'b', 'T', 'E', '@', '*', 'r', 'l', 'u', 'd']);
+    let best = null;
+    for (let y = 0; y < W.h; y++) for (let x = 0; x < W.w; x++) {
+      if (W.at(x, y) !== '#') continue;
+      for (const [dx, dy] of [[0, 1], [1, 0], [0, -1], [-1, 0]]) {
+        if (!open.has(W.at(x + dx, y + dy)) || this.sconces.has(this.faceKey(x, y, dx, dy))) continue;
+        const d = Math.hypot(x + dx - W.exit.x, y + dy - W.exit.y);
+        if (d > 0.5 && (!best || d < best.d)) best = { x, y, dx, dy, d };
+      }
+    }
+    if (best) this.mark = { key: this.faceKey(best.x, best.y, best.dx, best.dy), lx: best.x + 0.5 + best.dx * 0.8, ly: best.y + 0.5 + best.dy * 0.8 };
+  }
+  markLit() { return !!this.mark && this.s.isFlawless?.(); }
+
   faceKey(x, y, fx, fy) { return ((y * 64 + x) * 4) + (fx === 1 ? 0 : fy === 1 ? 1 : fx === -1 ? 2 : 3); }
 
   /** Rebuild the light map (call when a door / gate / secret wall changes, or a glowing key is picked up). */
@@ -117,6 +137,7 @@ class CryptOfCrowns {
       else if (c === 'E') lights.push({ x: x + 0.5, y: y + 0.5, r: 0.6, g: 0.5, b: 0.18, rad: 2.6 });
       else if (c === 'C') lights.push({ x: x + 0.5, y: y + 0.5, r: 1.2, g: 0.95, b: 0.45, rad: 4.2 });
     }));
+    if (this.markLit()) lights.push({ x: this.mark.lx, y: this.mark.ly, r: 0.75, g: 0.58, b: 0.16, rad: 2.4 });
     W.keys.forEach((q, i) => { if (!st.keys.has(i)) lights.push({ x: q.x + 0.5, y: q.y + 0.5, ...(q.blue ? { r: 0.15, g: 0.32, b: 0.7 } : { r: 0.6, g: 0.45, b: 0.1 }), rad: 1.7 }); });
     this.rc.buildLights(W.w, W.h, lights, (x, y) => this.cellTex(x, y) !== 0);
   }
@@ -150,7 +171,8 @@ class CryptOfCrowns {
     this.t += dt;
     if (this.done) return;
     this.acc += dt;
-    while (this.acc >= TICK && !this.done) { this.acc -= TICK; this.tick(); if (this.s.state !== 'playing') { this.acc = 0; return; } }
+    if (this.caughtFx) { this.caughtFx.t += dt; if (this.caughtFx.t >= this.caughtFx.dur) { this.caughtFx = null; this.s.hurt(); } return; }
+    while (this.acc >= TICK && !this.done && !this.caughtFx) { this.acc -= TICK; this.tick(); if (this.s.state !== 'playing') { this.acc = 0; return; } }
   }
 
   tick() {
@@ -158,6 +180,7 @@ class CryptOfCrowns {
     // 0. start the next action on the tick boundary (just like the level checker)
     if (!this.act) { this.begin(this.next || this.heldMove()); this.next = null; }
     this.T++; this.time += TICK;
+    this.footsteps();
     // 1. the action in progress
     const a = this.act;
     let cells = [[p.x, p.y]], spike = [p.x, p.y];
@@ -198,6 +221,29 @@ class CryptOfCrowns {
     else if (cmd === 'search') { this.say('Solid stone…', '#a8a29e'); s.sound.noise({ dur: 0.06, vol: 0.06, freq: 400, type: 'lowpass' }); }
     else s.sound.noise({ dur: 0.05, vol: 0.07, freq: 250, type: 'lowpass' });   // bump
     this.act = { type: 'wait', n: 0, dur: ACT };                                    // a bump costs a moment
+  }
+
+  /** Each skeleton step rattles: louder when close, from its side, muffled behind walls. */
+  footsteps() {
+    const s = this.s, p = this.p;
+    if (this.bonus || this.secret) return;
+    for (const sk of this.W.skels) {
+      if (sk.route.length < 2 || this.T % sk.sk) continue;
+      const q = skelAt(sk, this.T).from, dx = q[0] - p.x, dy = q[1] - p.y, d = Math.hypot(dx, dy);
+      if (d > 8 || d < 0.01) continue;
+      let rel = Math.atan2(dy, dx) - p.d * Math.PI / 2; rel = Math.atan2(Math.sin(rel), Math.cos(rel));
+      const pan = Math.sin(rel) * 0.85, vol = 0.16 * Math.pow(1 - d / 8, 1.4);
+      const seen = this.lineClear(p.x + 0.5, p.y + 0.5, q[0] + 0.5, q[1] + 0.5);
+      const bright = seen ? 3200 : 1100;                                    // walls in the way soften the sound
+      s.sound.noise({ dur: 0.05, vol, freq: bright, type: 'bandpass', pan });
+      s.sound.noise({ dur: 0.04, vol: vol * 0.8, freq: bright * 1.3, type: 'bandpass', pan, delay: 0.07 });
+      s.sound.tone({ freq: 420 + (q[0] * 37 + q[1] * 11) % 160, dur: 0.03, type: 'triangle', vol: vol * 0.35, pan, delay: 0.035 });
+    }
+  }
+  lineClear(ax, ay, bx, by) {
+    const n = Math.ceil(Math.hypot(bx - ax, by - ay) * 4);
+    for (let i = 1; i < n; i++) { const t = i / n; if (this.cellTex(Math.floor(ax + (bx - ax) * t), Math.floor(ay + (by - ay) * t))) return false; }
+    return true;
   }
 
   say(text, color = '#e7e5e4') { this.msg = { text, color, t: 1.8 }; }
@@ -268,14 +314,18 @@ class CryptOfCrowns {
     if (cause === 'skeleton') {
       s.fx.text(VIEW.w / 2, VIEW.y + 170, 'CAUGHT BY A SKELETON!', { color: '#e7e5e4', size: 26, life: 1.2 });
       s.sound.noise({ dur: 0.3, vol: 0.25, freq: 2500, to: 400, type: 'bandpass' }); [0, 1, 2].forEach((i) => s.sound.tone({ freq: 700 - i * 150, dur: 0.05, type: 'square', vol: 0.07, delay: i * 0.06 }));
+      s.sound.tone({ freq: 180, to: 60, dur: 0.6, type: 'sawtooth', vol: 0.12 });
+      this.caughtFx = { kind: 'skeleton', t: 0, dur: 0.75 };                // it lunges at you first…
     } else {
       s.fx.text(VIEW.w / 2, VIEW.y + 170, 'SPIKES!', { color: '#f87171', size: 30, life: 1.2 });
       s.sound.play('hit');
+      this.caughtFx = { kind: 'spikes', t: 0, dur: 0.35 };
     }
-    s.hurt();
+    s.fx.shake(cause === 'skeleton' ? 12 : 7, cause === 'skeleton' ? 0.6 : 0.3);
   }
 
   onLifeLost() {
+    this.caughtFx = null;
     // back to the crypt entrance — keys, doors and levers stay as they were
     this.p = { ...this.W.start }; this.act = null; this.next = null; this.acc = 0;
   }
@@ -391,13 +441,22 @@ class CryptOfCrowns {
     this.rc.setRes(lo ? 240 : 360);
     this.rc.render(ctx, cam, {
       ids, mapW: W.w, mapH: W.h, tex: this.tex, floor: look.fl.floor, ceil: look.fl.ceil,
-      faceTex: (x, y, fx, fy, id) => (id === wallBase && this.sconces.has(this.faceKey(x, y, fx, fy)) ? look.sconce + Math.floor(t * 9 + x * 7 + y * 3) % 3 : id),
+      faceTex: (x, y, fx, fy, id) => {
+        if (id !== wallBase) return id;
+        const k = this.faceKey(x, y, fx, fy);
+        if (this.mark?.key === k) return this.markLit() ? 51 : 50;
+        return this.sconces.has(k) ? look.sconce + Math.floor(t * 9 + x * 7 + y * 3) % 3 : id;
+      },
       light: look.light, fogDist: look.fogDist, ambient: look.amb, fogCol: look.fog, flicker: flick,
       torch: (s.gold ? [0.95, 0.8, 0.45] : [0.92, 0.7, 0.5]).map((v) => v * (0.93 + flick * 0.07)),
       sprites,
     });
     if (!lo) this.drawDust(ctx, flick);
-    if (!this.finale) this.drawTorchHand(ctx, cam, flick);
+    if (!this.finale) {
+      const a = this.act, f = a ? clamp((a.n + this.acc / TICK) / a.dur, 0, 1) : 0;
+      drawTorchHand(ctx, VIEW, { t, flick, gold: s.gold, sway: a?.type === 'move' ? Math.sin(f * Math.PI) * 7 : Math.sin(t * 1.6) * 1.5, dip: a?.type === 'turn' ? 4 : 0 });
+    }
+    if (this.caughtFx) this.drawCaught(ctx);
     this.drawVignette(ctx);
     if (this.finale) this.drawCrownRising(ctx);
     this.drawHud(ctx);
@@ -418,34 +477,23 @@ class CryptOfCrowns {
     ctx.restore();
   }
 
-  /** Your torch, held low on the right; it sways as you walk. */
-  drawTorchHand(ctx, cam, flick) {
-    const a = this.act, walking = a?.type === 'move', f = a ? clamp((a.n + this.acc / TICK) / a.dur, 0, 1) : 0;
-    const sway = walking ? Math.sin(f * Math.PI) * 7 : Math.sin(this.t * 1.6) * 1.5;
-    const tx = 382 + sway * 0.6, ty = VIEW.y + VIEW.h - 120 + Math.abs(sway) * 0.8 + (a?.type === 'turn' ? 4 : 0);
-    const gold = this.s.gold;
+  /** Caught: the skeleton lunges out of the dark at you (or the spikes flash red). */
+  drawCaught(ctx) {
+    const c = this.caughtFx, k = Math.min(1, c.t / c.dur);
     ctx.save();
     ctx.beginPath(); ctx.rect(VIEW.x, VIEW.y, VIEW.w, VIEW.h); ctx.clip();
-    // warm light around the flame
-    ctx.globalCompositeOperation = 'lighter';
-    const gl = ctx.createRadialGradient(tx, ty - 22, 4, tx, ty - 22, 150);
-    gl.addColorStop(0, `rgba(255,160,70,${0.22 * flick})`); gl.addColorStop(1, 'rgba(255,120,40,0)');
-    ctx.fillStyle = gl; ctx.fillRect(tx - 150, ty - 172, 300, 300);
-    ctx.globalCompositeOperation = 'source-over';
-    // handle
-    ctx.translate(tx, ty); ctx.rotate(0.32);
-    const hg = ctx.createLinearGradient(-9, 0, 9, 0);
-    hg.addColorStop(0, gold ? '#8a5a0a' : '#2b170a'); hg.addColorStop(0.5, gold ? '#f5c542' : '#6b3f1d'); hg.addColorStop(1, gold ? '#7a4a06' : '#24130a');
-    ctx.fillStyle = hg; ctx.fillRect(-8, 0, 16, 150);
-    ctx.fillStyle = gold ? '#fde68a' : '#3a3a42'; ctx.fillRect(-11, -4, 22, 9); ctx.fillRect(-10, 26, 20, 5);   // iron (or gold) bands
-    ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(4, 5, 4, 145);
-    // the flame
-    const k = flick, h = 44 + Math.sin(this.t * 13) * 5;
-    ctx.globalCompositeOperation = 'lighter';
-    const fl = (w, hh, c0, c1) => { const g = ctx.createRadialGradient(0, -hh * 0.35, 1, 0, -hh * 0.35, hh * 0.8); g.addColorStop(0, c0); g.addColorStop(1, c1); ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(-w, -2); ctx.quadraticCurveTo(-w * 0.9 + Math.sin(this.t * 9) * 3, -hh * 0.6, Math.sin(this.t * 7) * 4, -hh); ctx.quadraticCurveTo(w * 0.9 + Math.sin(this.t * 8) * 3, -hh * 0.6, w, -2); ctx.fill(); };
-    fl(17, h, `rgba(255,120,30,${0.85 * k})`, 'rgba(200,40,0,0)');
-    fl(11, h * 0.75, `rgba(255,200,80,${0.9 * k})`, 'rgba(255,120,30,0)');
-    fl(5, h * 0.45, 'rgba(255,250,220,.95)', 'rgba(255,220,120,0)');
+    if (c.kind === 'skeleton') {
+      const img = this.spr.skeletonCanvas, sz = 160 + k * k * 520, cx = VIEW.w / 2, cy = VIEW.y + VIEW.h * 0.52 + k * 60;
+      ctx.fillStyle = `rgba(0,0,0,${0.35 * k})`; ctx.fillRect(VIEW.x, VIEW.y, VIEW.w, VIEW.h);
+      ctx.imageSmoothingEnabled = false;
+      ctx.translate(cx, cy); ctx.rotate(Math.sin(c.t * 40) * 0.04 * k);
+      ctx.drawImage(img, -sz / 2, -sz * 0.45, sz, sz);
+    }
+    ctx.restore();
+    ctx.save();
+    const red = ctx.createRadialGradient(VIEW.w / 2, VIEW.y + VIEW.h / 2, VIEW.h * 0.15, VIEW.w / 2, VIEW.y + VIEW.h / 2, VIEW.h * 0.75);
+    red.addColorStop(0, `rgba(220,20,20,${0.12 * k})`); red.addColorStop(1, `rgba(150,0,0,${0.75 * k})`);
+    ctx.fillStyle = red; ctx.fillRect(VIEW.x, VIEW.y, VIEW.w, VIEW.h);
     ctx.restore();
   }
 

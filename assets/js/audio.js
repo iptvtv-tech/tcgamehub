@@ -21,7 +21,13 @@ function ac() {
   return ctx;
 }
 
-function tone({ freq = 440, to = null, dur = 0.1, type = 'square', vol = 0.2, delay = 0, bus = null, attack = 0.005 }) {
+/** Route a sound to the left or right (pan −1 … 1) when the browser supports it. */
+function out(c, node, bus, pan) {
+  if (pan && c.createStereoPanner) { const p = c.createStereoPanner(); p.pan.value = Math.max(-1, Math.min(1, pan)); node.connect(p).connect(bus); }
+  else node.connect(bus);
+}
+
+function tone({ freq = 440, to = null, dur = 0.1, type = 'square', vol = 0.2, delay = 0, bus = null, attack = 0.005, pan = 0 }) {
   const c = ac(); if (!c) return;
   const t = c.currentTime + delay;
   const o = c.createOscillator(), g = c.createGain();
@@ -31,11 +37,11 @@ function tone({ freq = 440, to = null, dur = 0.1, type = 'square', vol = 0.2, de
   g.gain.setValueAtTime(0.0001, t);
   g.gain.exponentialRampToValueAtTime(vol, t + attack);
   g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  o.connect(g).connect(bus || sfxBus);
+  o.connect(g); out(c, g, bus || sfxBus, pan);
   o.start(t); o.stop(t + dur + 0.02);
 }
 
-function noise({ dur = 0.2, vol = 0.3, freq = 1200, to = null, type = 'lowpass', delay = 0 }) {
+function noise({ dur = 0.2, vol = 0.3, freq = 1200, to = null, type = 'lowpass', delay = 0, pan = 0 }) {
   const c = ac(); if (!c) return;
   const t = c.currentTime + delay;
   const s = c.createBufferSource(); s.buffer = noiseBuf;
@@ -45,7 +51,7 @@ function noise({ dur = 0.2, vol = 0.3, freq = 1200, to = null, type = 'lowpass',
   const g = c.createGain();
   g.gain.setValueAtTime(vol, t);
   g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  s.connect(f).connect(g).connect(sfxBus);
+  s.connect(f).connect(g); out(c, g, sfxBus, pan);
   s.start(t); s.stop(t + dur + 0.02);
 }
 

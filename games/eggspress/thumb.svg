@@ -1,29 +1,45 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
   <defs>
     <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#38bdf8"/><stop offset="1" stop-color="#e0f2fe"/></linearGradient>
-    <linearGradient id="road" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ca8a04"/><stop offset="1" stop-color="#854d0e"/></linearGradient>
-    <linearGradient id="cliff" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#92400e"/><stop offset="1" stop-color="#451a03"/></linearGradient>
-    <radialGradient id="egg" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#fff"/><stop offset=".6" stop-color="#fff7ed"/><stop offset="1" stop-color="#e7c8a0"/></radialGradient>
+    <linearGradient id="hill1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#86efac"/><stop offset="1" stop-color="#16a34a"/></linearGradient>
+    <linearGradient id="hill2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4ade80"/><stop offset="1" stop-color="#14532d"/></linearGradient>
+    <linearGradient id="road" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#78716c"/><stop offset="1" stop-color="#44403c"/></linearGradient>
+    <linearGradient id="paint" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fdba74"/><stop offset=".5" stop-color="#f97316"/><stop offset="1" stop-color="#9a3412"/></linearGradient>
+    <linearGradient id="side" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c2410c"/><stop offset="1" stop-color="#7c2d12"/></linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e0f2fe"/><stop offset="1" stop-color="#0369a1"/></linearGradient>
+    <radialGradient id="egg" cx=".38" cy=".3" r=".8"><stop offset="0" stop-color="#fff"/><stop offset=".55" stop-color="#fef3c7"/><stop offset="1" stop-color="#d6a96b"/></radialGradient>
+    <radialGradient id="tyre" cx=".4" cy=".35" r=".7"><stop offset="0" stop-color="#4b5563"/><stop offset="1" stop-color="#0b0f19"/></radialGradient>
+    <radialGradient id="hub" cx=".35" cy=".3" r=".7"><stop offset="0" stop-color="#f1f5f9"/><stop offset="1" stop-color="#64748b"/></radialGradient>
   </defs>
   <rect width="200" height="200" fill="url(#sky)"/>
-  <circle cx="160" cy="34" r="16" fill="#fde047"/>
-  <path d="M0 110 Q50 70 100 92 T200 80 V200 H0Z" fill="#86efac"/>
-  <path d="M0 132 Q60 102 120 118 T200 108 V200 H0Z" fill="#22c55e"/>
-  <path d="M150 112 l10 -34 l10 34z" fill="#15803d"/><path d="M178 108 l8 -26 l8 26z" fill="#166534"/>
-  <path d="M0 150 Q60 122 120 136 T200 126 L200 146 Q140 154 120 156 T0 172Z" fill="url(#road)"/>
-  <path d="M0 172 Q60 160 120 156 T200 146 V200 H0Z" fill="url(#cliff)"/>
-  <g transform="translate(78 128) rotate(-12)">
-    <rect x="-38" y="-6" width="76" height="9" rx="2" fill="#1f2937"/>
-    <rect x="-36" y="-17" width="50" height="12" rx="2" fill="#f97316"/>
-    <rect x="14" y="-30" width="22" height="25" rx="3" fill="#f97316"/>
-    <rect x="17" y="-27" width="15" height="9" rx="1" fill="#bae6fd"/>
-    <rect x="-37" y="-10" width="74" height="2" fill="#e5e7eb"/>
-    <path d="M-15 -17 q11 7 22 0 l1 -4 h-24z" fill="#374151"/>
-    <ellipse cx="-4" cy="-31" rx="10" ry="13" fill="url(#egg)" stroke="#d6b48a" stroke-width=".8"/>
-    <circle cx="-24" cy="6" r="11" fill="#111827"/><circle cx="-24" cy="6" r="5" fill="#cbd5e1"/>
-    <circle cx="25" cy="6" r="11" fill="#111827"/><circle cx="25" cy="6" r="5" fill="#cbd5e1"/>
-    <circle cx="37" cy="-12" r="2" fill="#fde047"/>
+  <circle cx="160" cy="36" r="16" fill="#fde047"/><circle cx="160" cy="36" r="24" fill="#fde047" opacity=".25"/>
+  <g fill="#fff" opacity=".9"><ellipse cx="44" cy="40" rx="20" ry="7"/><ellipse cx="58" cy="34" rx="12" ry="8"/><ellipse cx="110" cy="58" rx="14" ry="5"/></g>
+  <path d="M-10 120 Q40 70 90 104 Q140 76 210 112 L210 200 L-10 200Z" fill="url(#hill1)"/>
+  <path d="M-10 150 Q60 112 120 140 Q170 120 210 140 L210 200 L-10 200Z" fill="url(#hill2)"/>
+  <!-- the road ramps up across the hill, with depth -->
+  <path d="M-10 168 Q70 128 140 150 Q180 160 210 150 L210 172 Q180 182 140 172 Q70 150 -10 190Z" fill="url(#road)"/>
+  <path d="M-10 168 Q70 128 140 150 Q180 160 210 150" stroke="#d6d3d1" stroke-width="2" fill="none"/>
+  <path d="M10 178 Q70 142 140 161 Q180 170 210 161" stroke="#fde047" stroke-width="2" fill="none" stroke-dasharray="10 9"/>
+  <!-- 3D truck tipped up as it climbs -->
+  <g transform="translate(96 136) rotate(-12)">
+    <ellipse cx="0" cy="22" rx="46" ry="6" fill="#000" opacity=".25"/>
+    <!-- far side of the body (depth) -->
+    <polygon points="-40,-6 32,-6 38,-10 -34,-10" fill="#fed7aa"/>
+    <polygon points="12,-24 32,-24 38,-28 18,-28" fill="#fed7aa"/>
+    <rect x="-40" y="-6" width="52" height="18" rx="2" fill="url(#paint)"/>
+    <path d="M12 12 L12 -24 L30 -24 L40 -4 L40 12 Z" fill="url(#paint)"/>
+    <path d="M16 -20 L28 -20 L35 -6 L16 -6 Z" fill="url(#glass)"/>
+    <rect x="-40" y="10" width="80" height="6" fill="url(#side)"/>
+    <rect x="-40" y="0" width="80" height="2" fill="#fff" opacity=".45"/>
+    <rect x="38" y="2" width="4" height="4" fill="#fef9c3"/><rect x="-42" y="2" width="3" height="4" fill="#ef4444"/>
+    <!-- egg cup + the egg -->
+    <path d="M-22 -6 L-26 -14 L-6 -14 L-10 -6 Z" fill="#cbd5e1"/>
+    <ellipse cx="-16" cy="-27" rx="10" ry="13" fill="url(#egg)"/>
+    <path d="M-12 -34 l2 4 -3 3 2 4" stroke="#a16207" stroke-width="1" fill="none" opacity=".6"/>
+    <!-- wheels -->
+    <circle cx="-24" cy="16" r="10" fill="url(#tyre)"/><circle cx="-24" cy="16" r="4.5" fill="url(#hub)"/>
+    <circle cx="24" cy="16" r="10" fill="url(#tyre)"/><circle cx="24" cy="16" r="4.5" fill="url(#hub)"/>
   </g>
-  <g fill="#fbbf24" stroke="#b45309" stroke-width="1.2"><circle cx="134" cy="104" r="6"/><circle cx="150" cy="98" r="6"/><circle cx="166" cy="94" r="6"/></g>
-  <path d="M110 40 l4 -8 l4 8 M108 50 h12" stroke="#fff" stroke-width="2" fill="none" opacity=".0"/>
+  <!-- motion puffs -->
+  <g fill="#fff" opacity=".7"><circle cx="40" cy="164" r="5"/><circle cx="30" cy="168" r="3.5"/><circle cx="22" cy="172" r="2.5"/></g>
 </svg>

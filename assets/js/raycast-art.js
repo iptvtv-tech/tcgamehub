@@ -1,11 +1,12 @@
 // ─────────────────────────────────────────────────────────────
-//  CRYPT OF CROWNS 3D — the HD art. Every texture and sprite is painted in
+//  HD art for the first-person games (Crypt of Crowns 3D, Dungeon Escape 3D),
+//  used with raycast-hd.js. Every texture and sprite is painted in
 //  code onto 64×64 canvases. Glowing parts (flames, eyes, jewels, the exit)
 //  go on a separate "glow" layer that the engine draws at full brightness,
 //  so they shine even in the dark.
 // ─────────────────────────────────────────────────────────────
-import { makeTextures, makeSprites } from '../../assets/js/raycast.js';
-import { texData } from '../../assets/js/raycast-hd.js';
+import { makeTextures, makeSprites } from './raycast.js';
+import { texData } from './raycast-hd.js';
 
 const N = 64;
 const cnv = () => { const c = document.createElement('canvas'); c.width = c.height = N; return c; };
@@ -54,8 +55,23 @@ function skull(g, x, y, s = 1) {
   g.restore();
 }
 
+/** An iron sconce with a burning torch on a wall canvas; flame frame f (0-2) goes on the glow layer. */
+function sconce(wall, f) {
+  const g = wall.getContext('2d');
+  g.fillStyle = '#1b1b1f'; g.fillRect(28, 40, 8, 10); g.fillRect(26, 34, 12, 6);       // iron bracket
+  g.fillStyle = '#3a3a42'; g.fillRect(26, 34, 12, 2);
+  g.fillStyle = '#4a2a12'; g.fillRect(29.5, 26, 5, 9);                                  // torch stick
+  g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(36, 36, 2, 14);
+  const glow = cnv(), q = glow.getContext('2d');
+  const sway = [0, 1.5, -1.2][f], tall = [16, 19, 14][f];
+  q.fillStyle = '#ff7a1a'; q.beginPath(); q.moveTo(26, 27); q.quadraticCurveTo(28 + sway, 27 - tall * 0.6, 32 + sway, 27 - tall); q.quadraticCurveTo(36 + sway, 27 - tall * 0.6, 38, 27); q.closePath(); q.fill();
+  q.fillStyle = '#ffd25a'; q.beginPath(); q.moveTo(29, 27); q.quadraticCurveTo(30 + sway, 27 - tall * 0.45, 32 + sway * 0.8, 27 - tall * 0.75); q.quadraticCurveTo(34 + sway, 27 - tall * 0.45, 35, 27); q.closePath(); q.fill();
+  q.fillStyle = '#fff6d0'; q.beginPath(); q.ellipse(32 + sway * 0.4, 24, 1.8, 3, 0, 0, 7); q.fill();
+  return { data: texData(wall), glow: texData(glow) };
+}
+
 /** All the wall / floor / ceiling textures: {id: {data, glow?}} plus floor & ceiling sets per crypt style. */
-export function makeCryptTextures() {
+export function makeHDTextures() {
   const base = makeTextures(), T = {};
   for (const id of Object.keys(base)) T[id] = { data: texData(base[id]) };
   const crypt = (g, r) => blocks(g, r, CRYPT);
@@ -86,22 +102,29 @@ export function makeCryptTextures() {
   // wall sconces: three flame frames, on crypt stone (ids 30-32), treasure brick (33-35) and vault sandstone (36-38)
   const wallArt = [[crypt, 10], [(g, r) => blocks(g, r, { base: ['#7c2d12', '#8f3a17', '#6e2810', '#9a3412'], mortar: '#1c0f08', rows: 8, cracks: 1 }), 1],
     [(g, r) => blocks(g, r, { base: ['#8a6a3e', '#7c5d34', '#957447', '#81643a'], mortar: '#2a1c0c', cracks: 2, hi: 'rgba(255,240,200,.2)' }), 2]];
-  wallArt.forEach(([art, seed], w) => {
-    for (let f = 0; f < 3; f++) {
-      const wall = paint(art, seed);
-      const g = wall.getContext('2d');
-      g.fillStyle = '#1b1b1f'; g.fillRect(28, 40, 8, 10); g.fillRect(26, 34, 12, 6);       // iron bracket
-      g.fillStyle = '#3a3a42'; g.fillRect(26, 34, 12, 2);
-      g.fillStyle = '#4a2a12'; g.fillRect(29.5, 26, 5, 9);                                  // torch stick
-      g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(36, 36, 2, 14);
-      const glow = cnv(), q = glow.getContext('2d');
-      const sway = [0, 1.5, -1.2][f], tall = [16, 19, 14][f];
-      q.fillStyle = '#ff7a1a'; q.beginPath(); q.moveTo(26, 27); q.quadraticCurveTo(28 + sway, 27 - tall * 0.6, 32 + sway, 27 - tall); q.quadraticCurveTo(36 + sway, 27 - tall * 0.6, 38, 27); q.closePath(); q.fill();
-      q.fillStyle = '#ffd25a'; q.beginPath(); q.moveTo(29, 27); q.quadraticCurveTo(30 + sway, 27 - tall * 0.45, 32 + sway * 0.8, 27 - tall * 0.75); q.quadraticCurveTo(34 + sway, 27 - tall * 0.45, 35, 27); q.closePath(); q.fill();
-      q.fillStyle = '#fff6d0'; q.beginPath(); q.ellipse(32 + sway * 0.4, 24, 1.8, 3, 0, 0, 7); q.fill();
-      T[30 + w * 3 + f] = { data: texData(wall), glow: texData(glow) };
-    }
+  wallArt.forEach(([art, seed], w) => { for (let f = 0; f < 3; f++) T[30 + w * 3 + f] = sconce(paint(art, seed), f); });
+
+  // Dungeon Escape walls: grey stone (40), mossy stone (41), old brick (42)
+  const DUNGEON = [
+    (g, r) => blocks(g, r, { base: ['#57534e', '#4b4744', '#625d58', '#514c48'], mortar: '#14110f', cracks: 0 }),
+    (g, r) => blocks(g, r, { base: ['#44403c', '#3f3f46', '#4a4540'], mortar: '#121010', cracks: 0, moss: 70 }),
+    (g, r) => blocks(g, r, { base: ['#7c2d12', '#6e2810', '#854d0e', '#78350f'], mortar: '#1a0f0a', rows: 8, cracks: 0 }),
+  ];
+  DUNGEON.forEach((art, i) => { T[40 + i] = { data: texData(paint(art, 40 + i)) }; });
+  DUNGEON.forEach((art, w) => {
+    for (let f = 0; f < 3; f++) T[43 + w * 3 + f] = sconce(paint(art, 40 + w), f);
   });
+  // the Crypt Kings' mark: a crown carved into crypt stone, dim (50) or glowing gold (51)
+  for (const bright of [0, 1]) {
+    const wall = paint(crypt, 10), g = wall.getContext('2d');
+    g.fillStyle = 'rgba(0,0,0,.45)'; g.beginPath(); g.moveTo(17, 40); g.lineTo(19, 22); g.lineTo(26, 31); g.lineTo(32, 17); g.lineTo(38, 31); g.lineTo(45, 22); g.lineTo(47, 40); g.closePath(); g.fill();
+    g.fillStyle = 'rgba(255,255,255,.12)'; g.fillRect(17, 40, 30, 1);
+    const glow = cnv(), q = glow.getContext('2d');
+    q.strokeStyle = bright ? 'rgba(255,214,90,.95)' : 'rgba(200,150,60,.35)'; q.lineWidth = bright ? 1.6 : 1;
+    q.beginPath(); q.moveTo(17, 40); q.lineTo(19, 22); q.lineTo(26, 31); q.lineTo(32, 17); q.lineTo(38, 31); q.lineTo(45, 22); q.lineTo(47, 40); q.closePath(); q.stroke();
+    if (bright) { q.fillStyle = 'rgba(255,240,180,.9)'; for (const [x, y] of [[19, 22], [32, 17], [45, 22]]) { q.beginPath(); q.arc(x, y, 1.6, 0, 7); q.fill(); } }
+    T[50 + bright] = { data: texData(wall), glow: texData(glow) };
+  }
 
   // floors and ceilings
   const flag = (cols, mortar, seed, extra) => paint((g, r) => {
@@ -140,7 +163,7 @@ export function makeCryptTextures() {
 }
 
 /** Sprites: {name: {data, glow?}} — plus the crown's canvas for the finale. */
-export function makeCryptSprites() {
+export function makeHDSprites() {
   const old = makeSprites(), S = {};
   const sp = (fn, glowFn, seed = 3) => { const c = paint(fn, seed); const out = { data: texData(c), canvas: c }; if (glowFn) { const gc = paint(glowFn, seed); out.glow = texData(gc); out.glowCanvas = gc; } return out; };
   const bone = (g, x1, y1, x2, y2, w = 3) => { g.lineCap = 'round'; g.strokeStyle = '#3a342a'; g.lineWidth = w + 2; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); g.strokeStyle = '#e9e2cf'; g.lineWidth = w; g.stroke(); g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 1; g.beginPath(); g.moveTo(x1 - 0.5, y1 - 0.5); g.lineTo(x2 - 0.5, y2 - 0.5); g.stroke(); };
@@ -163,6 +186,7 @@ export function makeCryptSprites() {
     g.fillStyle = 'rgba(255,90,50,.35)'; g.beginPath(); g.arc(29.2, 12, 2.6, 0, 7); g.arc(34.8, 12, 2.6, 0, 7); g.fill();
   }, 5 + step);
   S.skeleton = [skel(0), skel(1)];
+  S.skeletonCanvas = cnv(); { const g = S.skeletonCanvas.getContext('2d'); g.drawImage(S.skeleton[0].canvas, 0, 0); g.drawImage(S.skeleton[0].glowCanvas, 0, 0); }
   // gold coin (spins by squashing its width)
   S.coin = sp((g) => {
     const gr = g.createRadialGradient(28, 44, 1, 32, 48, 11); gr.addColorStop(0, '#fff3b0'); gr.addColorStop(0.5, '#f5b82e'); gr.addColorStop(1, '#a8650c');
@@ -235,7 +259,64 @@ export function makeCryptSprites() {
     g.fillStyle = '#fff7d6'; g.beginPath(); g.ellipse(32 + sway * 0.4, 30, 3, 5, 0, 0, 7); g.fill();
   }, 9 + f));
   // the finale's big crown: the picture with its glowing jewels on top
+  // ghoul (Dungeon Escape): a ragged green wraith with burning yellow eyes
+  S.ghoul = sp((g) => {
+    const gr = g.createRadialGradient(28, 22, 3, 32, 34, 32); gr.addColorStop(0, '#9ff0b4'); gr.addColorStop(0.55, '#2f7a45'); gr.addColorStop(1, '#0c2a16');
+    g.fillStyle = gr; g.beginPath(); g.moveTo(9, 63); g.quadraticCurveTo(4, 12, 32, 5); g.quadraticCurveTo(60, 12, 55, 63);
+    for (let x = 55; x > 9; x -= 7) { g.lineTo(x - 3.5, 54 + (x % 3)); g.lineTo(x - 7, 63); }
+    g.fill();
+    g.fillStyle = 'rgba(0,0,0,.35)'; g.beginPath(); g.moveTo(14, 40); g.quadraticCurveTo(10, 56, 16, 62); g.lineTo(20, 46); g.fill();
+    g.fillStyle = '#062010'; g.beginPath(); g.ellipse(23, 25, 6, 5, 0, 0, 7); g.ellipse(41, 25, 6, 5, 0, 0, 7); g.fill();
+    g.fillStyle = '#041a0c'; g.beginPath(); g.ellipse(32, 42, 10, 6, 0, 0, 7); g.fill();
+    g.fillStyle = '#ecebe4'; for (let x = 24; x < 40; x += 4) { g.beginPath(); g.moveTo(x, 37.5); g.lineTo(x + 2, 43); g.lineTo(x + 4, 37.5); g.fill(); }
+  }, (g) => {
+    g.fillStyle = 'rgba(253,240,138,.98)'; g.beginPath(); g.arc(23, 25, 3.2, 0, 7); g.arc(41, 25, 3.2, 0, 7); g.fill();
+    g.fillStyle = '#dc2626'; g.beginPath(); g.arc(23, 25, 1.3, 0, 7); g.arc(41, 25, 1.3, 0, 7); g.fill();
+  });
+  // a spare torch lying ready to grab (Dungeon Escape)
+  S.torch = [0, 1, 2].map((f) => sp((g) => {
+    g.save(); g.translate(32, 50); g.rotate(-0.35);
+    const hg = g.createLinearGradient(-4, 0, 4, 0); hg.addColorStop(0, '#3b2210'); hg.addColorStop(0.5, '#7a4a22'); hg.addColorStop(1, '#2e1a0c');
+    g.fillStyle = hg; g.fillRect(-3.5, -14, 7, 28); g.fillStyle = '#3a3a42'; g.fillRect(-5, -16, 10, 4); g.restore();
+  }, (g) => {
+    const sway = [0, 1.5, -1.5][f], tall = [16, 19, 14][f];
+    g.save(); g.translate(27, 36);
+    g.fillStyle = '#ff7a1a'; g.beginPath(); g.moveTo(-6, 0); g.quadraticCurveTo(-5 + sway, -tall * 0.6, sway, -tall); g.quadraticCurveTo(5 + sway, -tall * 0.6, 6, 0); g.fill();
+    g.fillStyle = '#ffd25a'; g.beginPath(); g.moveTo(-3, 0); g.quadraticCurveTo(-2 + sway, -tall * 0.45, sway * 0.8, -tall * 0.72); g.quadraticCurveTo(2 + sway, -tall * 0.45, 3, 0); g.fill();
+    g.restore();
+  }, 21 + f));
+
   S.crownCanvas = cnv(); { const g = S.crownCanvas.getContext('2d'); g.drawImage(S.crown.canvas, 0, 0); g.drawImage(S.crown.glowCanvas, 0, 0); }
   S.old = old;
   return S;
+}
+
+/**
+ * The torch in your hand, held low on the right of the view. size 0..1 shrinks the flame (Dungeon Escape's fuel);
+ * sway moves it as you walk; gold = the golden-character version.
+ */
+export function drawTorchHand(ctx, view, { t, flick, sway = 0, size = 1, gold = false, dip = 0 }) {
+  const tx = view.x + view.w - 98 + sway * 0.6, ty = view.y + view.h - 120 + Math.abs(sway) * 0.8 + dip;
+  ctx.save();
+  ctx.beginPath(); ctx.rect(view.x, view.y, view.w, view.h); ctx.clip();
+  ctx.globalCompositeOperation = 'lighter';
+  const gl = ctx.createRadialGradient(tx, ty - 22, 4, tx, ty - 22, 60 + 90 * size);
+  gl.addColorStop(0, `rgba(255,160,70,${0.22 * flick * (0.4 + 0.6 * size)})`); gl.addColorStop(1, 'rgba(255,120,40,0)');
+  ctx.fillStyle = gl; ctx.fillRect(tx - 150, ty - 172, 300, 300);
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.translate(tx, ty); ctx.rotate(0.32);
+  const hg = ctx.createLinearGradient(-9, 0, 9, 0);
+  hg.addColorStop(0, gold ? '#8a5a0a' : '#2b170a'); hg.addColorStop(0.5, gold ? '#f5c542' : '#6b3f1d'); hg.addColorStop(1, gold ? '#7a4a06' : '#24130a');
+  ctx.fillStyle = hg; ctx.fillRect(-8, 0, 16, 150);
+  ctx.fillStyle = gold ? '#fde68a' : '#3a3a42'; ctx.fillRect(-11, -4, 22, 9); ctx.fillRect(-10, 26, 20, 5);
+  ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(4, 5, 4, 145);
+  if (size > 0.02) {
+    const k = flick, h = (20 + 24 * size) + Math.sin(t * 13) * 5 * size, w = 0.45 + 0.55 * size;
+    ctx.globalCompositeOperation = 'lighter';
+    const fl = (fw, hh, c0, c1) => { const g = ctx.createRadialGradient(0, -hh * 0.35, 1, 0, -hh * 0.35, hh * 0.8); g.addColorStop(0, c0); g.addColorStop(1, c1); ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(-fw, -2); ctx.quadraticCurveTo(-fw * 0.9 + Math.sin(t * 9) * 3, -hh * 0.6, Math.sin(t * 7) * 4, -hh); ctx.quadraticCurveTo(fw * 0.9 + Math.sin(t * 8) * 3, -hh * 0.6, fw, -2); ctx.fill(); };
+    fl(17 * w, h, `rgba(255,120,30,${0.85 * k})`, 'rgba(200,40,0,0)');
+    fl(11 * w, h * 0.75, `rgba(255,200,80,${0.9 * k})`, 'rgba(255,120,30,0)');
+    fl(5 * w, h * 0.45, 'rgba(255,250,220,.95)', 'rgba(255,220,120,0)');
+  }
+  ctx.restore();
 }

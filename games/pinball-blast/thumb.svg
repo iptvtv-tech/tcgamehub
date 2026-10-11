@@ -1,21 +1,45 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
   <defs>
-    <linearGradient id="pf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0b1a4a"/><stop offset="1" stop-color="#140a2e"/></linearGradient>
-    <radialGradient id="b1" cx=".35" cy=".35"><stop offset="0" stop-color="#fff"/><stop offset=".45" stop-color="#f472b6"/><stop offset="1" stop-color="#1e1b4b"/></radialGradient>
-    <radialGradient id="b2" cx=".35" cy=".35"><stop offset="0" stop-color="#fff"/><stop offset=".45" stop-color="#22d3ee"/><stop offset="1" stop-color="#1e1b4b"/></radialGradient>
-    <radialGradient id="b3" cx=".35" cy=".35"><stop offset="0" stop-color="#fff"/><stop offset=".45" stop-color="#a3e635"/><stop offset="1" stop-color="#1e1b4b"/></radialGradient>
-    <radialGradient id="ball" cx=".35" cy=".35"><stop offset="0" stop-color="#fff"/><stop offset=".6" stop-color="#cbd5e1"/><stop offset="1" stop-color="#475569"/></radialGradient>
+    <radialGradient id="bg" cx=".5" cy=".1" r=".9"><stop offset="0" stop-color="#3b1b8a"/><stop offset="1" stop-color="#05030f"/></radialGradient>
+    <linearGradient id="field" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0e2160"/><stop offset="1" stop-color="#160a33"/></linearGradient>
+    <radialGradient id="chrome" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#fff"/><stop offset=".45" stop-color="#cbd5e1"/><stop offset=".55" stop-color="#64748b"/><stop offset="1" stop-color="#1e293b"/></radialGradient>
+    <linearGradient id="bumpSide" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#9d174d"/><stop offset=".45" stop-color="#f472b6"/><stop offset="1" stop-color="#831843"/></linearGradient>
+    <linearGradient id="bumpSide2" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#155e75"/><stop offset=".45" stop-color="#22d3ee"/><stop offset="1" stop-color="#164e63"/></linearGradient>
+    <linearGradient id="bumpSide3" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3f6212"/><stop offset=".45" stop-color="#a3e635"/><stop offset="1" stop-color="#365314"/></linearGradient>
+    <radialGradient id="glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fde047" stop-opacity=".7"/><stop offset="1" stop-color="#fde047" stop-opacity="0"/></radialGradient>
+    <linearGradient id="flip" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f8fafc"/><stop offset="1" stop-color="#cbd5e1"/></linearGradient>
   </defs>
-  <rect width="120" height="120" rx="16" fill="#05030f"/>
-  <path d="M10 120 V45 A50 38 0 0 1 110 45 V120 Z" fill="url(#pf)" stroke="#a78bfa" stroke-width="2"/>
-  <circle cx="42" cy="48" r="9" fill="url(#b1)"><animate attributeName="r" values="9;10.5;9" dur=".6s" repeatCount="indefinite"/></circle>
-  <circle cx="78" cy="48" r="9" fill="url(#b2)"/>
-  <circle cx="60" cy="66" r="9" fill="url(#b3)"/>
-  <path d="M24 78 L24 92 L34 98 Z" fill="#1e293b" stroke="#f472b6" stroke-width="2"/>
-  <path d="M96 78 L96 92 L86 98 Z" fill="#1e293b" stroke="#f472b6" stroke-width="2"/>
-  <g stroke-linecap="round">
-    <line x1="38" y1="104" x2="54" y2="110" stroke="#ef4444" stroke-width="6"/><line x1="38" y1="104" x2="54" y2="110" stroke="#fff" stroke-width="3.5"/>
-    <line x1="82" y1="104" x2="66" y2="98" stroke="#ef4444" stroke-width="6"/><line x1="82" y1="104" x2="66" y2="98" stroke="#fff" stroke-width="3.5"/>
+  <rect width="200" height="200" fill="url(#bg)"/>
+  <!-- the tilted table -->
+  <path d="M40 74 Q40 22 100 20 Q160 22 160 74 L190 200 L10 200 Z" fill="url(#field)"/>
+  <path d="M40 74 Q40 22 100 20 Q160 22 160 74 L190 200 M10 200 L40 74" fill="none" stroke="#c4b5fd" stroke-width="3"/>
+  <path d="M40 74 Q40 22 100 20 Q160 22 160 74 L190 200 M10 200 L40 74" fill="none" stroke="#a78bfa" stroke-width="8" opacity=".25"/>
+  <g fill="#f472b6" opacity=".9"><circle cx="78" cy="44" r="3"/><circle cx="93" cy="44" r="3"/><circle cx="108" cy="44" r="3" opacity=".35"/><circle cx="123" cy="44" r="3"/></g>
+  <text x="100" y="140" font-family="system-ui" font-weight="900" font-size="18" text-anchor="middle" fill="#22d3ee" opacity=".18">BLAST</text>
+  <!-- 3D pop bumpers -->
+  <g>
+    <ellipse cx="72" cy="86" rx="15" ry="6" fill="#000" opacity=".4"/>
+    <rect x="58" y="72" width="28" height="12" fill="url(#bumpSide)"/><ellipse cx="72" cy="84" rx="14" ry="5" fill="#831843"/><ellipse cx="72" cy="72" rx="14" ry="5.5" fill="#fbcfe8"/><ellipse cx="72" cy="72" rx="9" ry="3.4" fill="#fff" opacity=".5"/>
+    <ellipse cx="128" cy="86" rx="15" ry="6" fill="#000" opacity=".4"/>
+    <rect x="114" y="72" width="28" height="12" fill="url(#bumpSide2)"/><ellipse cx="128" cy="84" rx="14" ry="5" fill="#164e63"/><ellipse cx="128" cy="72" rx="14" ry="5.5" fill="#cffafe"/><ellipse cx="128" cy="72" rx="9" ry="3.4" fill="#fff" opacity=".5"/>
+    <circle cx="100" cy="106" r="30" fill="url(#glow)"/>
+    <ellipse cx="100" cy="116" rx="17" ry="6.5" fill="#000" opacity=".4"/>
+    <rect x="84" y="100" width="32" height="14" fill="url(#bumpSide3)"/><ellipse cx="100" cy="114" rx="16" ry="5.5" fill="#365314"/><ellipse cx="100" cy="100" rx="16" ry="6" fill="#fde047"/><ellipse cx="100" cy="100" rx="10" ry="3.8" fill="#fff" opacity=".6"/>
   </g>
-  <circle r="4" fill="url(#ball)"><animateMotion dur="2.2s" repeatCount="indefinite" path="M68 96 C 70 60, 95 30, 60 28 C 30 28, 40 70, 55 90"/></circle>
+  <!-- slingshots -->
+  <polygon points="42,138 42,162 62,172" fill="#4a1650"/><line x1="42" y1="138" x2="62" y2="172" stroke="#f472b6" stroke-width="3"/>
+  <polygon points="158,138 158,162 138,172" fill="#4a1650"/><line x1="158" y1="138" x2="138" y2="172" stroke="#f472b6" stroke-width="3"/>
+  <!-- chrome ball with shadow -->
+  <ellipse cx="110" cy="152" rx="10" ry="4" fill="#000" opacity=".5"/>
+  <circle cx="106" cy="142" r="10" fill="url(#chrome)"/>
+  <path d="M98 140 Q106 134 114 140" stroke="#fff" stroke-width="1" fill="none" opacity=".8"/>
+  <!-- 3D flippers -->
+  <polygon points="54,178 92,192 90,198 52,186" fill="#b91c1c"/><polygon points="54,174 94,188 92,192 54,178" fill="url(#flip)"/>
+  <polygon points="146,178 108,192 110,198 148,186" fill="#b91c1c"/><polygon points="146,174 106,188 108,192 146,178" fill="url(#flip)"/>
+  <circle cx="54" cy="177" r="5" fill="#94a3b8"/><circle cx="146" cy="177" r="5" fill="#94a3b8"/>
+  <!-- UFO hovering above -->
+  <ellipse cx="100" cy="62" rx="9" ry="3" fill="#4ade80" opacity=".25"/>
+  <polygon points="94,48 106,48 112,62 88,62" fill="#4ade80" opacity=".18"/>
+  <ellipse cx="100" cy="46" rx="15" ry="5" fill="#94a3b8"/><ellipse cx="100" cy="44" rx="7" ry="5" fill="#a5f3fc"/>
+  <g fill="#fde047"><circle cx="90" cy="47" r="1.2"/><circle cx="100" cy="49" r="1.2"/><circle cx="110" cy="47" r="1.2"/></g>
 </svg>

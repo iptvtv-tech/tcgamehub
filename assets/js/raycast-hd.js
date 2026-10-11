@@ -166,12 +166,13 @@ export class HDRaycaster {
       let v = (y0 - top) * vStep;
       for (let y = y0; y < y1; y++, v += vStep) {
         const ti = ((v | 0) & 63) * 64 + tx;
-        let r, g, b;
-        if (Gl && Gl[ti] >>> 24) { const q = Gl[ti]; r = q & 255; g = (q >> 8) & 255; b = (q >> 16) & 255; }
-        else {
-          const t = T[ti], vv = v / TEX;
-          const ao = vv > 0.86 ? 0.62 + (1 - vv) * 2.7 : vv < 0.06 ? 0.7 + vv * 5 : 1;   // darker at the foot and top
-          r = (t & 255) * kr0 * ao; g = ((t >> 8) & 255) * kg0 * ao; b = ((t >> 16) & 255) * kb0 * ao;
+        const t = T[ti], vv = v / TEX;
+        const ao = vv > 0.86 ? 0.62 + (1 - vv) * 2.7 : vv < 0.06 ? 0.7 + vv * 5 : 1;   // darker at the foot and top
+        let r = (t & 255) * kr0 * ao, g = ((t >> 8) & 255) * kg0 * ao, b = ((t >> 16) & 255) * kb0 * ao;
+        const q = Gl ? Gl[ti] : 0;
+        if (q >>> 24) {                                                  // glowing paint shines through at its own strength
+          const a = (q >>> 24) / 255;
+          r = r * (1 - a) + (q & 255) * a; g = g * (1 - a) + ((q >> 8) & 255) * a; b = b * (1 - a) + ((q >> 16) & 255) * a;
         }
         r = r * fk1 + fc[0] * fk; g = g * fk1 + fc[1] * fk; b = b * fk1 + fc[2] * fk;
         buf[y * rw + c] = 0xff000000 | ((b > 255 ? 255 : b) << 16) | ((g > 255 ? 255 : g) << 8) | (r > 255 ? 255 : r);
