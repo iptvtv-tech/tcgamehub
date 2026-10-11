@@ -126,7 +126,7 @@ class Eggspress {
     this.next = {
       bump: 40 * PX_PER_M, ramp: (B ? 30 : L >= 2 ? 90 : 1e9) * PX_PER_M, mush: (B ? 60 : L >= 3 ? 140 : 1e9) * PX_PER_M,
       lowG: (L >= 4 && !B ? 160 : 1e9) * PX_PER_M, gap: (L >= 6 && !B ? 120 : 1e9) * PX_PER_M,
-      wind: (L >= 7 && !B ? 100 : 1e9) * PX_PER_M, oil: (L >= 8 && !B ? 80 : 1e9) * PX_PER_M, coin: 500, prop: this.X0,
+      wind: (L >= 7 && !B ? 100 : 1e9) * PX_PER_M, oil: (L >= 8 && !B ? 80 : 1e9) * PX_PER_M, coin: 500, prop: this.X0, fence: 200,
     };
     this.maxX = 0; this.distPaid = 0; this.time = 0; this.cracksLevel = 0; this.livesAtStart = this.s.lives; this.delivered = false;
     this.ensure(3000);
@@ -235,6 +235,12 @@ class Eggspress {
       if (this.ground(x) < 1500) this.props.push({ x, z: r.range(S.RW + 60, 520), kind: r.chance(0.55) ? 'pine' : r.chance(0.7) ? 'oak' : 'rock', s: r.range(0.8, 1.4), c: r.int(0, 2) });
       if (r.chance(0.25) && this.ground(x) < 1500) this.props.push({ x: x + 40, z: -S.RW - r.range(30, 70), kind: r.chance(0.5) ? 'rock' : 'pine', s: r.range(0.5, 0.8), c: r.int(0, 2) });
       n.prop += r.range(70, 170);
+    }
+    while (n.fence < b) {
+      const x = n.fence;
+      if (this.ground(x) < 1500 && !this.gaps.some((gp) => x > gp.x0 - 80 && x < gp.x1 + 60) && x < this.goalX - 200)
+        this.props.push({ x, z: S.RW + 22, kind: 'fence', s: 0.95, c: 0 });
+      n.fence += 90;
     }
     const behind = (this.car?.x ?? 0) - 3000;
     this.coins = this.coins.filter((c) => c.x > behind);
@@ -595,6 +601,19 @@ class Eggspress {
         ctx.beginPath(); ctx.ellipse(x, cl.y, 44 * cl.s, 15 * cl.s, 0, 0, TAU); ctx.ellipse(x + 24 * cl.s, cl.y - 10 * cl.s, 28 * cl.s, 15 * cl.s, 0, 0, TAU); ctx.ellipse(x - 22 * cl.s, cl.y - 4 * cl.s, 22 * cl.s, 12 * cl.s, 0, 0, TAU); ctx.fill();
       }
     }
+    // birds — V-silhouettes drifting in the sky
+    if (!T.stars && !this.s.lowDetail) {
+      ctx.save(); ctx.strokeStyle = 'rgba(20,20,30,0.55)'; ctx.lineWidth = 2;
+      for (let i = 0; i < 6; i++) {
+        const bx = ((this.cam.x * 0.14 + i * 390 + t * 20) % 3200) + this.cam.x - 1600;
+        const by = 28 + (i % 3) * 24 + Math.sin(t * 2.8 + i * 2.1) * 5;
+        const bz = 2600 + (i % 3) * 700;
+        const p = cam.p(bx, by, bz); if (!p) continue;
+        const flap = Math.sin(t * 6.5 + i * 1.7) * 4.5 * p[2];
+        ctx.beginPath(); ctx.moveTo(p[0] - 9 * p[2], p[1] + flap); ctx.lineTo(p[0], p[1]); ctx.lineTo(p[0] + 9 * p[2], p[1] + flap); ctx.stroke();
+      }
+      ctx.restore();
+    }
     // far mountains at real depth (they slide by slowly because they're far away)
     this.mountains(ctx, 5200, 0.0009, 520, T.far, 0.55, fog);
     this.mountains(ctx, 2600, 0.0017, 300, T.mid, 0.3, fog);
@@ -669,7 +688,24 @@ class Eggspress {
       ctx.beginPath(); ctx.moveTo(pa[0], pa[1]); ctx.lineTo(pb[0], pb[1]); ctx.lineTo(pc[0], pc[1]); ctx.lineTo(pd[0], pd[1]); ctx.closePath(); ctx.fill(); ctx.stroke();
       // wheel ruts
       for (const zz of [-24, 24]) { const r1 = cam.p(x, ya, zz), r2 = cam.p(x + STEP, yb, zz); ctx.strokeStyle = 'rgba(0,0,0,.12)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(r1[0], r1[1]); ctx.lineTo(r2[0], r2[1]); ctx.stroke(); }
+      // edge lines (solid white)
+      for (const ze of [-(S.RW - 9), S.RW - 9]) {
+        const ea = cam.p(x, ya - 2, ze), eb = cam.p(x + STEP, yb - 2, ze), ec = cam.p(x, ya - 2, ze + (ze < 0 ? 7 : -7)), ed = cam.p(x + STEP, yb - 2, ze + (ze < 0 ? 7 : -7));
+        if (!ea || !ec) continue;
+        ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.beginPath(); ctx.moveTo(ea[0], ea[1]); ctx.lineTo(eb[0], eb[1]); ctx.lineTo(ed[0], ed[1]); ctx.lineTo(ec[0], ec[1]); ctx.closePath(); ctx.fill();
+      }
       ctx.lineWidth = 1;
+    }
+    // centre dashes
+    if (!this.s.lowDetail) {
+      const dashPer = 160;
+      for (let x = Math.floor(x0 / dashPer) * dashPer; x < x1; x += dashPer) {
+        const xd = x + 70, ya = this.ground(x), yb = this.ground(xd);
+        if (ya > 1500 || yb > 1500) continue;
+        const p0 = cam.p(x, ya - 3, 5), p1 = cam.p(xd, yb - 3, 5), p2 = cam.p(xd, yb - 3, -5), p3 = cam.p(x, ya - 3, -5);
+        if (!p0 || !p3) continue;
+        ctx.fillStyle = 'rgba(255,255,255,0.88)'; ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.lineTo(p2[0], p2[1]); ctx.lineTo(p3[0], p3[1]); ctx.closePath(); ctx.fill();
+      }
     }
     // chasms: dark pits with rocky walls
     for (const gp of this.gaps) {
@@ -717,6 +753,7 @@ class Eggspress {
     const haze = fog ? S.mix(S.rgb(T.fog), S.rgb(T.fog), 0) : null;
     const f = fog ? [haze, clamp((p.z - 100) / 900, 0, 0.45)] : null;
     if (p.kind === 'rock') S.drawMesh(ctx, cam, S.ROCK, [p.x, y + 4, p.z], 0, ['#78716c', '#57534e'], { scale: p.s, fog: f });
+    else if (p.kind === 'fence') S.drawMesh(ctx, cam, S.FENCE, [p.x, y + 2, p.z], 0, ['#d4a373', '#7c5132'], { scale: p.s, fog: f });
     else S.drawMesh(ctx, cam, p.kind === 'pine' ? S.PINE : S.OAK, [p.x, y + 2, p.z], 0, [T.tree[p.c === 2 ? 2 : 0], T.tree[1], T.tree[2]], { scale: p.s, fog: f });
   }
 
@@ -726,6 +763,7 @@ class Eggspress {
     if (Math.abs(gx - this.cam.x) > 1600) return;
     const y = this.ground(gx + 120);
     S.drawMesh(ctx, cam, S.BARN, [gx + 140, y + 2, S.RW + 140], 0, ['#b91c1c', '#7f1d1d', '#451a03', '#f8fafc']);
+    S.drawMesh(ctx, cam, S.SILO, [gx + 320, y + 2, S.RW + 85], 0, ['#d1d5db', '#4b5563', '#1d4ed8']);
     // finish arch over the road
     for (const z of [-S.RW - 10, S.RW + 10]) S.drawMesh(ctx, cam, S.POST, [gx, this.ground(gx) + 2, z], 0, ['#f8fafc']);
     const a = cam.p(gx, this.ground(gx) - 118, -S.RW - 10), b = cam.p(gx, this.ground(gx) - 90, S.RW + 10);
@@ -782,6 +820,12 @@ class Eggspress {
     const e = this.egg, cam = this.cam3, s = this.s;
     if (e.alive) {
       const gold = this.bonus || s.gold;
+      // soft shadow on the ground below the egg
+      const eGndY = this.ground(e.x);
+      if (eGndY < 1500) {
+        const sp = cam.p(e.x, eGndY, 0);
+        if (sp) { const dist = Math.max(0, 1 - (e.y - eGndY) / 280); ctx.globalAlpha = 0.22 * dist; ctx.fillStyle = '#000'; ctx.beginPath(); ctx.ellipse(sp[0], sp[1], 18 * sp[2], 5 * sp[2], 0, 0, TAU); ctx.fill(); ctx.globalAlpha = 1; }
+      }
       S.drawMesh(ctx, cam, S.EGG, [e.x, e.y, 0], e.a, [gold ? '#facc15' : '#fff7ed'], { amb: 0.62 });
       const p = cam.p(e.x, e.y, -11);
       if (p && e.cracks) {

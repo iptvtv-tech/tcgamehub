@@ -7,6 +7,7 @@
 export const RW = 70;          // half the road's width
 const LIGHT = (() => { const l = [-0.45, -0.75, -0.5], n = Math.hypot(...l); return l.map((v) => v / n); })();
 const HALF = (() => { const h = [LIGHT[0], LIGHT[1], LIGHT[2] - 1], n = Math.hypot(...h); return h.map((v) => v / n); })();
+const RIM  = (() => { const l = [0.15, 0.35, 0.92], n = Math.hypot(...l); return l.map((v) => v / n); })();
 const cache = new Map();
 export const rgb = (h) => { if (!cache.has(h)) cache.set(h, [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]); return cache.get(h); };
 export const mix = (a, b, k) => a.map((v, i) => Math.round(v + (b[i] - v) * k));
@@ -54,6 +55,9 @@ export const TRUCK = (() => {
   box(m, [45.5, -11, -19], [47.5, -6, -12], 3); box(m, [45.5, -11, 12], [47.5, -6, 19], 3);   // headlights
   box(m, [-47.5, -11, -19], [-45.5, -6, -13], 3); box(m, [-47.5, -11, 13], [-45.5, -6, 19], 3); // tail lights
   box(m, [-30, -16, -22], [-26, -12, 22], 4); box(m, [8, -16, -22], [12, -12, 22], 4);           // roll bars
+  box(m, [-48, -2, -17], [-44, 5, -13], 4); box(m, [-50, -9, -15], [-47, 2, -13], 1);            // exhaust mount + pipe
+  box(m, [36, -20, -24], [44, -17, -21], 4); box(m, [36, -24, -26], [40, -17, -24], 1);          // side mirror
+  box(m, [-42, -11, -22], [-38, -12, 22], 1); box(m, [-18, -11, -22], [-14, -12, 22], 1);        // bed ribs
   // the egg cup on the roof
   latheY(m, [[-12, 6], [-15, 15], [-18, 16.5], [-20, 17]], 10, (r) => (r === 2 ? 4 : 1));
   return m;
@@ -66,8 +70,8 @@ export const WHEEL = (() => {
 })();
 export const EGG = (() => {
   const m = mk(), rings = [];
-  for (let i = 0; i <= 10; i++) { const t = -Math.PI / 2 + i / 10 * Math.PI, sn = Math.sin(t); rings.push([sn * 15 - 0.5, Math.max(0.01, Math.cos(t) * 11.5 * (sn < 0 ? 1 - 0.2 * -sn : 1))]); }
-  latheY(m, rings, 12, 0);
+  for (let i = 0; i <= 14; i++) { const t = -Math.PI / 2 + i / 14 * Math.PI, sn = Math.sin(t); rings.push([sn * 15 - 0.5, Math.max(0.01, Math.cos(t) * 11.5 * (sn < 0 ? 1 - 0.2 * -sn : 1))]); }
+  latheY(m, rings, 16, 0);
   return m;
 })();
 export const PINE = (() => {
@@ -103,6 +107,28 @@ export const BARN = (() => {
 })();
 export const POST = (() => { const m = mk(); latheY(m, [[0, 4], [-120, 3]], 6, 0); return m; })();
 
+/** Grain silo — tall cylinder with domed cap. Mats: 0 concrete · 1 dark cap · 2 door */
+export const SILO = (() => {
+  const m = mk();
+  latheY(m, [[0, 30], [-188, 30]], 14, 0);
+  const cap = [];
+  for (let i = 0; i <= 7; i++) { const t = i / 7 * Math.PI / 2; cap.push([-188 - Math.sin(t) * 32, Math.cos(t) * 30]); }
+  cap.push([-222, 1]);
+  latheY(m, cap, 14, 1);
+  box(m, [-8, -50, -31], [8, 0, -31], 2);
+  return m;
+})();
+
+/** Roadside fence section (~80 units along x). Mats: 0 wood · 1 dark rail */
+export const FENCE = (() => {
+  const m = mk();
+  box(m, [-3, -54, -3], [3, 0, 3], 0);
+  box(m, [77, -54, -3], [83, 0, 3], 0);
+  box(m, [-2, -40, -2], [82, -34, 2], 1);
+  box(m, [-2, -18, -2], [82, -12, 2], 1);
+  return m;
+})();;
+
 /** Perspective camera looking along +z from the side, a little above the road. */
 export class Cam {
   constructor(W, H) { this.W = W; this.H = H; this.f = 900 * W / 800; this.z = -640; this.x = 0; this.y = 0; this.cy = H * 0.3; }
@@ -129,7 +155,8 @@ export function drawMesh(ctx, cam, mesh, pos, a, pal, { scale = 1, alpha = 1, ro
     const u = [B[0] - A[0], B[1] - A[1], B[2] - A[2]], w = [C[0] - A[0], C[1] - A[1], C[2] - A[2]];
     let n = [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]];
     const nl = Math.hypot(...n) || 1; n = n.map((v) => v / nl);
-    faces.push({ f, z: (A[2] + B[2] + C[2]) / 3 + ((A[0] + B[0] + C[0]) / 3 - cam.x) * 0 , d: Math.abs(n[0] * LIGHT[0] + n[1] * LIGHT[1] + n[2] * LIGHT[2]), s: Math.pow(Math.abs(n[0] * HALF[0] + n[1] * HALF[1] + n[2] * HALF[2]), 20), up: -n[1] });
+    const rimDot = Math.max(0, n[0] * RIM[0] + n[1] * RIM[1] + n[2] * RIM[2]);
+    faces.push({ f, z: (A[2] + B[2] + C[2]) / 3, d: Math.abs(n[0] * LIGHT[0] + n[1] * LIGHT[1] + n[2] * LIGHT[2]), s: Math.pow(Math.abs(n[0] * HALF[0] + n[1] * HALF[1] + n[2] * HALF[2]), 20), rim: Math.pow(rimDot, 2.5), up: -n[1] });
   }
   faces.sort((p, q) => q.z - p.z);
   ctx.save(); ctx.globalAlpha = alpha; ctx.lineJoin = 'round'; ctx.lineWidth = 0.6;
@@ -137,7 +164,7 @@ export function drawMesh(ctx, cam, mesh, pos, a, pal, { scale = 1, alpha = 1, ro
     const k = fc.f[3], base = rgb(pal[k] || pal[0]);
     let col;
     if (k === glowMat) col = base;
-    else { const lit = amb + (1 - amb) * fc.d, sp = fc.s * (k === 2 || k === 4 ? 200 : 70); col = base.map((c) => Math.min(255, c * lit + sp)); }
+    else { const lit = amb + (1 - amb) * fc.d, sp = fc.s * (k === 2 || k === 4 ? 200 : 70), rim = fc.rim * 42; col = base.map((c, ci) => Math.min(255, c * lit + sp + rim * [0.75, 0.85, 1.0][ci])); }
     if (fog) col = mix(col, fog[0], fog[1]);
     ctx.fillStyle = ctx.strokeStyle = css(col);
     const a0 = scr[fc.f[0]], a1 = scr[fc.f[1]], a2 = scr[fc.f[2]];
