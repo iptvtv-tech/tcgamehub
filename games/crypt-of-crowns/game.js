@@ -1,5 +1,7 @@
 // ─────────────────────────────────────────────────────────────
-//  CRYPT OF CROWNS — game 18 (Zone 3 · Master · LEGENDS game)
+//  CRYPT OF CROWNS 3D — game 18 (Zone 3 · Master · LEGENDS game)
+//  Drawn with the HD first-person engine (assets/js/raycast-hd.js) and the art in art.js:
+//  textured floors and ceilings, flickering torchlight, wall sconces, lit sprites.
 //  A first-person dungeon crawl through 15 hand-built crypts. You move one
 //  square at a time. Find keys, pull levers to work the iron gates, SEARCH
 //  cracked walls for secret passages, and time your way past skeleton
@@ -10,7 +12,8 @@
 //  secret 16th crypt opens… the Crown Vault. That wins the Zone 3 crown.
 // ─────────────────────────────────────────────────────────────
 import { runGame, roundRect, clamp } from '../../assets/js/engine.js';
-import { Raycaster, makeTextures, makeSprites } from '../../assets/js/raycast.js';
+import { HDRaycaster } from '../../assets/js/raycast-hd.js';
+import { makeCryptTextures, makeCryptSprites } from './art.js';
 import { LEVELS } from './levels.js';
 import { TICK, ACT, DIRS, parse, skelAt, spikeUp, freshState, tryAct, applyAct, pickKey, danger, jammed } from './sim.js';
 
@@ -26,6 +29,7 @@ runGame({
   id: ID,
   width: W, height: H,
   lives: 3,
+  detail: true,                 // 🖥 Graphics HIGH / LOW (LOW = a smaller picture, no dust)
   finalLevel: 15,
   secretLevel: 16,
   bonusLevels: [5, 10],
@@ -56,8 +60,10 @@ const TEX_OF = { '#': 10, '=': 13 };
 class CryptOfCrowns {
   constructor(s) {
     this.s = s; this.t = 0;
-    this.rc = new Raycaster({ ...VIEW, cols: 160 });
-    this.tex = makeTextures(); this.spr = makeSprites();
+    this.rc = new HDRaycaster(VIEW);
+    const art = makeCryptTextures();
+    this.tex = art.tex; this.floors = art.floors; this.spr = makeCryptSprites();
+    this.dust = Array.from({ length: 46 }, () => ({ x: Math.random() * VIEW.w, y: VIEW.y + Math.random() * VIEW.h, v: 4 + Math.random() * 9, p: Math.random() * 7, r: Math.random() < 0.3 ? 1.6 : 1 }));
     this.chestsRun = 0;
     this.startLevel(1, false);
   }
@@ -78,6 +84,41 @@ class CryptOfCrowns {
     this.finale = null; this.msg = null;
     this.seen = this.W.grid.map((r) => r.map(() => bonus || this.secret));
     this.see();
+    this.placeSconces();
+    this.relight();
+  }
+
+  // ── Lighting ───────────────────────────────────────────────
+  /** Torches in iron sconces on the walls, spaced out along the corridors (same places every time). */
+  placeSconces() {
+    const W = this.W, open = new Set(['.', 'c', 'k', 'b', 'T', 'E', '@', '*', 'r', 'l', 'u', 'd', 'C']);
+    this.sconces = new Map(); this.sconceLights = [];
+    const taken = [];
+    for (let y = 0; y < W.h; y++) for (let x = 0; x < W.w; x++) {
+      if (W.at(x, y) !== '#') continue;
+      [[0, 1], [1, 0], [0, -1], [-1, 0]].forEach(([dx, dy]) => {
+        if (!open.has(W.at(x + dx, y + dy))) return;
+        const lx = x + 0.5 + dx * 0.8, ly = y + 0.5 + dy * 0.8;
+        if (taken.some(([ax, ay]) => Math.hypot(ax - lx, ay - ly) < 3.6)) return;
+        if (((x * 73856093) ^ (y * 19349663) ^ (this.level * 83492791)) % 5 === 0) return;   // leave a few gaps
+        taken.push([lx, ly]);
+        this.sconces.set(this.faceKey(x, y, dx, dy), true);
+        this.sconceLights.push({ x: lx, y: ly, r: 1.3, g: 0.66, b: 0.26, rad: 3.6 });
+      });
+    }
+  }
+  faceKey(x, y, fx, fy) { return ((y * 64 + x) * 4) + (fx === 1 ? 0 : fy === 1 ? 1 : fx === -1 ? 2 : 3); }
+
+  /** Rebuild the light map (call when a door / gate / secret wall changes, or a glowing key is picked up). */
+  relight() {
+    const W = this.W, st = this.st, lights = [...this.sconceLights];
+    W.grid.forEach((row, y) => row.forEach((c, x) => {
+      if (c === 't') lights.push({ x: x + 0.5, y: y + 0.5, r: 1.25, g: 0.68, b: 0.28, rad: 4.6 });
+      else if (c === 'E') lights.push({ x: x + 0.5, y: y + 0.5, r: 0.6, g: 0.5, b: 0.18, rad: 2.6 });
+      else if (c === 'C') lights.push({ x: x + 0.5, y: y + 0.5, r: 1.2, g: 0.95, b: 0.45, rad: 4.2 });
+    }));
+    W.keys.forEach((q, i) => { if (!st.keys.has(i)) lights.push({ x: q.x + 0.5, y: q.y + 0.5, ...(q.blue ? { r: 0.15, g: 0.32, b: 0.7 } : { r: 0.6, g: 0.45, b: 0.1 }), rad: 1.7 }); });
+    this.rc.buildLights(W.w, W.h, lights, (x, y) => this.cellTex(x, y) !== 0);
   }
 
   // ── Input ──────────────────────────────────────────────────
@@ -178,6 +219,7 @@ class CryptOfCrowns {
       s.unlock('secret');
     }
     this.see();
+    this.relight();
   }
 
   arrive() {
@@ -198,6 +240,7 @@ class CryptOfCrowns {
     }
     const key = pickKey(W, this.st, p.x, p.y);
     if (key) {
+      this.relight();
       s.award(100 * L, VIEW.w / 2, VIEW.y + 200, { color: key.blue ? '#93c5fd' : '#fcd34d', size: 20 });
       this.say(key.blue ? '🔑 A BLUE key!' : '🔑 A GOLD key!', key.blue ? '#93c5fd' : '#fcd34d');
       [0, 4, 7, 12].forEach((st, i) => s.sound.tone({ freq: s.sound.note((key.blue ? 79 : 84) + st), dur: 0.1, type: 'triangle', vol: 0.08, delay: i * 0.05 }));
@@ -320,28 +363,100 @@ class CryptOfCrowns {
   }
 
   render(ctx) {
-    const s = this.s, t = this.t, W = this.W, st = this.st;
+    const s = this.s, t = this.t, W = this.W, st = this.st, lo = s.lowDetail, spr = this.spr;
     ctx.fillStyle = '#050505'; ctx.fillRect(0, 0, 480, H);
     const cam = this.camera(), tt = this.T + this.acc / TICK;
     const sprites = [];
+    const add = (x, y, sp, o) => sprites.push({ x: x + 0.5, y: y + 0.5, data: sp.data, glow: sp.glow, ...o });
     W.grid.forEach((row, y) => row.forEach((c, x) => {
       const k = x + ',' + y;
-      if (c === 'c' && !this.taken.has(k)) sprites.push({ x: x + 0.5, y: y + 0.5, img: this.spr.coin, scale: 0.6, lift: Math.sin(t * 3 + x) * 0.02 });
-      else if (c === 'T' && !this.taken.has(k)) sprites.push({ x: x + 0.5, y: y + 0.5, img: this.spr.chest, scale: 0.6, glow: true });
-      else if (c === 't') sprites.push({ x: x + 0.5, y: y + 0.5, img: this.spr.torch, scale: 0.9, glow: true, lift: 0.05 });
-      else if (c === 'E') sprites.push({ x: x + 0.5, y: y + 0.5, img: this.spr.stairs, scale: 1, glow: true });
-      else if (c === 'C' && !this.finale) sprites.push({ x: x + 0.5, y: y + 0.5, img: this.spr.crown, scale: 0.7, glow: true, lift: 0.15 + Math.sin(t * 2) * 0.04 });
+      if (c === 'c' && !this.taken.has(k)) add(x, y, spr.coin, { scale: 0.6, lift: Math.sin(t * 3 + x) * 0.02, wide: 0.2 + 0.8 * Math.abs(Math.cos(t * 2.6 + x + y)), minLight: 0.35 });
+      else if (c === 'T' && !this.taken.has(k)) add(x, y, spr.chest, { scale: 0.6, minLight: 0.3 });
+      else if (c === 't') add(x, y, spr.brazier[Math.floor(t * 9 + x) % 3], { scale: 0.9, minLight: 0.4 });
+      else if (c === 'E') add(x, y, spr.stairs, { scale: 1, minLight: 0.45 });
+      else if (c === 'C' && !this.finale) add(x, y, spr.crown, { scale: 0.7, minLight: 0.85, lift: 0.15 + Math.sin(t * 2) * 0.04 });
     }));
-    W.keys.forEach((q, i) => { if (!st.keys.has(i)) sprites.push({ x: q.x + 0.5, y: q.y + 0.5, img: q.blue ? this.spr.bluekey : this.spr.key, scale: 0.5, glow: true, lift: 0.12 + Math.sin(t * 3 + i) * 0.04 }); });
-    for (const sp of W.spikes) sprites.push({ x: sp.x + 0.5, y: sp.y + 0.5, img: spikeUp(sp, this.T) ? this.spr.spikes : this.spr.spikesdown, scale: 0.9 });
-    for (const sk of W.skels) { const q = this.skelPos(sk, tt); sprites.push({ x: q[0] + 0.5, y: q[1] + 0.5, img: this.spr.skeleton, scale: 0.9, lift: Math.abs(Math.sin(tt * 1.3)) * 0.02 }); }
-    this.rc.render(ctx, (x, y) => this.cellTex(x, y), cam, {
-      tex: this.tex, light: this.secret ? 11 : this.bonus ? 9 : 7.5, sprites, bob: cam.bob,
-      ceil: [this.secret ? '#422006' : '#1c1917'], floor: [this.secret ? '#a16207' : this.bonus ? '#78350f' : '#3f3a36'],
+    W.keys.forEach((q, i) => { if (!st.keys.has(i)) add(q.x, q.y, q.blue ? spr.bluekey : spr.key, { scale: 0.5, minLight: 0.6, lift: 0.12 + Math.sin(t * 3 + i) * 0.04 }); });
+    for (const sp of W.spikes) add(sp.x, sp.y, spikeUp(sp, this.T) ? spr.spikes : spr.spikesdown, { scale: 0.9, minLight: 0.3 });
+    for (const sk of W.skels) { const q = this.skelPos(sk, tt); sprites.push({ x: q[0] + 0.5, y: q[1] + 0.5, ...spr.skeleton[Math.floor(tt / sk.sk) % 2], scale: 0.9, minLight: 0.25, lift: Math.abs(Math.sin(tt * 1.3)) * 0.02 }); }
+
+    // the crypt's look: normal crypts are cold and dark, treasure rooms warm, the Crown Vault golden
+    const look = this.secret ? { fl: this.floors.gold, light: 10, amb: [0.1, 0.08, 0.05], fog: [26, 16, 6], fogDist: 14, sconce: 36 }
+      : this.bonus ? { fl: this.floors.treasure, light: 9, amb: [0.12, 0.085, 0.05], fog: [18, 10, 5], fogDist: 12, sconce: 33 }
+      : { fl: this.floors.crypt, light: 7.5, amb: [0.045, 0.05, 0.08], fog: [4, 6, 13], fogDist: 9, sconce: 30 };
+    const wallBase = this.secret ? 2 : this.bonus ? 1 : 10;
+    const flick = 0.9 + 0.06 * Math.sin(t * 11.3) + 0.05 * Math.sin(t * 17.9 + 2) + 0.03 * Math.sin(t * 31.7);
+    const ids = this.ids ??= new Int16Array(W.w * W.h);
+    for (let y = 0; y < W.h; y++) for (let x = 0; x < W.w; x++) ids[y * W.w + x] = this.cellTex(x, y);
+    this.rc.setRes(lo ? 240 : 360);
+    this.rc.render(ctx, cam, {
+      ids, mapW: W.w, mapH: W.h, tex: this.tex, floor: look.fl.floor, ceil: look.fl.ceil,
+      faceTex: (x, y, fx, fy, id) => (id === wallBase && this.sconces.has(this.faceKey(x, y, fx, fy)) ? look.sconce + Math.floor(t * 9 + x * 7 + y * 3) % 3 : id),
+      light: look.light, fogDist: look.fogDist, ambient: look.amb, fogCol: look.fog, flicker: flick,
+      torch: (s.gold ? [0.95, 0.8, 0.45] : [0.92, 0.7, 0.5]).map((v) => v * (0.93 + flick * 0.07)),
+      sprites,
     });
+    if (!lo) this.drawDust(ctx, flick);
+    if (!this.finale) this.drawTorchHand(ctx, cam, flick);
+    this.drawVignette(ctx);
     if (this.finale) this.drawCrownRising(ctx);
     this.drawHud(ctx);
     this.drawPanel(ctx);
+  }
+
+  /** Dust drifting through the torchlight. */
+  drawDust(ctx, flick) {
+    const dt = 1 / 60;
+    ctx.save();
+    for (const d of this.dust) {
+      d.y -= d.v * dt * 0.4; d.x += Math.sin(this.t * 0.7 + d.p) * 0.15;
+      if (d.y < VIEW.y) { d.y = VIEW.y + VIEW.h; d.x = Math.random() * VIEW.w; }
+      const near = 1 - Math.min(1, Math.hypot(d.x - 380, d.y - (VIEW.y + 330)) / 330);   // brighter near your torch
+      ctx.globalAlpha = (0.12 + near * 0.5) * (0.6 + 0.4 * Math.sin(this.t * 2 + d.p)) * flick;
+      ctx.fillStyle = '#ffe2b0'; ctx.fillRect(d.x, d.y, d.r, d.r);
+    }
+    ctx.restore();
+  }
+
+  /** Your torch, held low on the right; it sways as you walk. */
+  drawTorchHand(ctx, cam, flick) {
+    const a = this.act, walking = a?.type === 'move', f = a ? clamp((a.n + this.acc / TICK) / a.dur, 0, 1) : 0;
+    const sway = walking ? Math.sin(f * Math.PI) * 7 : Math.sin(this.t * 1.6) * 1.5;
+    const tx = 382 + sway * 0.6, ty = VIEW.y + VIEW.h - 120 + Math.abs(sway) * 0.8 + (a?.type === 'turn' ? 4 : 0);
+    const gold = this.s.gold;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(VIEW.x, VIEW.y, VIEW.w, VIEW.h); ctx.clip();
+    // warm light around the flame
+    ctx.globalCompositeOperation = 'lighter';
+    const gl = ctx.createRadialGradient(tx, ty - 22, 4, tx, ty - 22, 150);
+    gl.addColorStop(0, `rgba(255,160,70,${0.22 * flick})`); gl.addColorStop(1, 'rgba(255,120,40,0)');
+    ctx.fillStyle = gl; ctx.fillRect(tx - 150, ty - 172, 300, 300);
+    ctx.globalCompositeOperation = 'source-over';
+    // handle
+    ctx.translate(tx, ty); ctx.rotate(0.32);
+    const hg = ctx.createLinearGradient(-9, 0, 9, 0);
+    hg.addColorStop(0, gold ? '#8a5a0a' : '#2b170a'); hg.addColorStop(0.5, gold ? '#f5c542' : '#6b3f1d'); hg.addColorStop(1, gold ? '#7a4a06' : '#24130a');
+    ctx.fillStyle = hg; ctx.fillRect(-8, 0, 16, 150);
+    ctx.fillStyle = gold ? '#fde68a' : '#3a3a42'; ctx.fillRect(-11, -4, 22, 9); ctx.fillRect(-10, 26, 20, 5);   // iron (or gold) bands
+    ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(4, 5, 4, 145);
+    // the flame
+    const k = flick, h = 44 + Math.sin(this.t * 13) * 5;
+    ctx.globalCompositeOperation = 'lighter';
+    const fl = (w, hh, c0, c1) => { const g = ctx.createRadialGradient(0, -hh * 0.35, 1, 0, -hh * 0.35, hh * 0.8); g.addColorStop(0, c0); g.addColorStop(1, c1); ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(-w, -2); ctx.quadraticCurveTo(-w * 0.9 + Math.sin(this.t * 9) * 3, -hh * 0.6, Math.sin(this.t * 7) * 4, -hh); ctx.quadraticCurveTo(w * 0.9 + Math.sin(this.t * 8) * 3, -hh * 0.6, w, -2); ctx.fill(); };
+    fl(17, h, `rgba(255,120,30,${0.85 * k})`, 'rgba(200,40,0,0)');
+    fl(11, h * 0.75, `rgba(255,200,80,${0.9 * k})`, 'rgba(255,120,30,0)');
+    fl(5, h * 0.45, 'rgba(255,250,220,.95)', 'rgba(255,220,120,0)');
+    ctx.restore();
+  }
+
+  drawVignette(ctx) {
+    if (!this.vig) {
+      const c = document.createElement('canvas'); c.width = VIEW.w; c.height = VIEW.h; const g = c.getContext('2d');
+      const gr = g.createRadialGradient(VIEW.w / 2, VIEW.h * 0.52, VIEW.h * 0.28, VIEW.w / 2, VIEW.h * 0.52, VIEW.h * 0.82);
+      gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,.55)'); g.fillStyle = gr; g.fillRect(0, 0, VIEW.w, VIEW.h);
+      this.vig = c;
+    }
+    ctx.drawImage(this.vig, VIEW.x, VIEW.y);
   }
 
   /** Smoothly interpolated skeleton cell position at fractional tick tt. */
@@ -358,7 +473,7 @@ class CryptOfCrowns {
     const sz = 90 + k * 110;
     ctx.save(); ctx.imageSmoothingEnabled = false;
     ctx.translate(cx, cy); ctx.rotate(Math.sin(f.t * 1.5) * 0.06);
-    ctx.drawImage(this.spr.crown, -sz / 2, -sz / 2, sz, sz);
+    ctx.drawImage(this.spr.crownCanvas, -sz / 2, -sz / 2, sz, sz);
     ctx.restore();
     if (f.t > 1.5) {
       ctx.globalAlpha = Math.min(1, (f.t - 1.5) / 1);
