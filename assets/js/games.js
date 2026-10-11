@@ -342,6 +342,26 @@ export const GAMES = [
     ],
   },
   {
+    id: 'crystal-cascade',
+    gold: 'Golden Crystal Cannon',  // golden character — unlocked by the Golden Crown until Zone 4 has its own Legends game
+    title: 'Crystal Cascade 3D',
+    is3d: true,
+    tagline: 'Fire crystals down a mine shaft onto a turning platform. Match 3 to shatter them, drop the stack into cascades — and never let a column break the red laser ring.',
+    controls: 'Aim: mouse / ← → (touch: drag) · Fire: click / Space (touch: let go) · Swap: ↑ or tap NEXT',
+    color: '#22d3ee',
+    isNew: true,
+    achievements: [
+      { id: 'cascade3', icon: '⛓️', title: 'Cascade',      desc: 'Set off a 3-step chain reaction' },
+      { id: 'big6',     icon: '💎', title: 'Mother Lode',  desc: 'Shatter 6 or more crystals in one group' },
+      { id: 'obsidian', icon: '🪨', title: 'Rock Breaker', desc: 'Break 15 obsidian blocks in one game' },
+      { id: 'dizzy',    icon: '🌀', title: 'Head Spin',    desc: 'Clear a reversing level (6+) without losing a life' },
+      { id: 'rain',     icon: '🌧️', title: 'Crystal Rain', desc: 'Shatter 80 crystals in one bonus round' },
+      { id: 'combo5',   icon: '🔥', title: 'Shard Storm',  desc: 'Reach a x5 combo' },
+      { id: 'level10',  icon: '⛏️', title: 'Deep Miner',   desc: 'Reach level 10' },
+      { id: 'score10k', icon: '🏅', title: 'Ten Grand',    desc: 'Score 10,000 in one run' },
+    ],
+  },
+  {
     id: 'crypt-of-crowns',
     gold: 'Golden Explorer',        // golden character unlocked by the Zone 3 egg
     title: 'Crypt of Crowns 3D',
@@ -450,7 +470,7 @@ export const ZONES = [
     slots: ['turbo-rush', 'bubble-blitz', 'pinball-blast', 'star-strike', 'eggspress', 'crypt-of-crowns'] },
   { n: 4, name: 'Zone 4 · Ultra', blurb: 'Ultra difficulty — for players who have played every Zone 3 game. More games are on the way.',
     legendGame: null,
-    slots: ['tc-pixel-craft', 'dungeon-escape', 'neon-drift', null, null, null] },
+    slots: ['tc-pixel-craft', 'dungeon-escape', 'neon-drift', 'crystal-cascade', null, null] },
 ];
 
 /** Icon for each zone's prize (a Golden Egg — see eggs.js for the full artwork). */

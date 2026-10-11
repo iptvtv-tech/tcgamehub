@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#07020f"/><stop offset="1" stop-color="#1d0a33"/></linearGradient>
+    <linearGradient id="wall" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#120a22"/><stop offset=".5" stop-color="#3a2560"/><stop offset="1" stop-color="#120a22"/></linearGradient>
+    <radialGradient id="core" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#e9d5ff" stop-opacity=".7"/><stop offset="1" stop-color="#c084fc" stop-opacity="0"/></radialGradient>
+    <linearGradient id="r" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fecdd3"/><stop offset=".45" stop-color="#f43f5e"/><stop offset="1" stop-color="#7f1d1d"/></linearGradient>
+    <linearGradient id="y" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fef9c3"/><stop offset=".45" stop-color="#facc15"/><stop offset="1" stop-color="#854d0e"/></linearGradient>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#bbf7d0"/><stop offset=".45" stop-color="#22c55e"/><stop offset="1" stop-color="#14532d"/></linearGradient>
+    <linearGradient id="b" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#bfdbfe"/><stop offset=".45" stop-color="#3b82f6"/><stop offset="1" stop-color="#1e3a8a"/></linearGradient>
+    <linearGradient id="p" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f3e8ff"/><stop offset=".45" stop-color="#a855f7"/><stop offset="1" stop-color="#4c1d95"/></linearGradient>
+    <symbol id="gem" viewBox="0 0 24 22"><polygon points="5,0 19,0 24,5 24,17 19,22 5,22 0,17 0,5" /><polygon points="6,2 18,2 21,5 3,5" fill="#fff" opacity=".45"/><polygon points="0,5 3,5 3,17 0,17" fill="#000" opacity=".25"/><polygon points="21,5 24,5 24,17 21,17" fill="#000" opacity=".35"/></symbol>
+  </defs>
+  <rect width="200" height="200" fill="url(#bg)"/>
+  <path d="M0,0 H200 V120 Q100,70 0,120 Z" fill="url(#wall)" opacity=".9"/>
+  <path d="M30,40 l10,18 l12,-4 l6,22" stroke="#c084fc" stroke-width="1.5" fill="none" opacity=".7"/>
+  <path d="M160,30 l-8,20 l10,10 l-4,24" stroke="#c084fc" stroke-width="1.5" fill="none" opacity=".7"/>
+  <rect x="88" y="10" width="24" height="140" fill="url(#core)"/>
+  <!-- red laser ring -->
+  <ellipse cx="100" cy="64" rx="86" ry="24" fill="none" stroke="#ff2a4f" stroke-width="2" opacity=".85"/>
+  <!-- platform -->
+  <ellipse cx="100" cy="146" rx="92" ry="28" fill="#2b1f48"/>
+  <ellipse cx="100" cy="140" rx="92" ry="28" fill="#1c1430" stroke="#a78bfa" stroke-width="2"/>
+  <!-- back columns -->
+  <g opacity=".85">
+    <use href="#gem" x="40" y="104" width="22" height="20" fill="url(#b)"/><use href="#gem" x="40" y="86" width="22" height="20" fill="url(#b)"/>
+    <use href="#gem" x="89" y="98" width="22" height="20" fill="url(#y)"/><use href="#gem" x="89" y="80" width="22" height="20" fill="url(#g)"/><use href="#gem" x="89" y="62" width="22" height="20" fill="url(#p)"/>
+    <use href="#gem" x="138" y="104" width="22" height="20" fill="url(#r)"/>
+  </g>
+  <!-- front columns -->
+  <use href="#gem" x="18" y="128" width="28" height="25" fill="url(#g)"/><use href="#gem" x="18" y="106" width="28" height="25" fill="url(#r)"/>
+  <use href="#gem" x="58" y="140" width="28" height="25" fill="url(#p)"/><use href="#gem" x="58" y="118" width="28" height="25" fill="url(#p)"/><use href="#gem" x="58" y="96" width="28" height="25" fill="url(#y)"/>
+  <use href="#gem" x="114" y="140" width="28" height="25" fill="url(#b)"/><use href="#gem" x="114" y="118" width="28" height="25" fill="url(#r)"/>
+  <use href="#gem" x="154" y="128" width="28" height="25" fill="url(#y)"/>
+  <!-- the shot falling down the shaft, with its light trail -->
+  <path d="M100,196 Q118,150 128,108" stroke="#f43f5e" stroke-width="5" stroke-linecap="round" fill="none" opacity=".45"/>
+  <use href="#gem" x="117" y="88" width="24" height="22" fill="url(#r)">
+    <animate attributeName="y" values="150;96;150" dur="2.4s" repeatCount="indefinite"/>
+  </use>
+  <!-- shatter sparkles -->
+  <g fill="#fff"><circle cx="70" cy="92" r="1.6"><animate attributeName="opacity" values="0;1;0" dur="1.2s" repeatCount="indefinite"/></circle><circle cx="140" cy="100" r="1.2"><animate attributeName="opacity" values="1;0;1" dur="1.6s" repeatCount="indefinite"/></circle></g>
+  <!-- cannon from behind -->
+  <rect x="80" y="178" width="40" height="22" rx="4" fill="#3b4256"/>
+  <rect x="93" y="166" width="14" height="22" rx="3" fill="#525a72"/>
+</svg>
