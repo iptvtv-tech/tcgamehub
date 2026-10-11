@@ -16,9 +16,9 @@ function headers() {
   return h;
 }
 
-export async function rpc(fn, args) {
+export async function rpc(fn, args, { keepalive = false } = {}) {
   const res = await fetch(`${URL_}/rest/v1/rpc/${fn}`, {
-    method: 'POST', headers: headers(), body: JSON.stringify(args),
+    method: 'POST', headers: headers(), body: JSON.stringify(args), keepalive,
   });
   const text = await res.text();
   let body = null; try { body = text ? JSON.parse(text) : null; } catch { body = text; }

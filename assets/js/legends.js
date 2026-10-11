@@ -65,6 +65,60 @@ function data() {
   return d;
 }
 
+// ── Progress that travels with your Legend code ──────────────
+// Games played (which is what opens each zone), levels reached (checkpoints), best scores and
+// badges are saved online against the Legend code whenever they change, and come back when the
+// code is entered on another browser. Merging only ever raises numbers — nothing is lost.
+// Needs supabase/zone4-completion.sql (sync_progress); until it's run this quietly does nothing.
+const SYNC = ['plays', 'maxLevel', 'best', 'ach'];
+function payload() { const d = Store.data, out = { resets: Store.resets() || {} }; for (const k of SYNC) out[k] = d[k] || {}; return out; }
+/** fold progress from the cloud into this browser; returns how many things it added */
+function mergeIn(p) {
+  if (!p || typeof p !== 'object') return 0;
+  const d = Store.data, mine = Store.resets() || {}, theirs = p.resets || {};
+  let n = 0;
+  for (const k of SYNC) {
+    const src = p[k];
+    if (!src || typeof src !== 'object') continue;
+    d[k] ??= {};
+    for (const [id, v] of Object.entries(src)) {
+      const num = Number(v);
+      if (!Number.isFinite(num) || num < 0) continue;
+      if ((k === 'best' || k === 'maxLevel') && (mine[id] || 0) > (theirs[id] || 0)) continue;   // that game was reset since
+      if (k === 'ach' ? !d.ach[id] : (d[k][id] || 0) < num) { d[k][id] = num; n++; }
+    }
+  }
+  if (n) Store.save();
+  return n;
+}
+let syncTimer = null, syncing = null;
+/** save this browser's progress online and bring back anything newer; resolves to the number of things added (null = couldn't) */
+function syncNow({ keepalive = false } = {}) {
+  const d = data(), code = d.legend?.code;
+  if (!ONLINE || !code) return Promise.resolve(null);
+  if (syncing) return syncing;
+  const rev = d.rev || 0;
+  syncing = rpc('sync_progress', { p_code: code, p_data: payload() }, { keepalive })
+    .then((r) => {
+      if (!r) return null;
+      const added = mergeIn(r.data);
+      if (r.saved) { d.syncedRev = rev; Store.save(); } else scheduleSync(6000);
+      return added;
+    })
+    .catch(() => null)                                     // offline, or the SQL isn't run yet: try again later
+    .finally(() => { syncing = null; });
+  return syncing;
+}
+function scheduleSync(ms = 4000) {
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => { const d = data(); if (d.legend?.code && (d.rev || 0) !== d.syncedRev) syncNow(); }, ms);
+}
+if (typeof window !== 'undefined') {
+  Store.onProgress(() => scheduleSync());
+  setTimeout(() => syncNow(), 1500);                       // each page load: pick up progress from your other browsers
+  addEventListener('visibilitychange', () => { const d = data(); if (document.hidden && d.legend?.code && (d.rev || 0) !== d.syncedRev) syncNow({ keepalive: true }); });
+}
+
 export const Legends = {
   isLegend() { return !!data().legend; },
   info() { return data().legend; },
@@ -142,6 +196,7 @@ export const Legends = {
     d.legend.code = code; d.legend.name = name; d.legend.codeGames = d.legend.games.length;
     Store.setName(name);
     Store.save();
+    scheduleSync(800);                                     // your progress now travels with this code
     return { code, online: ONLINE };
   },
 
@@ -175,10 +230,15 @@ export const Legends = {
     }
     entry.game = games[0]; entry.games = games;
     Store.unlockAch('g:legend');
-    this.syncCrowns();          // zones open from the eggs themselves (see zones.js)
+    this.syncCrowns();
     Store.save();
+    // bring back the games played on that code (zones), levels, best scores and badges
+    entry.progress = d.legend.code === code ? await syncNow() : null;
     return entry;
   },
+
+  /** Save / fetch progress for this browser's Legend code right now (null if it couldn't). */
+  syncProgress() { return syncNow(); },
 
   /** Names (lower-case) of everyone in the Hall who holds the Golden Crown. Cached for 10 minutes. */
   crownNames() { return (crownPromise ||= this.loadCrownNames().catch((e) => { crownPromise = null; throw e; })); },

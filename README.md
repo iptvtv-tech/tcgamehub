@@ -178,7 +178,7 @@ Every zone's 6th game is a **Legends game** (*The Vault Job* for Zone 1, *Heist 
 - golden versions of every game's main character (switchable in each game's menu),
 - special gold "Legendary" badges on the home page,
 - the hidden **Hall of Legends** page (`/hall-of-legends/`) with every Legend's name,
-- a Legend code to restore everything on another device.
+- a Legend code to restore everything on another device — eggs **and** your game progress (games played, so the same zones are open, levels reached, best scores and badges). Progress is saved online against the code as you play (`sync_progress` in `supabase/zone4-completion.sql`).
 
 Run `supabase/legends-update.sql` once to switch on the Hall of Legends, and `supabase/zone2-update.sql` for the Zone 2 games. Level checkers: `node tools/check-vault-levels.mjs`, `node tools/check-heist-levels.mjs`. Adding golden characters and new Legend games is covered in docs/ADDING_A_GAME.md.
 

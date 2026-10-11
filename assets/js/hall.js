@@ -38,8 +38,8 @@ function locked() {
     form.querySelector('button').disabled = true; msg.className = 'restore-msg'; msg.textContent = 'Checking…';
     try {
       const entry = await Legends.restore(form.c.value);
-      msg.textContent = `Welcome back, ${entry.name}!`;
-      setTimeout(() => location.reload(), 900);
+      msg.textContent = entry.progress > 0 ? `Welcome back, ${entry.name}! Your eggs and your game progress (zones, levels, best scores, badges) are back.` : `Welcome back, ${entry.name}!`;
+      setTimeout(() => location.reload(), entry.progress > 0 ? 2200 : 900);
     } catch (err) {
       msg.className = 'restore-msg err'; msg.textContent = err.message;
       form.querySelector('button').disabled = false;

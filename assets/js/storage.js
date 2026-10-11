@@ -32,6 +32,10 @@ function load() {
 function save() {
   try { localStorage.setItem(KEY, JSON.stringify(data)); } catch { /* storage unavailable */ }
 }
+// Progress that travels with a Legend code (plays → zone unlocks, levels → checkpoints, bests, badges).
+// Every change bumps `rev`; legends.js saves it online when a Legend code is on this browser.
+const listeners = [];
+function progressed() { const d = load(); d.rev = (d.rev || 0) + 1; for (const fn of listeners) { try { fn(); } catch { /* ignore */ } } }
 
 export const Store = {
   get data() { return load(); },
@@ -44,14 +48,14 @@ export const Store = {
   /** returns true if this is a new personal best */
   submitBest(game, score) {
     const d = load();
-    if (score > (d.best[game] || 0)) { d.best[game] = score; save(); return true; }
+    if (score > (d.best[game] || 0)) { d.best[game] = score; save(); progressed(); return true; }
     return false;
   },
 
   maxLevel(game) { return load().maxLevel[game] || 1; },
   reachLevel(game, level) {
     const d = load();
-    if (level > (d.maxLevel[game] || 1)) { d.maxLevel[game] = level; save(); }
+    if (level > (d.maxLevel[game] || 1)) { d.maxLevel[game] = level; save(); progressed(); }
   },
 
   plays(game) { return load().plays[game] || 0; },
@@ -60,7 +64,7 @@ export const Store = {
     const d = load();
     d.plays[game] = (d.plays[game] || 0) + 1;
     d.last = { game, at: Date.now() };
-    save();
+    save(); progressed();
   },
   last() { return load().last || null; },
 
@@ -69,7 +73,7 @@ export const Store = {
   unlockAch(key) {
     const d = load();
     if (d.ach[key]) return false;
-    d.ach[key] = Date.now(); save(); return true;
+    d.ach[key] = Date.now(); save(); progressed(); return true;
   },
   /** Take a badge back (used when a badge's meaning changes). */
   lockAch(key) { const d = load(); if (d.ach[key]) { delete d.ach[key]; save(); } },
@@ -93,6 +97,11 @@ export const Store = {
     save();
     return streak;
   },
+
+  /** call fn whenever synced progress changes */
+  onProgress(fn) { listeners.push(fn); },
+  /** which game resets this browser has applied (so old bests from the cloud aren't brought back) */
+  resets() { return load().resets; },
 
   setting(k) { return load().settings[k]; },
   setSetting(k, v) { load().settings[k] = v; save(); },
