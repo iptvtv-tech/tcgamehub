@@ -1,23 +1,27 @@
 // ─────────────────────────────────────────────────────────────
 //  CRYSTAL CASCADE 3D — game 22 (Zone 4 · Ultra)
 //  An over-the-shoulder 3D puzzle shooter. You stand at the top of a crystal
-//  mine shaft behind a crystal cannon. Far below, a round platform turns
-//  slowly with twelve columns of cut crystals stacked on it. Fire crystals down
-//  the shaft onto the columns: 3 or more of one colour touching (side by side
-//  round the ring, or one on top of another) SHATTER. Everything above drops
-//  down, and if that makes a new match it shatters too — a CASCADE. Every
-//  cascade of 2+ steps earns a 💎 prism shot that turns into whatever colour
-//  helps most.
+//  mine shaft behind a crystal cannon. Far below, a round platform turns with
+//  twelve columns of cut crystals stacked on it. Fire crystals down the shaft:
+//  3 or more of one colour touching (side by side round the ring, or one on top
+//  of another) SHATTER. Everything above drops, and if that makes a new match it
+//  shatters too — a CASCADE (cascades earn 💎 prism shots).
 //
-//  The floor keeps rising (a new layer pushes up from below on a timer) and the
-//  cannon fires by itself if you dither. If any column breaks the red laser ring
-//  at the top, you lose a life. Shatter the level's quota to clear it.
+//  THE GOAL: every level hides golden GEODES ◆ near the bottom of the stack.
+//  Dig down to one and shoot it to crack it open; crack them all to clear the
+//  level. (Bombs, drills and charged layers break geodes too.)
 //
-//    L3 obsidian blocks (only a shatter next to them breaks them)
-//    L4 five colours   L6 the platform REVERSES   L7 frozen crystals
-//    L8 ⚡ charged crystals (shatter one → the whole layer goes)
-//    L9 six colours    L11 the spin surges as well as reversing
-//  Every 5th level: ★ CRYSTAL RAIN — every shot is a prism, no way to lose.
+//  POWER CRYSTALS sit in the stack — shatter one to set it off:
+//    💣 bomb (blasts all round it)  🔩 drill (bores the whole column)
+//    ❄️ freeze (stops the spin, the floor and the clock)  🌈 burst (every crystal of its colour)
+//  CRYSTAL FEVER: every shatter fills the fever bar. Full → 8 s of rapid-fire
+//  prism shots, double points and a faster spin.
+//
+//  The floor keeps rising and the cannon fires by itself if you dither. If any
+//  column breaks the red laser ring at the top, you lose a life.
+//    L3 obsidian   L4 five colours   L6 the platform REVERSES   L7 frozen crystals
+//    L8 ⚡ charged crystals (the whole layer goes)   L9 six colours   L11 surging spin
+//  Every 5th level: ★ CRYSTAL RAIN — rapid-fire prisms, no way to lose.
 //
 //  Drawn in real 3D on the canvas: a perspective camera behind the cannon,
 //  lit faceted crystal meshes (back faces culled, sorted far → near), the
@@ -35,18 +39,23 @@ const MAXH = 8;                        // a 9th crystal in any column = overflow
 const TOPY = MAXH * LH;                // the red laser ring
 const PLAT_R = 202, WALL_R = 236, WALL_TOP = TOPY + 90;
 const AIM = 1.15;                      // how far left / right you can aim (radians)
-const SHOT_T = 0.3;                    // flight time of a shot
+const SHOT_T = 0.22;                   // flight time of a shot
+const FEVER_T = 8;                     // seconds of Crystal Fever
+const BPM = 126;
 const PIV = [0, 272, -420];            // the cannon's pivot (just below and in front of the camera)
 const CAM_POS = [0, 600, -610], CAM_TGT = [0, 120, 30], FOCAL = 780, CAM_CY = 300;
 
 const COLORS = ['#f43f5e', '#facc15', '#22c55e', '#3b82f6', '#a855f7', '#22d3ee'];
-const STONE = '#4a4058';
+const STONE = '#4a4058', GEODE = '#fbbf24';
+const POWERS = ['bomb', 'drill', 'freeze', 'burst'];
+const PICON = { bomb: '💣', drill: '🔩', freeze: '❄️', burst: '🌈' };
 const THEMES = [
   { name: 'Amethyst Mine',  bg: ['#07020f', '#1d0a33'], wall: '#2a1a44', vein: '#c084fc', plat: '#1c1430', plat2: '#2b1f48', rim: '#a78bfa' },
   { name: 'Sapphire Deep',  bg: ['#01050f', '#0a1c3b'], wall: '#14284c', vein: '#38bdf8', plat: '#0f1c36', plat2: '#1a2c52', rim: '#60a5fa' },
   { name: 'Emerald Grotto', bg: ['#010a06', '#082619'], wall: '#123326', vein: '#34d399', plat: '#0d2419', plat2: '#173a2a', rim: '#4ade80' },
 ];
 const GOLD_THEME = { name: 'Crystal Rain', bg: ['#110802', '#3a2006'], wall: '#3d2a0d', vein: '#fde047', plat: '#2b1d08', plat2: '#46300e', rim: '#fbbf24' };
+const CALLOUT = ['', '', 'NICE!', 'AVALANCHE!', 'CRYSTAL STORM!', 'UNSTOPPABLE!'];
 
 runGame({
   id: ID,
@@ -57,21 +66,21 @@ runGame({
   comboStep: 2,
   maxMultiplier: 6,
   bonusTime: 20,
-  music: { bpm: 126, style: 'cosmic', lead: 'triangle', arp: [0, 2, 4, 1, 3, 2, 4, 3], oct: [12, 12, 24, 12, 12, 24, 12, 12], bass: 'half' },
+  music: { bpm: BPM, style: 'cosmic', lead: 'triangle', arp: [0, 2, 4, 1, 3, 2, 4, 3], oct: [12, 12, 24, 12, 12, 24, 12, 12], bass: 'half' },
   levelInfo(level, bonus) {
-    if (bonus) return '★ CRYSTAL RAIN! Every shot is a prism and the floor races up — but nothing can hurt you. Shatter as many as you can!';
+    if (bonus) return '★ CRYSTAL RAIN! Hold fire for rapid prism shots — nothing can hurt you. Shatter as many as you can!';
     const notes = {
-      1: 'Aim with the mouse / finger (or ← →) and fire crystals down the shaft. 3 of a colour touching SHATTER. Don\'t let any column break the red ring!',
-      2: 'Shatters make the crystals above drop — set up CASCADES. Every cascade earns a 💎 prism shot.',
+      1: 'Dig down to the gold GEODE ◆ and shoot it to crack it open! 3 of a colour touching SHATTER. Don\'t let a column break the red ring.',
+      2: 'Two geodes. Shatter 💣 🔩 ❄️ 🌈 power crystals to set them off — and fill the FEVER bar for rapid fire!',
       3: '🪨 Obsidian! It can\'t be matched — shatter crystals right next to it to break it.',
       4: 'Five colours now, and the floor rises faster.',
-      6: '⟲ The platform REVERSES now — watch the warning!',
+      6: '⟲ The platform REVERSES now — watch the warning! And three geodes from here on.',
       7: '🧊 Frozen crystals can\'t be matched until a shatter next to them thaws them.',
-      8: '⚡ Charged crystals: shatter one and its whole layer goes with it!',
+      8: '⚡ Charged crystals: shatter one and its whole layer goes — geodes too!',
       9: 'Six colours. Keep your nerve.',
       11: 'The spin surges AND reverses. Ultra mode!',
     };
-    return notes[level] || 'Faster floor, faster spin. Shatter quick!';
+    return notes[level] || 'Faster floor, faster spin. Dig quick!';
   },
   create: (shell) => new CrystalCascade(shell),
 });
@@ -173,7 +182,7 @@ class CrystalCascade {
   constructor(s) {
     this.s = s; this.t = 0;
     this.cam = new Cam(CAM_POS, CAM_TGT);
-    this.glow = COLORS.map(glowSprite); this.glowW = glowSprite('#ffffff'); this.glowR = glowSprite('#ff2a4f');
+    this.glow = COLORS.map(glowSprite); this.glowW = glowSprite('#ffffff'); this.glowG = glowSprite(GEODE);
     this.aim = 0; this.rot = 0; this.spin = 0.12;
     this.dust = Array.from({ length: 46 }, () => ({ x: Math.random() * W, y: Math.random() * H, v: 6 + Math.random() * 16, r: 0.6 + Math.random() * 1.6, p: Math.random() * TAU }));
     // glowing veins in the shaft wall: polylines in (angle, height)
@@ -189,7 +198,7 @@ class CrystalCascade {
     this.startLevel(1, false);
   }
 
-  reset() { this.obsidianRun = 0; }
+  reset() { this.obsidianRun = 0; this.geodeRun = 0; this.feverRun = 0; this.fever = 0; }
 
   // ── Level setup ─────────────────────────────────────────────
   startLevel(level, bonus) {
@@ -197,35 +206,50 @@ class CrystalCascade {
     this.level = level; this.bonus = bonus;
     this.theme = bonus ? GOLD_THEME : THEMES[(level - 1) % 3];
     this.nColors = bonus ? 4 : level >= 9 ? 6 : level >= 4 ? 5 : 4;
-    this.quota = bonus ? 0 : 30 + (level - 1) * 8;
+    this.geodesNeed = bonus ? 0 : level === 1 ? 1 : level < 6 ? 2 : 3;
     this.shattered = 0; this.rain = 0;
-    this.baseSpin = (bonus ? 0.24 : 0.15) * s.speed(0.045, 2.1);
+    this.baseSpin = (bonus ? 0.26 : 0.17) * s.speed(0.045, 2.1);
     this.spinDir = r.chance(0.5) ? 1 : -1; this.spinMag = 1;
     this.reverses = !bonus && level >= 6;
     this.surges = !bonus && level >= 11;
-    this.pushEvery = bonus ? 2.6 : Math.max(11, 30 - (level - 1) * 1.6);
-    this.clockMax = bonus ? 99 : Math.max(2.4, 5.5 - (level - 1) * 0.2);
+    this.pushEvery = bonus ? 2.4 : Math.max(8, 15 - (level - 1) * 0.6);
+    this.clockMax = bonus ? 99 : Math.max(2.2, 4 - (level - 1) * 0.12);
     this.stoneChance = !bonus && level >= 3 ? Math.min(0.16, 0.05 + level * 0.008) : 0;
     this.iceChance = !bonus && level >= 7 ? Math.min(0.2, 0.08 + (level - 7) * 0.015) : 0;
     this.boltChance = !bonus && level >= 8 ? Math.min(0.7, 0.35 + (level - 8) * 0.04) : 0;
+    this.powerChance = bonus ? 0.6 : 0.5;
     this.livesAtStart = s.lives;
-    this.prism = 0;
+    this.prism = 0; this.feverT = 0; this.fever ??= 0;
     this.buildBoard();
   }
 
   buildBoard() {
     const r = this.s.rng;
     this.cols = Array.from({ length: N }, () => []);
-    const layers = this.bonus ? 2 : Math.min(5, 3 + Math.floor((this.level - 1) / 3));
+    const layers = this.bonus ? 3 : Math.min(5, 3 + Math.floor((this.level - 1) / 3));
     for (let j = 0; j < layers; j++) this.addLayer(false);
-    this.shot = null; this.phase = null; this.failing = 0; this.failCol = -1; this.clearing = 0;
-    this.pushT = 0; this.clock = this.clockMax;
+    // golden geodes, buried near the bottom and spread round the ring
+    this.geodesLeft = this.geodesNeed;
+    const off = r.int(0, N - 1);
+    for (let g = 0; g < this.geodesNeed; g++) {
+      const i = (off + Math.round(g * N / this.geodesNeed) + r.int(-1, 1) + N) % N, j = this.level >= 4 && r.chance(0.5) ? 0 : Math.min(1, layers - 3);
+      this.cols[i][j] = this.newCell(-1, 'geode');
+    }
+    // a couple of power crystals to start with
+    for (let k = 0; k < (this.bonus ? 4 : 2); k++) this.makePower(r.int(0, N - 1), r.int(1, layers - 1));
+    this.shots = []; this.phase = null; this.failing = 0; this.failCol = -1; this.clearing = 0;
+    this.pushT = 0; this.clock = this.clockMax; this.fireCD = 0; this.freezeT = 0; this.slowmo = 0;
     this.cur = this.pickColour(); this.next = this.pickColour();
     this.spin = this.baseSpin * this.spinDir;
     this.revT = this.reverses ? r.range(this.surges ? 6 : 9, this.surges ? 10 : 14) : 0; this.revWarned = false;
   }
 
   newCell(c, kind = 'n') { return { c, kind, yo: 0, vy: 0, die: 0, born: 0 }; }
+  makePower(i, j) {
+    const c = this.cols[i][j];
+    if (!c || c.kind !== 'n') return;
+    c.kind = 'power'; c.p = this.s.rng.pick(POWERS);
+  }
 
   /** push a new layer in under every column (or stack the first layers at the start) */
   addLayer(rising) {
@@ -234,9 +258,14 @@ class CrystalCascade {
       let kind = 'n';
       if (r.chance(this.stoneChance)) kind = 'stone';
       else if (rising && r.chance(this.iceChance)) kind = 'ice';
-      row.push(this.newCell(kind === 'stone' ? -1 : r.int(0, this.nColors - 1), kind));
+      let c = r.int(0, this.nColors - 1);
+      // clusters: often copy the colour below or beside, so there are pairs to finish off
+      const below = this.cols[i][0], left = row[i - 1];
+      if (kind !== 'stone' && r.chance(0.45)) { const src = r.chance(0.5) ? below : left; if (src && src.c >= 0) c = src.c; }
+      row.push(this.newCell(kind === 'stone' ? -1 : c, kind));
     }
     if (rising && r.chance(this.boltChance)) { const b = row[r.int(0, N - 1)]; if (b.kind === 'n') b.kind = 'bolt'; }
+    if (rising && r.chance(this.powerChance)) { const b = row[r.int(0, N - 1)]; if (b.kind === 'n') { b.kind = 'power'; b.p = r.pick(POWERS); } }
     for (let i = 0; i < N; i++) {
       for (const c of this.cols[i]) { if (rising) c.yo -= LH; }
       this.cols[i].unshift(row[i]);
@@ -252,7 +281,7 @@ class CrystalCascade {
 
   // ── Board rules ────────────────────────────────────────────
   cell(i, j) { return this.cols[((i % N) + N) % N][j] || null; }
-  matchable(c) { return c && (c.kind === 'n' || c.kind === 'bolt') && !c.die; }
+  matchable(c) { return c && (c.kind === 'n' || c.kind === 'bolt' || c.kind === 'power') && !c.die; }
   neighbours(i, j) { return [[(i + 1) % N, j], [(i - 1 + N) % N, j], [i, j - 1], [i, j + 1]].filter(([a, b]) => b >= 0 && this.cols[a][b]); }
   groupAt(i, j) {
     const start = this.cell(i, j);
@@ -284,6 +313,7 @@ class CrystalCascade {
     const pool = present.size ? [...present] : [...Array(this.nColors).keys()];
     return this.s.rng.pick(pool);
   }
+  pts(base) { return Math.round(base * (this.feverT > 0 ? 2 : 1)); }
 
   // ── Geometry ───────────────────────────────────────────────
   colAngle(i) { return i * SEC + this.rot; }
@@ -291,8 +321,16 @@ class CrystalCascade {
   slot(i, j, yo = 0) { const a = this.colAngle(i); return [Math.sin(a) * RING, j * LH + yo, -Math.cos(a) * RING]; }
   /** the column sitting under the aim right now */
   aimCol() { return (((Math.round((this.aim - this.rot) / SEC)) % N) + N) % N; }
-  muzzle() { const tgt = this.ghostPos(); const d = norm(sub(tgt, PIV)); return add(PIV, mul(d, 64)); }
-  ghostPos() { const i = this.aimCol(), [x, y, z] = this.slot(i, this.cols[i].length); return [x, y + LH * 0.5, z]; }
+  /** where a shot at column i will land (counting the shots already on their way there) */
+  targetPos(i, before = this.shots.length) {
+    let j = this.cols[i].length;
+    const top = this.cols[i][j - 1];
+    if (top && top.kind === 'geode') j--;                       // a shot at an open geode cracks it
+    for (let k = 0; k < before; k++) if (this.shots[k].col === i) j++;
+    const [x, y, z] = this.slot(i, j); return [x, y + LH * 0.5, z];
+  }
+  ghostPos() { return this.targetPos(this.aimCol()); }
+  muzzle() { const d = norm(sub(this.ghostPos(), PIV)); return add(PIV, mul(d, 64)); }
   /** screen x → aim angle: pick the aim whose target lands under the pointer */
   aimFromScreen(px) {
     let best = this.aim, bd = 1e9;
@@ -302,7 +340,7 @@ class CrystalCascade {
     }
     this.aim = best;
   }
-  nextScreen() { const q = this.cam.p(-66, PIV[1] - 4, PIV[2] + 6); return q; }
+  nextScreen() { return this.cam.p(-66, PIV[1] - 4, PIV[2] + 6); }
 
   // ── Input ──────────────────────────────────────────────────
   onPointerMove(x, y) { if (y > 50) this.aimFromScreen(x); }
@@ -310,37 +348,43 @@ class CrystalCascade {
     if (a === 'press') {
       const q = this.nextScreen();
       if (Math.hypot(x - q[0], y - q[1]) < 36) { this.swap(); this.swapTap = true; return; }
-      this.swapTap = false; if (y > 50) this.aimFromScreen(x); return;
+      this.swapTap = false; if (y > 50) this.aimFromScreen(x);
+      if (this.rapid()) this.fire();
+      return;
     }
-    if (a === 'release') { if (this.swapTap) { this.swapTap = false; return; } if (y > 50 && y < H - 24) { this.aimFromScreen(x); this.fire(); } return; }
+    if (a === 'release') { if (this.swapTap) { this.swapTap = false; return; } if (y > 50 && y < H - 24 && !this.rapid()) { this.aimFromScreen(x); this.fire(); } return; }
     if (a === 'action') this.fire();
     if (a === 'up' && !this.s.input.pointer.down) this.swap();
   }
+  rapid() { return this.bonus || this.feverT > 0; }
   swap() {
-    if (this.bonus || this.shot) return;
+    if (this.rapid()) return;
     [this.cur, this.next] = [this.next, this.cur];
     this.s.sound.tone({ freq: 620, to: 880, dur: 0.06, type: 'sine', vol: 0.06 });
   }
   fire() {
     const s = this.s;
-    if (this.shot || this.phase || this.failing || this.clearing || s.state !== 'playing') return;
-    const pr = this.bonus || this.prism > 0;
-    if (!this.bonus && this.prism > 0) this.prism--;
-    this.shot = { t: 0, from: this.muzzle(), to: this.ghostPos(), c: this.cur, prism: pr, trail: [] };
+    if (this.failing || this.clearing || s.state !== 'playing' || this.fireCD > 0) return;
+    if (this.shots.length >= (this.rapid() ? 3 : 1)) return;
+    const pr = this.rapid() || this.prism > 0;
+    if (!this.rapid() && this.prism > 0) this.prism--;
+    const col = this.aimCol();
+    this.shots.push({ t: 0, col, from: this.muzzle(), c: this.cur, prism: pr, trail: [] });
     this.cur = this.next; this.next = this.pickColour();
-    this.clock = this.clockMax;
+    this.clock = this.clockMax; this.fireCD = this.rapid() ? 0.13 : 0.08;
     s.sound.tone({ freq: 420, to: 980, dur: 0.1, type: 'triangle', vol: 0.09 });
     s.sound.noise({ dur: 0.08, vol: 0.05, freq: 4200, type: 'highpass' });
   }
 
-  onLifeLost() { this.buildBoard(); }
+  onLifeLost() { this.endFever(); this.buildBoard(); }
 
   // ── Simulation ─────────────────────────────────────────────
   idle(dt) { this.t += dt; this.animate(dt); }
 
   animate(dt) {
+    const frozen = this.freezeT > 0;
     // the spin (reversing / surging on later levels)
-    if (this.reverses && this.s.state === 'playing' && !this.failing) {
+    if (this.reverses && this.s.state === 'playing' && !this.failing && !frozen) {
       this.revT -= dt;
       if (this.revT < 1.3 && !this.revWarned) {
         this.revWarned = true;
@@ -354,8 +398,8 @@ class CrystalCascade {
         if (this.surges) this.spinMag = r.range(0.7, 1.65);
       }
     }
-    const target = this.baseSpin * this.spinDir * this.spinMag * (this.clearing ? 3 : 1);
-    this.spin += (target - this.spin) * Math.min(1, dt * 1.6);
+    const target = frozen ? 0 : this.baseSpin * this.spinDir * this.spinMag * (this.clearing ? 3 : this.feverT > 0 ? 1.8 : 1);
+    this.spin += (target - this.spin) * Math.min(1, dt * (frozen ? 6 : 1.6));
     this.rot += this.spin * dt;
     // crystals settling (falling down after a shatter, or rising with the floor)
     for (const col of this.cols) for (const c of col) {
@@ -365,36 +409,43 @@ class CrystalCascade {
       if (c.born) c.born = Math.max(0, c.born - dt * 1.6);
       if (c.land) c.land = Math.max(0, c.land - dt * 4);
     }
-    for (const d of this.dust) { d.y -= d.v * dt; if (d.y < -4) { d.y = H + 4; d.x = Math.random() * W; } }
+    for (const d of this.dust) { d.y -= d.v * dt * (this.feverT > 0 ? 4 : 1); if (d.y < -4) { d.y = H + 4; d.x = Math.random() * W; } }
   }
 
-  update(dt) {
+  update(rdt) {
     const s = this.s;
+    // slow motion after big moments: the world runs slower, the controls don't
+    if (this.slowmo > 0) this.slowmo -= rdt;
+    const dt = this.slowmo > 0 ? rdt * 0.4 : rdt;
     this.t += dt;
     this.animate(dt);
-    if (s.input.isDown('left')) this.aim = clamp(this.aim - 1.5 * dt, -AIM, AIM);
-    if (s.input.isDown('right')) this.aim = clamp(this.aim + 1.5 * dt, -AIM, AIM);
+    if (s.input.isDown('left')) this.aim = clamp(this.aim - 1.5 * rdt, -AIM, AIM);
+    if (s.input.isDown('right')) this.aim = clamp(this.aim + 1.5 * rdt, -AIM, AIM);
+    if (this.fireCD > 0) this.fireCD -= rdt;
 
-    if (this.failing > 0) { this.failing -= dt; if (this.failing <= 0) { s.sound.play('boom'); s.hurt(); } return; }
-    if (this.clearing > 0) { this.clearing -= dt; if (this.clearing <= 0) s.completeLevel(); return; }
+    if (this.failing > 0) { this.failing -= rdt; if (this.failing <= 0) { s.sound.play('boom'); s.hurt(); } return; }
+    if (this.clearing > 0) { this.clearing -= rdt; if (this.clearing <= 0) s.completeLevel(); return; }
 
-    // the shot in flight
-    if (this.shot) {
-      const sh = this.shot;
-      sh.t += dt;
-      sh.trail.push(this.shotPos(sh)); if (sh.trail.length > 14) sh.trail.shift();
-      if (sh.t >= SHOT_T) this.land();
-    }
+    // Crystal Fever / freeze timers
+    if (this.feverT > 0) { this.feverT -= rdt; this.fever = Math.max(0, this.feverT / FEVER_T); if (this.feverT <= 0) this.endFever(); }
+    if (this.freezeT > 0) { this.freezeT -= rdt; if (this.freezeT <= 0) s.fx.text(W / 2, 150, 'THAWED', { color: '#bae6fd', size: 22 }); }
+    // rapid fire: hold to keep shooting
+    if (this.rapid() && (s.input.isDown('action') || s.input.pointer.down)) this.fire();
+
+    // shots in flight; a shot that arrives mid-cascade waits until the stack has settled
+    for (const sh of this.shots) { sh.t = Math.min(SHOT_T, sh.t + dt); sh.trail.push(this.shotPos(sh)); if (sh.trail.length > 12) sh.trail.shift(); }
+    if (!this.phase && this.shots.length && this.shots[0].t >= SHOT_T) this.land(this.shots.shift());
     if (this.phase) this.resolveStep(dt);
 
+    const calm = !this.phase && !this.shots.length && this.feverT <= 0 && this.freezeT <= 0;
     // the floor rises
-    if (!this.phase && !this.shot) {
+    if (calm || (this.bonus && !this.phase)) {
       this.pushT += dt;
       if (!this.bonus && this.pushT >= this.pushEvery - 2 && Math.ceil(this.pushT * 2) !== Math.ceil((this.pushT - dt) * 2)) s.sound.tone({ freq: 160, dur: 0.05, type: 'square', vol: 0.05 });
       if (this.pushT >= this.pushEvery) { this.pushT = 0; this.rise(); }
     }
     // the cannon gets impatient
-    if (!this.shot && !this.phase && !this.bonus && !this.failing && !this.clearing) {
+    if (calm && !this.bonus) {
       this.clock -= dt;
       if (this.clock <= 1.5 && Math.ceil(this.clock * 2) !== Math.ceil((this.clock + dt) * 2)) s.sound.play('tick');
       if (this.clock <= 0) this.fire();
@@ -403,14 +454,22 @@ class CrystalCascade {
 
   shotPos(sh) {
     const u = clamp(sh.t / SHOT_T, 0, 1), e = u * u * (3 - 2 * u) * 0.35 + u * 0.65;
-    const p = add(sh.from, mul(sub(sh.to, sh.from), e));
+    const to = this.targetPos(sh.col, this.shots.indexOf(sh) < 0 ? 0 : this.shots.indexOf(sh));
+    const p = add(sh.from, mul(sub(to, sh.from), e));
     p[1] += Math.sin(u * Math.PI) * 46;
     return p;
   }
 
-  land() {
-    const s = this.s, sh = this.shot, i = this.aimCol(), col = this.cols[i];
-    this.shot = null;
+  land(sh) {
+    const s = this.s, i = sh.col, col = this.cols[i], top = col[col.length - 1];
+    this.step = 0; this.fromShot = true; this.hitGeode = false;
+    if (top && top.kind === 'geode' && !top.die) {              // crack the geode open!
+      this.hitGeode = true;
+      top.die = 0.001;
+      this.geodeBroken(i, col.length - 1, true);
+      this.phase = { k: 'shatter', t: 0.3 };
+      return;
+    }
     const cell = this.newCell(sh.c);
     col.push(cell); cell.land = 1;
     const j = col.length - 1;
@@ -423,8 +482,21 @@ class CrystalCascade {
     const [x, y, z] = this.slot(i, j); const q = this.cam.p(x, y + LH / 2, z);
     s.fx.burst(q[0], q[1], { color: COLORS[cell.c], count: 8, speed: 120, life: 0.35 });
     s.sound.tone({ freq: 1250, to: 1650, dur: 0.05, type: 'sine', vol: 0.07 });
-    this.step = 0; this.fromShot = true;
     this.phase = { k: 'check', t: 0 };
+  }
+
+  geodeBroken(i, j, direct) {
+    const s = this.s, [x, y, z] = this.slot(i, j), q = this.cam.p(x, y + LH / 2, z);
+    this.geodesLeft = Math.max(0, this.geodesLeft - 1); this.geodeRun++;
+    if (this.geodeRun >= 10) s.unlock('digger');
+    s.award(this.pts(400 * this.level), q[0], q[1] - 30, { chain: true, color: GEODE, size: 30 });
+    s.fx.text(q[0], q[1] - 70, this.geodesLeft ? 'GEODE!' : 'LAST GEODE!', { color: '#fde047', size: 34, life: 1.2 });
+    s.fx.burst(q[0], q[1], { colors: ['#fde047', '#fbbf24', '#ffffff', '#fef3c7'], count: 46, speed: 420, life: 1, size: 5, gravity: 400 });
+    s.fx.ring(q[0], q[1], { color: '#fde047', radius: 90, life: 0.6, width: 5 });
+    s.fx.flash('#fde68a', 0.25); s.fx.shake(8, 0.35);
+    s.sound.play('golden'); s.sound.play('gem', 7);
+    this.slowmo = Math.max(this.slowmo, direct ? 0.45 : 0.3);
+    this.addFever(0.2);
   }
 
   rise() {
@@ -433,7 +505,7 @@ class CrystalCascade {
     s.fx.shake(4, 0.25);
     s.sound.tone({ freq: 110, to: 60, dur: 0.35, type: 'sawtooth', vol: 0.1 });
     s.sound.noise({ dur: 0.35, vol: 0.12, freq: 320, type: 'bandpass' });
-    this.step = 0; this.fromShot = false;
+    this.step = 0; this.fromShot = false; this.hitGeode = false;
     this.phase = { k: 'check', t: 0 };                          // the new layer can't make a match, but a check also tests for overflow
   }
 
@@ -441,11 +513,11 @@ class CrystalCascade {
     const ph = this.phase;
     if (ph.k === 'check') {
       const groups = this.findGroups();
-      if (groups.length) { this.step++; this.shatter(groups); this.phase = { k: 'shatter', t: 0.26 }; }
+      if (groups.length) { this.step++; this.shatter(groups); this.phase = { k: 'shatter', t: 0.22 }; }
       else this.endResolve();
     } else if (ph.k === 'shatter') {
       ph.t -= dt;
-      if (ph.t <= 0) { this.collapse(); this.phase = { k: 'fall', t: 0.1 }; }
+      if (ph.t <= 0) { this.collapse(); this.phase = { k: 'fall', t: 0.08 }; }
     } else if (ph.k === 'fall') {
       ph.t -= dt;
       if (ph.t <= 0 && this.cols.every((col) => col.every((c) => c.yo <= 0))) this.phase = { k: 'check', t: 0 };
@@ -453,20 +525,50 @@ class CrystalCascade {
   }
 
   shatter(groups) {
-    const s = this.s, kill = new Map(), lvl = 1 + (this.level - 1) * 0.15, step = this.step;
-    const mark = (i, j) => { const c = this.cols[i][j]; if (c && !c.die) kill.set(i * 64 + j, [i, j, c]); };
+    const s = this.s, kill = new Map(), queue = [], lvl = 1 + (this.level - 1) * 0.15, step = this.step;
+    let extra = 0;
+    const mark = (i, j, bonusKill) => {
+      const c = this.cols[i]?.[j];
+      if (!c || c.die || kill.has(i * 64 + j)) return;
+      kill.set(i * 64 + j, [i, j, c]);
+      if (bonusKill) extra++;
+      if (c.kind === 'power' || c.kind === 'bolt') queue.push([i, j, c]);
+    };
     for (const g of groups) {
       const n = g.length;
       let sx = 0, sy = 0;
       for (const [i, j] of g) { mark(i, j); const [x, y, z] = this.slot(i, j); const q = this.cam.p(x, y + LH / 2, z); sx += q[0]; sy += q[1]; }
+      sx /= n; sy /= n;
+      const colHex = COLORS[this.cols[g[0][0]][g[0][1]].c];
       const base = this.bonus ? 6 * n * this.level : Math.round(n * 10 * (1 + (n - 3) * 0.3) * lvl * step);
-      s.award(base, sx / n, sy / n - 20, { chain: true, color: COLORS[this.cols[g[0][0]][g[0][1]].c], size: 20 + Math.min(10, n) });
-      if (n >= 6) { s.unlock('big6'); s.fx.text(sx / n, sy / n - 54, n >= 9 ? 'MOTHER LODE!' : 'BIG SHATTER!', { color: '#fde047', size: 22 }); }
-      // ⚡ a charged crystal takes its whole layer with it
-      for (const [i, j] of g) if (this.cols[i][j].kind === 'bolt') {
-        for (let k = 0; k < N; k++) mark(k, j);
+      s.award(this.pts(base), sx, sy - 20, { chain: true, color: colHex, size: 20 + Math.min(12, n * 1.5) });
+      s.fx.ring(sx, sy, { color: colHex, radius: 40 + n * 6, life: 0.45, width: 4 });
+      if (n >= 6) { s.unlock('big6'); s.fx.text(sx, sy - 54, n >= 9 ? 'MOTHER LODE!' : 'BIG SHATTER!', { color: '#fde047', size: 24 }); }
+    }
+    // power crystals and charged crystals go off (and can set each other off)
+    while (queue.length) {
+      const [i, j, c] = queue.shift(), [x, y, z] = this.slot(i, j), q = this.cam.p(x, y + LH / 2, z);
+      if (c.kind === 'bolt') {
+        for (let k = 0; k < N; k++) mark(k, j, true);
         s.fx.flash('#e0f2fe', 0.25); s.fx.shake(7, 0.3); s.sound.play('boom');
         s.fx.text(W / 2, 150, '⚡ LAYER BLAST!', { color: '#67e8f9', size: 30 });
+      } else if (c.p === 'bomb') {
+        for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) mark((i + di + N) % N, j + dj, true);
+        s.fx.shake(9, 0.35); s.sound.play('boom'); s.fx.ring(q[0], q[1], { color: '#fb923c', radius: 110, life: 0.5, width: 6 });
+        s.fx.burst(q[0], q[1], { colors: ['#fb923c', '#fde047', '#ffffff'], count: 30, speed: 380, life: 0.7, size: 5 });
+        s.fx.text(q[0], q[1] - 40, '💣 BOOM!', { color: '#fb923c', size: 28 });
+      } else if (c.p === 'drill') {
+        for (let jj = 0; jj < this.cols[i].length; jj++) mark(i, jj, true);
+        s.fx.shake(6, 0.4); s.sound.noise({ dur: 0.5, vol: 0.2, freq: 900, to: 200, type: 'bandpass' });
+        s.fx.text(q[0], q[1] - 40, '🔩 DRILL!', { color: '#cbd5e1', size: 28 });
+      } else if (c.p === 'freeze') {
+        this.freezeT = 6;
+        s.fx.flash('#bae6fd', 0.2); s.sound.tone({ freq: 2200, to: 900, dur: 0.5, type: 'sine', vol: 0.1 });
+        s.fx.text(W / 2, 150, '❄️ FREEZE! (6s)', { color: '#bae6fd', size: 30 });
+      } else if (c.p === 'burst') {
+        for (let a = 0; a < N; a++) this.cols[a].forEach((d, b) => { if (this.matchable(d) && d.c === c.c) mark(a, b, true); });
+        s.fx.flash(COLORS[c.c], 0.2); s.sound.play('powerup');
+        s.fx.text(W / 2, 150, '🌈 COLOUR BURST!', { color: COLORS[c.c], size: 30 });
       }
     }
     // obsidian next to a shatter breaks; frozen crystals thaw
@@ -478,27 +580,52 @@ class CrystalCascade {
     }
     if (stones) {
       this.obsidianRun += stones;
-      s.award(25 * stones * this.level, W / 2, 190, { color: '#c4b5fd' });
+      s.award(this.pts(25 * stones * this.level), W / 2, 190, { color: '#c4b5fd' });
       if (this.obsidianRun >= 15) s.unlock('obsidian');
     }
+    if (extra) s.award(this.pts(15 * extra * this.level), W / 2, 226, { color: '#fde68a' });
     let gems = 0;
     for (const [i, j, c] of kill.values()) {
       c.die = 0.001;
+      if (c.kind === 'geode') { this.geodeBroken(i, j, false); continue; }
       if (c.kind !== 'stone') gems++;
       const [x, y, z] = this.slot(i, j, c.yo), q = this.cam.p(x, y + LH / 2, z);
       const col = c.kind === 'stone' ? '#a8a29e' : COLORS[c.c];
-      s.fx.burst(q[0], q[1], { colors: [col, '#ffffff', col], count: this.s.lowDetail ? 6 : 12, speed: 260, life: 0.6, size: 4, gravity: 500 });
+      s.fx.burst(q[0], q[1], { colors: [col, '#ffffff', col], count: this.s.lowDetail ? 7 : 16, speed: 320, life: 0.7, size: 4.5, gravity: 520 });
     }
     this.shattered += gems; if (this.bonus) this.rain += gems;
-    // glassy shatter: brighter the deeper the cascade
-    s.sound.play('gem', step * 2);
+    this.addFever(gems * 0.021 + (step >= 2 ? 0.04 : 0));
+    // glassy shatter, climbing in pitch with the combo
+    const p = Math.min(14, s.comboCount + step);
+    s.sound.play('gem', p);
     s.sound.noise({ dur: 0.22, vol: 0.13, freq: 7000, to: 2600, type: 'highpass' });
-    s.sound.tone({ freq: 1800 + step * 300, to: 2600 + step * 300, dur: 0.12, type: 'sine', vol: 0.06, delay: 0.04 });
+    s.sound.tone({ freq: 1500 + p * 140, to: 2300 + p * 160, dur: 0.12, type: 'sine', vol: 0.06, delay: 0.04 });
     if (step >= 2) {
-      s.fx.text(W / 2, 210, `CASCADE ×${step}!`, { color: ['#67e8f9', '#f0abfc', '#fde047', '#fb7185'][Math.min(3, step - 2)], size: 26 + step * 3 });
+      s.fx.text(W / 2, 200, `${CALLOUT[Math.min(5, step)]}  ×${step}`, { color: ['#67e8f9', '#f0abfc', '#fde047', '#fb7185'][Math.min(3, step - 2)], size: 28 + step * 4, life: 1.1 });
       s.sound.play('combo', step);
     }
-    s.fx.shake(Math.min(6, 2 + gems * 0.3), 0.15);
+    if (step >= 3) { this.slowmo = Math.max(this.slowmo, 0.6); s.fx.flash('#ffffff', 0.18); }
+    s.fx.shake(Math.min(8, 2 + gems * 0.35), 0.18);
+  }
+
+  addFever(k) {
+    if (this.bonus || this.feverT > 0) return;
+    this.fever = Math.min(1, this.fever + k);
+    if (this.fever >= 1) this.startFever();
+  }
+  startFever() {
+    const s = this.s;
+    this.feverT = FEVER_T; this.fever = 1; this.feverRun++;
+    if (this.feverRun >= 3) s.unlock('fever');
+    s.fx.text(W / 2, 250, 'CRYSTAL FEVER!', { color: '#f0abfc', size: 44, life: 1.5, rise: 20 });
+    s.fx.text(W / 2, 292, 'Hold fire · double points', { color: '#fff', size: 18, life: 1.5, rise: 20 });
+    s.fx.flash('#f0abfc', 0.25); s.sound.play('bonus');
+    s.sound.setTempo?.(BPM * 1.35);
+  }
+  endFever() {
+    if (this.feverT <= 0) return;
+    this.feverT = 0; this.fever = 0;
+    this.s.sound.setTempo?.(BPM * Math.min(1.45, 1 + (this.level - 1) * 0.025));
   }
 
   collapse() {
@@ -513,41 +640,43 @@ class CrystalCascade {
     const s = this.s, step = this.step;
     this.phase = null;
     if (this.fromShot) {
-      if (step === 0 && !this.bonus) s.resetCombo();
-      if (step >= 2 && !this.bonus && this.prism < 3) { this.prism++; s.fx.text(W / 2, 244, '+1 💎 PRISM SHOT', { color: '#e0f2fe', size: 18 }); s.sound.play('powerup'); }
+      if (step === 0 && !this.hitGeode && !this.bonus) s.resetCombo();
+      if (step >= 2 && !this.rapid() && this.prism < 3) { this.prism++; s.fx.text(W / 2, 244, '+1 💎 PRISM SHOT', { color: '#e0f2fe', size: 18 }); s.sound.play('powerup'); }
       if (step >= 3) s.unlock('cascade3');
     }
     // overflow?
     for (let i = 0; i < N; i++) {
       if (this.cols[i].length <= MAXH) continue;
       if (this.bonus) {                                         // in the bonus the top just shatters off
-        const extra = this.cols[i].splice(MAXH);
+        this.cols[i].splice(MAXH);
         const [x, y, z] = this.slot(i, MAXH), q = this.cam.p(x, y, z);
         s.fx.burst(q[0], q[1], { color: '#fde047', count: 10, speed: 200 });
-        if (extra.length) s.sound.noise({ dur: 0.15, vol: 0.06, freq: 5000, type: 'highpass' });
+        s.sound.noise({ dur: 0.15, vol: 0.06, freq: 5000, type: 'highpass' });
         continue;
       }
-      this.failing = 1.3; this.failCol = i;
+      this.failing = 1.3; this.failCol = i; this.shots = [];
+      this.endFever();
       const [x, y, z] = this.slot(i, MAXH), q = this.cam.p(x, y, z);
       s.fx.text(q[0], q[1] - 20, 'OVERFLOW!', { color: '#fb7185', size: 34, life: 1.3 });
       s.sound.play('hit'); s.fx.shake(6, 0.4);
       return;
     }
-    // quota done?
-    if (!this.bonus && this.shattered >= this.quota) this.clearLevel();
+    // every geode cracked?
+    if (!this.bonus && this.geodesLeft <= 0) this.clearLevel();
   }
 
   clearLevel() {
     const s = this.s;
-    this.clearing = 1.4;
+    this.clearing = 1.6; this.shots = [];
     let n = 0;
     for (let i = 0; i < N; i++) this.cols[i].forEach((c, j) => {
       c.die = 0.001 - j * 0.04 - i * 0.004; n++;               // shatter top to bottom in a ripple
     });
-    if (n) s.award(8 * n * this.level, W / 2, 180, { color: '#a5f3fc' });
-    s.fx.text(W / 2, 140, 'VEIN CLEARED!', { color: '#a3e635', size: 34, life: 1.4 });
+    if (n) s.award(this.pts(8 * n * this.level), W / 2, 180, { color: '#a5f3fc' });
+    s.fx.text(W / 2, 140, 'VEIN CLEARED!', { color: '#a3e635', size: 38, life: 1.5 });
     s.sound.noise({ dur: 0.6, vol: 0.12, freq: 6000, to: 1500, type: 'highpass' });
     if (this.level >= 6 && s.lives >= this.livesAtStart) s.unlock('dizzy');
+    this.endFever();
   }
 
   onLevelClear() { if (this.bonus && this.rain >= 80) this.s.unlock('rain'); }
@@ -564,6 +693,10 @@ class CrystalCascade {
       this.drawBackdrop(g, lo); this.drawWall(g, lo);
     }
     ctx.drawImage(this.bg, 0, 0, W, H);
+    if (this.feverT > 0) {                                      // fever: the shaft pulses with colour
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = `hsla(${(this.t * 160) % 360},90%,60%,${0.1 + 0.05 * Math.sin(this.t * 12)})`; ctx.fillRect(0, 0, W, H); ctx.restore();
+    }
     this.drawDust(ctx, lo);
     this.drawPlatform(ctx, lo);
 
@@ -583,12 +716,36 @@ class CrystalCascade {
     this.drawLaser(ctx, false);
     for (const it of front) this.drawCell(ctx, it, lo);
     this.drawLaser(ctx, true);
+    this.drawBeacons(ctx, lo);
     if (this.failing > 0) this.drawFail(ctx);
+    if (this.freezeT > 0) { ctx.fillStyle = `rgba(186,230,253,${0.08 + 0.04 * Math.sin(this.t * 4)})`; ctx.fillRect(0, 46, W, H - 46); }
 
-    if (s.state === 'playing' && !this.shot && !this.phase && !this.failing && !this.clearing) this.drawGhost(ctx);
-    if (this.shot) this.drawShot(ctx, lo);
+    if (s.state === 'playing' && !this.failing && !this.clearing && this.shots.length < (this.rapid() ? 3 : 1)) this.drawGhost(ctx);
+    for (const sh of this.shots) this.drawShot(ctx, sh, lo);
     this.drawCannon(ctx, lo);
     this.drawHud(ctx);
+  }
+
+  /** a beam of gold light rises from every buried geode, so you can see where to dig */
+  drawBeacons(ctx, lo) {
+    const cam = this.cam;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < N; i++) {
+      const col = this.cols[i], j = col.findIndex((c) => c.kind === 'geode' && !c.die);
+      if (j < 0) continue;
+      const [x, , z] = this.slot(i, 0), b = cam.p(x, j * LH + LH / 2, z), top = cam.p(x, col.length * LH + 34, z);
+      const w = CR * 0.55 * b[2], a = 0.18 + 0.1 * Math.sin(this.t * 4 + i);
+      const g = ctx.createLinearGradient(0, b[1], 0, top[1]);
+      g.addColorStop(0, `rgba(253,224,71,${a})`); g.addColorStop(1, 'rgba(253,224,71,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(b[0] - w, b[1]); ctx.lineTo(b[0] + w, b[1]); ctx.lineTo(top[0] + w * 0.4, top[1]); ctx.lineTo(top[0] - w * 0.4, top[1]); ctx.closePath(); ctx.fill();
+      // a bobbing ◆ marker over the column
+      const m = cam.p(x, col.length * LH + 22 + Math.sin(this.t * 4 + i) * 5, z), r = 9 * m[2];
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = '#fde047'; ctx.strokeStyle = '#78350f'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(m[0], m[1] - r); ctx.lineTo(m[0] + r * 0.75, m[1]); ctx.lineTo(m[0], m[1] + r); ctx.lineTo(m[0] - r * 0.75, m[1]); ctx.closePath(); ctx.stroke(); ctx.fill();
+      ctx.globalCompositeOperation = 'lighter';
+    }
+    ctx.restore();
   }
 
   drawBackdrop(ctx, lo) {
@@ -761,6 +918,7 @@ class CrystalCascade {
     const centre = [p[0], p[1] + LH * 0.5, p[2]];
     let base, edge = 0.35;
     if (c.kind === 'stone') { base = rgb(STONE); edge = 0.15; }
+    else if (c.kind === 'geode') { base = mix(rgb(GEODE), [255, 255, 255], 0.12 + 0.12 * Math.sin(this.t * 5 + p[0])); edge = 0.7; }
     else base = rgb(colourOverride || COLORS[c.c] || STONE);
     if (c.kind === 'ice') { base = mix(base, [220, 240, 255], 0.5); edge = 0.85; }
     if (c.kind === 'bolt') base = mix(base, [255, 255, 255], 0.15 + 0.15 * Math.sin(this.t * 14));
@@ -782,19 +940,33 @@ class CrystalCascade {
       ctx.moveTo(q[0] + r * 0.2, q[1] - r); ctx.lineTo(q[0] - r * 0.45, q[1] + r * 0.1); ctx.lineTo(q[0] - r * 0.02, q[1] + r * 0.1);
       ctx.lineTo(q[0] - r * 0.25, q[1] + r); ctx.lineTo(q[0] + r * 0.45, q[1] - r * 0.15); ctx.lineTo(q[0] + r * 0.03, q[1] - r * 0.15); ctx.closePath(); ctx.fill();
     }
+    if (c.kind === 'power') {                                   // the power's icon on a dark disc
+      const r = CR * 0.42 * q[2] * sc;
+      ctx.globalAlpha = alpha; ctx.fillStyle = 'rgba(8,6,20,.7)'; ctx.beginPath(); ctx.arc(q[0], q[1], r * 1.05, 0, TAU); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.font = `${Math.round(r * 1.25)}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(PICON[c.p], q[0], q[1] + r * 0.08); ctx.textBaseline = 'alphabetic'; ctx.globalAlpha = 1;
+    }
+    if (c.kind === 'geode') {                                   // sparkles on the gold
+      const ph = (this.t * 1.6 + p[0] * 0.01) % 1, r = CR * 0.6 * q[2] * Math.sin(ph * Math.PI);
+      ctx.fillStyle = `rgba(255,255,255,${0.9 * alpha})`; ctx.beginPath();
+      const sx = q[0] + CR * 0.3 * q[2], sy = q[1] - CR * 0.2 * q[2];
+      ctx.moveTo(sx, sy - r); ctx.lineTo(sx + r * 0.22, sy - r * 0.22); ctx.lineTo(sx + r, sy); ctx.lineTo(sx + r * 0.22, sy + r * 0.22); ctx.lineTo(sx, sy + r); ctx.lineTo(sx - r * 0.22, sy + r * 0.22); ctx.lineTo(sx - r, sy); ctx.lineTo(sx - r * 0.22, sy - r * 0.22); ctx.closePath(); ctx.fill();
+    }
     if (!lo && c.kind !== 'stone') {
-      const g = c.kind === 'bolt' ? this.glowW : this.glow[c.c] || this.glowW, r = CR * (c.kind === 'bolt' ? 2.6 : 1.9) * q[2] * sc;
-      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = (0.32 + white * 0.5) * alpha;
+      const g = c.kind === 'bolt' ? this.glowW : c.kind === 'geode' ? this.glowG : this.glow[c.c] || this.glowW, r = CR * (c.kind === 'bolt' || c.kind === 'geode' ? 2.6 : 1.9) * q[2] * sc;
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = (c.kind === 'geode' ? 0.6 : 0.32 + white * 0.5) * alpha;
       ctx.drawImage(g, q[0] - r, q[1] - r, r * 2, r * 2); ctx.restore();
     }
   }
 
   drawGhost(ctx) {
-    const cam = this.cam, i = this.aimCol(), j = this.cols[i].length, p = this.slot(i, j), danger = j >= MAXH && !this.bonus;
-    const prismNow = this.bonus || this.prism > 0;
-    const col = danger ? '#fb7185' : prismNow ? '#ffffff' : COLORS[this.cur];
+    const cam = this.cam, i = this.aimCol(), top = this.cols[i][this.cols[i].length - 1], to = this.ghostPos();
+    const onGeode = top && top.kind === 'geode', danger = this.cols[i].length >= MAXH && !onGeode && !this.bonus;
+    const prismNow = this.rapid() || this.prism > 0;
+    const col = danger ? '#fb7185' : onGeode ? '#fde047' : prismNow ? '#ffffff' : COLORS[this.cur];
     // dotted arc from the muzzle
-    const from = this.muzzle(), to = [p[0], p[1] + LH * 0.5, p[2]];
+    const from = this.muzzle();
     ctx.fillStyle = hexA(col, 0.75);
     for (let k = 1; k < 14; k++) {
       const u = (k + (this.t * 3) % 1) / 14, e = add(from, mul(sub(to, from), u));
@@ -803,18 +975,19 @@ class CrystalCascade {
       ctx.beginPath(); ctx.arc(q[0], q[1], 2.4 * q[2] * 1.4, 0, TAU); ctx.fill();
     }
     // outline of where it will land
-    const pulse = 0.5 + 0.3 * Math.sin(this.t * 8);
-    ctx.strokeStyle = hexA(col, pulse); ctx.lineWidth = 2; ctx.setLineDash([5, 4]);
+    const pulse = 0.5 + 0.3 * Math.sin(this.t * 8), base = [to[0], to[1] - LH * 0.5, to[2]];
+    ctx.strokeStyle = hexA(col, pulse); ctx.lineWidth = onGeode ? 3 : 2; ctx.setLineDash([5, 4]);
     for (const fy of [0.2, 0.74]) {
       ctx.beginPath();
-      for (let k = 0; k <= 6; k++) { const th = this.colAngle(i) + k / 6 * TAU + TAU / 12, q = cam.p(p[0] + Math.sin(th) * CR, p[1] + fy * LH, p[2] - Math.cos(th) * CR); k ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); }
+      for (let k = 0; k <= 6; k++) { const th = this.colAngle(i) + k / 6 * TAU + TAU / 12, q = cam.p(base[0] + Math.sin(th) * CR * (onGeode ? 1.25 : 1), base[1] + fy * LH, base[2] - Math.cos(th) * CR * (onGeode ? 1.25 : 1)); k ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); }
       ctx.stroke();
     }
     ctx.setLineDash([]);
+    if (onGeode) { const q = cam.p(...to); ctx.fillStyle = '#fde047'; ctx.font = '900 13px system-ui'; ctx.textAlign = 'center'; ctx.fillText('CRACK IT!', q[0], q[1] - 30 * q[2]); }
   }
 
-  drawShot(ctx, lo) {
-    const sh = this.shot, p = this.shotPos(sh), cam = this.cam;
+  drawShot(ctx, sh, lo) {
+    const p = this.shotPos(sh), cam = this.cam;
     const colHex = sh.prism ? COLORS[Math.floor(this.t * 12) % COLORS.length] : COLORS[sh.c];
     if (!lo) {                                                  // light trail
       ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
@@ -846,7 +1019,7 @@ class CrystalCascade {
     // a glowing ring on the muzzle
     const mz = cam.p(...add(PIV, mul(d, 64)));
     ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.6;
-    const loadedHex = this.bonus || this.prism > 0 ? COLORS[Math.floor(this.t * 6) % COLORS.length] : COLORS[this.cur];
+    const loadedHex = this.rapid() || this.prism > 0 ? COLORS[Math.floor(this.t * 6) % COLORS.length] : COLORS[this.cur];
     ctx.drawImage(this.glow[COLORS.indexOf(loadedHex)], mz[0] - 26 * mz[2], mz[1] - 26 * mz[2], 52 * mz[2], 52 * mz[2]);
     ctx.restore();
 
@@ -856,14 +1029,15 @@ class CrystalCascade {
     const cq = cam.p(ch[0], ch[1] + LH * 0.5, ch[2]);
     if (!this.bonus) {                                          // the shot clock: a ring of light round the chamber
       const k = clamp(this.clock / this.clockMax, 0, 1), r = 17 * cq[2];
-      ctx.strokeStyle = this.shot || this.phase ? 'rgba(148,163,184,.4)' : k < 0.3 ? '#f87171' : gold ? '#fde047' : this.theme.rim;
+      const busy = this.shots.length || this.phase || this.feverT > 0 || this.freezeT > 0;
+      ctx.strokeStyle = busy ? 'rgba(148,163,184,.4)' : k < 0.3 ? '#f87171' : gold ? '#fde047' : this.theme.rim;
       ctx.lineWidth = 4; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.ellipse(cq[0], cq[1] + 4, r, r * 0.45, 0, -Math.PI / 2, -Math.PI / 2 + TAU * (this.shot || this.phase ? 1 : k)); ctx.stroke(); ctx.lineCap = 'butt';
+      ctx.beginPath(); ctx.ellipse(cq[0], cq[1] + 4, r, r * 0.45, 0, -Math.PI / 2, -Math.PI / 2 + TAU * (busy ? 1 : k)); ctx.stroke(); ctx.lineCap = 'butt';
     }
-    if (this.prism > 0 && !this.bonus) { ctx.fillStyle = '#e0f2fe'; ctx.font = '800 12px system-ui'; ctx.textAlign = 'center'; ctx.fillText('💎 PRISM ×' + this.prism, cq[0], cq[1] - 26 * cq[2]); }
+    if (this.prism > 0 && !this.rapid()) { ctx.fillStyle = '#e0f2fe'; ctx.font = '800 12px system-ui'; ctx.textAlign = 'center'; ctx.fillText('💎 PRISM ×' + this.prism, cq[0], cq[1] - 26 * cq[2]); }
 
     // the next crystal on its little stand
-    if (!this.bonus) {
+    if (!this.rapid()) {
       const np = [-66, PIV[1] - 4 - LH * 0.5, PIV[2] + 6];
       const stand = prism([np[0], np[1] - 80, np[2]], [np[0], np[1] + 6, np[2]], 9, 6);
       drawPart(ctx, cam, stand.v, stand.faces, stand.c, colour(dark), { edge: 0.15 });
@@ -880,24 +1054,35 @@ class CrystalCascade {
     if (s.state === 'title') return;
     ctx.save();
     ctx.fillStyle = 'rgba(3,2,12,.72)'; ctx.fillRect(0, 0, W, 46);
+    ctx.textBaseline = 'middle';
     if (this.bonus) {
       progressBar(ctx, 14, 13, W - 28, 20, s.bonusLeft / 20, '#fbbf24', `★ CRYSTAL RAIN · ${this.rain} shattered · ${Math.ceil(s.bonusLeft)}s`);
     } else {
-      progressBar(ctx, 14, 13, 210, 20, Math.min(1, this.shattered / this.quota), '#22d3ee', `Shards ${Math.min(this.shattered, this.quota)} / ${this.quota}`);
-      // spin direction + speed
-      const dir = this.spin >= 0 ? '⟳' : '⟲';
-      ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.font = '800 13px system-ui';
-      ctx.fillStyle = this.revWarned ? (Math.sin(this.t * 16) > 0 ? '#fde047' : '#fff') : '#cbd5e1';
-      ctx.fillText(`${dir} SPIN ${Math.abs(this.spin / 0.15).toFixed(1)}×`, W - 14, 23);
-      ctx.textAlign = 'left'; ctx.fillStyle = '#94a3b8'; ctx.font = '700 11px system-ui';
-      ctx.fillText(this.theme.name.toUpperCase(), 236, 23);
+      // geodes: ◆ filled once cracked
+      ctx.textAlign = 'left'; ctx.font = '800 11px system-ui'; ctx.fillStyle = '#fde68a'; ctx.fillText('GEODES', 14, 23);
+      for (let g = 0; g < this.geodesNeed; g++) {
+        const x = 72 + g * 20, y = 23, done = g < this.geodesNeed - this.geodesLeft;
+        ctx.beginPath(); ctx.moveTo(x, y - 8); ctx.lineTo(x + 6, y); ctx.lineTo(x, y + 8); ctx.lineTo(x - 6, y); ctx.closePath();
+        ctx.fillStyle = done ? '#fde047' : 'rgba(253,224,71,.12)'; ctx.fill(); ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 1.5; ctx.stroke();
+      }
+      // the fever bar
+      const fx = 140, fw = 180, on = this.feverT > 0;
+      progressBar(ctx, fx, 13, fw, 20, this.fever, on ? `hsl(${(this.t * 300) % 360},90%,65%)` : '#e879f9', on ? `🔥 FEVER ${Math.ceil(this.feverT)}s · ×2` : 'FEVER');
+      // spin / freeze
+      ctx.textAlign = 'right'; ctx.font = '800 13px system-ui';
+      if (this.freezeT > 0) { ctx.fillStyle = '#bae6fd'; ctx.fillText(`❄️ ${Math.ceil(this.freezeT)}s`, W - 14, 23); }
+      else {
+        ctx.fillStyle = this.revWarned ? (Math.sin(this.t * 16) > 0 ? '#fde047' : '#fff') : '#cbd5e1';
+        ctx.fillText(`${this.spin >= 0 ? '⟳' : '⟲'} ${Math.abs(this.spin / 0.17).toFixed(1)}×`, W - 14, 23);
+      }
     }
     // the rising floor: bar just under the HUD
     const k = clamp(this.pushT / this.pushEvery, 0, 1);
     ctx.fillStyle = 'rgba(255,255,255,.08)'; ctx.fillRect(0, 46, W, 4);
-    ctx.fillStyle = k > 0.85 ? '#f87171' : this.theme.rim; ctx.fillRect(0, 46, W * k, 4);
+    ctx.fillStyle = this.freezeT > 0 ? '#7dd3fc' : k > 0.85 ? '#f87171' : this.theme.rim; ctx.fillRect(0, 46, W * k, 4);
     ctx.textAlign = 'center'; ctx.font = '600 11px system-ui'; ctx.fillStyle = 'rgba(226,232,240,.5)'; ctx.textBaseline = 'alphabetic';
-    ctx.fillText(matchMedia('(pointer: coarse)').matches ? 'Drag to aim · let go to fire · tap NEXT to swap' : 'Aim with the mouse · click to fire · ← → + Space · ↑ swap', W / 2, H - 12);
+    const coarse = matchMedia('(pointer: coarse)').matches;
+    ctx.fillText(this.rapid() ? (coarse ? 'Hold to rapid-fire!' : 'Hold click or Space to rapid-fire!') : coarse ? 'Drag to aim · let go to fire · tap NEXT to swap' : 'Aim with the mouse · click to fire · ← → + Space · ↑ swap', W / 2, H - 12);
     ctx.restore();
   }
 }

@@ -346,12 +346,14 @@ export const GAMES = [
     gold: 'Golden Crystal Cannon',  // golden character — unlocked by the Golden Crown until Zone 4 has its own Legends game
     title: 'Crystal Cascade 3D',
     is3d: true,
-    tagline: 'Fire crystals down a mine shaft onto a turning platform. Match 3 to shatter them, drop the stack into cascades — and never let a column break the red laser ring.',
-    controls: 'Aim: mouse / ← → (touch: drag) · Fire: click / Space (touch: let go) · Swap: ↑ or tap NEXT',
+    tagline: 'Fire crystals down a mine shaft onto a turning platform. Match 3 to shatter, set off cascades, bombs and drills — dig down to the gold geodes and crack them open before the stack breaks the laser ring.',
+    controls: 'Aim: mouse / ← → (touch: drag) · Fire: click / Space (touch: let go) · hold fire during Fever · Swap: ↑ or tap NEXT',
     color: '#22d3ee',
     isNew: true,
     achievements: [
-      { id: 'cascade3', icon: '⛓️', title: 'Cascade',      desc: 'Set off a 3-step chain reaction' },
+      { id: 'cascade3', icon: '⛓️', title: 'Avalanche',    desc: 'Set off a 3-step chain reaction' },
+      { id: 'digger',   icon: '🪙', title: 'Gold Digger',  desc: 'Crack 10 geodes in one game' },
+      { id: 'fever',    icon: '🔥', title: 'Fever Pitch',  desc: 'Hit Crystal Fever 3 times in one game' },
       { id: 'big6',     icon: '💎', title: 'Mother Lode',  desc: 'Shatter 6 or more crystals in one group' },
       { id: 'obsidian', icon: '🪨', title: 'Rock Breaker', desc: 'Break 15 obsidian blocks in one game' },
       { id: 'dizzy',    icon: '🌀', title: 'Head Spin',    desc: 'Clear a reversing level (6+) without losing a life' },
