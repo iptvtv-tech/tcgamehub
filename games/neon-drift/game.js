@@ -10,7 +10,7 @@
 //
 //  Three laps against three rivals. Hold a turn at speed and the tail steps
 //  out: that's a DRIFT. Drift points bank when you straighten up, and every
-//  drift you chain inside the combo window raises the multiplier. Touch a wall
+//  drift you chain inside the combo window raises the multiplier. Hit a wall hard
 //  and the drift is lost. Overtakes, laps and your finishing place score too.
 //
 //    L1 top 3 to qualify   L2 oil slicks   L3 top 2   L4 ⚡ boost pads
@@ -276,7 +276,7 @@ class NeonDrift {
   get needTiltPermission() { return this.tiltDev.need; }
   calibrateTilt() { this.tiltDev.calibrate(); }
   /** -1..1 from the phone's lean: ±3° dead zone, full lock at ±20°, gentle near the middle */
-  tiltSteer() { return (this.tiltFrac = this.tiltDev.steer(3, 20, 1.4)); }
+  tiltSteer() { return (this.tiltFrac = this.tiltDev.steer(3, 24, 1.5)); }
 
   themeFor(level, bonus) { return bonus ? THEMES.gold : isIce(level) ? THEMES.ice : THEMES[STATIONS[this.station].theme]; }
 
@@ -385,7 +385,8 @@ class NeonDrift {
   // ── Input ───────────────────────────────────────────────────
   /** touch: with tilt on, the screen edges still steer and the middle is the handbrake */
   touchAt(x) {
-    if (!this.tiltOn) { this.touch = x < W / 2 ? -1 : 1; this.handTouch = false; return; }
+    // without tilt: press further out for a sharper turn, nearer the middle for a gentle one
+    if (!this.tiltOn) { const d = (x - W / 2) / (W * 0.36); this.touch = Math.sign(d) * clamp(0.45 + Math.abs(d) * 0.55, 0.45, 1); this.handTouch = false; return; }
     this.touch = x < W * 0.2 ? -1 : x > W * 0.8 ? 1 : 0;
     this.handTouch = this.touch === 0;
   }
@@ -472,24 +473,39 @@ class NeonDrift {
     }
     p.brake = hand;
     p.steer += (steerIn - p.steer) * Math.min(1, dt * 11);
+    p.lockT = Math.abs(p.steer) > 0.6 ? (p.lockT || 0) + dt : 0;
     const fx = Math.sin(p.h), fz = Math.cos(p.h), rx = fz, rz = -fx;
     let vf = p.vx * fx + p.vz * fz, vr = p.vx * rx + p.vz * rz;
-    const maxV = this.maxV * (p.offroad ? 0.5 : 1) * (p.boostT > 0 ? 1.32 : 1);
+    const maxV = this.maxV * (p.offroad ? 0.66 : 1) * (p.boostT > 0 ? 1.32 : 1);
     if (vf < maxV) vf += 520 * this.sc * dt * (1 - Math.max(0, vf) / maxV * 0.6);
     else vf -= (vf - maxV) * (p.offroad ? 3 : 1.4) * dt;
     if (hand) vf -= 240 * dt;
     // steering + the slide that turns into a drift
     const sf = clamp(vf / 220, -1, 1);
-    const wantSlide = (Math.abs(p.steer) > 0.6 && vf > maxV * 0.5) || (hand && vf > 200);
-    p.slide = clamp(p.slide + (wantSlide ? 3.6 : -2.6) * dt, 0, 1);
+    // a drift needs full lock held for a moment at speed (or the handbrake) — not just any firm turn
+    const wantSlide = (p.lockT > 0.12 && vf > maxV * 0.5) || (hand && vf > 200);
+    p.slide = clamp(p.slide + (wantSlide ? 3.6 : -3.4) * dt, 0, 1);
     if (p.spinT > 0) {
       p.spinT -= dt;
       p.h += p.spinDir * 9 * dt * Math.min(1, p.spinT / 0.5 + 0.2);
       vr *= Math.exp(-0.7 * dt);
     } else {
-      p.h += p.steer * 2.5 * (1 + p.slide * 0.58) * sf * dt;
-      const grip = (10 + (1.5 - 10) * p.slide) * this.grip;
+      p.h += p.steer * 2.2 * (1 + p.slide * 0.62) * sf * dt;
+      const grip = (10 + (2 - 10) * p.slide) * this.grip;
       vr *= Math.exp(-grip * dt);
+      // Steering assist (makes it forgiving on keys, touch and tilt): a gentle hand on the wheel that
+      // lines the car up with the track and, near the edge, eases it back towards the middle.
+      // It never fights a deliberate drift much, and it's strongest when you're not steering.
+      if (!auto && !p.finished) {
+        const th = Math.atan2(T.tx[p.idx], T.tz[p.idx]);
+        const edge = clamp((Math.abs(p.lat) - T.halfW * 0.55) / (T.halfW * 0.6), 0, 1);
+        const want = th - Math.sign(p.lat) * edge * 0.3;
+        const e = wrapA(want - p.h);
+        if (Math.abs(e) < 0.9) {
+          const k = (Math.abs(steerIn) < 0.1 ? 2.2 : 0.9) * (1 - p.slide * 0.6) + edge * 1.4;
+          p.h += clamp(e, -0.4, 0.4) * k * dt;
+        }
+      }
     }
     vf -= Math.abs(vr) * 0.3 * dt;
     const nfx = Math.sin(p.h), nfz = Math.cos(p.h);
@@ -516,15 +532,19 @@ class NeonDrift {
       const vn = p.vx * nx + p.vz * nz;
       if (vn > 0) {
         p.vx -= nx * vn * 1.35; p.vz -= nz * vn * 1.35;
-        const k = vn > 120 ? 0.8 : 0.93; p.vx *= k; p.vz *= k;
-        if (vn > 60 && !auto && !p.finished) {
+        // glancing touches only scrub a little speed; a head-on hit still costs
+        const k = vn > 220 ? 0.82 : vn > 120 ? 0.9 : 0.97; p.vx *= k; p.vz *= k;
+        p.h += clamp(wrapA(Math.atan2(T.tx[bi], T.tz[bi]) - p.h), -0.25, 0.25) * 0.6;   // turned back along the wall
+        if (vn > 100 && !auto && !p.finished) {
           const [sx, sy] = this.scr(p.prog, p.lat + sg * CAR_R, 10);
           s.fx.burst(sx, sy, { color: this.theme.wall, count: Math.min(24, vn / 12 | 0), speed: 220 });
           s.sound.play(vn > 200 ? 'hit' : 'metal');
           if (vn > 150) s.fx.shake(Math.min(8, vn / 50), 0.2);
           p.wallHits++;
-          if (p.drift > 0 && p.driftT > 0.25) { s.fx.text(sx, sy - 40, 'DRIFT LOST', { color: '#fb7185', size: 20 }); s.resetCombo(); }
-          p.drift = 0; p.driftT = 0;
+          if (vn > 150) {                                   // a real knock ends the drift; a scrape doesn't
+            if (p.drift > 0 && p.driftT > 0.25) { s.fx.text(sx, sy - 40, 'DRIFT LOST', { color: '#fb7185', size: 20 }); s.resetCombo(); }
+            p.drift = 0; p.driftT = 0;
+          }
         }
       }
     }
