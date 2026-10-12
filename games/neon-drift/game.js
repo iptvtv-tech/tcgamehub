@@ -291,6 +291,7 @@ class NeonDrift {
     // tilt steering (phones): gamma = left/right lean, calibrated to however the player holds the phone
     this.tiltFrac = 0; this.handTouch = false;
     this.tiltDev = tilt();          // shared phone-tilt reader (asks iOS for permission on a real tap)
+    try { if (new URLSearchParams(location.search).has('nddebug')) window.__nd = this; } catch (e) { /* no window */ }   // test hook
     this.startLevel(1, false);      // the attract-mode race behind the title screen
     this.needTune = true; this.tuneT = 0;
   }
@@ -602,7 +603,9 @@ class NeonDrift {
       hand = s.input.isDown('down') || s.input.isDown('action') || this.handTouch;
     }
     p.brake = hand;
-    p.steer += (steerIn - p.steer) * Math.min(1, dt * 11);
+    // ease the wheel: turning in builds over ~0.2 s, letting go returns a little faster (keyboard taps don't snap)
+    const steerRate = Math.abs(steerIn) > Math.abs(p.steer) && Math.sign(steerIn) === Math.sign(p.steer || steerIn) ? 6.5 : 9;
+    p.steer += (steerIn - p.steer) * Math.min(1, dt * steerRate);
     p.lockT = Math.abs(p.steer) > 0.6 ? (p.lockT || 0) + dt : 0;
     const fx = Math.sin(p.h), fz = Math.cos(p.h), rx = fz, rz = -fx;
     let vf = p.vx * fx + p.vz * fz, vr = p.vx * rx + p.vz * rz;
@@ -614,14 +617,19 @@ class NeonDrift {
     const sf = clamp(vf / 220, -1, 1);
     // a drift needs full lock held for a moment at speed (or the handbrake) — not just any firm turn
     const wantSlide = (p.lockT > 0.12 && vf > maxV * 0.5) || (hand && vf > 200);
-    p.slide = clamp(p.slide + (wantSlide ? 3.6 : -3.4) * dt, 0, 1);
+    p.slide = clamp(p.slide + (wantSlide ? 2.6 : -2.2) * dt, 0, 1);
+    const sl = p.slide * p.slide * (3 - 2 * p.slide);          // smoothstep: the tail eases out and back in
     if (p.spinT > 0) {
       p.spinT -= dt;
       p.h += p.spinDir * 9 * dt * Math.min(1, p.spinT / 0.5 + 0.2);
       vr *= Math.exp(-0.7 * dt);
     } else {
-      p.h += p.steer * 2.2 * (1 + p.slide * 0.62) * sf * dt;
-      const grip = (10 + (2 - 10) * p.slide) * this.grip;
+      p.h += p.steer * 2.2 * (1 + sl * 0.62) * sf * dt;
+      let grip = (10 + (2 - 10) * sl) * this.grip;
+      // D. hold the angle: past ~40° of slide the tyres bite progressively, so a drift settles into a long arc
+      //    instead of snapping round into a spin
+      const slipNow = Math.abs(Math.atan2(vr, Math.max(1, Math.abs(vf))));
+      if (slipNow > 0.7) grip += (slipNow - 0.7) * 14;
       vr *= Math.exp(-grip * dt);
       // Steering assist (makes it forgiving on keys, touch and tilt): a gentle hand on the wheel that
       // lines the car up with the track and, near the edge, eases it back towards the middle.
@@ -632,7 +640,7 @@ class NeonDrift {
         const want = th - Math.sign(p.lat) * edge * 0.3;
         const e = wrapA(want - p.h);
         if (Math.abs(e) < 0.9) {
-          const k = (Math.abs(steerIn) < 0.1 ? 2.2 : 0.9) * (1 - p.slide * 0.6) + edge * 1.4;
+          const k = (Math.abs(steerIn) < 0.1 ? 2.2 : 0.9) * (1 - sl * 0.7) + edge * 1.4;
           p.h += clamp(e, -0.4, 0.4) * k * dt;
         }
       }
@@ -683,7 +691,7 @@ class NeonDrift {
     if (auto) return;
     const spd = Math.hypot(p.vx, p.vz), slip = Math.atan2(p.vx * Math.cos(p.h) - p.vz * Math.sin(p.h), p.vx * nfx + p.vz * nfz);
     p.slip = slip;
-    const drifting = p.spinT <= 0 && !p.offroad && spd > 220 && Math.abs(slip) > 0.15;
+    const drifting = p.spinT <= 0 && !p.offroad && spd > 220 && Math.abs(slip) > (p.drifting ? 0.1 : 0.15);
     p.drifting = drifting;
     if (drifting) {
       p.drift += Math.abs(slip) * spd * dt * 0.06 * (p.boostT > 0 ? 1.5 : 1);
@@ -944,7 +952,7 @@ class NeonDrift {
       // the driver's eyes: look where the car points (so a drift swings the world round you), but never so far
       // off the road's line that it leaves the view
       const trk = at(T, d)[2];
-      const yaw = trk + clamp(wrapA(p.h - trk), -0.7, 0.7);
+      const yaw = trk + 0.75 * Math.tanh(wrapA(p.h - trk) / 0.75);      // a soft limit, not a hard stop
       c.s = d - CP_BACK;
       const ty = elev(T, d) + CP_H;
       // look up a climb / down a dip (the whole world is shifted on screen)
@@ -952,17 +960,22 @@ class NeonDrift {
       const tpy = clamp(slope * F * 0.6, -70, 70);
       // body roll into the turn, head bob on kerbs, grass, knocks and while the tail is out
       const spd = Math.hypot(p.vx, p.vz), kerb = Math.abs(p.lat) > T.halfW - 10 && spd > 120;
-      const shake = (p.offroad ? 2.4 : kerb ? 1.6 : 0) + (p.drifting ? 0.9 : 0) + (p.bumpT > 0 ? 3 * p.bumpT / 0.35 : 0) + (p.spinT > 0 ? 2 : 0);
+      // rumble (kerbs, grass) is a fast buzz; a drift is a slow sway; knocks are a short jolt
+      const rumble = p.offroad ? 2.2 : kerb ? 1.4 : 0, sway = (p.drifting ? 1.4 : 0) + (p.spinT > 0 ? 2 : 0), jolt = p.bumpT > 0 ? 3 * p.bumpT / 0.35 : 0;
       const troll = -p.steer * 0.03 - clamp(p.slip || 0, -0.6, 0.6) * 0.05;
-      if (!c.init || dt <= 0) { c.yaw = yaw; c.y = ty; c.py = tpy; c.roll = troll; c.bobX = c.bobY = 0; c.init = true; }
+      if (!c.init || dt <= 0) { c.yaw = yaw; c.y = ty; c.py = tpy; c.roll = troll; c.bobX = c.bobY = 0; c.rumble = c.sway = 0; c.init = true; }
       else {
-        c.yaw = wrapA(c.yaw + wrapA(yaw - c.yaw) * Math.min(1, dt * 14));
-        c.y += (ty - c.y) * Math.min(1, dt * 14);
+        c.yaw = wrapA(c.yaw + wrapA(yaw - c.yaw) * Math.min(1, dt * 8));
+        c.y += (ty - c.y) * Math.min(1, dt * 12);
         c.py += (tpy - c.py) * Math.min(1, dt * 4);
-        c.roll += (troll - c.roll) * Math.min(1, dt * 5);
-        const sway = spd / Math.max(1, this.maxV);
-        c.bobX = (Math.random() - 0.5) * shake;
-        c.bobY = (Math.random() - 0.5) * shake + Math.sin(this.t * 9) * 0.6 * sway;
+        c.roll += (troll - c.roll) * Math.min(1, dt * 4);
+        c.rumble += (rumble - c.rumble) * Math.min(1, dt * 10);
+        c.sway += (sway - c.sway) * Math.min(1, dt * 3);
+        const t = this.t, v = spd / Math.max(1, this.maxV);
+        // layered sines = smooth "noise": no frame-to-frame jitter
+        c.bobX = c.rumble * (0.6 * Math.sin(t * 47) + 0.4 * Math.sin(t * 71 + 1.3)) + c.sway * Math.sin(t * 2.3) * 1.2 + jolt * Math.sin(t * 38);
+        c.bobY = c.rumble * (0.6 * Math.sin(t * 53 + 0.7) + 0.4 * Math.sin(t * 89)) + c.sway * Math.sin(t * 3.1 + 0.5) * 0.8 + jolt * Math.sin(t * 43 + 2)
+          + Math.sin(t * 9) * 0.5 * v;
       }
       // put the eye at the car's real sideways position (across the road, as seen along the view direction)
       const th0 = clamp(wrapA(trk - c.yaw), -1.25, 1.25);
