@@ -492,6 +492,7 @@ class NeonDrift {
     const f = 90 + 110 * p.charge; p.vx += Math.sin(p.h) * f; p.vz += Math.cos(p.h) * f;
     const full = p.charge >= 0.999;
     p.charge = 0; p.fullShown = false;
+    p.ghostT = Math.max(p.ghostT, 2);          // boosting phases you through rival cars for 2 s
     s.fx.text(W / 2, H * 0.24, full ? 'FULL BOOST!' : 'BOOST!', { color: '#67e8f9', size: full ? 34 : 28, life: 0.8 });
     s.fx.shake(full ? 5 : 3, 0.25);
     s.fx.flash('#67e8f9', full ? 0.22 : 0.12);
@@ -872,12 +873,15 @@ class NeonDrift {
         p.x += nx * over * 0.6; p.z += nz * over * 0.6;
         const [, , , , tnx, tnz] = at(T, rv.d);
         rv.off = clamp(rv.off - (nx * tnx + nz * tnz) * over * 0.4, -T.halfW - RUNOFF + CAR_R, T.halfW + RUNOFF - CAR_R);
-        const vn = p.vx * nx + p.vz * nz;
-        if (vn < 0) { p.vx -= nx * vn * 1.2; p.vz -= nz * vn * 1.2; }
-        // rear-ended them: they get a shove, you lose a bit
+        // only take away the speed you were closing on them with (not your whole speed), so a nudge from behind
+        // leaves you running at their pace instead of stopping you dead
+        const rh = at(T, rv.d)[2], rvx = Math.sin(rh) * rv.v, rvz = Math.cos(rh) * rv.v;
+        const vn = (p.vx - rvx) * nx + (p.vz - rvz) * nz;
+        if (vn < 0) { p.vx -= nx * vn * 1.05; p.vz -= nz * vn * 1.05; }
         const fwd = p.prog < rv.d;
-        if (fwd) { rv.v += 30; p.vx *= 0.94; p.vz *= 0.94; } else rv.v *= 0.96;
         if (p.bumpT <= 0) {
+          // rear-ended them: they get a shove, you lose a little — once per knock, not every frame you touch
+          if (fwd) { rv.v += 30; p.vx *= 0.97; p.vz *= 0.97; } else rv.v *= 0.96;
           p.bumpT = 0.35; s.sound.play('metal');
           const [sx, sy] = this.scr((p.prog + rv.d) / 2, (p.lat + rv.off) / 2, 12);
           s.fx.burst(sx, sy, { color: '#fde68a', count: 10, speed: 180 });
@@ -1383,7 +1387,7 @@ class NeonDrift {
     const cx = qc[0], cy = qc[1], csc = qc[2], cz = qc[3], gy = qc[6];
     if (cx < -160 || cx > W + 160 || cy < HZ - 200 || cy > H + 200) return;
     const fog = fogAt(cz);
-    if (o.ghost && Math.sin(this.t * 40) > 0) ctx.globalAlpha = 0.45;
+    if (o.ghost) ctx.globalAlpha = this.p.ghostT > 0.5 || Math.sin(this.t * 40) > 0 ? 0.45 : 0.85;
     // shadow + underglow
     const squash = clamp((c.y - gy) / cz, 0.12, 0.9);
     ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.ellipse(cx, cy, 19 * csc, 33 * csc * squash + 1, 0, 0, TAU); ctx.fill();
@@ -1595,7 +1599,7 @@ class NeonDrift {
     // the body around the glass
     ctx.fillStyle = body;
     ctx.beginPath(); ctx.rect(-30, -30, W + 60, H + 60); glass(); ctx.fill('evenodd');
-    ctx.beginPath(); glass(); glowLine(p.ghostT > 0 && Math.sin(this.t * 30) > 0 ? '#f8fafc' : neonA, 2.2, 14);
+    ctx.beginPath(); glass(); glowLine(p.ghostT > 0 && (p.ghostT > 0.5 || Math.sin(this.t * 30) > 0) ? '#f8fafc' : neonA, 2.2, 14);
     // rear-view mirror, hanging from the roof
     this.drawMirror(ctx, neonA);
     // dashboard with a raised instrument binnacle in the middle
