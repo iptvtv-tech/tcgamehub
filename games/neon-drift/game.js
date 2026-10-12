@@ -11,7 +11,7 @@
 //  lit 3D models (assets/js/car-models.js, shared with Turbo Rush 3D), so
 //  when the tail steps out you watch your car slide sideways down the road.
 //
-//  Three laps against three rivals. Hold a turn at speed and the tail steps
+//  Three laps against five rivals. Hold a turn at speed and the tail steps
 //  out: that's a DRIFT. Drift points bank when you straighten up, and every
 //  drift you chain inside the combo window raises the multiplier. Hit a wall hard
 //  and the drift is lost. Overtakes, laps and your finishing place score too.
@@ -51,7 +51,7 @@ const CAR_U = 15;                    // world units per car-model unit (car ≈ 
 const CAR_R = 22;                    // collision radius
 const CAR_HALF = SPORTS.len * CAR_U / 2;
 const LAPS = 3;
-const PLACES = ['1st', '2nd', '3rd', '4th'];
+const PLACES = ['1st', '2nd', '3rd', '4th', '5th', '6th'];
 const wrapA = (a) => ((a + Math.PI) % TAU + TAU) % TAU - Math.PI;
 const mod = (a, n) => ((a % n) + n) % n;
 const need = (l) => (l <= 2 ? 3 : l <= 6 ? 2 : 1);
@@ -62,6 +62,8 @@ const RIVALS = [
   { name: 'VOLT',  paint: '#22d3ee', stripe: '#0e7490', glow: '#22d3ee' },
   { name: 'TOXIN', paint: '#a3e635', stripe: '#365314', glow: '#a3e635' },
   { name: 'NOVA',  paint: '#a78bfa', stripe: '#4c1d95', glow: '#c084fc' },
+  { name: 'BLAZE', paint: '#fb923c', stripe: '#7c2d12', glow: '#fb923c' },
+  { name: 'FROST', paint: '#e0f2fe', stripe: '#0369a1', glow: '#7dd3fc' },
 ];
 const THEMES = {
   synth: { key: 'synth', sky: ['#07021a', '#2a0845', '#8a1f72'], haze: '#3a1050', sun: ['#fde047', '#ff4fa3'], city: ['#2a0f45', '#12061f'], gnd: ['#0c0520', '#120829'], grid: '#c026d3',
@@ -101,7 +103,7 @@ runGame({
   music: MUSIC,
   levelInfo: (l, b) => b ? 'NEON COIN RUSH — no rivals. Drift between the coins!'
     : l === 1 ? 'Finish in the top 3. Hold a turn at full speed to DRIFT — drifting charges your ⚡ BOOST: fire it with ↑ / W or the BOOST button. Drift into a rival to spin them out!'
-    : l === 2 ? 'Oil slicks! Hit one and you spin out. Top 3 to qualify.'
+    : l === 2 ? 'Oil on a corner! Hit it and you spin out — take the bend wide. Top 3 to qualify.'
     : l === 3 ? 'Tighter track — only the top 2 qualify now.'
     : l === 4 ? 'Hit the ⚡ boost pads. Rivals are getting faster. Top 2.'
     : l === 7 ? 'From here on, ONLY A WIN COUNTS.'
@@ -323,8 +325,23 @@ class NeonDrift {
     for (let i = 0; i < nb; i++) this.boosts.push({ d: pick(0.1 + i / nb * 0.85, 0.1 + (i + 1) / nb * 0.85, straight) * T.step, off: r.range(-0.4, 0.4) * hw, cool: 0 });
     // oil slicks
     this.oils = [];
-    const no = bonus ? 0 : level >= 2 ? Math.min(8, 2 + Math.floor(level / 2)) : 0;
-    for (let i = 0; i < no; i++) this.oils.push({ d: pick(0.12, 0.95) * T.step, off: r.range(-0.6, 0.6) * hw, r: 30, blobs: [[0, 0, 1], [r.range(-14, 14), r.range(-12, 12), 0.7], [r.range(-16, 16), r.range(-14, 14), 0.55]] });
+    // only on corners: 1 corner (L2-5), 2 (L6-11), 3 at most (L12+) — the sharpest bends, well apart, never near the start
+    const no = bonus || level < 2 ? 0 : level < 6 ? 1 : level < 12 ? 2 : 3;
+    const bends = [];
+    for (let i = 0; i < T.N; i++) {
+      const a = Math.abs(T.k[i]);
+      if (a > 0.002 && a >= Math.abs(T.k[(i + 1) % T.N]) && a >= Math.abs(T.k[(i - 1 + T.N) % T.N]) && i > T.N * 0.1 && i < T.N * 0.94) bends.push(i);
+    }
+    bends.sort((a, b) => Math.abs(T.k[b]) - Math.abs(T.k[a]));
+    const used = [];
+    for (const i of bends) {
+      if (used.length >= no) break;
+      if (used.some((j) => Math.min(Math.abs(i - j), T.N - Math.abs(i - j)) < T.N / 6)) continue;
+      used.push(i);
+      // just before the apex, on the inside half (where the rivals cut the corner) — go wide to miss it
+      const side = -Math.sign(T.k[i]);
+      this.oils.push({ d: (i - 2) * T.step, off: side * r.range(0.2, 0.5) * hw, r: 30, blobs: [[0, 0, 1], [r.range(-14, 14), r.range(-12, 12), 0.7], [r.range(-16, 16), r.range(-14, 14), 0.55]] });
+    }
     // coins
     this.coins = [];
     if (bonus) {
@@ -354,15 +371,15 @@ class NeonDrift {
     this.timers = []; this.skids = []; this.smoke = []; this.result = null;
     this.count = this.bonus ? 0 : 2.1; this.lastCount = 4;
     this.raceT = 0; this.finishedRivals = 0;
-    const p0 = -165, [x, z, h] = at(T, p0, 0.38 * hw);   // a car length further back than the rival ahead, so the cockpit view isn't filled by its bumper
+    const p0 = -235, [x, z, h] = at(T, p0, 0.38 * hw);   // a car length further back than the rival ahead, so the cockpit view isn't filled by its bumper
     this.p = { x, z, h, vx: 0, vz: 0, steer: 0, slide: 0, spinT: 0, spinDir: 1, boostT: 0, idx: ((Math.round(p0 / T.step) % T.N) + T.N) % T.N,
       acc: Math.round(p0 / T.step), prog: p0, lat: 0.38 * hw, lapDone: 0, wallHits: 0, drift: 0, driftT: 0, calmT: 0, offroad: false, finished: false, place: 0,
       passed: new Set(), wrongT: 0, lastProg: p0, squeal: 0, bumpT: 0, brake: false, slip: 0, charge: 0, boostMax: 1, ghostT: 0, fullShown: false };
     this.rivals = this.bonus ? [] : RIVALS.map((R, i) => {
-      const d = i < 2 ? -40 : -110, off = (i === 0 ? -0.38 : i === 1 ? 0.38 : -0.38) * hw;
+      const d = -40 - Math.floor(i / 2) * 70, off = (i % 2 ? 0.38 : -0.38) * hw;   // rows of two; the player starts behind car 3
       const [rx, rz, rh] = at(T, d, off);
       return { ...R, i, d, off, offT: off, v: 0, x: rx, z: rz, h: rh, slip: 0, spinT: 0, boostT: 0, finished: false, retarget: 1 + i * 0.4,
-        vmax: this.maxV * (0.82 + 0.025 * i + Math.min(0.07, (this.level - 1) * 0.006)), ahead: true };
+        vmax: this.maxV * (0.8 + 0.022 * ((i * 3) % 5) + Math.min(0.07, (this.level - 1) * 0.006)), ahead: true };
     });
     for (const o of this.oils) o.hit = 0;
     for (const b of this.boosts) b.cool = 0;
@@ -674,7 +691,7 @@ class NeonDrift {
       // drifting charges the boost meter (not while the boost is burning)
       if (p.boostT <= 0) {
         const seg0 = Math.floor(p.charge * 10);
-        p.charge = Math.min(1, p.charge + Math.abs(slip) * spd * dt * 0.0012);
+        p.charge = Math.min(1, p.charge + Math.abs(slip) * spd * dt * 0.003);
         const seg1 = Math.floor(p.charge * 10);
         if (seg1 > seg0 && seg1 < 10 && !s.sound.muted) s.sound.tone({ freq: s.sound.note(76 + seg1 * 2), dur: 0.07, type: 'triangle', vol: 0.06 });
         if (p.charge >= 1 && !p.fullShown) {
@@ -903,7 +920,7 @@ class NeonDrift {
       return;
     }
     this.result = 'win';
-    s.award([600, 350, 180, 0][p.place - 1] * this.level, W / 2, H * 0.34);
+    s.award(([600, 350, 180][p.place - 1] || 0) * this.level, W / 2, H * 0.34);
     if (p.place === 1) { s.unlock('winner'); if (p.wallHits === 0) s.unlock('clean'); }
     this.after(1.4, () => s.completeLevel());
   }
@@ -1652,7 +1669,7 @@ class NeonDrift {
       ctx.fillStyle = 'rgba(5,3,15,0.66)'; roundRect(ctx, 10, 10, 128, 74, 12); ctx.fill();
       ctx.textAlign = 'left';
       ctx.font = '900 34px system-ui'; ctx.fillStyle = ok ? '#a3e635' : '#fb7185'; ctx.fillText(PLACES[place - 1], 20, 46);
-      ctx.font = '800 14px system-ui'; ctx.fillStyle = '#94a3b8'; ctx.fillText('/ 4', 82, 46);
+      ctx.font = '800 14px system-ui'; ctx.fillStyle = '#94a3b8'; ctx.fillText(`/ ${this.rivals.length + 1}`, 82, 46);
       ctx.font = '700 11px system-ui'; ctx.fillStyle = '#cbd5e1'; ctx.fillText(need(this.level) === 1 ? 'MUST WIN' : `NEED TOP ${need(this.level)}`, 20, 64);
       ctx.fillStyle = th.edge; ctx.font = '800 12px system-ui'; ctx.fillText(`LAP ${Math.min(LAPS, p.lapDone + 1)}/${LAPS}`, 20, 78);
       const tt = this.raceT; ctx.fillStyle = '#94a3b8'; ctx.font = '700 11px system-ui'; ctx.textAlign = 'right';
