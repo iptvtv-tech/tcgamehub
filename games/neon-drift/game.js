@@ -1292,27 +1292,44 @@ class NeonDrift {
     };
     ctx.save();
     ctx.translate(c.bobX * 0.3, c.bobY * 0.35);      // the cabin shakes a little less than your head
-    // roof
-    ctx.fillStyle = body;
-    ctx.beginPath(); ctx.moveTo(-10, -10); ctx.lineTo(W + 10, -10); ctx.lineTo(W + 10, 30); ctx.quadraticCurveTo(W / 2, 54, -10, 30); ctx.closePath(); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(-10, 30); ctx.quadraticCurveTo(W / 2, 54, W + 10, 30); glowLine(neonA, 2.2, 12);
-    // A-pillars
-    for (const sg of [-1, 1]) {
-      const x0 = sg < 0 ? -10 : W + 10, xi = sg < 0 ? 44 : W - 44, xb = sg < 0 ? 16 : W - 16;
-      ctx.fillStyle = body;
-      ctx.beginPath(); ctx.moveTo(x0, 20); ctx.lineTo(xi, 30); ctx.lineTo(xb, 520); ctx.lineTo(x0, 560); ctx.closePath(); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(xi, 32); ctx.lineTo(xb, 518); glowLine(neonB, 1.6, 10);
+    // the windscreen: one wide curved pane, edge to edge — the roof bows up in the middle, the dash dips
+    // below it, the corners are rounded and the side pillars are just a slim rim
+    const glass = () => {
+      const lt = 14, lb = 5, rt = W - 14, rb = W - 5, top = 62, topC = 12, bot = 532, botC = 600, r = 30;
+      ctx.moveTo(lt + r, top);
+      ctx.quadraticCurveTo(W / 2, 2 * topC - top, rt - r, top);
+      ctx.quadraticCurveTo(rt, top, rt + (rb - rt) * 0.06, top + r);
+      ctx.lineTo(rb, bot - r);
+      ctx.quadraticCurveTo(rb, bot, rb - r, bot + 4);
+      ctx.quadraticCurveTo(W / 2, 2 * botC - bot, lb + r, bot + 4);
+      ctx.quadraticCurveTo(lb, bot, lb, bot - r);
+      ctx.lineTo(lt + (lb - lt) * 0.06, top + r);
+      ctx.quadraticCurveTo(lt, top, lt + r, top);
+      ctx.closePath();
+    };
+    // a faint sheen across the glass
+    if (!lo) {
+      ctx.save(); ctx.beginPath(); glass(); ctx.clip();
+      const sh = ctx.createLinearGradient(0, 60, W, 420);
+      sh.addColorStop(0.18, 'rgba(255,255,255,0)'); sh.addColorStop(0.3, 'rgba(255,255,255,0.05)'); sh.addColorStop(0.38, 'rgba(255,255,255,0)');
+      sh.addColorStop(0.62, 'rgba(255,255,255,0)'); sh.addColorStop(0.68, 'rgba(255,255,255,0.03)'); sh.addColorStop(0.74, 'rgba(255,255,255,0)');
+      ctx.fillStyle = sh; ctx.fillRect(0, 0, W, H);
+      ctx.restore();
     }
+    // the body around the glass
+    ctx.fillStyle = body;
+    ctx.beginPath(); ctx.rect(-30, -30, W + 60, H + 60); glass(); ctx.fill('evenodd');
+    ctx.beginPath(); glass(); glowLine(neonA, 2.2, 14);
     // rear-view mirror, hanging from the roof
     this.drawMirror(ctx, neonA);
     // dashboard with a raised instrument binnacle in the middle
     const dash = () => {
       ctx.beginPath();
-      ctx.moveTo(-10, 548); ctx.quadraticCurveTo(W * 0.16, 560, W * 0.27, 588);
+      ctx.moveTo(-10, 536); ctx.quadraticCurveTo(W * 0.15, 556, W * 0.27, 588);
       ctx.bezierCurveTo(W * 0.31, 548, W * 0.69, 548, W * 0.73, 588);
-      ctx.quadraticCurveTo(W * 0.84, 560, W + 10, 548);
+      ctx.quadraticCurveTo(W * 0.85, 556, W + 10, 536);
     };
-    const dg = ctx.createLinearGradient(0, 548, 0, H);
+    const dg = ctx.createLinearGradient(0, 536, 0, H);
     dg.addColorStop(0, body2); dg.addColorStop(1, body);
     ctx.fillStyle = dg; dash(); ctx.lineTo(W + 10, H + 10); ctx.lineTo(-10, H + 10); ctx.closePath(); ctx.fill();
     dash(); glowLine(neonB, 2.4, 14);
@@ -1359,7 +1376,7 @@ class NeonDrift {
   /** rear-view mirror: a dark glimpse of the road behind with the headlights of anyone chasing you */
   drawMirror(ctx, neonA) {
     const p = this.p, mw = 156, mh = 36, mx = W / 2 - mw / 2, my = 40, hzY = my + 14;
-    ctx.fillStyle = '#0d0818'; ctx.fillRect(W / 2 - 3, 28, 6, 14);
+    ctx.fillStyle = '#0d0818'; ctx.fillRect(W / 2 - 3, 6, 6, 36);
     ctx.save();
     roundRect(ctx, mx, my, mw, mh, 9); ctx.fillStyle = '#05030c'; ctx.fill();
     ctx.clip();
