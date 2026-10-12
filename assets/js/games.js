@@ -327,8 +327,8 @@ export const GAMES = [
     gold: 'Golden Racer',           // golden character unlocked by the Zone 4 egg
     title: 'Neon Drift 3D',
     is3d: true,
-    tagline: 'Chase-cam neon racing over rolling synthwave hills. Tune the radio, throw the car sideways into every bend — chain drifts for huge combos, dodge the oil and beat three rivals to the flag.',
-    controls: 'Steer: ← → or A/D · Handbrake drift: Space or ↓ (phone: tilt to steer and hold the middle to drift, or hold the left or right side)',
+    tagline: 'Neon racing from the driver\'s seat on a glowing grid circuit. Tune the radio, throw the car sideways into every bend — chain drifts for huge combos, dodge the oil and beat three rivals to the flag.',
+    controls: 'Steer: ← → or A/D · Handbrake drift: Space or ↓ · Cockpit / chase cam: C (phone: tilt to steer and hold the middle to drift, or hold the left or right side · tap VIEW to switch camera)',
     color: '#ff4fa3',
     isNew: true,
     achievements: [

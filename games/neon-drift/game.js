@@ -1,7 +1,10 @@
 // ─────────────────────────────────────────────────────────────
 //  NEON DRIFT 3D — game 21 (Zone 4 · Ultra)
-//  An OutRun-style chase-cam circuit racer. The camera sits low behind your
-//  car and the neon circuit sweeps, climbs and dips around it: the road is
+//  A neon circuit racer seen from the DRIVER'S SEAT by default: the cockpit
+//  frame, a turning wheel and a rear-view mirror stay put while the world
+//  rolls, bobs and swings round you as the tail steps out (C / the VIEW button
+//  switches to the chase cam). The track is a dark glass floor laid with a
+//  glowing grid, with light pulses racing down it towards you, and the road is
 //  drawn strip by strip from the track's real curvature and a rolling hill
 //  profile, with a synthwave sky, a city skyline that pans as you corner,
 //  light pillars, holo billboards and neon arches flying past. The cars are
@@ -34,6 +37,9 @@ const HZ = Math.round(H * 0.4);      // horizon line
 const CAM_H = 95;                    // camera height above the road
 const CAMB = 175;                    // camera distance behind the car
 const NEAR = 22;
+// cockpit camera (the default view): eye height above the road, and how far behind the car's centre the driver sits
+const CP_H = 36;
+const CP_BACK = 6;
 const PW = Math.round(TAU * F);      // width of a full 360° sky panorama
 const MAXN = 200;                    // max road samples drawn
 // track
@@ -195,6 +201,7 @@ function glowDot(ctx, x, y, r, col, a) {
   g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.globalAlpha = a; ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2); ctx.globalAlpha = 1;
 }
+function darken(h, f) { const c = rgb(h); return `rgb(${c[0] * f | 0},${c[1] * f | 0},${c[2] * f | 0})`; }
 function hexA(h, a) { const c = rgb(h); return `rgba(${c[0]},${c[1]},${c[2]},${a})`; }
 const fogCache = new Map();
 /** blend a colour towards the horizon haze (f 0..1, quantised so the strings are cached) */
@@ -257,7 +264,11 @@ class NeonDrift {
     this.s = s; this.t = 0; this.touch = 0;
     this.station = 0;
     try { const v = +localStorage.getItem('nd-station'); if (v >= 0 && v < STATIONS.length) this.station = v | 0; } catch (e) { /* storage blocked */ }
-    this.cam = { s: 0, lat: 0, yaw: 0, y: CAM_H, init: false };
+    this.cam = { s: 0, lat: 0, lz: 0, yaw: 0, y: CAM_H, py: 0, roll: 0, bobX: 0, bobY: 0, init: false, cockpit: false };
+    // camera: cockpit (default) or chase cam — C on a keyboard, the VIEW button on touch
+    this.view = 'cockpit';
+    try { if (localStorage.getItem('nd-view') === 'chase') this.view = 'chase'; } catch (e) { /* storage blocked */ }
+    addEventListener('keydown', (e) => { if (e.code === 'KeyC' && !e.repeat && !(e.target instanceof HTMLInputElement)) this.toggleView(); });
     this.v = { X: new Float32Array(MAXN + 1), Z: new Float32Array(MAXN + 1), Y: new Float32Array(MAXN + 1), TH: new Float32Array(MAXN + 1), CO: new Float32Array(MAXN + 1), SI: new Float32Array(MAXN + 1),
       CY: new Float32Array(MAXN + 1), PX: new Float32Array((MAXN + 1) * 8), PY: new Float32Array((MAXN + 1) * 8), PS: new Float32Array((MAXN + 1) * 8), OK: new Uint8Array((MAXN + 1) * 8),
       n: 0, i0: 0, bk: Array.from({ length: MAXN + 1 }, () => []), sk: Array.from({ length: MAXN + 1 }, () => []) };
@@ -287,6 +298,7 @@ class NeonDrift {
     this.calibrateTilt();
     this.T = buildTrack(r, level, bonus);
     this.theme = this.themeFor(level, bonus);
+    this.voidCol = darken(this.theme.road, 0.42);
     this.grip = isIce(level) ? 0.62 : 1;
     this.sc = Math.min(1.22, s.speed(0.022));
     this.maxV = 600 * this.sc;
@@ -318,6 +330,7 @@ class NeonDrift {
     }
     this.deco.push({ kind: 'gantry', d: 0, off: 0, n: 0 });
     this.sunYaw = T.ang[0] + 0.12;
+    this.gridOffs = [-2 / 3, -1 / 3, 0, 1 / 3, 2 / 3].map((f) => f * hw);
     this.buildMinimap();
     this.resetRace();
     if (this.needTune && !bonus && !isIce(level)) { this.needTune = false; this.tuneT = TUNE_TIME; this.dialF = STATIONS[this.station].freq; }
@@ -329,7 +342,7 @@ class NeonDrift {
     this.timers = []; this.skids = []; this.smoke = []; this.result = null;
     this.count = this.bonus ? 0 : 2.1; this.lastCount = 4;
     this.raceT = 0; this.finishedRivals = 0;
-    const p0 = -110, [x, z, h] = at(T, p0, 0.38 * hw);
+    const p0 = -165, [x, z, h] = at(T, p0, 0.38 * hw);   // a car length further back than the rival ahead, so the cockpit view isn't filled by its bumper
     this.p = { x, z, h, vx: 0, vz: 0, steer: 0, slide: 0, spinT: 0, spinDir: 1, boostT: 0, idx: ((Math.round(p0 / T.step) % T.N) + T.N) % T.N,
       acc: Math.round(p0 / T.step), prog: p0, lat: 0.38 * hw, lapDone: 0, wallHits: 0, drift: 0, driftT: 0, calmT: 0, offroad: false, finished: false, place: 0,
       passed: new Set(), wrongT: 0, lastProg: p0, squeal: 0, bumpT: 0, brake: false, slip: 0 };
@@ -369,6 +382,7 @@ class NeonDrift {
     if (i === this.station) return;
     this.station = i;
     this.theme = this.themeFor(this.level, this.bonus);
+    this.voidCol = darken(this.theme.road, 0.42);
     this.buildMinimap();
     this.s.sound.play('click');
     if (!this.s.sound.muted) this.s.sound.noise({ dur: 0.18, vol: 0.05, freq: 3200, type: 'bandpass' });
@@ -380,6 +394,15 @@ class NeonDrift {
     this.s.sound.play('powerup');
     this.s.fx.text(W / 2, H * 0.3, `📻 ${STATIONS[this.station].name}`, { color: this.theme.edge, size: 26, life: 1 });
   }
+  toggleView() {
+    this.view = this.view === 'cockpit' ? 'chase' : 'cockpit';
+    try { localStorage.setItem('nd-view', this.view); } catch (e) { /* storage blocked */ }
+    this.s.sound.play('click');
+    if (this.s.state === 'playing') this.s.fx.text(W / 2, H * 0.2, this.view === 'cockpit' ? 'COCKPIT VIEW' : 'CHASE CAM', { color: this.theme.edge, size: 22, life: 0.9 });
+    this.cam.init = false;
+    this.updateCamera(0);
+  }
+  viewButton() { return { x: W - 100, y: H - 46, w: 90, h: 34 }; }
   tuneButtons() { return STATIONS.map((_, i) => ({ x: 52 + i * 128, y: 352, w: 120, h: 74 })); }
 
   // ── Input ───────────────────────────────────────────────────
@@ -401,16 +424,21 @@ class NeonDrift {
       }
       return;
     }
-    if (a === 'press') this.touchAt(x);
+    if (a === 'press') {
+      const b = this.viewButton();
+      if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) { this.toggleView(); this.viewPress = true; return; }
+      this.touchAt(x);
+    }
+    else if (a === 'release' && this.viewPress) { this.viewPress = false; this.touch = 0; this.handTouch = false; }
     else if (a === 'release') { this.touch = 0; this.handTouch = false; }
   }
-  onPointerMove(x, y, down) { if (down && this.tuneT <= 0) this.touchAt(x); }
+  onPointerMove(x, y, down) { if (down && this.tuneT <= 0 && !this.viewPress) this.touchAt(x); }
   onLifeLost() { this.touch = 0; this.handTouch = false; this.resetRace(); }
 
   after(t, fn) { this.timers.push({ t, fn }); }
 
   /** screen position of a point on the track (for floating text etc.) */
-  scr(d, off, h = 0) { const q = this.proj(d, off, h); return q ? [q[0], q[1]] : [W / 2, H * 0.7]; }
+  scr(d, off, h = 0) { const q = this.proj(d, off, h); return q ? [q[0], q[1] + this.cam.py] : [W / 2, H * 0.55]; }
 
   // ── Simulation ──────────────────────────────────────────────
   update(dt) {
@@ -774,18 +802,50 @@ class NeonDrift {
 
   // ── Chase camera ────────────────────────────────────────────
   updateCamera(dt) {
-    const c = this.cam, T = this.T, st = this.s.state;
+    const c = this.cam, T = this.T, st = this.s.state, p = this.p;
+    const cockpit = this.view === 'cockpit' && st !== 'title';
+    if (cockpit !== c.cockpit) { c.cockpit = cockpit; c.init = false; }
     let d, lat;
     if (st === 'title' && this.rivals.length) { const rv = this.rivals[2]; d = rv.d; lat = rv.off; }
-    else { d = this.p.prog; lat = this.p.lat; }
-    const yaw = at(T, d + 40)[2], ty = Math.max(elev(T, d - CAMB), elev(T, d)) + CAM_H;
-    if (!c.init || dt <= 0) { c.yaw = yaw; c.lat = lat * 0.88; c.y = ty; c.init = true; }
-    else {
-      c.yaw = wrapA(c.yaw + wrapA(yaw - c.yaw) * Math.min(1, dt * 7));
-      c.lat += (lat * 0.88 - c.lat) * Math.min(1, dt * 6);
-      c.y += (ty - c.y) * Math.min(1, dt * 8);
+    else { d = p.prog; lat = p.lat; }
+    const k = Math.min(1, dt * 8);
+    if (cockpit) {
+      // the driver's eyes: look where the car points (so a drift swings the world round you), but never so far
+      // off the road's line that it leaves the view
+      const trk = at(T, d)[2];
+      const yaw = trk + clamp(wrapA(p.h - trk), -0.7, 0.7);
+      c.s = d - CP_BACK;
+      const ty = elev(T, d) + CP_H;
+      // look up a climb / down a dip (the whole world is shifted on screen)
+      const slope = (elev(T, d + 160) - elev(T, d - 20)) / 180;
+      const tpy = clamp(slope * F * 0.6, -70, 70);
+      // body roll into the turn, head bob on kerbs, grass, knocks and while the tail is out
+      const spd = Math.hypot(p.vx, p.vz), kerb = Math.abs(p.lat) > T.halfW - 10 && spd > 120;
+      const shake = (p.offroad ? 2.4 : kerb ? 1.6 : 0) + (p.drifting ? 0.9 : 0) + (p.bumpT > 0 ? 3 * p.bumpT / 0.35 : 0) + (p.spinT > 0 ? 2 : 0);
+      const troll = -p.steer * 0.03 - clamp(p.slip || 0, -0.6, 0.6) * 0.05;
+      if (!c.init || dt <= 0) { c.yaw = yaw; c.y = ty; c.py = tpy; c.roll = troll; c.bobX = c.bobY = 0; c.init = true; }
+      else {
+        c.yaw = wrapA(c.yaw + wrapA(yaw - c.yaw) * Math.min(1, dt * 14));
+        c.y += (ty - c.y) * Math.min(1, dt * 14);
+        c.py += (tpy - c.py) * Math.min(1, dt * 4);
+        c.roll += (troll - c.roll) * Math.min(1, dt * 5);
+        const sway = spd / Math.max(1, this.maxV);
+        c.bobX = (Math.random() - 0.5) * shake;
+        c.bobY = (Math.random() - 0.5) * shake + Math.sin(this.t * 9) * 0.6 * sway;
+      }
+      // put the eye at the car's real sideways position (across the road, as seen along the view direction)
+      const th0 = clamp(wrapA(trk - c.yaw), -1.25, 1.25);
+      c.lat = lat * Math.cos(th0); c.lz = -lat * Math.sin(th0);
+    } else {
+      const yaw = at(T, d + 40)[2], ty = Math.max(elev(T, d - CAMB), elev(T, d)) + CAM_H;
+      if (!c.init || dt <= 0) { c.yaw = yaw; c.lat = lat * 0.88; c.y = ty; c.init = true; }
+      else {
+        c.yaw = wrapA(c.yaw + wrapA(yaw - c.yaw) * Math.min(1, dt * 7));
+        c.lat += (lat * 0.88 - c.lat) * Math.min(1, dt * 6);
+        c.y += (ty - c.y) * k;
+      }
+      c.s = d - CAMB; c.lz = 0; c.py = 0; c.roll = 0; c.bobX = c.bobY = 0;
     }
-    c.s = d - CAMB;
     this.buildView();
   }
 
@@ -800,8 +860,8 @@ class NeonDrift {
       const ii = mod(i0 + k, N), th = clamp(wrapA(T.ang[ii] - c.yaw), -1.25, 1.25);
       if (k === 0) { const back = c.s - i0 * T.step; x = -Math.sin(th) * back; z = -Math.max(0.35, Math.cos(th)) * back; }
       else { const tm = (v.TH[k - 1] + th) / 2; x += Math.sin(tm) * T.step; z += Math.max(0.35, Math.cos(tm)) * T.step; }
-      v.X[k] = x; v.Z[k] = z; v.Y[k] = T.y[ii]; v.TH[k] = th; v.CO[k] = Math.cos(th); v.SI[k] = Math.sin(th);
-      v.CY[k] = z > NEAR ? HZ + (c.y - T.y[ii]) * F / z : 1e6;
+      v.X[k] = x; v.Z[k] = z - c.lz; v.Y[k] = T.y[ii]; v.TH[k] = th; v.CO[k] = Math.cos(th); v.SI[k] = Math.sin(th);
+      v.CY[k] = v.Z[k] > NEAR ? HZ + (c.y - T.y[ii]) * F / v.Z[k] : 1e6;
     }
   }
 
@@ -834,6 +894,14 @@ class NeonDrift {
   render(ctx) {
     const T = this.T, th = this.theme, lo = this.s.lowDetail, c = this.cam, v = this.v, n = v.n, N = T.N;
     if (!v.n) this.buildView();
+    const cockpit = c.cockpit;
+    // cockpit: the world tilts and bobs with the car (the cockpit frame is drawn on top, steady)
+    ctx.save();
+    if (cockpit) {
+      ctx.fillStyle = th.sky[0]; ctx.fillRect(0, 0, W, HZ);
+      ctx.fillStyle = th.gnd[0]; ctx.fillRect(0, HZ, W, H - HZ);
+      ctx.translate(W / 2 + c.bobX, HZ + c.bobY); ctx.rotate(c.roll); ctx.scale(1.04, 1.04); ctx.translate(-W / 2, -HZ + c.py);
+    }
     this.drawSky(ctx);
     const hw = T.halfW, WW = hw + RUNOFF;
     const OFFS = [-WW, -hw - 12, -hw, -hw / 3, hw / 3, hw, hw + 12, WW];
@@ -854,7 +922,7 @@ class NeonDrift {
     const add = (d, z, fn) => { const k = this.kOf(d); if (k >= 0) v.bk[k].push({ z, fn }); };
     const p = this.p, st = this.s.state, gold = this.s.gold;
     for (const rv of this.rivals) add(rv.d - CAR_HALF - 14, rv.d, () => this.drawRacer(ctx, { d: rv.d, off: rv.off, h: rv.h, pal: palette(rv.paint, { stripe: rv.stripe, glass: '#0b1222' }), glow: rv.glow, lights: { brake: rv.spinT > 0 }, roll: -rv.slip * 0.12, name: rv.name, boost: rv.boostT > 0 }));
-    if (st !== 'title') add(p.prog - CAR_HALF - 14, p.prog, () => this.drawRacer(ctx, { d: p.prog, off: p.lat, h: p.h, pal: palette(gold ? '#fbbf24' : '#f43f5e', { stripe: gold ? '#fff7ed' : '#f8fafc', glass: '#140a1a', dark: gold ? '#78350f' : '#111827' }),
+    if (st !== 'title' && !cockpit) add(p.prog - CAR_HALF - 14, p.prog, () => this.drawRacer(ctx, { d: p.prog, off: p.lat, h: p.h, pal: palette(gold ? '#fbbf24' : '#f43f5e', { stripe: gold ? '#fff7ed' : '#f8fafc', glass: '#140a1a', dark: gold ? '#78350f' : '#111827' }),
       glow: gold ? '#fde047' : '#ff4fa3', lights: { brake: p.brake }, roll: -p.steer * 0.06 - (p.slip || 0) * 0.08, name: null, boost: p.boostT > 0, player: true }));
     for (const dc of this.deco) {
       if (lo && dc.kind === 'pillar' && dc.n % 2) continue;
@@ -877,6 +945,15 @@ class NeonDrift {
       const wa = w * v.PS[a], wb = w * v.PS[b];
       ctx.beginPath(); ctx.moveTo(v.PX[a] - wa, v.PY[a]); ctx.lineTo(v.PX[a] + wa, v.PY[a]); ctx.lineTo(v.PX[b] + wb, v.PY[b]); ctx.lineTo(v.PX[b] - wb, v.PY[b]); ctx.closePath(); ctx.fill();
     };
+    const ostrip = (k, o, w) => {   // like strip() but at any sideways offset o
+      const za = v.Z[k] - o * v.SI[k], zb = v.Z[k + 1] - o * v.SI[k + 1];
+      if (za < NEAR || zb < NEAR) return;
+      const sa = F / za, sb = F / zb;
+      const xa = W / 2 + (v.X[k] + o * v.CO[k] - c.lat) * sa, ya = HZ + (c.y - v.Y[k]) * sa;
+      const xb = W / 2 + (v.X[k + 1] + o * v.CO[k + 1] - c.lat) * sb, yb = HZ + (c.y - v.Y[k + 1]) * sb;
+      const wa = Math.max(0.5, w * sa), wb = Math.max(0.5, w * sb);
+      ctx.beginPath(); ctx.moveTo(xa - wa, ya); ctx.lineTo(xa + wa, ya); ctx.lineTo(xb + wb, yb); ctx.lineTo(xb - wb, yb); ctx.closePath(); ctx.fill();
+    };
     const GOFF = [70, 170, 300, 460, 660, 900];
     for (let k = n - 1; k >= 0; k--) {
       const a = v.i0 + k, ii = mod(a, N), k1 = k + 1, yn = v.CY[k], yf = v.CY[k1];
@@ -896,13 +973,26 @@ class NeonDrift {
           ctx.stroke();
         }
         if ((a & 3) === 0) { ctx.fillStyle = hexA(th.grid, 0.5 * (1 - fg)); ctx.fillRect(0, yn - 0.5, W, Math.max(1, v.PS[P(k, 2)] * 1.6)); }
-        // run-off, asphalt, rumble kerbs
+        // run-off and the track itself: a dark glass floor with a glowing neon grid, no asphalt
         ctx.fillStyle = fogMix(th.runoff, hz, fg); band(k, 0, 7);
-        ctx.fillStyle = fogMix((a >> 1) & 1 ? th.road2 : th.road, hz, fg); band(k, 2, 5);
-        const kc = fogMix(th.kerb[((a >> 1) + tick) & 1], hz, fg);
+        ctx.fillStyle = fogMix(this.voidCol, hz, fg); band(k, 2, 5);
+        // kerbs: chasing neon blocks
+        const kc = fogMix(((a >> 1) + tick) & 1 ? th.kerb[0] : th.face, hz, fg);
         ctx.fillStyle = kc; band(k, 1, 2); band(k, 5, 6);
-        // lane dashes
-        if ((a & 3) < 2) { ctx.fillStyle = hexA(th.lane, 0.55 * (1 - fg)); strip(k, 3, 1.6); strip(k, 4, 1.6); }
+        // grid: lines along the track, plus cross lines with light pulses racing towards you
+        if (fg < 0.85) {
+          const u = mod(a * T.step + this.t * 760, 960) / 960, pulse = u < 0.14 ? 1 - u / 0.14 : 0;
+          ctx.fillStyle = hexA(th.lane, (0.5 + 0.4 * pulse) * (1 - fg));
+          for (let gi = lo ? 1 : 0; gi < 5; gi += lo ? 2 : 1) ostrip(k, this.gridOffs[gi], 1.4);
+          if ((a & 1) === 0) {
+            const ia = P(k, 2), ib = P(k, 5);
+            if (v.OK[ia] && v.OK[ib]) {
+              ctx.strokeStyle = hexA(pulse > 0 ? th.edge : th.lane, (0.42 + 0.55 * pulse) * (1 - fg));
+              ctx.lineWidth = Math.max(0.9, (2 + pulse * 2.6) * v.PS[ia]);
+              ctx.beginPath(); ctx.moveTo(v.PX[ia], v.PY[ia]); ctx.lineTo(v.PX[ib], v.PY[ib]); ctx.stroke();
+            }
+          }
+        }
         // start / finish chequers
         if (ii === 0) this.drawChequers(ctx, k, OFFS, hw);
         // glowing edge lines
@@ -927,8 +1017,30 @@ class NeonDrift {
       const items = v.bk[k];
       if (items.length) { if (items.length > 1) items.sort((x, y) => y.z - x.z); for (const it of items) it.fn(); }
     }
+    this.drawSpeedLines(ctx);
+    ctx.restore();
+    if (cockpit) this.drawCockpit(ctx);
     this.drawHud(ctx);
     if (this.tuneT > 0) this.drawTuner(ctx);
+  }
+
+  /** streaks flying out of the vanishing point when you're boosting (and faintly at top speed) */
+  drawSpeedLines(ctx) {
+    const p = this.p, st = this.s.state;
+    if (st === 'title' || this.count > 0 || this.tuneT > 0) return;
+    const spd = Math.hypot(p.vx, p.vz);
+    const inten = p.boostT > 0 ? 1 : clamp((spd / this.maxV - 0.9) * 4, 0, 0.35);
+    if (inten <= 0.02) return;
+    const n = Math.round((this.s.lowDetail ? 12 : 26) * inten), cx = W / 2, cy = HZ + 10;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * TAU, r0 = 70 + Math.random() * 120, len = 60 + Math.random() * 200 * inten;
+      const ca = Math.cos(a), sa = Math.sin(a) * 1.25;
+      ctx.strokeStyle = hexA(Math.random() < 0.3 ? this.theme.edge : '#e0f2fe', 0.18 + 0.32 * inten);
+      ctx.lineWidth = 1 + Math.random() * 1.8 * inten;
+      ctx.beginPath(); ctx.moveTo(cx + ca * r0, cy + sa * r0); ctx.lineTo(cx + ca * (r0 + len), cy + sa * (r0 + len)); ctx.stroke();
+    }
+    ctx.restore();
   }
 
   drawSky(ctx) {
@@ -1169,6 +1281,110 @@ class NeonDrift {
     ctx.fillStyle = hexA(m.c, (1 - m.life / m.max) * 0.3 * m.a * near); ctx.beginPath(); ctx.arc(q[0], q[1], Math.min(46, m.r * q[2]), 0, TAU); ctx.fill();
   }
 
+  // ── The cockpit (drawn steady on top of the moving world) ────
+  drawCockpit(ctx) {
+    const p = this.p, th = this.theme, s = this.s, lo = this.s.lowDetail, c = this.cam;
+    const neonA = s.gold ? '#fde047' : th.edge, neonB = s.gold ? '#fbbf24' : th.kerb[0];
+    const body = '#07040f', body2 = '#120a22';
+    const glowLine = (col, w, blur) => {
+      if (!lo) { ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = blur; ctx.strokeStyle = col; ctx.lineWidth = w; ctx.stroke(); ctx.restore(); }
+      else { ctx.strokeStyle = col; ctx.lineWidth = w; ctx.stroke(); }
+    };
+    ctx.save();
+    ctx.translate(c.bobX * 0.3, c.bobY * 0.35);      // the cabin shakes a little less than your head
+    // roof
+    ctx.fillStyle = body;
+    ctx.beginPath(); ctx.moveTo(-10, -10); ctx.lineTo(W + 10, -10); ctx.lineTo(W + 10, 30); ctx.quadraticCurveTo(W / 2, 54, -10, 30); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-10, 30); ctx.quadraticCurveTo(W / 2, 54, W + 10, 30); glowLine(neonA, 2.2, 12);
+    // A-pillars
+    for (const sg of [-1, 1]) {
+      const x0 = sg < 0 ? -10 : W + 10, xi = sg < 0 ? 44 : W - 44, xb = sg < 0 ? 16 : W - 16;
+      ctx.fillStyle = body;
+      ctx.beginPath(); ctx.moveTo(x0, 20); ctx.lineTo(xi, 30); ctx.lineTo(xb, 520); ctx.lineTo(x0, 560); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(xi, 32); ctx.lineTo(xb, 518); glowLine(neonB, 1.6, 10);
+    }
+    // rear-view mirror, hanging from the roof
+    this.drawMirror(ctx, neonA);
+    // dashboard with a raised instrument binnacle in the middle
+    const dash = () => {
+      ctx.beginPath();
+      ctx.moveTo(-10, 548); ctx.quadraticCurveTo(W * 0.16, 560, W * 0.27, 588);
+      ctx.bezierCurveTo(W * 0.31, 548, W * 0.69, 548, W * 0.73, 588);
+      ctx.quadraticCurveTo(W * 0.84, 560, W + 10, 548);
+    };
+    const dg = ctx.createLinearGradient(0, 548, 0, H);
+    dg.addColorStop(0, body2); dg.addColorStop(1, body);
+    ctx.fillStyle = dg; dash(); ctx.lineTo(W + 10, H + 10); ctx.lineTo(-10, H + 10); ctx.closePath(); ctx.fill();
+    dash(); glowLine(neonB, 2.4, 14);
+    // dash vents / trim strips
+    ctx.fillStyle = hexA(neonA, 0.25);
+    for (const x of [34, W - 34 - 70]) { roundRect(ctx, x, 612, 70, 5, 2.5); ctx.fill(); roundRect(ctx, x, 624, 70, 5, 2.5); ctx.fill(); }
+    // digital speed in the binnacle (full dials arrive with the HUD section)
+    const spd = Math.round(Math.hypot(p.vx, p.vz) * 0.4);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.font = '900 26px system-ui'; ctx.fillStyle = p.boostT > 0 ? '#67e8f9' : '#f8fafc';
+    if (!lo) { ctx.shadowColor = neonA; ctx.shadowBlur = 10; }
+    ctx.textAlign = 'right'; ctx.fillText(String(spd), W / 2 + 14, 592);
+    ctx.shadowBlur = 0;
+    ctx.textAlign = 'left'; ctx.font = '800 10px system-ui'; ctx.fillStyle = hexA(neonA, 0.85); ctx.fillText('KM/H', W / 2 + 18, 592);
+    this.drawWheel(ctx, neonA, neonB);
+    ctx.restore();
+  }
+
+  drawWheel(ctx, neonA, neonB) {
+    const p = this.p, cx = W / 2, cy = 722, R = 116, lo = this.s.lowDetail;
+    const ang = p.steer * 1.7 + (p.spinT > 0 ? Math.sin(this.t * 30) * 0.3 : 0);
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(ang);
+    // spokes (left, right, bottom) and hub
+    ctx.strokeStyle = '#1a1230'; ctx.lineCap = 'round'; ctx.lineWidth = 20;
+    ctx.beginPath();
+    for (const a of [-1.3, 1.3]) { ctx.moveTo(0, 0); ctx.lineTo(Math.sin(a) * R, -Math.cos(a) * R); }
+    ctx.stroke();
+    ctx.fillStyle = '#140c26'; ctx.beginPath(); ctx.arc(0, 0, 30, 0, TAU); ctx.fill();
+    ctx.strokeStyle = hexA(neonA, 0.7); ctx.lineWidth = 2; ctx.stroke();
+    ctx.font = '900 15px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = neonB; ctx.fillText('TC', 0, -10);
+    // rim
+    ctx.strokeStyle = '#0d0818'; ctx.lineWidth = 22; ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.stroke();
+    ctx.strokeStyle = '#231840'; ctx.lineWidth = 14; ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, R + 10, 0, TAU);
+    if (!lo) { ctx.shadowColor = neonA; ctx.shadowBlur = 10; }
+    ctx.strokeStyle = hexA(neonA, 0.8); ctx.lineWidth = 1.6; ctx.stroke();
+    ctx.shadowBlur = 0;
+    // top-centre marker so you can see how far the wheel is turned
+    ctx.strokeStyle = neonB; ctx.lineWidth = 14; ctx.lineCap = 'butt';
+    ctx.beginPath(); ctx.arc(0, 0, R, -Math.PI / 2 - 0.09, -Math.PI / 2 + 0.09); ctx.stroke();
+    ctx.restore();
+  }
+
+  /** rear-view mirror: a dark glimpse of the road behind with the headlights of anyone chasing you */
+  drawMirror(ctx, neonA) {
+    const p = this.p, mw = 156, mh = 36, mx = W / 2 - mw / 2, my = 40, hzY = my + 14;
+    ctx.fillStyle = '#0d0818'; ctx.fillRect(W / 2 - 3, 28, 6, 14);
+    ctx.save();
+    roundRect(ctx, mx, my, mw, mh, 9); ctx.fillStyle = '#05030c'; ctx.fill();
+    ctx.clip();
+    const g = ctx.createLinearGradient(0, my, 0, hzY); g.addColorStop(0, this.theme.sky[0]); g.addColorStop(1, this.theme.sky[2]);
+    ctx.fillStyle = g; ctx.fillRect(mx, my, mw, hzY - my);
+    ctx.fillStyle = this.voidCol; ctx.beginPath(); ctx.moveTo(W / 2 - 6, hzY); ctx.lineTo(W / 2 + 6, hzY); ctx.lineTo(W / 2 + 60, my + mh); ctx.lineTo(W / 2 - 60, my + mh); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = hexA(this.theme.edge, 0.7); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(W / 2 - 6, hzY); ctx.lineTo(W / 2 - 60, my + mh); ctx.moveTo(W / 2 + 6, hzY); ctx.lineTo(W / 2 + 60, my + mh); ctx.stroke();
+    const T = this.T;
+    for (const rv of this.rivals) {
+      let gap = p.prog - rv.d;
+      if (gap <= 30 || gap > 900) continue;
+      const sc = clamp(90 / gap, 0.08, 1.4);
+      const x = W / 2 + clamp((rv.off - p.lat) * sc * 0.5, -mw / 2 + 8, mw / 2 - 8), y = hzY + clamp(sc * 14, 1, mh - 16);
+      const sp = Math.max(1.5, 9 * sc), r = Math.max(1, 2.6 * sc);
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      glowDot(ctx, x, y, sp * 2.2, rv.glow, 0.7);
+      ctx.restore();
+      ctx.fillStyle = '#f8fafc';
+      ctx.beginPath(); ctx.arc(x - sp / 2, y, r, 0, TAU); ctx.arc(x + sp / 2, y, r, 0, TAU); ctx.fill();
+    }
+    ctx.restore();
+    roundRect(ctx, mx, my, mw, mh, 9); ctx.strokeStyle = neonA; ctx.lineWidth = 1.6; ctx.stroke();
+  }
+
   drawTuner(ctx) {
     const th = this.theme;
     ctx.save();
@@ -1230,19 +1446,30 @@ class NeonDrift {
       ctx.fillText(`${Math.floor(tt / 60)}:${(tt % 60).toFixed(1).padStart(4, '0')}`, 130, 78);
     }
     // live drift counter above the car
-    if (p.drift > 1 && p.driftT > 0.25 && this.playerScr) {
-      const [sx, sy] = this.playerScr, a = Math.min(1, p.driftT * 3);
+    if (p.drift > 1 && p.driftT > 0.25 && (this.playerScr || this.cam.cockpit)) {
+      const [sx, sy] = this.cam.cockpit ? [W / 2, HZ + 60] : this.playerScr, a = Math.min(1, p.driftT * 3);
       ctx.globalAlpha = a; ctx.textAlign = 'center';
       ctx.font = '900 13px system-ui'; ctx.fillStyle = '#fff'; ctx.fillText('DRIFT', sx, sy - 34);
       ctx.font = '900 26px system-ui'; ctx.fillStyle = s.gold ? '#fde047' : '#ff4fa3';
       ctx.fillText(`${Math.round(p.drift) * 10}${s.multiplier > 1 ? ` ×${s.multiplier}` : ''}`, sx, sy - 8);
       ctx.globalAlpha = 1;
     }
-    // speed
-    const spd = Math.hypot(p.vx, p.vz), f = clamp(spd / (this.maxV * 1.3), 0, 1);
-    ctx.fillStyle = 'rgba(5,3,15,0.6)'; roundRect(ctx, 10, H - 40, 140, 28, 10); ctx.fill();
-    progressBar(ctx, 18, H - 31, 84, 10, f, p.boostT > 0 ? '#67e8f9' : th.edge, '');
-    ctx.textAlign = 'right'; ctx.font = '900 14px system-ui'; ctx.fillStyle = '#fff'; ctx.fillText(`${Math.round(spd * 0.4)}`, 142, H - 20);
+    // speed (in the cockpit it's on the dash)
+    if (!this.cam.cockpit) {
+      const spd = Math.hypot(p.vx, p.vz), f = clamp(spd / (this.maxV * 1.3), 0, 1);
+      ctx.fillStyle = 'rgba(5,3,15,0.6)'; roundRect(ctx, 10, H - 40, 140, 28, 10); ctx.fill();
+      progressBar(ctx, 18, H - 31, 84, 10, f, p.boostT > 0 ? '#67e8f9' : th.edge, '');
+      ctx.textAlign = 'right'; ctx.font = '900 14px system-ui'; ctx.fillStyle = '#fff'; ctx.fillText(`${Math.round(spd * 0.4)}`, 142, H - 20);
+    }
+    // camera switch
+    if (this.tuneT <= 0) {
+      const b = this.viewButton(), mob = matchMedia('(pointer: coarse)').matches;
+      ctx.fillStyle = 'rgba(5,3,15,0.7)'; roundRect(ctx, b.x, b.y, b.w, b.h, 10); ctx.fill();
+      ctx.strokeStyle = hexA(th.edge, 0.7); ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '800 12px system-ui'; ctx.fillStyle = '#e2e8f0';
+      ctx.fillText(mob ? '🎥 VIEW' : '🎥 VIEW  C', b.x + b.w / 2, b.y + b.h / 2 + 1);
+      ctx.textBaseline = 'alphabetic';
+    }
     // phone controls: hint for the first few seconds, and a tilt meter while tilt is steering
     const mobile = matchMedia('(pointer: coarse)').matches;
     if (mobile && this.tuneT <= 0 && this.raceT < 6) {
