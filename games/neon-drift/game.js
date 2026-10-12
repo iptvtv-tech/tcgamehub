@@ -1333,19 +1333,87 @@ class NeonDrift {
     dg.addColorStop(0, body2); dg.addColorStop(1, body);
     ctx.fillStyle = dg; dash(); ctx.lineTo(W + 10, H + 10); ctx.lineTo(-10, H + 10); ctx.closePath(); ctx.fill();
     dash(); glowLine(neonB, 2.4, 14);
-    // dash vents / trim strips
-    ctx.fillStyle = hexA(neonA, 0.25);
-    for (const x of [34, W - 34 - 70]) { roundRect(ctx, x, 540, 70, 5, 2.5); ctx.fill(); roundRect(ctx, x, 552, 70, 5, 2.5); ctx.fill(); }
-    // digital speed in the binnacle (full dials arrive with the HUD section)
-    const spd = Math.round(Math.hypot(p.vx, p.vz) * 0.4);
-    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-    ctx.font = '900 26px system-ui'; ctx.fillStyle = p.boostT > 0 ? '#67e8f9' : '#f8fafc';
-    if (!lo) { ctx.shadowColor = neonA; ctx.shadowBlur = 10; }
-    ctx.textAlign = 'right'; ctx.fillText(String(spd), W / 2 + 14, 520);
-    ctx.shadowBlur = 0;
-    ctx.textAlign = 'left'; ctx.font = '800 10px system-ui'; ctx.fillStyle = hexA(neonA, 0.85); ctx.fillText('KM/H', W / 2 + 18, 520);
+    this.drawGauges(ctx, neonA, neonB);
     this.drawWheel(ctx, neonA, neonB);
     ctx.restore();
+  }
+
+  /** the instruments: rev counter + gear (left pod), drift meter + combo (right pod), speed and boost bar (binnacle) */
+  drawGauges(ctx, neonA, neonB) {
+    const p = this.p, s = this.s, lo = s.lowDetail, dt = Math.min(0.05, this.t - (this.gaugeT ?? this.t));
+    this.gaugeT = this.t;
+    const spd = Math.hypot(p.vx, p.vz), kmh = Math.round(spd * 0.4);
+    const pink = s.gold ? '#fde047' : '#ff4fa3', cyan = '#67e8f9';
+    const A0 = Math.PI * 0.75, SW = Math.PI * 1.5;   // dials sweep 270°, from bottom-left round to bottom-right
+    const glowOn = (col, b) => { if (!lo) { ctx.shadowColor = col; ctx.shadowBlur = b; } };
+    const glowOff = () => { ctx.shadowBlur = 0; };
+    const pod = (cx, cy, r, ring) => {
+      ctx.fillStyle = '#05030c'; ctx.beginPath(); ctx.arc(cx, cy, r + 6, 0, TAU); ctx.fill();
+      ctx.strokeStyle = hexA(ring, 0.55); ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,0.07)'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(cx, cy, r - 4, A0, A0 + SW); ctx.stroke();
+    };
+    const ticks = (cx, cy, r, n, col, red) => {
+      for (let i = 0; i <= n; i++) {
+        const f = i / n, a = A0 + f * SW, big = i % 2 === 0, r0 = r - (big ? 11 : 7);
+        ctx.strokeStyle = red != null && f >= red ? '#fb7185' : col; ctx.lineWidth = big ? 2 : 1;
+        ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0); ctx.lineTo(cx + Math.cos(a) * (r - 2), cy + Math.sin(a) * (r - 2)); ctx.stroke();
+      }
+    };
+    const needle = (cx, cy, r, a, col) => {
+      glowOn(col, 8);
+      ctx.strokeStyle = col; ctx.lineWidth = 2.6; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(cx - Math.cos(a) * 8, cy - Math.sin(a) * 8); ctx.lineTo(cx + Math.cos(a) * (r - 6), cy + Math.sin(a) * (r - 6)); ctx.stroke();
+      glowOff(); ctx.lineCap = 'butt';
+      ctx.fillStyle = '#1a1230'; ctx.beginPath(); ctx.arc(cx, cy, 5, 0, TAU); ctx.fill();
+      ctx.strokeStyle = col; ctx.lineWidth = 1.2; ctx.stroke();
+    };
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+
+    // ── left pod: rev counter with a gear readout (six "gears" spread over the speed range) ──
+    const top = this.maxV * 1.32, f = clamp(spd / top, 0, 0.999), gear = this.count > 0 || spd < 20 ? 0 : Math.floor(f * 6) + 1;
+    let rpmT = gear === 0 ? 0.12 + (this.count > 0 ? 0.25 + 0.15 * Math.sin(this.t * 22) : 0) : 0.28 + 0.68 * (f * 6 - (gear - 1));
+    if (p.drifting) rpmT = Math.min(0.98, rpmT + 0.12);          // wheelspin as the tail steps out
+    this.rpm = this.rpm == null ? rpmT : this.rpm + (rpmT - this.rpm) * Math.min(1, dt * 14);
+    const LX = 66, LY = 556, LR = 48;
+    pod(LX, LY, LR, neonA);
+    ticks(LX, LY, LR, 16, hexA(neonA, 0.8), 0.82);
+    ctx.strokeStyle = this.rpm > 0.82 ? '#fb7185' : neonA; ctx.lineWidth = 4;
+    glowOn(ctx.strokeStyle, 10); ctx.beginPath(); ctx.arc(LX, LY, LR - 4, A0, A0 + SW * this.rpm); ctx.stroke(); glowOff();
+    ctx.font = '900 22px system-ui'; ctx.fillStyle = this.rpm > 0.9 ? '#fb7185' : '#f8fafc'; ctx.fillText(gear === 0 ? 'N' : String(gear), LX, LY + 30);
+    ctx.font = '800 8px system-ui'; ctx.fillStyle = hexA(neonA, 0.8); ctx.fillText('RPM ×1000', LX, LY - 16);
+    needle(LX, LY, LR, A0 + SW * this.rpm, this.rpm > 0.82 ? '#fb7185' : '#f8fafc');
+
+    // ── right pod: drift meter — needle shows the slide angle, the arc fills with the drift you're building ──
+    const RX = W - 66, RY = 556, RR = 48, slip = clamp(p.slip || 0, -0.9, 0.9);
+    const charge = p.drift > 0 ? clamp(p.drift / 60, 0, 1) : 0;
+    this.driftArc = this.driftArc == null ? charge : this.driftArc + (charge - this.driftArc) * Math.min(1, dt * 10);
+    pod(RX, RY, RR, pink);
+    ticks(RX, RY, RR, 12, hexA(pink, 0.75));
+    if (this.driftArc > 0.01) {
+      ctx.strokeStyle = this.driftArc >= 1 ? '#fde047' : pink; ctx.lineWidth = 4;
+      glowOn(ctx.strokeStyle, 12); ctx.beginPath(); ctx.arc(RX, RY, RR - 4, A0, A0 + SW * this.driftArc); ctx.stroke(); glowOff();
+    }
+    const mult = s.multiplier || 1, hot = p.drifting;
+    ctx.font = `900 ${mult > 1 ? 20 : 16}px system-ui`; ctx.fillStyle = mult > 1 ? pink : '#cbd5e1';
+    if (hot) glowOn(pink, 12);
+    ctx.fillText(`×${mult}`, RX, RY + 30); glowOff();
+    ctx.font = '800 8px system-ui'; ctx.fillStyle = hexA(pink, 0.85); ctx.fillText(hot ? 'DRIFTING' : 'DRIFT', RX, RY - 16);
+    // slide angle: straight up = no slide, swings left/right with the tail
+    needle(RX, RY, RR, -Math.PI / 2 + slip * 1.6, hot ? pink : '#f8fafc');
+
+    // ── binnacle: digital speed and the boost bar ──
+    ctx.font = '900 26px system-ui'; ctx.fillStyle = p.boostT > 0 ? cyan : '#f8fafc';
+    glowOn(neonA, 10); ctx.textAlign = 'right'; ctx.fillText(String(kmh), W / 2 + 14, 506); glowOff();
+    ctx.textAlign = 'left'; ctx.font = '800 10px system-ui'; ctx.fillStyle = hexA(neonA, 0.85); ctx.fillText('KM/H', W / 2 + 18, 506);
+    const boostF = clamp(p.boostT / 1.4, 0, 1), segs = 10, bw = 120, bx = W / 2 - bw / 2 + 6, by = 514, sw = bw / segs;
+    for (let i = 0; i < segs; i++) {
+      const on = i < Math.ceil(boostF * segs - 0.001);
+      ctx.fillStyle = on ? cyan : 'rgba(103,232,249,0.14)';
+      if (on) glowOn(cyan, 8);
+      ctx.fillRect(bx + i * sw + 1, by, sw - 2, 6); glowOff();
+    }
+    ctx.textAlign = 'right'; ctx.font = '800 10px system-ui'; ctx.fillStyle = boostF > 0 ? cyan : hexA(cyan, 0.5);
+    ctx.fillText('⚡', bx - 3, by + 7);
   }
 
   drawWheel(ctx, neonA, neonB) {
