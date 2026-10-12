@@ -48,6 +48,7 @@ const STEP = 24;                     // track sample spacing (world units)
 const RUNOFF = 34;                   // run-off strip between the track edge and the wall
 const WALL_H = 22;
 const CAR_U = 15;                    // world units per car-model unit (car ≈ 30 wide, 58 long)
+const BOT_EASE = 0.97;                // rivals' top speed scale (dialled back ~10% overall with the catch-up and boost odds)
 const CAR_R = 22;                    // collision radius
 const CAR_HALF = SPORTS.len * CAR_U / 2;
 const LAPS = 3;
@@ -339,16 +340,56 @@ class NeonDrift {
       if (used.length >= no) break;
       if (used.some((j) => Math.min(Math.abs(i - j), T.N - Math.abs(i - j)) < T.N / 6)) continue;
       used.push(i);
-      // just before the apex, on the inside half (where the rivals cut the corner) — go wide to miss it
+      // just before the apex, on the outside half (where a drift swings wide) — tighten your line to miss it
       const side = -Math.sign(T.k[i]);
       this.oils.push({ d: (i - 2) * T.step, off: side * r.range(0.2, 0.5) * hw, r: 30, blobs: [[0, 0, 1], [r.range(-14, 14), r.range(-12, 12), 0.7], [r.range(-16, 16), r.range(-14, 14), 0.55]] });
     }
     // coins
-    this.coins = [];
+    this.coins = []; this.lines = [];
     if (bonus) {
-      for (let d = 260; d < T.L - 120; d += 300) for (let c = 0; c < 5; c++) { const dd = d + c * 42; this.coins.push({ d: dd, off: Math.sin(dd / 260) * 0.55 * hw, got: false }); }
+      for (let d = 260; d < T.L - 120; d += 300) for (let c = 0; c < 5; c++) { const dd = d + c * 42; this.coins.push({ d: dd, off: Math.sin(dd / 260) * 0.55 * hw, got: false, big: true }); }
     } else {
-      for (let l = 0; l < 3; l++) { const d0 = pick(0.15 + l * 0.27, 0.35 + l * 0.27) * T.step, ph = r.range(0, TAU); for (let c = 0; c < 5; c++) this.coins.push({ d: d0 + c * 44, off: Math.sin(ph + c * 0.7) * 0.5 * hw, got: false }); }
+      // racing-line coins: a trail of small coins through the sharpest corners — wide on the way in, clipping
+      // the inside at the apex, wide on the way out. Follow it and you've drifted the perfect line.
+      const nl = level < 4 ? 3 : 4, near = (i, j, gap) => Math.min(Math.abs(i - j), T.N - Math.abs(i - j)) < gap;
+      const corners = [];
+      for (let i = Math.floor(T.N * 0.08); i < T.N * 0.95; i++) {
+        const a = Math.abs(T.k[i]);
+        if (a > 0.0015 && a >= Math.abs(T.k[(i + 1) % T.N]) && a >= Math.abs(T.k[i - 1])) corners.push(i);
+      }
+      corners.sort((a, b) => Math.abs(T.k[b]) - Math.abs(T.k[a]));
+      const addLine = (i, oily) => {
+        const a = Math.abs(T.k[i]);
+        let ia = i, ib = i;
+        while (ia > i - 12 && Math.abs(T.k[(ia - 1 + T.N) % T.N]) > a * 0.35) ia--;
+        while (ib < i + 12 && Math.abs(T.k[(ib + 1) % T.N]) > a * 0.35) ib++;
+        const m = Math.min(10, Math.max(i - ia, ib - i) + 3), inside = Math.sign(T.k[i]);   // +k bends towards +offset
+        const len = 2 * m * T.step, nc = clamp(Math.round(len / 38), 7, 11);
+        const ln = { i, n: nc, got: 0, done: false, end: (i - m) * T.step + len + 20 };
+        this.lines.push(ln);
+        for (let c = 0; c < nc; c++) {
+          const u = c / (nc - 1);
+          // a drift arc: turn in tight on the inside, let the slide carry you across the apex and out wide on the
+          // exit — where a well-held drift naturally goes. Oily corner (the slick lies on the outside before the
+          // apex): hold the inside longer, then let it run out after the slick.
+          const e = u * u * (3 - 2 * u), lead = Math.min(1, u / 0.22);    // the first coins lead you across from mid-road
+          const arc = oily ? 0.5 - 0.75 * Math.pow(u, 1.6) : 0.5 - 1.0 * e;
+          const off = inside * (0.12 + (arc - 0.12) * lead * (2 - lead)) * hw;
+          this.coins.push({ d: (i - m) * T.step + u * len, off, got: false, line: ln });
+        }
+      };
+      const spaced = (i) => !this.lines.some((ln) => near(i, ln.i, T.N / 9));
+      for (const i of corners) {
+        if (this.lines.length >= nl) break;
+        if (!used.some((j) => near(i, j, T.N / 12)) && spaced(i)) addLine(i, false);
+      }
+      // short of lines? use the oil corners too
+      for (const i of used) if (this.lines.length < 3 && spaced(i)) addLine(i, true);
+      // plus a couple of loose coin snakes on the straights
+      for (let l = 0; l < 2; l++) {
+        const d0 = pick(0.15 + l * 0.4, 0.45 + l * 0.4, (i) => straight(i) && !this.lines.some((ln) => near(i, ln.i, T.N / 12))) * T.step, ph = r.range(0, TAU);
+        for (let c = 0; c < 5; c++) this.coins.push({ d: d0 + c * 44, off: Math.sin(ph + c * 0.7) * 0.5 * hw, got: false });
+      }
     }
     // roadside scenery (cosmetic; a fixed pattern so it doesn't touch the RNG)
     this.deco = [];
@@ -380,11 +421,12 @@ class NeonDrift {
       const d = -40 - Math.floor(i / 2) * 70, off = (i % 2 ? 0.38 : -0.38) * hw;   // rows of two; the player starts behind car 3
       const [rx, rz, rh] = at(T, d, off);
       return { ...R, i, d, off, offT: off, v: 0, x: rx, z: rz, h: rh, slip: 0, spinT: 0, boostT: 0, finished: false, retarget: 1 + i * 0.4,
-        vmax: this.maxV * (0.83 + 0.02 * ((i * 3) % 5) + Math.min(0.08, (this.level - 1) * 0.01)), ahead: true, wasBend: false };
+        vmax: this.maxV * BOT_EASE * (0.83 + 0.02 * ((i * 3) % 5) + Math.min(0.08, (this.level - 1) * 0.01)), ahead: true, wasBend: false };
     });
     for (const o of this.oils) o.hit = 0;
     for (const b of this.boosts) b.cool = 0;
     for (const c of this.coins) c.got = false;
+    for (const ln of this.lines || []) { ln.got = 0; ln.done = false; }
     this.coinsGot = 0;
     this.cam.init = false;
     this.updateCamera(0);
@@ -664,7 +706,10 @@ class NeonDrift {
     p.lat = lat;
     p.offroad = Math.abs(lat) > T.halfW;
     // the wall
-    const lim = T.halfW + RUNOFF - CAR_R * 0.7;
+    // the wall stops the car's body, not its centre: a car angled into the wall reaches further sideways
+    const rel = wrapA(p.h - Math.atan2(T.tx[bi], T.tz[bi]));
+    const reach = Math.min(CAR_HALF, 15 * Math.abs(Math.cos(rel)) + CAR_HALF * Math.abs(Math.sin(rel)));
+    const lim = T.halfW + RUNOFF - reach - 1;
     if (Math.abs(lat) > lim) {
       const sg = Math.sign(lat), push = Math.abs(lat) - lim, nx = T.nx[bi] * sg, nz = T.nz[bi] * sg;
       p.x -= nx * push; p.z -= nz * push; p.lat -= sg * push;
@@ -764,14 +809,14 @@ class NeonDrift {
     const gap = p.prog - rv.d;                       // > 0: the player is ahead of this car
     if (!auto && !this.bonus && !p.finished) {
       // the pack hunts a leader down: the further ahead you get, the harder they push (more so on later levels)
-      const maxCatch = Math.min(0.26, 0.15 + 0.015 * this.level);
+      const maxCatch = 0.9 * Math.min(0.26, 0.15 + 0.015 * this.level);
       if (gap > 80) { const u = clamp((gap - 80) / 1000, 0, 1); rb = 1 + maxCatch * u * u * (3 - 2 * u); }
       else if (gap < -700) rb = 1 - Math.min(0.05, (-gap - 700) / 8000);
     }
     const LAT = 1180 * this.sc * this.sc * rb * rb;    // pushing harder means braver cornering too
     // they drift-boost out of bends as well (more often on later levels)
     const bend = kk > 0.0028;
-    if (rv.wasBend && kk < 0.0015 && rv.spinT <= 0 && !auto && Math.random() < Math.min(0.85, 0.15 + 0.08 * this.level)) rv.boostT = Math.max(rv.boostT, 0.8);
+    if (rv.wasBend && kk < 0.0015 && rv.spinT <= 0 && !auto && Math.random() < 0.9 * Math.min(0.85, 0.15 + 0.08 * this.level)) rv.boostT = Math.max(rv.boostT, 0.8);
     if (bend) rv.wasBend = true; else if (kk < 0.0015) rv.wasBend = false;
     let target = Math.min(rv.vmax * rb * (rv.boostT > 0 ? 1.25 : 1), Math.sqrt(LAT / Math.max(kk, 1e-4)));
     if (rv.finished) target = Math.min(target, this.maxV * 0.6);
@@ -873,13 +918,30 @@ class NeonDrift {
       if (c.got) continue;
       left++;
       const [cx, cz] = at(T, c.d, c.off);
-      if (Math.hypot(p.x - cx, p.z - cz) < 30) {
+      if (Math.hypot(p.x - cx, p.z - cz) < (c.line ? 34 : 30)) {
         c.got = true; this.coinsGot++; left--;
         const [sx, sy] = this.scr(c.d, c.off, 16);
         if (this.bonus) s.award(25 * this.level, sx, sy - 16, { chain: true, color: '#fde047' });
-        else s.award(15 * this.level, sx, sy - 16, { color: '#fde047' });
-        s.sound.play('coin', Math.min(10, s.comboCount));
-        s.fx.burst(sx, sy, { color: '#fde047', count: 8, speed: 120 });
+        else s.award((c.line ? 10 : 15) * this.level, sx, sy - 16, { color: '#fde047' });
+        s.sound.play('coin', Math.min(10, c.line ? c.line.got : s.comboCount));
+        s.fx.burst(sx, sy, { color: c.line ? '#67e8f9' : '#fde047', count: c.line ? 5 : 8, speed: 120 });
+        if (c.line) c.line.got++;
+      }
+    }
+    // a corner trail is judged once you're past its last coin: all of it = perfect, all but one or two = great
+    if (!this.bonus) {
+      const pr = p.prog - p.lapDone * T.L;
+      for (const ln of this.lines) {
+        if (ln.done || pr < ln.end || pr > ln.end + 400) continue;
+        ln.done = true;
+        const miss = ln.n - ln.got;
+        if (miss > 2) continue;
+        const perfect = miss === 0;
+        s.fx.text(W / 2, H * 0.27, perfect ? 'PERFECT LINE!' : 'GREAT LINE!', { color: '#67e8f9', size: perfect ? 30 : 24, life: 1.1 });
+        s.award((perfect ? 150 : 60) * this.level, W / 2, H * 0.33, { color: '#67e8f9' });
+        if (p.boostT <= 0) p.charge = Math.min(1, p.charge + (perfect ? 0.3 : 0.12));
+        s.sound.play(perfect ? 'golden' : 'coin', 6);
+        if (perfect) s.unlock('perfectline');
       }
     }
     if (this.bonus && left === 0 && this.coins.length) {
@@ -897,6 +959,8 @@ class NeonDrift {
     if (!p.finished && lapDone > p.lapDone) {
       p.lapDone = lapDone; p.passed.clear();
       if (lapDone >= LAPS) return this.finish();
+      for (const c of this.coins) if (c.line) c.got = false;
+      for (const ln of this.lines || []) { ln.got = 0; ln.done = false; }
       s.award(80 * this.level, W / 2, H * 0.3);
       s.fx.text(W / 2, H * 0.24, lapDone === LAPS - 1 ? 'FINAL LAP!' : `LAP ${lapDone + 1} / ${LAPS}`, { color: this.theme.edge, size: 34, life: 1.2 });
       s.sound.play('golden');
@@ -1097,16 +1161,42 @@ class NeonDrift {
     const tick = Math.floor(this.t * 7);
     const P = (k, j) => k * 8 + j;
     const quad = (ia, ib, ic, id) => { ctx.beginPath(); ctx.moveTo(v.PX[ia], v.PY[ia]); ctx.lineTo(v.PX[ib], v.PY[ib]); ctx.lineTo(v.PX[ic], v.PY[ic]); ctx.lineTo(v.PX[id], v.PY[id]); ctx.closePath(); ctx.fill(); };
-    const band = (k, j1, j2) => { const a = P(k, j1), b = P(k, j2), cc = P(k + 1, j2), d = P(k + 1, j1); if (v.OK[a] && v.OK[b] && v.OK[cc] && v.OK[d]) quad(a, b, cc, d); };
+    // a point on the road in camera space: row k, sideways offset o, height h → [x across, y down from the eye, z ahead]
+    const cpt = (k, o, h = 0) => [v.X[k] + o * v.CO[k] - c.lat, c.y - v.Y[k] - h, v.Z[k] - o * v.SI[k]];
+    // fill a polygon given in camera space, cut at the near plane (so a surface right in front of the
+    // lens is trimmed, never dropped whole — that's what made corners and walls vanish)
+    const CLIP = [];
+    const cfill = (pts) => {
+      let any = false; for (const q of pts) if (q[2] >= NEAR) { any = true; break; }
+      if (!any) return;
+      CLIP.length = 0;
+      for (let i = 0; i < pts.length; i++) {
+        const a = pts[i], b = pts[(i + 1) % pts.length], ina = a[2] >= NEAR, inb = b[2] >= NEAR;
+        if (ina) CLIP.push(a);
+        if (ina !== inb) { const t = (NEAR - a[2]) / (b[2] - a[2]); CLIP.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, NEAR]); }
+      }
+      if (CLIP.length < 3) return;
+      ctx.beginPath();
+      for (let i = 0; i < CLIP.length; i++) {
+        const q = CLIP[i], sc = F / q[2], x = clamp(W / 2 + q[0] * sc, -4 * W, 5 * W), y = clamp(HZ + q[1] * sc, -4 * H, 5 * H);
+        if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+      }
+      ctx.closePath(); ctx.fill();
+    };
+    const band = (k, j1, j2) => {
+      const a = P(k, j1), b = P(k, j2), cc = P(k + 1, j2), d = P(k + 1, j1);
+      if (v.OK[a] && v.OK[b] && v.OK[cc] && v.OK[d]) quad(a, b, cc, d);
+      else cfill([cpt(k, OFFS[j1]), cpt(k, OFFS[j2]), cpt(k + 1, OFFS[j2]), cpt(k + 1, OFFS[j1])]);
+    };
     const strip = (k, j, w) => {   // a thin line of constant world width along the road at cross-point j
       const a = P(k, j), b = P(k + 1, j);
-      if (!v.OK[a] || !v.OK[b]) return;
+      if (!v.OK[a] || !v.OK[b]) { const o = OFFS[j]; cfill([cpt(k, o - w), cpt(k, o + w), cpt(k + 1, o + w), cpt(k + 1, o - w)]); return; }
       const wa = w * v.PS[a], wb = w * v.PS[b];
       ctx.beginPath(); ctx.moveTo(v.PX[a] - wa, v.PY[a]); ctx.lineTo(v.PX[a] + wa, v.PY[a]); ctx.lineTo(v.PX[b] + wb, v.PY[b]); ctx.lineTo(v.PX[b] - wb, v.PY[b]); ctx.closePath(); ctx.fill();
     };
     const ostrip = (k, o, w) => {   // like strip() but at any sideways offset o
       const za = v.Z[k] - o * v.SI[k], zb = v.Z[k + 1] - o * v.SI[k + 1];
-      if (za < NEAR || zb < NEAR) return;
+      if (za < NEAR || zb < NEAR) { cfill([cpt(k, o - w), cpt(k, o + w), cpt(k + 1, o + w), cpt(k + 1, o - w)]); return; }
       const sa = F / za, sb = F / zb;
       const xa = W / 2 + (v.X[k] + o * v.CO[k] - c.lat) * sa, ya = HZ + (c.y - v.Y[k]) * sa;
       const xb = W / 2 + (v.X[k + 1] + o * v.CO[k + 1] - c.lat) * sb, yb = HZ + (c.y - v.Y[k + 1]) * sb;
@@ -1116,12 +1206,16 @@ class NeonDrift {
     const GOFF = [70, 170, 300, 460, 660, 900];
     for (let k = n - 1; k >= 0; k--) {
       const a = v.i0 + k, ii = mod(a, N), k1 = k + 1, yn = v.CY[k], yf = v.CY[k1];
-      if (v.Z[k] > NEAR && v.Z[k1] > NEAR && yf < yn && yf < H + 40) {
-        const fg = fogAt(v.Z[k]), hz = th.haze;
+      const inFront = v.Z[k] > NEAR && v.Z[k1] > NEAR;
+      // a row the near plane cuts through: draw whatever part of it is in front of the lens
+      let straddle = false;
+      if (!inFront && k < 12) for (let j = 0; j < 8; j++) if (v.OK[P(k, j)] || v.OK[P(k1, j)]) { straddle = true; break; }
+      if ((inFront && yf < yn && yf < H + 40) || straddle) {
+        const fg = fogAt(Math.max(NEAR, v.Z[k])), hz = th.haze;
         // ground band + neon floor grid
         ctx.fillStyle = fogMix(th.gnd[(a >> 2) & 1], hz, fg);
-        ctx.fillRect(0, Math.floor(yf), W, Math.ceil(yn - yf) + 1);
-        if (!lo) {
+        if (inFront) ctx.fillRect(0, Math.floor(yf), W, Math.ceil(yn - yf) + 1);
+        if (!lo && inFront) {
           ctx.strokeStyle = hexA(th.grid, 0.42 * (1 - fg)); ctx.lineWidth = 1; ctx.beginPath();
           for (const g of GOFF) for (const sg of [-1, 1]) {
             const o = sg * (WW + g), zn = v.Z[k] - o * v.SI[k], zf = v.Z[k1] - o * v.SI[k1];
@@ -1131,7 +1225,7 @@ class NeonDrift {
           }
           ctx.stroke();
         }
-        if ((a & 3) === 0) { ctx.fillStyle = hexA(th.grid, 0.5 * (1 - fg)); ctx.fillRect(0, yn - 0.5, W, Math.max(1, v.PS[P(k, 2)] * 1.6)); }
+        if ((a & 3) === 0 && inFront) { ctx.fillStyle = hexA(th.grid, 0.5 * (1 - fg)); ctx.fillRect(0, yn - 0.5, W, Math.max(1, v.PS[P(k, 2)] * 1.6)); }
         // run-off and the track itself: a dark glass floor with a glowing neon grid, no asphalt
         ctx.fillStyle = fogMix(th.runoff, hz, fg); band(k, 0, 7);
         ctx.fillStyle = fogMix(this.voidCol, hz, fg); band(k, 2, 5);
@@ -1163,7 +1257,15 @@ class NeonDrift {
         const tight = Math.abs(T.k[ii]) > 0.0034, outside = T.k[ii] > 0 ? 0 : 7;
         for (const j of [0, 7]) {
           const ia = P(k, j), ib = P(k1, j);
-          if (!v.OK[ia] || !v.OK[ib]) continue;
+          if (!v.OK[ia] || !v.OK[ib]) {
+            // the wall right beside / in front of you: clip it at the lens instead of letting it vanish
+            const o = OFFS[j];
+            ctx.fillStyle = fogMix(tight && j === outside && (a & 1) ? th.kerb[0] : th.face, hz, fg);
+            cfill([cpt(k, o), cpt(k1, o), cpt(k1, o, WALL_H), cpt(k, o, WALL_H)]);
+            ctx.fillStyle = fogMix(th.wall, hz, fg * 0.6);
+            cfill([cpt(k, o, WALL_H - 2.6), cpt(k1, o, WALL_H - 2.6), cpt(k1, o, WALL_H + 2.6), cpt(k, o, WALL_H + 2.6)]);
+            continue;
+          }
           const ta = v.PY[ia] - WALL_H * v.PS[ia], tb = v.PY[ib] - WALL_H * v.PS[ib];
           ctx.fillStyle = fogMix(tight && j === outside && (a & 1) ? th.kerb[0] : th.face, hz, fg);
           ctx.beginPath(); ctx.moveTo(v.PX[ia], v.PY[ia]); ctx.lineTo(v.PX[ib], v.PY[ib]); ctx.lineTo(v.PX[ib], tb); ctx.lineTo(v.PX[ia], ta); ctx.closePath(); ctx.fill();
@@ -1438,10 +1540,16 @@ class NeonDrift {
   drawCoin(ctx, cn) {
     const bob = Math.sin(this.t * 4 + cn.d) * 3, q = this.proj(cn.d, cn.off, 16 + bob);
     if (!q || q[0] < -30 || q[0] > W + 30) return;
-    const r = 11 * q[2], sp = Math.abs(Math.cos(this.t * 3 + cn.d * 0.02));
-    if (!this.s.lowDetail) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; glowDot(ctx, q[0], q[1], r * 2.6, '#fbbf24', 0.45); ctx.restore(); }
-    ctx.fillStyle = '#b45309'; ctx.beginPath(); ctx.ellipse(q[0], q[1], Math.max(1.5, r * sp), r, 0, 0, TAU); ctx.fill();
-    ctx.fillStyle = '#fde047'; ctx.beginPath(); ctx.ellipse(q[0] - r * 0.12 * sp, q[1], Math.max(1, r * 0.8 * sp), r * 0.8, 0, 0, TAU); ctx.fill();
+    // a coin you've missed fades out before it reaches the lens instead of filling the windscreen
+    const fade = clamp((q[3] - 60) / 110, 0, 1);
+    if (fade <= 0) return;
+    const r = (cn.big ? 11 : 7) * q[2], sp = Math.abs(Math.cos(this.t * 3 + cn.d * 0.02));
+    ctx.save(); ctx.globalAlpha = fade;
+    if (!this.s.lowDetail) { ctx.globalCompositeOperation = 'lighter'; glowDot(ctx, q[0], q[1], Math.min(r * (cn.line ? 3.2 : 2.6), 90), cn.line ? '#22d3ee' : '#fbbf24', (cn.line ? 0.6 : 0.45) * fade); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = fade; }
+    // trail coins: a cyan rim so the line through the corner reads at a glance
+    ctx.fillStyle = cn.line ? '#22d3ee' : '#b45309'; ctx.beginPath(); ctx.ellipse(q[0], q[1], Math.max(1.5, r * sp), r, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#fde047'; ctx.beginPath(); ctx.ellipse(q[0] - r * 0.12 * sp, q[1], Math.max(1, r * 0.72 * sp), r * 0.72, 0, 0, TAU); ctx.fill();
+    ctx.restore();
   }
   drawSmoke(ctx, m) {
     const q = this.proj(m.d, m.off, m.y); if (!q || q[3] < 110) return;

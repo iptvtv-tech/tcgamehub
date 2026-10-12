@@ -339,6 +339,7 @@ export const GAMES = [
       { id: 'drift3s',  icon: '💨', title: 'Sideways',        desc: 'Hold one drift for 3 seconds' },
       { id: 'fullboost', icon: '⚡', title: 'Overcharged',    desc: 'Fire a FULL drift boost' },
       { id: 'spinout',  icon: '🌀', title: 'Tail Whip',       desc: 'Drift into a rival and spin them out' },
+      { id: 'perfectline', icon: '〰️', title: 'Perfect Line', desc: 'Collect every coin in a corner trail' },
       { id: 'hattrick', icon: '🏎️', title: 'Hat-Trick',       desc: 'Overtake three rivals in one lap' },
       { id: 'winner',   icon: '🏁', title: 'Chequered Flag',  desc: 'Win a race' },
       { id: 'clean',    icon: '✨', title: 'Clean Line',      desc: 'Win a race without touching a wall' },
