@@ -19,7 +19,8 @@
 //    L1 top 3 to qualify   L2 oil slicks   L3 top 2   L4 ⚡ boost pads
 //    L7+ only a win counts  L8, L14, L20 black ice (less grip)
 //  Every 5th level: ★ NEON COIN RUSH — no rivals, grab the coins.
-//  At the start of a run you tune the car radio: the station picks the
+//  At the start of a run you tune the car radio: each station plays its own
+//  original synthwave track (synthesised live) and picks the
 //  colour scheme for the run (purely cosmetic).
 //  Each race track and its hills are built from the seeded RNG, so the Daily
 //  Challenge circuit is the same for everyone.
@@ -74,11 +75,17 @@ const THEMES = {
   gold:  { key: 'gold', sky: ['#0c0601', '#3a2205', '#a8740c'], haze: '#3d2a08', sun: ['#fff7ed', '#fbbf24'], city: ['#3a2808', '#1a1004'], gnd: ['#140c03', '#1c1206'], grid: '#eab308',
     road: '#2a2112', road2: '#342818', runoff: '#1a1208', edge: '#fde047', kerb: ['#fbbf24', '#fff7ed'], wall: '#fbbf24', face: '#33240a', lane: '#fde68a', sign: ['#fde047', '#fbbf24', '#fff7ed'] },
 };
+// each station plays its own original synthwave track (synthesised live — see audio.js 'synth' kit)
 const STATIONS = [
-  { name: 'SYNTH FM', freq: 88.1, theme: 'synth' },
-  { name: 'TOXIC WAVE', freq: 94.7, theme: 'toxic' },
-  { name: 'EMBER RADIO', freq: 101.3, theme: 'ember' },
+  { name: 'SYNTH FM', freq: 88.1, theme: 'synth',
+    music: { bpm: 124, style: 'outrun', lead: 'sawtooth', kit: 'synth', arp: [0, 1, 2, 4, 2, 1, 3, 1], oct: [12, 12, 12, 12, 12, 12, 12, 12], hook: [2, 1, 0, 1, 4, 2, 1, null] } },
+  { name: 'TOXIC WAVE', freq: 94.7, theme: 'toxic',
+    music: { bpm: 134, style: 'toxic', lead: 'square', kit: 'synth', arp: [0, 2, 4, 2, 1, 3, 4, 3], oct: [12, 12, 12, 12, 12, 12, 24, 12], hook: [0, null, 2, 1, 0, null, 4, 2] } },
+  { name: 'EMBER RADIO', freq: 101.3, theme: 'ember',
+    music: { bpm: 112, style: 'neon', lead: 'triangle', kit: 'synth', arp: [0, 1, 2, 3, 4, 3, 2, 1], oct: [12, 12, 12, 12, 12, 12, 12, 12], hook: [4, 2, 3, 1, 2, 0, 1, null] } },
 ];
+/** the def's music object — the engine (re)starts music from it, so switching station rewrites it in place */
+const MUSIC = { ...STATIONS[0].music };
 const SIGNS = ['NEON', 'DRIFT', 'TC', 'ULTRA', 'TURBO', 'GO!', 'ZONE 4', 'FULL SEND'];
 const TUNE_TIME = 7;
 
@@ -91,7 +98,7 @@ runGame({
   maxMultiplier: 6,
   bonusTime: 25,
   detail: true,
-  music: { bpm: 140, style: 'chase', lead: 'sawtooth', arp: [0, 2, 4, 2, 1, 3, 4, 3], oct: [12, 12, 24, 12, 12, 12, 24, 12], bass: 'drive' },
+  music: MUSIC,
   levelInfo: (l, b) => b ? 'NEON COIN RUSH — no rivals. Drift between the coins!'
     : l === 1 ? 'Finish in the top 3. Hold a turn at full speed to DRIFT — drifting charges your ⚡ BOOST: fire it with ↑ / W or the BOOST button. Drift into a rival to spin them out!'
     : l === 2 ? 'Oil slicks! Hit one and you spin out. Top 3 to qualify.'
@@ -267,6 +274,8 @@ class NeonDrift {
     this.s = s; this.t = 0; this.touch = 0;
     this.station = 0;
     try { const v = +localStorage.getItem('nd-station'); if (v >= 0 && v < STATIONS.length) this.station = v | 0; } catch (e) { /* storage blocked */ }
+    Object.assign(MUSIC, STATIONS[this.station].music);
+    this.sfx = null;                // continuous sounds (squeal, engine, afterburner), made on first use
     this.cam = { s: 0, lat: 0, lz: 0, yaw: 0, y: CAM_H, py: 0, roll: 0, bobX: 0, bobY: 0, init: false, cockpit: false };
     // camera: cockpit (default) or chase cam — C on a keyboard, the VIEW button on touch
     this.view = 'cockpit';
@@ -384,6 +393,10 @@ class NeonDrift {
     i = mod(i, STATIONS.length);
     if (i === this.station) return;
     this.station = i;
+    // retune: the new station's track takes over (with a burst of static from the dial)
+    Object.assign(MUSIC, STATIONS[i].music);
+    const snd = this.s.sound;
+    if (snd.musicPlaying) { snd.startMusic(MUSIC); snd.setTempo(MUSIC.bpm * Math.min(1.45, 1 + (this.level - 1) * 0.025)); }
     this.theme = this.themeFor(this.level, this.bonus);
     this.voidCol = darken(this.theme.road, 0.42);
     this.buildMinimap();
@@ -422,10 +435,49 @@ class NeonDrift {
     s.fx.text(W / 2, H * 0.24, full ? 'FULL BOOST!' : 'BOOST!', { color: '#67e8f9', size: full ? 34 : 28, life: 0.8 });
     s.fx.shake(full ? 5 : 3, 0.25);
     s.fx.flash('#67e8f9', full ? 0.22 : 0.12);
-    s.sound.play('powerup');
-    if (!s.sound.muted) s.sound.noise({ dur: 0.6, vol: 0.12, freq: 600, to: 3200, type: 'bandpass' });
+    this.boostSound(full);
     if (full) s.unlock('fullboost');
   }
+  /** the boost going off: a rushing whoosh, a low thump, a zap and a spray of electric crackles */
+  boostSound(full) {
+    const snd = this.s.sound;
+    if (snd.muted) return;
+    snd.noise({ dur: full ? 0.9 : 0.7, vol: 0.16, freq: 350, to: 3800, type: 'bandpass' });
+    snd.tone({ freq: 95, to: 38, dur: 0.35, type: 'sine', vol: 0.3 });
+    snd.tone({ freq: 1400, to: 180, dur: 0.18, type: 'sawtooth', vol: 0.06 });
+    const n = full ? 18 : 11;
+    for (let i = 0; i < n; i++) {
+      const d = Math.random() * (full ? 0.7 : 0.5);
+      snd.noise({ dur: 0.02 + Math.random() * 0.025, vol: 0.05 + Math.random() * 0.08, freq: 3500 + Math.random() * 5000, type: 'highpass', delay: d, pan: Math.random() * 1.4 - 0.7 });
+    }
+    if (full) [0, 7, 12, 19].forEach((st, i) => snd.tone({ freq: snd.note(76 + st), dur: 0.1, type: 'square', vol: 0.05, delay: 0.05 + i * 0.045 }));
+  }
+
+  /** continuous car sounds, steered every frame: engine drone (follows the rev counter), tyre squeal that climbs
+   *  in pitch the longer a drift holds, and the afterburner roar while boosting */
+  carAudio() {
+    const snd = this.s.sound, p = this.p;
+    if (snd.muted || this.s.state !== 'playing' || this.tuneT > 0) return;
+    if (!this.sfx) this.sfx = {
+      engine: snd.voice({ type: 'sawtooth', filter: 'lowpass', q: 3 }),
+      engine2: snd.voice({ type: 'square', filter: 'lowpass', q: 1 }),
+      squeal: snd.voice({ type: 'sawtooth', noise: true, filter: 'bandpass', q: 9 }),
+      roar: snd.voice({ type: null, noise: true, filter: 'lowpass', q: 1 }),
+    };
+    const spd = Math.hypot(p.vx, p.vz), f = clamp(spd / (this.maxV * 1.32), 0, 0.999);
+    const gear = Math.floor(f * 6), rev = this.count > 0 ? 0.15 + 0.2 * Math.abs(Math.sin(this.t * 6)) : 0.25 + 0.75 * (f * 6 - gear) + (p.drifting ? 0.12 : 0);
+    const hz = 46 + rev * 95 + gear * 6;
+    const loud = this.cam.cockpit ? 1 : 0.7;
+    this.sfx.engine.set({ freq: hz, vol: 0.032 * loud, cutoff: 380 + rev * 900 + (p.boostT > 0 ? 500 : 0) });
+    this.sfx.engine2.set({ freq: hz * 2.01, vol: 0.01 * loud, cutoff: 700 + rev * 600 });
+    // squeal: rises from ~900 Hz to ~2.6 kHz over a long drift, wobbling a little
+    const sl = Math.abs(p.slip || 0), sq = p.drifting ? Math.min(1, p.driftT / 3) : 0;
+    const sqHz = 900 + sq * 1500 + sl * 400 + Math.sin(this.t * 31) * 40;
+    this.sfx.squeal.set({ freq: sqHz * 0.5, cutoff: sqHz, vol: p.drifting ? 0.03 + 0.03 * sq + Math.min(0.03, sl * 0.05) : 0 });
+    // afterburner
+    this.sfx.roar.set({ cutoff: 700 + 500 * Math.random(), vol: p.boostT > 0 ? 0.07 * Math.min(1, p.boostT / 0.4) : 0 });
+  }
+
   /** underglow / meter colour: pink when empty → violet → cyan when full (gold run: amber → yellow) */
   chargeCol(c) {
     if (this.s.gold) return mixHex('#f59e0b', '#fef08a', c);
@@ -490,6 +542,7 @@ class NeonDrift {
       if (this.count <= 0) { this.s.sound.play('go'); this.s.fx.text(W / 2, H * 0.3, 'GO!', { color: this.theme.edge, size: 64, life: 0.8 }); }
       else if (now !== before) this.s.sound.play('tick');
       this.updateCamera(dt);
+      this.carAudio();                 // revving on the line
       return;
     }
     this.raceT += dt;
@@ -500,6 +553,7 @@ class NeonDrift {
     this.raceLogic();
     this.particles(dt);
     this.updateCamera(dt);
+    this.carAudio();
   }
 
   idle(dt) {
@@ -619,7 +673,10 @@ class NeonDrift {
       p.driftT += dt; p.calmT = 0;
       // drifting charges the boost meter (not while the boost is burning)
       if (p.boostT <= 0) {
+        const seg0 = Math.floor(p.charge * 10);
         p.charge = Math.min(1, p.charge + Math.abs(slip) * spd * dt * 0.0012);
+        const seg1 = Math.floor(p.charge * 10);
+        if (seg1 > seg0 && seg1 < 10 && !s.sound.muted) s.sound.tone({ freq: s.sound.note(76 + seg1 * 2), dur: 0.07, type: 'triangle', vol: 0.06 });
         if (p.charge >= 1 && !p.fullShown) {
           p.fullShown = true;
           const mob = matchMedia('(pointer: coarse)').matches;
@@ -628,8 +685,6 @@ class NeonDrift {
         }
       }
       if (p.driftT > 3) s.unlock('drift3s');
-      p.squeal -= dt;
-      if (p.squeal <= 0 && !s.sound.muted) { p.squeal = 0.1; s.sound.noise({ dur: 0.12, vol: 0.035 + Math.min(0.05, Math.abs(slip) * 0.08), freq: 2300 + Math.abs(slip) * 1600, type: 'bandpass' }); }
       this.tyreMarks(p, s.gold ? '#fde047' : '#ff4fa3', true);
     } else if (p.drift > 0) {
       p.calmT += dt;

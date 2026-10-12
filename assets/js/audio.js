@@ -1,7 +1,7 @@
 // All sound is synthesised live with the Web Audio API — no audio files to download.
 import { Store } from './storage.js';
 
-let ctx = null, master = null, sfxBus = null, musicBus = null, noiseBuf = null;
+let ctx = null, master = null, sfxBus = null, musicBus = null, noiseBuf = null, echo = null;
 
 function ac() {
   if (!ctx) {
@@ -16,6 +16,11 @@ function ac() {
     noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
     const d = noiseBuf.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    // a tempo-synced echo for the synthwave kit's lead (other music never touches it)
+    echo = ctx.createDelay(1.5); echo.delayTime.value = 0.36;
+    const fb = ctx.createGain(); fb.gain.value = 0.32;
+    const damp = ctx.createBiquadFilter(); damp.type = 'lowpass'; damp.frequency.value = 2600;
+    echo.connect(damp).connect(fb).connect(echo); damp.connect(musicBus);
   }
   if (ctx.state === 'suspended') ctx.resume();
   return ctx;
@@ -39,6 +44,47 @@ function tone({ freq = 440, to = null, dur = 0.1, type = 'square', vol = 0.2, de
   g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
   o.connect(g); out(c, g, bus || sfxBus, pan);
   o.start(t); o.stop(t + dur + 0.02);
+}
+
+/** a filtered (and optionally detuned, doubled) note — used by the synthwave music kit */
+function synth({ freq = 220, dur = 0.2, type = 'sawtooth', vol = 0.05, delay = 0, cutoff = 1800, q = 0.7, detune = 0, attack = 0.01, release = null, bus = null, send = 0 }) {
+  const c = ac(); if (!c) return;
+  const t = c.currentTime + delay, rel = release ?? dur * 0.6;
+  const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = cutoff; f.Q.value = q;
+  const g = c.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(vol, t + attack);
+  g.gain.setValueAtTime(vol, t + Math.max(attack, dur - rel));
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  f.connect(g); g.connect(bus || musicBus);
+  if (send && echo) { const sg = c.createGain(); sg.gain.value = send; g.connect(sg).connect(echo); }
+  for (const dt of detune ? [-detune, detune] : [0]) {
+    const o = c.createOscillator(); o.type = type; o.frequency.value = freq; o.detune.value = dt;
+    o.connect(f); o.start(t); o.stop(t + dur + 0.05);
+  }
+}
+
+/** A continuous sound you steer every frame (tyre squeal, engine drone…). Each set() holds it for a
+ *  moment, then it fades out by itself — so it falls silent on pause, a hidden tab or a dropped frame. */
+function voice({ type = 'sawtooth', noise: withNoise = false, filter = 'bandpass', q = 4 } = {}) {
+  const c = ac(); if (!c) return { set() {}, stop() {} };
+  const f = c.createBiquadFilter(); f.type = filter; f.Q.value = q; f.frequency.value = 1000;
+  const g = c.createGain(); g.gain.value = 0;
+  f.connect(g).connect(sfxBus);
+  let o = null, n = null;
+  if (type) { o = c.createOscillator(); o.type = type; o.frequency.value = 100; o.connect(f); o.start(); }
+  if (withNoise) { n = c.createBufferSource(); n.buffer = noiseBuf; n.loop = true; n.connect(f); n.start(); }
+  return {
+    set({ freq, vol = 0, cutoff, hold = 0.15 }) {
+      const t = c.currentTime;
+      if (o && freq) o.frequency.setTargetAtTime(freq, t, 0.03);
+      if (cutoff) f.frequency.setTargetAtTime(cutoff, t, 0.04);
+      g.gain.cancelScheduledValues(t);
+      g.gain.setTargetAtTime(Store.setting('muted') ? 0 : vol, t, 0.03);
+      g.gain.setTargetAtTime(0, t + hold, 0.06);
+    },
+    stop() { try { o?.stop(); n?.stop(); } catch { /* already stopped */ } },
+  };
 }
 
 function noise({ dur = 0.2, vol = 0.3, freq = 1200, to = null, type = 'lowpass', delay = 0, pan = 0 }) {
@@ -94,9 +140,12 @@ const PROGRESSIONS = {
   hero:   [[57, 60, 64], [53, 57, 60], [55, 59, 62], [52, 56, 59]], // Am F G E
   crypt:  [[48, 51, 55], [44, 48, 51], [41, 44, 48], [43, 47, 50]], // Cm Ab Fm G
   chase:  [[50, 53, 57], [51, 55, 58], [50, 53, 57], [49, 52, 56]], // Dm Eb Dm C#dim — tense
+  outrun: [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]], // Am F C G — the classic night drive
+  neon:   [[53, 56, 60], [49, 53, 56], [56, 60, 63], [51, 55, 58]], // Fm Db Ab Eb — warm and wistful
+  toxic:  [[52, 55, 59], [48, 52, 55], [50, 54, 57], [47, 51, 54]], // Em C D B — dark drive
 };
 const ARP = [0, 1, 2, 1, 0, 1, 2, 1], OCT = [12, 12, 12, 12, 24, 24, 24, 24];
-const music = { on: false, timer: null, step: 0, nextTime: 0, bpm: 110, prog: PROGRESSIONS.minor, lead: 'square', arp: ARP, oct: OCT, bass: 'half' };
+const music = { on: false, timer: null, step: 0, nextTime: 0, bpm: 110, prog: PROGRESSIONS.minor, lead: 'square', arp: ARP, oct: OCT, bass: 'half', kit: 'chip', hook: null };
 
 function scheduleMusic() {
   const c = ctx; if (!c || !music.on) return;
@@ -108,6 +157,7 @@ function scheduleMusic() {
     const a = music.arp[s];
     const pitch = (a >= 3 ? chord[a - 3] + 12 : chord[a]) + music.oct[s];
     const t = music.nextTime - c.currentTime;
+    if (music.kit === 'synth') { synthStep(chord, s, pitch, t, stepDur, bar); music.nextTime += stepDur; music.step++; continue; }
     tone({ freq: note(pitch), dur: stepDur * 0.9, type: music.lead, vol: 0.05, delay: t, bus: musicBus });
     if (music.bass === 'drive') tone({ freq: note(chord[0] - (s % 2 ? 12 : 24)), dur: stepDur * 0.8, type: 'triangle', vol: 0.13, delay: t, bus: musicBus });
     else if (s % 2 === 0) tone({ freq: note(chord[0] - 12), dur: stepDur * 1.6, type: 'triangle', vol: 0.12, delay: t, bus: musicBus });
@@ -116,6 +166,48 @@ function scheduleMusic() {
     music.nextTime += stepDur;
     music.step++;
   }
+}
+/** one eighth-note of the synthwave kit: kick + gated snare, offbeat hats, octave-bouncing saw bass,
+ *  a detuned pad on each bar, the echoing arp, and (every other 4-bar phrase) a long lead hook */
+function synthStep(chord, s, pitch, t, stepDur, bar) {
+  const phrase = Math.floor(music.step / (8 * music.prog.length)) % 4;      // 0 intro feel, 1-3 full
+  const full = phrase > 0;
+  // drums
+  if (s === 0 || s === 4 || (full && s === 7 && bar % 2)) {
+    tone({ freq: 150, to: 42, dur: 0.24, type: 'sine', vol: 0.32, delay: t, bus: musicBus, attack: 0.002 });
+  }
+  if (s === 2 || s === 6) {
+    noiseHit(t, 0.17, 1900, 0.16, 'bandpass');            // snare crack
+    noiseHit(t + 0.01, 0.06, 3200, 0.34, 'lowpass');      // the big 80s gated tail
+    tone({ freq: 185, to: 140, dur: 0.08, type: 'triangle', vol: 0.06, delay: t, bus: musicBus });
+  }
+  if (s % 2 === 1) noise_hat(t, full ? 0.045 : 0.03);
+  else if (full) noise_hat(t, 0.015);
+  // bass: root bouncing between octaves on every eighth
+  const root = chord[0] - 24 + (s % 2 ? 12 : 0);
+  synth({ freq: note(root), dur: stepDur * 0.85, type: 'sawtooth', vol: 0.085, delay: t, cutoff: 520 + (s % 2) * 240, q: 2, release: stepDur * 0.5 });
+  // pad: the whole chord, held across the bar, slow attack
+  if (s === 0) {
+    const barDur = stepDur * 8;
+    for (const n of chord) synth({ freq: note(n), dur: barDur, type: 'sawtooth', vol: full ? 0.018 : 0.012, delay: t, cutoff: full ? 1500 : 900, detune: 9, attack: barDur * 0.25, release: barDur * 0.3 });
+  }
+  // arp lead with echo
+  synth({ freq: note(pitch), dur: stepDur * 0.7, type: music.lead, vol: 0.032, delay: t, cutoff: 2600, release: stepDur * 0.4, send: 0.45 });
+  // the hook: long notes over the top on phrases 1 and 3
+  if (music.hook && (phrase === 1 || phrase === 3) && (s === 0 || s === 4)) {
+    const h = music.hook[(bar * 2 + (s ? 1 : 0)) % music.hook.length];
+    if (h != null) {
+      const n = (h >= 3 ? chord[h - 3] + 12 : chord[h]) + 24;
+      synth({ freq: note(n), dur: stepDur * 3.6, type: 'sawtooth', vol: 0.03, delay: t, cutoff: 3200, detune: 6, attack: 0.03, release: stepDur * 1.5, send: 0.35 });
+    }
+  }
+}
+function noiseHit(delay, vol, freq, dur, type) {
+  const c = ctx; const t = c.currentTime + delay;
+  const s = c.createBufferSource(); s.buffer = noiseBuf;
+  const f = c.createBiquadFilter(); f.type = type; f.frequency.value = freq;
+  const g = c.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  s.connect(f).connect(g).connect(musicBus); s.start(t); s.stop(t + dur + 0.02);
 }
 function noise_hat(delay, vol) {
   const c = ctx; const t = c.currentTime + delay;
@@ -128,7 +220,9 @@ function noise_hat(delay, vol) {
 export const Sound = {
   unlock() { ac(); },
   play(name, p) { if (Store.setting('muted')) return; try { PRESETS[name]?.(p); } catch { /* ignore */ } },
-  tone, noise, note,
+  tone, noise, note, synth, voice,
+  /** is background music running right now? */
+  get musicPlaying() { return music.on; },
 
   get muted() { return !!Store.setting('muted'); },
   setMuted(m) {
@@ -143,14 +237,15 @@ export const Sound = {
 
   /** Start looping background music. style: 'minor' | 'major' | 'dream' | 'cosmic' | 'bubbly' | 'hero' | 'crypt' | 'chase'.
    *  Optional: arp (8 chord-note indexes, 3-5 = an octave up), oct (8 octave offsets), bass: 'half' | 'drive'. */
-  startMusic({ bpm = 110, style = 'minor', lead = 'square', arp = ARP, oct = OCT, bass = 'half' } = {}) {
+  startMusic({ bpm = 110, style = 'minor', lead = 'square', arp = ARP, oct = OCT, bass = 'half', kit = 'chip', hook = null } = {}) {
     const c = ac(); if (!c) return;
     music.bpm = bpm; music.prog = PROGRESSIONS[style] || PROGRESSIONS.minor; music.lead = lead;
-    music.arp = arp; music.oct = oct; music.bass = bass;
+    music.arp = arp; music.oct = oct; music.bass = bass; music.kit = kit; music.hook = hook;
+    if (echo) echo.delayTime.setTargetAtTime(60 / bpm * 0.75, c.currentTime, 0.05);
     if (music.on) return;
     music.on = true; music.step = 0; music.nextTime = c.currentTime + 0.05;
     music.timer = setInterval(scheduleMusic, 30);
   },
-  setTempo(bpm) { music.bpm = bpm; },
+  setTempo(bpm) { music.bpm = bpm; if (echo && ctx) echo.delayTime.setTargetAtTime(60 / bpm * 0.75, ctx.currentTime, 0.05); },
   stopMusic() { music.on = false; clearInterval(music.timer); music.timer = null; },
 };
