@@ -380,7 +380,7 @@ class NeonDrift {
       const d = -40 - Math.floor(i / 2) * 70, off = (i % 2 ? 0.38 : -0.38) * hw;   // rows of two; the player starts behind car 3
       const [rx, rz, rh] = at(T, d, off);
       return { ...R, i, d, off, offT: off, v: 0, x: rx, z: rz, h: rh, slip: 0, spinT: 0, boostT: 0, finished: false, retarget: 1 + i * 0.4,
-        vmax: this.maxV * (0.8 + 0.022 * ((i * 3) % 5) + Math.min(0.07, (this.level - 1) * 0.006)), ahead: true };
+        vmax: this.maxV * (0.83 + 0.02 * ((i * 3) % 5) + Math.min(0.08, (this.level - 1) * 0.01)), ahead: true, wasBend: false };
     });
     for (const o of this.oils) o.hit = 0;
     for (const b of this.boosts) b.cool = 0;
@@ -760,9 +760,19 @@ class NeonDrift {
     // corner speed from the sharpest bend coming up
     let kk = 0, kSign = 0;
     for (let o = 1; o <= 9; o++) { const i = ((Math.floor(rv.d / T.step) + o) % T.N + T.N) % T.N, a = Math.abs(T.k[i]); if (a > kk) { kk = a; kSign = Math.sign(T.k[i]); } }
-    const LAT = 1180 * this.sc * this.sc;
     let rb = 1;
-    if (!auto && !this.bonus) { const gap = p.prog - rv.d; rb = gap > 400 ? 1 + Math.min(0.07, (gap - 400) / 9000) : gap < -500 ? 1 - Math.min(0.06, (-gap - 500) / 9000) : 1; }
+    const gap = p.prog - rv.d;                       // > 0: the player is ahead of this car
+    if (!auto && !this.bonus && !p.finished) {
+      // the pack hunts a leader down: the further ahead you get, the harder they push (more so on later levels)
+      const maxCatch = Math.min(0.26, 0.15 + 0.015 * this.level);
+      if (gap > 80) { const u = clamp((gap - 80) / 1000, 0, 1); rb = 1 + maxCatch * u * u * (3 - 2 * u); }
+      else if (gap < -700) rb = 1 - Math.min(0.05, (-gap - 700) / 8000);
+    }
+    const LAT = 1180 * this.sc * this.sc * rb * rb;    // pushing harder means braver cornering too
+    // they drift-boost out of bends as well (more often on later levels)
+    const bend = kk > 0.0028;
+    if (rv.wasBend && kk < 0.0015 && rv.spinT <= 0 && !auto && Math.random() < Math.min(0.85, 0.15 + 0.08 * this.level)) rv.boostT = Math.max(rv.boostT, 0.8);
+    if (bend) rv.wasBend = true; else if (kk < 0.0015) rv.wasBend = false;
     let target = Math.min(rv.vmax * rb * (rv.boostT > 0 ? 1.25 : 1), Math.sqrt(LAT / Math.max(kk, 1e-4)));
     if (rv.finished) target = Math.min(target, this.maxV * 0.6);
     if (rv.spinT > 0) target = 120;
@@ -772,12 +782,17 @@ class NeonDrift {
     const hw = this.T.halfW;
     if (rv.retarget <= 0) { rv.retarget = 1.2 + ((rv.i * 7 + Math.floor(rv.d)) % 13) / 10; rv.wander = (((rv.i * 37 + Math.floor(rv.d / 50)) % 11) / 10 - 0.5) * 0.8; }
     let offT = kk > 0.0022 ? -kSign * 0.5 * hw : (rv.wander || 0) * hw;
+    let lane = 70;
     if (!auto) {
       const ahead = p.prog - rv.d;
       if (ahead > 0 && ahead < 110) { const [, , , , nx, nz] = at(T, rv.d); const pl = (p.x - rv.x) * nx + (p.z - rv.z) * nz; if (Math.abs(pl) < 50) offT = clamp(rv.off + (pl > 0 ? -70 : 70), -0.7 * hw, 0.7 * hw); }
+      // defend: from level 3, a car just ahead of you on a straight moves across to cover your line
+      else if (this.level >= 3 && ahead < -25 && ahead > -200 && kk < 0.0022 && rv.spinT <= 0 && p.ghostT <= 0) {
+        offT = clamp(p.lat, -0.7 * hw, 0.7 * hw); lane = 55 + this.level * 4;
+      }
     }
     rv.offT = offT;
-    rv.off += clamp(rv.offT - rv.off, -70 * dt, 70 * dt);
+    rv.off += clamp(rv.offT - rv.off, -lane * dt, lane * dt);
     rv.d += rv.v * dt;
     const [x, z, h, k] = at(T, rv.d, rv.off);
     const slipT = rv.spinT > 0 ? rv.slip + 8 * dt : clamp(k * rv.v * 0.11, -0.5, 0.5);
