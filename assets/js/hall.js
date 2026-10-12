@@ -15,7 +15,7 @@ function locked() {
       <div class="vault-door" aria-hidden="true"><i></i><i></i><i></i></div>
       <h1>The Hall of Legends</h1>
       <p>This door only opens for true Legends. Nobody has ever been told how to become one…</p>
-      <p class="small">Already a Legend on another phone or computer? Enter your Legend code — just the 6 letters and numbers is fine:</p>
+      <p class="small">Got a Legend code — from the Hall, or the one Crown Heist gives you? Enter it to bring back your eggs and your game progress on this phone or computer. Just the 6 letters and numbers is fine:</p>
       <form class="restore" autocomplete="off">
         <input name="c" placeholder="LEGEND-XXXXXX" maxlength="20" aria-label="Legend code" spellcheck="false" autocapitalize="characters" autocomplete="off" inputmode="text">
         <button class="btn primary" type="submit">Unlock</button>
@@ -38,6 +38,10 @@ function locked() {
     form.querySelector('button').disabled = true; msg.className = 'restore-msg'; msg.textContent = 'Checking…';
     try {
       const entry = await Legends.restore(form.c.value);
+      if (entry.progressOnly) {
+        msg.innerHTML = `Welcome back, <b>${esc(entry.name)}</b>! Your game progress (zones, levels, best scores, badges) is back. <a href="../">Back to the arcade →</a>`;
+        return;
+      }
       msg.textContent = entry.progress > 0 ? `Welcome back, ${entry.name}! Your eggs and your game progress (zones, levels, best scores, badges) are back.` : `Welcome back, ${entry.name}!`;
       setTimeout(() => location.reload(), entry.progress > 0 ? 2200 : 900);
     } catch (err) {
@@ -53,13 +57,13 @@ async function open() {
   main.innerHTML = `
     <section class="hall-head">
       <h1>🏛️ Hall of Legends</h1>
-      <p>Only players who finished a Legends game without losing a single life have found their way in here. Each one wins a Golden Egg — all three win the Golden Crown. Welcome, ${esc(me.name || Store.name() || 'Legend')}.</p>
+      <p>Only players who have won a Legends game's Golden Egg have found their way in here. Every zone's Legends game has one — all ${legendZones().length} win the Golden Crown. Welcome, ${esc(me.name || Store.name() || 'Legend')}.</p>
       <div class="egg-shelf">${legendZones().map((z) => {
         const won = Legends.hasEgg(z.n), lg = gameById(z.legendGame);
-        return `<div class="egg-stand${won ? ' won' : ''}">${eggSVG(z.n, { size: 70, won })}<b>${esc(eggName(z.n))}</b><small>${won ? 'Won! Golden characters unlocked in Zone ' + z.n + '.' : `Finish ${esc(lg.title)} without losing a life.`}</small></div>`;
+        return `<div class="egg-stand${won ? ' won' : ''}">${eggSVG(z.n, { size: 70, won })}<b>${esc(eggName(z.n))}</b><small>${won ? 'Won! Golden characters unlocked in Zone ' + z.n + '.' : esc(lg.legendHow || `Finish ${lg.title} without losing a life.`)}</small></div>`;
       }).join('')}
         ${Legends.hasGoldenCrown()
-          ? `<a class="egg-stand crown-stand won" href="../crown-room/">${crownSVG({ size: 110, cls: 'spin' })}<b>The Golden Crown</b><small>All three eggs! Enter the Crown Room →</small></a>`
+          ? `<a class="egg-stand crown-stand won" href="../crown-room/">${crownSVG({ size: 110, cls: 'spin' })}<b>The Golden Crown</b><small>All ${legendZones().length} eggs! Enter the Crown Room →</small></a>`
           : `<div class="egg-stand crown-stand"><span class="crown-ghost">👑</span><b>The Golden Crown</b><small>Collect all ${legendZones().length} Golden Eggs to win it — and open the Crown Room.</small></div>`}
       </div>
     </section>

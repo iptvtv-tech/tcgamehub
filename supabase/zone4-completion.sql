@@ -5,8 +5,10 @@
 --    21 Neon Drift 3D       ✔
 --    22 Crystal Cascade 3D  ✔
 --    23 Void Breaker 3D     ✔
---    24 Crown Heist: The Deep Vaults (Legends, vault codes) (to come)
+--    24 Crown Heist 3D (Zone 4's Legends game → the 4th Golden Egg)  ✔
 --    + Legend codes carry your game progress between browsers   ✔
+--    + One code for everyone: Crown Heist gives you a LEGEND code after floor 3,
+--      even before you've won an egg — it saves all your progress     ✔
 -- ─────────────────────────────────────────────────────────────
 
 -- Game 21 · Neon Drift 3D joins the leaderboard
@@ -23,6 +25,119 @@ on conflict (id) do update set title = excluded.title, max_points_per_second = e
 insert into public.games (id, title, max_points_per_second)
 values ('void-breaker', 'Void Breaker 3D', 15000)
 on conflict (id) do update set title = excluded.title, max_points_per_second = excluded.max_points_per_second;
+
+-- Game 24 · Crown Heist 3D joins the leaderboard — and is Zone 4's Legends game
+alter table public.games add column if not exists has_legend boolean not null default false;
+alter table public.games add column if not exists legend_min_ms integer not null default 90000;
+insert into public.games (id, title, max_points_per_second, has_legend, legend_min_ms)
+values ('crown-heist', 'Crown Heist 3D', 7000, true, 60000)
+on conflict (id) do update set title = excluded.title, max_points_per_second = excluded.max_points_per_second,
+  has_legend = true, legend_min_ms = excluded.legend_min_ms;
+
+-- ─────────────────────────────────────────────────────────────
+--  ONE code for everyone
+--  Crown Heist hands out an ordinary LEGEND-XXXXXX code after floor 3 to players who don't
+--  have one yet (no egg needed). It saves their progress in every game (sync_progress below),
+--  restores on the Legends page like any Legend code, and when they later win an egg and sign
+--  the Hall with the same name, the egg goes on this same code.
+-- ─────────────────────────────────────────────────────────────
+create table if not exists public.legend_codes (
+  code       text primary key,
+  name       text not null check (char_length(name) between 1 and 12),
+  created_at timestamptz not null default now()
+);
+alter table public.legend_codes enable row level security;   -- no policies: only the functions below touch it
+
+create or replace function public.issue_code(p_name text)
+returns json language plpgsql security definer set search_path = public as $$
+declare
+  v_name text; v_norm text; v_code text; i int;
+  chars constant text := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+begin
+  v_name := regexp_replace(trim(coalesce(p_name, '')), '\s+', ' ', 'g');
+  if v_name !~ '^[A-Za-z0-9 _.-]{1,12}$' then raise exception 'Letters and numbers only (max 12).'; end if;
+  v_norm := regexp_replace(translate(lower(v_name), '013457@$', 'oieastas'), '[^a-z]', '', 'g');
+  if exists (select 1 from public.banned_words b where position(b.word in v_norm) > 0) then
+    raise exception 'Please choose a friendlier name.';
+  end if;
+  perform public._rate_limit();
+  loop
+    v_code := 'LEGEND-';
+    for i in 1..6 loop v_code := v_code || substr(chars, 1 + floor(random() * length(chars))::int, 1); end loop;
+    exit when not exists (select 1 from public.legends where code = v_code)
+          and not exists (select 1 from public.legend_codes where code = v_code);
+  end loop;
+  insert into public.legend_codes (code, name) values (v_code, v_name);
+  return json_build_object('code', v_code);
+end;
+$$;
+
+-- Restore any code: eggs (if any) + name. Codes with no egg yet come back with games = [].
+create or replace function public.restore_code(p_code text)
+returns json language plpgsql security definer set search_path = public as $$
+declare v json; v_code text := upper(trim(coalesce(p_code, '')));
+begin
+  perform public._rate_limit();
+  select json_build_object('name', (array_agg(name order by created_at))[1],
+                           'games', json_agg(distinct game),
+                           'created_at', min(created_at))
+    into v from public.legends where code = v_code;
+  if v is not null and v ->> 'name' is not null then return v; end if;
+  select json_build_object('name', name, 'games', '[]'::json, 'created_at', created_at)
+    into v from public.legend_codes where code = v_code;
+  return v;                                                   -- null = not recognised
+end;
+$$;
+
+-- Sign the Hall, keeping the code you already have when the name matches
+-- (now also a code Crown Heist gave you before your first egg).
+create or replace function public.claim_legend_v2(p_game text, p_name text, p_duration_ms int, p_code text default null)
+returns json language plpgsql security definer set search_path = public as $$
+declare
+  g public.games; v_name text; v_norm text; v_code text; i int;
+  chars constant text := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+begin
+  select * into g from public.games where id = p_game;
+  if not found or not g.has_legend then raise exception 'Unknown game'; end if;
+  v_name := regexp_replace(trim(coalesce(p_name, '')), '\s+', ' ', 'g');
+  if v_name !~ '^[A-Za-z0-9 _.-]{1,12}$' then raise exception 'Letters and numbers only (max 12).'; end if;
+  v_norm := regexp_replace(translate(lower(v_name), '013457@$', 'oieastas'), '[^a-z]', '', 'g');
+  if exists (select 1 from public.banned_words b where position(b.word in v_norm) > 0) then
+    raise exception 'Please choose a friendlier name.';
+  end if;
+  if p_duration_ms is null or p_duration_ms < g.legend_min_ms or p_duration_ms > 6 * 3600 * 1000 then
+    raise exception 'That run could not be verified.';
+  end if;
+  perform public._rate_limit();
+
+  if p_code is not null then
+    select l.code into v_code from public.legends l
+     where l.code = upper(trim(p_code)) and lower(l.name) = lower(v_name) limit 1;
+    if v_code is null then
+      select c.code into v_code from public.legend_codes c
+       where c.code = upper(trim(p_code)) and lower(c.name) = lower(v_name) limit 1;
+    end if;
+  end if;
+  if v_code is not null then
+    if exists (select 1 from public.legends where code = v_code and game = p_game) then
+      return json_build_object('code', v_code);          -- this egg is already on the code
+    end if;
+  else
+    loop
+      v_code := 'LEGEND-';
+      for i in 1..6 loop v_code := v_code || substr(chars, 1 + floor(random() * length(chars))::int, 1); end loop;
+      exit when not exists (select 1 from public.legends where code = v_code)
+            and not exists (select 1 from public.legend_codes where code = v_code);
+    end loop;
+  end if;
+  insert into public.legends (game, name, code, duration_ms) values (p_game, v_name, v_code, p_duration_ms);
+  return json_build_object('code', v_code);
+end;
+$$;
+
+grant execute on function public.issue_code(text)                      to anon, authenticated;
+grant execute on function public.restore_code(text)                    to anon, authenticated;
+grant execute on function public.claim_legend_v2(text, text, int, text) to anon, authenticated;
 
 -- ─────────────────────────────────────────────────────────────
 --  Legend codes carry your progress
@@ -60,7 +175,9 @@ declare
   v_code text := upper(trim(coalesce(p_code, '')));
   v_old jsonb; v_new jsonb; v_at timestamptz; v_saved boolean := false; k text;
 begin
-  if v_code !~ '^LEGEND-[A-Z0-9]{6}$' or not exists (select 1 from public.legends where code = v_code) then return null; end if;
+  if v_code !~ '^LEGEND-[A-Z0-9]{6}$'
+     or not (exists (select 1 from public.legends where code = v_code) or exists (select 1 from public.legend_codes where code = v_code))
+  then return null; end if;
   if p_data is null or jsonb_typeof(p_data) <> 'object' or octet_length(p_data::text) > 80000 then raise exception 'Progress data is too large.'; end if;
   select data, updated_at into v_old, v_at from public.legend_progress where code = v_code;
   v_old := coalesce(v_old, '{}'::jsonb);
@@ -91,5 +208,5 @@ $$;
 revoke all on function public._max_merge(jsonb, jsonb) from public, anon, authenticated;
 grant execute on function public.sync_progress(text, jsonb) to anon, authenticated;
 
-select id, title, max_points_per_second from public.games where id in ('neon-drift', 'crystal-cascade', 'void-breaker');
-select proname from pg_proc where proname = 'sync_progress';
+select id, title, max_points_per_second, has_legend from public.games where id in ('neon-drift', 'crystal-cascade', 'void-breaker', 'crown-heist');
+select proname from pg_proc where proname in ('sync_progress', 'issue_code', 'restore_code', 'claim_legend_v2') order by 1;

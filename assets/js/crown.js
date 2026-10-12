@@ -44,6 +44,11 @@ function open() {
         <ol class="legend-list" data-roll><li class="muted">Loading…</li></ol>
       </section>
       <div style="display:grid;gap:20px;align-content:start">
+        <section class="hall-card stolen-crown">
+          <h2>♛ The stolen crown</h2>
+          <p>You saw the crown in the Crypt. You stole it from the Vault. Now it rests here, on the last pedestal of the Crown Room.</p>
+          <p class="muted small">${Store.hasAch('crown-heist:throne') ? '🪑 <b>Kingmaker</b> — you carried it down to the Empty Throne without being caught once.' : 'Below the Deep Vaults, a throne still stands empty… for a thief who is never caught.'}</p>
+        </section>
         <section class="hall-card">
           <h2>✨ The golden arcade</h2>
           <div class="gold-row"><div><b>Golden theme</b><small>Turns the whole arcade gold, on every page.</small></div>
@@ -55,7 +60,7 @@ function open() {
           <p class="muted small">A picture of your Golden Crown with your name on it — save it or share it.</p>
           <img class="cert-preview" alt="Golden Crown certificate" hidden>
           <p><button class="btn gold-btn" data-cert>🖼️ Make my certificate</button>
-          <a class="btn wa" href="${whatsappLink(`👑 I won the Golden Crown at ${location.origin}/ — all three Golden Eggs, without losing a single life. Can you?`)}" target="_blank" rel="noopener">${WA_ICON} Share</a></p>
+          <a class="btn wa" href="${whatsappLink(`👑 I won the Golden Crown at ${location.origin}/ — all four Golden Eggs. Can you?`)}" target="_blank" rel="noopener">${WA_ICON} Share</a></p>
         </section>
       </div>
     </div>`;

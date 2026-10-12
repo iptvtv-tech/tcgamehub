@@ -10,7 +10,9 @@
 //  The picture is built in a small off-screen image (size set by the HIGH/LOW
 //  graphics switch) and scaled up crisply.
 //
-//  Uses: Crypt of Crowns 3D. Map cells and texture ids are the same as raycast.js.
+//  Uses: Crypt of Crowns 3D, Crown Heist 3D. Map cells and texture ids are the same as raycast.js.
+//  Crown Heist also uses: moving lights (guards' torch cones, the crown's glow — see
+//  moveLights) and a different floor texture per square (opts.floorMap / floorTex).
 // ─────────────────────────────────────────────────────────────
 export const TEX = 64;
 
@@ -69,12 +71,44 @@ export class HDRaycaster {
       }
     }
     this.L = { S, LW, LH, R, G, B, w, h };
+    this.L0 = null;
+  }
+
+  /**
+   * Moving lights on top of the fixed ones (call every frame, after buildLights).
+   * lights = [{x, y, r, g, b, rad, dir?, cone?}] — with dir/cone (radians, half-angle) the light is a
+   * torch beam that only shines that way, soft at its edges. solid(x, y) blocks light, as in buildLights.
+   */
+  moveLights(lights, solid) {
+    const L = this.L;
+    if (!L) return;
+    if (!this.L0) this.L0 = { R: L.R.slice(), G: L.G.slice(), B: L.B.slice() };
+    L.R.set(this.L0.R); L.G.set(this.L0.G); L.B.set(this.L0.B);
+    const S = L.S, LW = L.LW, LH = L.LH, R = L.R, G = L.G, B = L.B;
+    for (const Lt of lights) {
+      const x0 = Math.max(0, Math.floor((Lt.x - Lt.rad) * S)), x1 = Math.min(LW - 1, Math.ceil((Lt.x + Lt.rad) * S));
+      const y0 = Math.max(0, Math.floor((Lt.y - Lt.rad) * S)), y1 = Math.min(LH - 1, Math.ceil((Lt.y + Lt.rad) * S));
+      const cone = Lt.cone, cd = Lt.dir || 0, cx = Math.cos(cd), cy = Math.sin(cd), cosC = cone ? Math.cos(cone) : -2, cosC2 = cone ? Math.cos(cone * 0.6) : -2;
+      for (let sy = y0; sy <= y1; sy++) for (let sx = x0; sx <= x1; sx++) {
+        const px = sx / S, py = sy / S, dx = px - Lt.x, dy = py - Lt.y, d = Math.hypot(dx, dy);
+        if (d > Lt.rad) continue;
+        let k = Math.pow(1 - d / Lt.rad, 1.5);
+        if (cone && d > 0.35) {
+          const c = (dx * cx + dy * cy) / d;
+          if (c < cosC) continue;
+          if (c < cosC2) k *= (c - cosC) / (cosC2 - cosC);         // soft edge of the beam
+        }
+        if (!seesLight(solid, Lt.x, Lt.y, px, py)) continue;
+        const i = sy * LW + sx; R[i] += Lt.r * k; G[i] += Lt.g * k; B[i] += Lt.b * k;
+      }
+    }
   }
 
   /**
    * Draw the view.  cam {x, y, a, bob}.  opts:
    *   ids: Int16Array(w*h) texture id per cell (0 = open) · mapW, mapH
    *   tex: {id: {data, glow?}} · floor, ceil: {data} · faceTex(x, y, fx, fy, id) → override id for one wall face
+   *   floorMap: Uint8Array(w*h) + floorTex: [{data}] — a floor texture per square (optional)
    *   light (torch reach, cells) · fogDist · ambient [r,g,b] (0..1) · torch [r,g,b] (0..1) · flicker (0..1 multiplier for wall lights)
    *   fogCol [r,g,b] (0..255) · sprites [{x, y, data, glow?, scale, lift, minLight, alpha, wide}]
    */
@@ -103,7 +137,7 @@ export class HDRaycaster {
     };
 
     // ── floor & ceiling, one row at a time
-    const fT = o.floor.data, cT = o.ceil.data;
+    const fT = o.floor.data, cT = o.ceil.data, FM = o.floorMap, FT = o.floorTex;
     const r0x = dirX - plX, r0y = dirY - plY, r1x = dirX + plX, r1y = dirY + plY;
     for (let y = 0; y < rh; y++) {
       const isFloor = y > horizon, p = isFloor ? y - horizon : horizon - y;
@@ -117,7 +151,8 @@ export class HDRaycaster {
       let o32 = y * rw;
       for (let x = 0; x < rw; x++, wx += sx, wy += sy) {
         const cx = Math.floor(wx), cy = Math.floor(wy), u = wx - cx, v = wy - cy;
-        const t = T[(((v * 64) | 0) & 63) * 64 + (((u * 64) | 0) & 63)];
+        const TT = FM && isFloor && cx >= 0 && cy >= 0 && cx < MW && cy < MH ? FT[FM[cy * MW + cx]].data : T;
+        const t = TT[(((v * 64) | 0) & 63) * 64 + (((u * 64) | 0) & 63)];
         if (!(x & 1)) lightAt(wx + sx * 0.5, wy + sy * 0.5);              // light changes slowly: work it out every other pixel
         // soft shadow along the foot (or top) of each wall
         let ao = 1;

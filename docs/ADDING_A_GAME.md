@@ -87,6 +87,11 @@ legendBadge: 'egg',        // an achievement id with legendary: true, secret: tr
 
 In the secret level, call `this.s.legendFound()` when the player reaches the reward (show your own reward animation in `idle()`). In games.js set `legend: true` on the entry. In Supabase, add the game with `has_legend = true` (see supabase/legends-update.sql). Everything else — badges, golden unlocks, the Hall, Legend codes — is shared.
 
+Extra hooks (see Crown Heist 3D, whose egg is won across several visits rather than in one flawless run):
+`checkpoints(maxReached) → [levels]` (your own "Start from" list), `titleExtra() → html` (a line on the title screen),
+`legendLore` / `legendLine(shell)` (text on the egg panel), and on the game object `beforeNextLevel(level) → Promise`
+(hold the next level back, e.g. to show a form). A Legends game can call `legendFound()` from any level, not just the secret one.
+
 ### 4d. Put it in a zone slot
 Games are laid out in `ZONES` in `assets/js/games.js` (6 per zone, difficulty rising with the slot number; slot 6 of each zone is its Legends game). Put your game's id into a free slot, or start a new zone:
 

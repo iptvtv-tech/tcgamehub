@@ -1,11 +1,12 @@
 // ─────────────────────────────────────────────────────────────
 //  The Golden Eggs (one per zone's Legends game) and the Golden Crown
-//  (all three eggs). Drawn as inline SVG so they stay crisp at any size.
+//  (all four eggs — the crown's jewels match them: diamonds, sapphires, amethysts, rubies). Drawn as inline SVG so they stay crisp at any size.
 // ─────────────────────────────────────────────────────────────
 export const EGGS = {
   1: { name: 'Golden Vault Egg', short: 'Vault Egg', jewel: '#e0f2fe', jewel2: '#67e8f9', band: 'diamonds' },
   2: { name: 'Golden Heist Egg', short: 'Heist Egg', jewel: '#60a5fa', jewel2: '#1d4ed8', band: 'sapphires' },
   3: { name: 'Golden Crypt Egg', short: 'Crypt Egg', jewel: '#c084fc', jewel2: '#6b21a8', band: 'amethysts' },
+  4: { name: 'Golden Throne Egg', short: 'Throne Egg', jewel: '#fca5a5', jewel2: '#b91c1c', band: 'rubies' },
 };
 export const eggName = (n) => EGGS[n]?.name || `Zone ${n} Egg`;
 
@@ -28,8 +29,10 @@ export function eggSVG(n, { size = 64, won = true, title = '' } = {}) {
       ? `<path d="M${x} ${y - 6} l5 6 -5 6 -5 -6z" fill="url(#${id}j)" stroke="#fff" stroke-width=".8"/>`
       : `<circle cx="${x}" cy="${y}" r="${i === 2 ? 6 : 4.5}" fill="url(#${id}j)" stroke="#fde68a" stroke-width="1.2"/>`;
   }).join('');
-  // a little motif on top: Zone 1 a keyhole, Zone 2 a mask, Zone 3 a skull
-  const motif = n === 1
+  // a little motif on top: Zone 1 a keyhole, Zone 2 a mask, Zone 3 a skull, Zone 4 a throne
+  const motif = n === 4
+    ? `<path d="M40 30 h20 v16 h3 v12 h-4 v-6 h-18 v6 h-4 v-12 h3z" fill="#7f1d1d"/><path d="M43 33 h14 v11 h-14z" fill="#dc2626"/><path d="M41 30 l3 -5 3 5 3 -6 3 6 3 -5 3 5" fill="none" stroke="#7f1d1d" stroke-width="1.6"/>`
+    : n === 1
     ? `<circle cx="50" cy="40" r="6" fill="#78350f"/><path d="M47 42 h6 l2 12 h-10z" fill="#78350f"/>`
     : n === 2
       ? `<path d="M34 38 q16 -8 32 0 q-2 10 -10 10 q-4 0 -6 -4 q-2 4 -6 4 q-8 0 -10 -10z" fill="#1e3a8a"/><circle cx="42" cy="40" r="2.6" fill="#fde68a"/><circle cx="58" cy="40" r="2.6" fill="#fde68a"/>`

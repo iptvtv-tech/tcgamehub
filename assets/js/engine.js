@@ -304,7 +304,12 @@ class Shell {
     if (fin && this.level >= fin) {
       if (this.def.secretLevel && this.level === fin && this.isFlawless()) this.after(1.6, () => this.beginLevel(this.def.secretLevel));
       else this.after(1.4, () => this.finishRun());
-    } else this.after(1.3, () => this.beginLevel(this.level + 1));
+    } else this.after(1.3, () => {
+      // a game can hold the next level back for a moment (Crown Heist: sealing your progress with a code)
+      const hold = this.game.beforeNextLevel?.(this.level);
+      if (hold && typeof hold.then === 'function') hold.then(() => { if (this.state === 'clear') this.beginLevel(this.level + 1); });
+      else this.beginLevel(this.level + 1);
+    });
   }
 
   /** Call when the player is hit. Loses a life, or ends the game on the last one. */
@@ -341,6 +346,7 @@ class Shell {
   // ── Run flow ─────────────────────────────────────────────────
   computeCheckpoints() {
     if (this.daily || this.def.noCheckpoints) return [1];
+    if (this.def.checkpoints) return this.def.checkpoints(Store.maxLevel(this.id));   // a game's own list (Crown Heist: any floor reached)
     const max = Math.min(Store.maxLevel(this.id), this.def.finalLevel || Infinity), list = [1];
     for (let l = CONFIG.bonusEvery + 1; l <= max; l += CONFIG.bonusEvery) list.push(l);
     return list;
@@ -674,9 +680,10 @@ class Shell {
       ${this.challenge ? `<p class="challenge">🎯 <b>${esc(this.challenge.by)}</b> challenged you: beat <b>${fmt(this.challenge.score)}</b>!</p>` : ''}
       <p class="controls">🎮 ${esc(m.controls || '')}</p>
       ${this.def.titleHint ? `<p class="legend-hint">${esc(this.def.titleHint)}</p>` : ''}
+      ${this.def.titleExtra ? this.def.titleExtra() : ''}
       ${m.gold && Legends.goldUnlocked(this.id) ? `<p><button class="chip gold-chip${Legends.goldOn(this.id) ? ' on' : ''}" data-gold>✨ ${esc(m.gold)}: ${Legends.goldOn(this.id) ? 'ON' : 'OFF'}</button></p>` : ''}
       ${this.detailChip()}
-      ${cps.length > 1 ? `<div class="checkpoints"><small>Start from</small>${cps.map((l) => `<button class="chip${l === this.chosenStart ? ' on' : ''}" data-start="${l}">Level ${l}</button>`).join('')}</div>` : ''}
+      ${cps.length > 1 ? `<div class="checkpoints"><small>Start from</small>${cps.map((l) => `<button class="chip${l === this.chosenStart ? ' on' : ''}" data-start="${l}">${esc(this.def.levelName || 'Level')} ${l}</button>`).join('')}</div>` : ''}
       <button class="btn primary big" data-act="play">▶ Play</button>
       <p class="muted small">Press <kbd>Enter</kbd> or <kbd>Space</kbd> · <kbd>P</kbd> pause · <kbd>M</kbd> mute</p>
       <div class="title-foot">
@@ -736,14 +743,15 @@ class Shell {
         <p class="muted small">The Crown Room is open, the whole arcade can turn gold, and a 👑 now follows your name on the leaderboards.</p>
         <a class="btn gold-btn" href="../../crown-room/">👑 Enter the Crown Room</a></div>`
         : `<p class="muted small">Golden Eggs: <b>${Legends.eggs().length} / ${legendZones().length}</b>${Legends.hasGoldenCrown() ? ' · 👑 Golden Crown holder' : ' — win every zone\'s egg for the Golden Crown.'}</p>`}
-      <p class="muted">Final score <b>${fmt(score)}</b> · ${this.def.finalLevel || ''} levels · not a single life lost</p>
+      ${this.def.legendLore ? `<p class="legend-hint">${esc(this.def.legendLore)}</p>` : ''}
+      <p class="muted">Final score <b>${fmt(score)}</b> · ${this.def.legendLine ? esc(this.def.legendLine(this)) : `${this.def.finalLevel || ''} levels · not a single life lost`}</p>
       <div class="gold-unlocks"><small>Golden characters unlocked${zone ? ` in Zone ${zone.n}` : ''}</small>
         <div>${unlocks.map((u) => `<span class="gold-pill">✨ ${esc(u.gold)}</span>`).join('')}</div>
       </div>
       <div class="rank-box" data-legend>
         <p class="rank-msg">Sign the <b>Hall of Legends</b>:</p>
         <form class="name-form" autocomplete="off">
-          <input name="n" maxlength="12" placeholder="Your name" value="${esc(Legends.info()?.name || Store.name())}" aria-label="Your name" enterkeyhint="done">
+          <input name="n" maxlength="12" placeholder="Your name" value="${esc(Legends.myName())}" aria-label="Your name" enterkeyhint="done">
           <button class="btn primary" type="submit">Sign</button>
         </form>
         <p class="form-msg" aria-live="polite"></p>

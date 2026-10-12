@@ -305,7 +305,7 @@ export const GAMES = [
   },
   {
     id: 'dungeon-escape',
-    gold: 'Golden Torch',           // golden character — unlocked by the Golden Crown until Zone 4 has its own Legends game
+    gold: 'Golden Torch',           // golden character unlocked by the Zone 4 egg
     title: 'Dungeon Escape 3D',
     is3d: true,
     tagline: 'Lost in a 3D maze with a dying torch. Grab the keys, find the stairs — and keep one step ahead of the ghouls hunting you in the dark.',
@@ -324,7 +324,7 @@ export const GAMES = [
   },
   {
     id: 'neon-drift',
-    gold: 'Golden Racer',           // golden character — unlocked by the Golden Crown until Zone 4 has its own Legends game
+    gold: 'Golden Racer',           // golden character unlocked by the Zone 4 egg
     title: 'Neon Drift 3D',
     is3d: true,
     tagline: 'Chase-cam neon racing over rolling synthwave hills. Tune the radio, throw the car sideways into every bend — chain drifts for huge combos, dodge the oil and beat three rivals to the flag.',
@@ -343,7 +343,7 @@ export const GAMES = [
   },
   {
     id: 'crystal-cascade',
-    gold: 'Golden Crystal Cannon',  // golden character — unlocked by the Golden Crown until Zone 4 has its own Legends game
+    gold: 'Golden Crystal Cannon',  // golden character unlocked by the Zone 4 egg
     title: 'Crystal Cascade 3D',
     is3d: true,
     tagline: 'Fire crystals down a mine shaft onto a turning platform. Match 3 to shatter, set off cascades, bombs and drills — dig down to the gold geodes and crack them open before the stack breaks the laser ring.',
@@ -365,7 +365,7 @@ export const GAMES = [
   },
   {
     id: 'void-breaker',
-    gold: 'Golden Gauntlet',        // golden character — unlocked by the Golden Crown until Zone 4 has its own Legends game
+    gold: 'Golden Gauntlet',        // golden character unlocked by the Zone 4 egg
     title: 'Void Breaker 3D',
     is3d: true,
     tagline: 'Stand at the heart of a glowing arena over the void as geometric invaders pour in from every side. Light-trail shots, shattering enemies, a NOVA shockwave — and a giant boss every 5th wave.',
@@ -382,6 +382,30 @@ export const GAMES = [
       { id: 'combo5',    icon: '🔥', title: 'Chain Breaker',    desc: 'Reach a x5 combo' },
       { id: 'level10',   icon: '🌌', title: 'Void Walker',      desc: 'Reach wave 10' },
       { id: 'score10k',  icon: '🏅', title: 'Ten Grand',        desc: 'Score 10,000 in one run' },
+    ],
+  },
+  {
+    id: 'crown-heist',
+    gold: 'Golden Thief',           // golden character unlocked by the Zone 4 egg (golden glove and torch)
+    title: 'Crown Heist 3D',
+    is3d: true,
+    tagline: 'Sneak into the Deep Vaults by torchlight, lift the crown from its pedestal — and run. Fifteen floors of guards, slamming portcullises, crumbling floors and the Crown Wraith.',
+    controls: 'Move: ↑/↓ or W/S · Turn: ←/→ or A/D · Sidestep: Q/E · Grab / lever: Space · Coin: C · Smoke: X (touch: stick, drag the view to look, GRAB / COIN / SMOKE)',
+    color: '#f59e0b',
+    isNew: true,
+    legend: true,                   // Zone 4's Legends game
+    legendHow: 'Carry the crown out of all 15 floors of Crown Heist (over as many visits as it takes).',
+    achievements: [
+      { id: 'ghost',     icon: '👻', title: 'Ghost',             desc: 'Escape floor 3 or later without a single guard spotting you' },
+      { id: 'lever',     icon: '⛓️', title: 'Shortcut',          desc: 'Pull a lever to raise a slammed portcullis' },
+      { id: 'decoy',     icon: '🪙', title: 'Heads or Tails',    desc: 'Lure a guard away with a thrown coin' },
+      { id: 'smoke',     icon: '💨', title: 'Smoke and Mirrors', desc: 'Lose a guard who is chasing you with a smoke bomb' },
+      { id: 'pit',       icon: '🕳️', title: 'Mind the Gap',      desc: 'A guard falls through a floor that gave way behind you' },
+      { id: 'wraith',    icon: '👁️', title: 'Outran the Wraith', desc: 'Escape a floor with the Crown Wraith awake' },
+      { id: 'hoard',     icon: '💰', title: 'Vault Raider',      desc: 'Grab 40 coins in one treasure vault' },
+      { id: 'level10',   icon: '🏰', title: 'The Deep Vaults',   desc: 'Reach floor 10' },
+      { id: 'heist',     icon: '👑', title: 'Now Run.',          desc: 'Carry the crown of the Crypt Kings out of floor 15', legendary: true, secret: true },
+      { id: 'throne',    icon: '🪑', title: 'Kingmaker',         desc: 'Find the secret 16th floor and set the crown on the empty throne', legendary: true, secret: true },
     ],
   },
   {
@@ -406,7 +430,7 @@ export const GAMES = [
   },
   {
     id: 'tc-pixel-craft',
-    gold: 'Golden Hand',            // golden character — unlocked by the Golden Crown until Zone 4 has its own Legends game
+    gold: 'Golden Hand',            // golden character unlocked by the Zone 4 egg
     title: 'TC Pixel Craft 3D',
     is3d: true,
     tagline: 'An open-world survival block game. Start with nothing: punch trees, craft tools, find food before your energy runs out, survive the nights — and one day face the Shadow King.',
@@ -459,11 +483,12 @@ export const GLOBAL_ACHIEVEMENTS = [
   { id: 'bonus',   icon: '⭐', title: 'Bonus Hunter',    desc: 'Reach a bonus round' },
   { id: 'famous',  icon: '🏆', title: 'Famous',          desc: 'Put your name on a leaderboard' },
   { id: 'pb',      icon: '📈', title: 'Getting Better',  desc: 'Beat your own best score' },
-  { id: 'legend',  icon: '👑', title: 'Legend',          desc: 'Finish a Legend game without losing a single life', legendary: true, secret: true },
+  { id: 'legend',  icon: '👑', title: 'Legend',          desc: 'Win a Golden Egg in one of the Legends games', legendary: true, secret: true },
   { id: 'crown1',  icon: '🥚', title: 'Golden Vault Egg', desc: 'Win Zone 1\'s Legends game perfectly — unlocks the golden characters in games 1–6', legendary: true, secret: true },
   { id: 'crown2',  icon: '🥚', title: 'Golden Heist Egg', desc: 'Win Zone 2\'s Legends game perfectly — unlocks the golden characters in games 7–12', legendary: true, secret: true },
   { id: 'crown3',  icon: '🥚', title: 'Golden Crypt Egg', desc: 'Win Zone 3\'s Legends game perfectly — unlocks the golden characters in games 13–18', legendary: true, secret: true },
-  { id: 'grand',   icon: '👑', title: 'The Golden Crown', desc: 'Collect all three Golden Eggs — opens the Crown Room', legendary: true, secret: true },
+  { id: 'crown4',  icon: '🥚', title: 'Golden Throne Egg', desc: 'Carry the crown out of all 15 floors of Crown Heist — unlocks the golden characters in games 19–24', legendary: true, secret: true },
+  { id: 'grand',   icon: '👑', title: 'The Golden Crown', desc: 'Collect all four Golden Eggs — opens the Crown Room', legendary: true, secret: true },
 ];
 
 // ── Difficulty tiers & zones ─────────────────────────────────
@@ -491,9 +516,9 @@ export const ZONES = [
   { n: 3, name: 'Zone 3 · Master Class', blurb: 'Master difficulty — for players who have beaten Zone 2. Crypt of Crowns 3D is this zone\'s Legends game.',
     legendGame: 'crypt-of-crowns',
     slots: ['turbo-rush', 'bubble-blitz', 'pinball-blast', 'star-strike', 'eggspress', 'crypt-of-crowns'] },
-  { n: 4, name: 'Zone 4 · Ultra', blurb: 'Ultra difficulty — for players who have played every Zone 3 game. More games are on the way.',
-    legendGame: null,
-    slots: ['tc-pixel-craft', 'dungeon-escape', 'neon-drift', 'crystal-cascade', 'void-breaker', null] },
+  { n: 4, name: 'Zone 4 · Ultra', blurb: 'Ultra difficulty — for players who have played every Zone 3 game. Crown Heist 3D is this zone\'s Legends game.',
+    legendGame: 'crown-heist',
+    slots: ['tc-pixel-craft', 'dungeon-escape', 'neon-drift', 'crystal-cascade', 'void-breaker', 'crown-heist'] },
 ];
 
 /** Icon for each zone's prize (a Golden Egg — see eggs.js for the full artwork). */

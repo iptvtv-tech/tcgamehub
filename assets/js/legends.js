@@ -6,11 +6,14 @@
 //  and never lost a life. Every zone of 6 games ends with a Legend game (see ZONES
 //  in games.js). Finishing its secret level wins that zone's GOLDEN EGG:
 //    • golden versions of the main character in that zone's games (toggle in each game's menu)
-//    • an egg badge (crown1/crown2/crown3 — the ids are kept from when they were "crowns")
+//    • an egg badge (crown1–crown4 — the ids are kept from when they were "crowns")
 //    • special "Legendary" badges
 //    • access to the hidden Hall of Legends page (/hall-of-legends/)
 //    • a Legend code to restore everything on another device
-//  Every egg → THE GOLDEN CROWN (badge "grand"): the hidden Crown Room page
+//  (Crown Heist, Zone 4's Legends game, is the one exception: its egg is won by carrying the
+//  crown out of all 15 floors, across as many sessions as it takes — a flawless run also opens
+//  its secret 16th floor.)
+//  Every egg (all four) → THE GOLDEN CROWN (badge "grand"): the hidden Crown Room page
 //  (/crown-room/), a golden theme for the whole site, and a 👑 by your name on
 //  the leaderboards.
 //
@@ -62,8 +65,11 @@ const validLocal = (code) => /^LEGEND-[A-Z0-9]{6}$/.test(code) && checksum(code.
 function data() {
   const d = Store.data;
   d.legend ??= null; // { at, games: [], code, name }
+  d.progressCode ??= null; // { code, name } — a code given out before any egg was won (Crown Heist, floor 3)
   return d;
 }
+/** The one code this browser saves its progress to: the Legend code, or the code given out before any egg. */
+const myCode = () => { const d = data(); return d.legend?.code || d.progressCode?.code || null; };
 
 // ── Progress that travels with your Legend code ──────────────
 // Games played (which is what opens each zone), levels reached (checkpoints), best scores and
@@ -93,15 +99,16 @@ function mergeIn(p) {
 }
 let syncTimer = null, syncing = null;
 /** save this browser's progress online and bring back anything newer; resolves to the number of things added (null = couldn't) */
-function syncNow({ keepalive = false } = {}) {
-  const d = data(), code = d.legend?.code;
+function syncNow({ keepalive = false, code = myCode() } = {}) {
+  const d = data();
   if (!ONLINE || !code) return Promise.resolve(null);
-  if (syncing) return syncing;
+  if (syncing) return syncing.then(() => syncNow({ keepalive, code }));
   const rev = d.rev || 0;
   syncing = rpc('sync_progress', { p_code: code, p_data: payload() }, { keepalive })
     .then((r) => {
       if (!r) return null;
       const added = mergeIn(r.data);
+      if (code !== myCode()) { scheduleSync(800); return added; }   // pulled another code's progress in: save it to ours too
       if (r.saved) { d.syncedRev = rev; Store.save(); } else scheduleSync(6000);
       return added;
     })
@@ -111,17 +118,42 @@ function syncNow({ keepalive = false } = {}) {
 }
 function scheduleSync(ms = 4000) {
   clearTimeout(syncTimer);
-  syncTimer = setTimeout(() => { const d = data(); if (d.legend?.code && (d.rev || 0) !== d.syncedRev) syncNow(); }, ms);
+  syncTimer = setTimeout(() => { const d = data(); if (myCode() && (d.rev || 0) !== d.syncedRev) syncNow(); }, ms);
 }
 if (typeof window !== 'undefined') {
   Store.onProgress(() => scheduleSync());
   setTimeout(() => syncNow(), 1500);                       // each page load: pick up progress from your other browsers
-  addEventListener('visibilitychange', () => { const d = data(); if (document.hidden && d.legend?.code && (d.rev || 0) !== d.syncedRev) syncNow({ keepalive: true }); });
+  addEventListener('visibilitychange', () => { const d = data(); if (document.hidden && myCode() && (d.rev || 0) !== d.syncedRev) syncNow({ keepalive: true }); });
 }
 
 export const Legends = {
   isLegend() { return !!data().legend; },
   info() { return data().legend; },
+  /** The code this browser's progress is saved to (Legend code, or a progress code from Crown Heist), or null. */
+  myCode,
+  /** The name that goes with it (for filling in name boxes). */
+  myName() { const d = data(); return d.legend?.name || d.progressCode?.name || Store.name(); },
+  /** Is a code there to be asked for? (online, and none yet) */
+  canIssue() { return ONLINE && !myCode(); },
+  /**
+   * Ask the server for a code before any egg is won (Crown Heist, after floor 3). It is an ordinary
+   * LEGEND-XXXXXX code: your progress in every game is saved to it, it restores on the Legends page,
+   * and when you win an egg and sign the Hall with the same name, the egg goes on this same code.
+   */
+  async issueCode(name) {
+    const problem = nameProblem(name);
+    if (problem) throw new Error(problem);
+    if (myCode()) return myCode();
+    if (!ONLINE) throw new Error('Codes need the arcade to be online.');
+    const r = await rpc('issue_code', { p_name: name });
+    if (!r?.code) throw new Error('Could not make a code — try again.');
+    const d = data();
+    d.progressCode = { code: r.code, name };
+    Store.setName(name);
+    Store.save();
+    scheduleSync(300);
+    return r.code;
+  },
 
   /** Called by the engine when a flawless secret level is completed. Returns true the first time. */
   grant(gameId) {
@@ -186,11 +218,11 @@ export const Legends = {
       const args = { p_game: gameId, p_name: name, p_duration_ms: Math.floor(durationMs) };
       let r;
       // v2 keeps ONE Legend code for all your eggs (when you sign with the same name)
-      try { r = await rpc('claim_legend_v2', { ...args, p_code: d.legend?.code || null }); }
+      try { r = await rpc('claim_legend_v2', { ...args, p_code: myCode() }); }
       catch (err) { if (!missingFn(err)) throw err; r = await rpc('claim_legend', args); }
       code = r.code;
     } else {
-      code = d.legend?.code || localCode();
+      code = myCode() || localCode();
       d.local.push({ game: gameId, name, score: 0, level: 0, mode: 'legend', at: Date.now() });
     }
     d.legend.code = code; d.legend.name = name; d.legend.codeGames = d.legend.games.length;
@@ -207,17 +239,29 @@ export const Legends = {
     return 'LEGEND-' + t;
   },
 
-  /** Restore Legend status on a new device from a Legend code. */
+  /** Restore Legend status (and/or saved progress) on a new device from a Legend code. */
   async restore(raw) {
     const code = Legends.normalizeCode(raw);
     if (!/^LEGEND-[A-Z0-9]{6}$/.test(code)) throw new Error('That doesn\'t look like a Legend code (LEGEND-XXXXXX).');
     let entry = null;
     if (ONLINE) {
-      // v2 brings back every Legends game on this code; v1 (before the SQL update) only one
-      try { entry = await rpc('restore_legend_v2', { p_code: code }); }
-      catch (err) { if (!missingFn(err)) throw err; entry = await rpc('restore_legend', { p_code: code }); }
+      // restore_code also knows codes given out before any egg; then v2 (every egg); then v1 (one egg)
+      try { entry = await rpc('restore_code', { p_code: code }); }
+      catch (err) {
+        if (!missingFn(err)) throw err;
+        try { entry = await rpc('restore_legend_v2', { p_code: code }); }
+        catch (err2) { if (!missingFn(err2)) throw err2; entry = await rpc('restore_legend', { p_code: code }); }
+      }
     } else if (validLocal(code)) entry = { name: Store.name() || 'Legend', game: GAMES.find((g) => g.legend)?.id };
     const games = entry ? (entry.games || [entry.game]).filter(Boolean) : [];
+    if (entry && entry.name && !games.length) {
+      // a code with no eggs on it yet: bring back the progress only
+      const d = data();
+      if (!myCode()) { d.progressCode = { code, name: entry.name }; Store.setName(entry.name); Store.save(); }
+      entry.games = []; entry.progressOnly = true;
+      entry.progress = await syncNow({ code });
+      return entry;
+    }
     if (!games.length) throw new Error('Code not recognised. Check it and try again.');
     const d = data();
     d.legend ??= { at: Date.now(), games: [], code, name: entry.name };
@@ -233,7 +277,7 @@ export const Legends = {
     this.syncCrowns();
     Store.save();
     // bring back the games played on that code (zones), levels, best scores and badges
-    entry.progress = d.legend.code === code ? await syncNow() : null;
+    entry.progress = await syncNow({ code });
     return entry;
   },
 
