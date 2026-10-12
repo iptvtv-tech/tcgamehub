@@ -331,7 +331,7 @@ export const GAMES = [
     gold: 'Golden Racer',           // golden character unlocked by the Zone 4 egg
     title: 'Neon Drift 3D',
     is3d: true,
-    tagline: 'Neon racing from the driver\'s seat on a glowing grid circuit. Tune the radio, throw the car sideways into every bend — chain drifts for huge combos, dodge the oil and beat five rivals to the flag.',
+    tagline: 'Neon racing from the driver\'s seat on a glowing grid circuit. Tune the radio, throw the car sideways into every bend — chain drifts for huge combos, dodge the oil, beat five rivals to the flag — and every 5th level, a boss duel.',
     controls: 'Steer: ← → or A/D · Handbrake drift: Space or ↓ · Fire drift boost: ↑ or W · Cockpit / chase cam: C (phone: tilt to steer and hold the middle to drift, or hold the left or right side · tap ⚡ BOOST to fire · tap VIEW to switch camera)',
     color: '#ff4fa3',
     isNew: true,
@@ -340,6 +340,8 @@ export const GAMES = [
       { id: 'fullboost', icon: '⚡', title: 'Overcharged',    desc: 'Fire a FULL drift boost' },
       { id: 'spinout',  icon: '🌀', title: 'Tail Whip',       desc: 'Drift into a rival and spin them out' },
       { id: 'perfectline', icon: '〰️', title: 'Perfect Line', desc: 'Collect every coin in a corner trail' },
+      { id: 'bossbeat', icon: '💀', title: 'Giant Killer',    desc: 'Beat a boss in its one-lap duel' },
+      { id: 'bossrush', icon: '👾', title: 'Boss Rush',       desc: 'Beat VORTEX, VENOM and PHANTOM in one run' },
       { id: 'hattrick', icon: '🏎️', title: 'Hat-Trick',       desc: 'Overtake three rivals in one lap' },
       { id: 'winner',   icon: '🏁', title: 'Chequered Flag',  desc: 'Win a race' },
       { id: 'clean',    icon: '✨', title: 'Clean Line',      desc: 'Win a race without touching a wall' },

@@ -55,8 +55,10 @@ const LAPS = 3;
 const PLACES = ['1st', '2nd', '3rd', '4th', '5th', '6th'];
 const wrapA = (a) => ((a + Math.PI) % TAU + TAU) % TAU - Math.PI;
 const mod = (a, n) => ((a % n) + n) % n;
-const need = (l) => (l <= 2 ? 3 : l <= 6 ? 2 : 1);
-const isIce = (l) => l >= 8 && l % 6 === 2;
+const isBoss = (l) => l % 5 === 0;
+const need = (l) => (isBoss(l) ? 1 : l <= 2 ? 3 : l <= 6 ? 2 : 1);
+const isIce = (l) => l >= 9 && l % 5 === 4;
+const BONUS_LEVELS = Array.from({ length: 400 }, (_, i) => 3 + i * 5);   // ★ Coin Rush: 3, 8, 13 …
 const needText = (l) => (need(l) === 1 ? 'Win the race.' : `Top ${need(l)} to qualify.`);
 
 const RIVALS = [
@@ -66,6 +68,17 @@ const RIVALS = [
   { name: 'BLAZE', paint: '#fb923c', stripe: '#7c2d12', glow: '#fb923c' },
   { name: 'FROST', paint: '#e0f2fe', stripe: '#0369a1', glow: '#7dd3fc' },
 ];
+// every 5th level: a one-lap duel against a boss, each with a signature trick (they come round again, faster, from level 20)
+const BOSSES = [
+  { name: 'VORTEX',  paint: '#f8fafc', stripe: '#db2777', glow: '#f472b6', trick: 'boost',
+    intro: 'VORTEX fires a boost out of EVERY bend — drift hard to charge yours and fire it first.' },
+  { name: 'VENOM',   paint: '#14532d', stripe: '#a3e635', glow: '#a3e635', trick: 'oil',
+    intro: 'VENOM leaks oil behind it — never sit in its tyre tracks.' },
+  { name: 'PHANTOM', paint: '#1e1b4b', stripe: '#e0e7ff', glow: '#c4b5fd', trick: 'phase',
+    intro: 'PHANTOM phases out — while it flickers you can\'t bump or spin it, and it blocks your line.' },
+];
+const bossNo = (l) => Math.floor(l / 5);                  // 1st, 2nd, 3rd … boss of the run
+const bossFor = (l) => BOSSES[(bossNo(l) - 1) % BOSSES.length];
 const THEMES = {
   synth: { key: 'synth', sky: ['#07021a', '#2a0845', '#8a1f72'], haze: '#3a1050', sun: ['#fde047', '#ff4fa3'], city: ['#2a0f45', '#12061f'], gnd: ['#0c0520', '#120829'], grid: '#c026d3',
     road: '#1c1733', road2: '#231c40', runoff: '#120a24', edge: '#22d3ee', kerb: ['#f472b6', '#f8fafc'], wall: '#f472b6', face: '#2a1440', lane: '#a78bfa', sign: ['#22d3ee', '#f472b6', '#fde047'] },
@@ -100,13 +113,15 @@ runGame({
   comboStep: 1,
   maxMultiplier: 6,
   bonusTime: 25,
+  bonusLevels: BONUS_LEVELS,
   detail: true,
+  levelTitle: (l) => (isBoss(l) ? `⚠ BOSS: ${bossFor(l).name}` : `Level ${l}`),
   music: MUSIC,
   levelInfo: (l, b) => b ? 'NEON COIN RUSH — no rivals. Drift between the coins!'
     : l === 1 ? 'Finish in the top 3. Hold a turn at full speed to DRIFT — drifting charges your ⚡ BOOST: fire it with ↑ / W or the BOOST button. Drift into a rival to spin them out!'
-    : l === 2 ? 'Oil on a corner! Hit it and you spin out — take the bend wide. Top 3 to qualify.'
-    : l === 3 ? 'Tighter track — only the top 2 qualify now.'
-    : l === 4 ? 'Hit the ⚡ boost pads. Rivals are getting faster. Top 2.'
+    : isBoss(l) ? `One lap, one on one — beat ${bossFor(l).name} to the line! ${bossFor(l).intro}`
+    : l === 2 ? 'Oil on a corner! Hit it and you spin out — tighten your line. Top 3 to qualify.'
+    : l === 4 ? 'Tighter track and ⚡ boost pads — only the top 2 qualify now. A BOSS waits on level 5!'
     : l === 7 ? 'From here on, ONLY A WIN COUNTS.'
     : isIce(l) ? `BLACK ICE — less grip everywhere! ${needText(l)}`
     : `Faster rivals, tighter turns. ${needText(l)}`,
@@ -167,13 +182,13 @@ function rotateToStraight(T) {
   for (let i = 0; i < T.N; i++) { x[i] = T.x[(i + best) % T.N]; z[i] = T.z[(i + best) % T.N]; }
   return finishTrack(x, z, T.step, T.halfW);
 }
-function buildTrack(rng, level, bonus) {
+function buildTrack(rng, level, bonus, boss = false) {
   const halfW = bonus ? 126 : Math.max(90, 124 - level * 2.4);
   const n = bonus ? 9 : 8 + Math.min(7, Math.floor(level / 2));
   let vari = bonus ? 0.16 : Math.min(0.42, 0.2 + level * 0.018);
   let T = null;
   for (let tries = 0; tries < 40 && !T; tries++) {
-    const R = 980 + n * 32, ctrl = [];
+    const R = (980 + n * 32) * (boss ? 1.25 : 1), ctrl = [];
     for (let i = 0; i < n; i++) {
       const a = (i + rng.range(-0.28, 0.28)) / n * TAU, r = R * (1 + rng.range(-vari, vari));
       ctrl.push([Math.cos(a) * r, Math.sin(a) * r * 1.12]);
@@ -293,10 +308,11 @@ class NeonDrift {
     this.tiltFrac = 0; this.handTouch = false;
     this.tiltDev = tilt();          // shared phone-tilt reader (asks iOS for permission on a real tap)
     try { if (new URLSearchParams(location.search).has('nddebug')) window.__nd = this; } catch (e) { /* no window */ }   // test hook
+    this.bossesBeaten = new Set();
     this.startLevel(1, false);      // the attract-mode race behind the title screen
     this.needTune = true; this.tuneT = 0;
   }
-  reset() { this.needTune = true; }
+  reset() { this.needTune = true; this.bossesBeaten = new Set(); }
 
   // ── Tilt steering (same feel as Turbo Rush 3D) ──────────────
   get tiltOn() { return this.tiltDev.on; }
@@ -311,8 +327,9 @@ class NeonDrift {
   startLevel(level, bonus) {
     const s = this.s, r = s.rng;
     this.level = level; this.bonus = bonus;
+    this.boss = !bonus && isBoss(level); this.laps = this.boss ? 1 : LAPS;
     this.calibrateTilt();
-    this.T = buildTrack(r, level, bonus);
+    this.T = buildTrack(r, level, bonus, this.boss);
     this.theme = this.themeFor(level, bonus);
     this.voidCol = darken(this.theme.road, 0.42);
     this.grip = isIce(level) ? 0.62 : 1;
@@ -417,7 +434,12 @@ class NeonDrift {
     this.p = { x, z, h, vx: 0, vz: 0, steer: 0, slide: 0, spinT: 0, spinDir: 1, boostT: 0, idx: ((Math.round(p0 / T.step) % T.N) + T.N) % T.N,
       acc: Math.round(p0 / T.step), prog: p0, lat: 0.38 * hw, lapDone: 0, wallHits: 0, drift: 0, driftT: 0, calmT: 0, offroad: false, finished: false, place: 0,
       passed: new Set(), wrongT: 0, lastProg: p0, squeal: 0, bumpT: 0, brake: false, slip: 0, charge: 0, boostMax: 1, ghostT: 0, fullShown: false };
-    this.rivals = this.bonus ? [] : RIVALS.map((R, i) => {
+    this.oils = this.oils.filter((o) => !o.dyn);
+    if (this.boss) {
+      const B = bossFor(this.level), n = bossNo(this.level), d = -165, off = -0.38 * hw, [rx, rz, rh] = at(T, d, off);
+      this.rivals = [{ ...B, i: 0, d, off, offT: off, v: 0, x: rx, z: rz, h: rh, slip: 0, spinT: 0, boostT: 0, finished: false, retarget: 1,
+        vmax: this.maxV * BOT_EASE * Math.min(1.02, 0.91 + 0.013 * (n - 1)), ahead: true, wasBend: false, boss: true, n, trickT: 3, phaseT: 0 }];
+    } else this.rivals = this.bonus ? [] : RIVALS.map((R, i) => {
       const d = -40 - Math.floor(i / 2) * 70, off = (i % 2 ? 0.38 : -0.38) * hw;   // rows of two; the player starts behind car 3
       const [rx, rz, rh] = at(T, d, off);
       return { ...R, i, d, off, offT: off, v: 0, x: rx, z: rz, h: rh, slip: 0, spinT: 0, boostT: 0, finished: false, retarget: 1 + i * 0.4,
@@ -799,6 +821,37 @@ class NeonDrift {
     this.smoke.push({ d, off, y: 4, vd: (Math.random() - 0.5) * 30, vo: (Math.random() - 0.5) * 30, vy: 18 + Math.random() * 20, life: 0, max: 0.7 + Math.random() * 0.5, r: 8 + Math.random() * 6, c, a });
   }
 
+  /** the boss's signature move: VENOM drops oil when you're on its tail, PHANTOM phases out every few seconds */
+  bossTrick(rv, dt, gap) {
+    const s = this.s, T = this.T, p = this.p;
+    if (rv.phaseT > 0) rv.phaseT -= dt;
+    rv.trickT -= dt;
+    if (rv.trickT > 0 || rv.spinT > 0 || rv.finished || p.finished) return;
+    const near = Math.abs(gap) < 650;
+    if (rv.trick === 'oil') {
+      // only when you're behind it (within range) and it's on a fairly straight bit, so the slick sits on the road
+      if (gap < -140 && gap > -650) {           // far enough ahead that you can see it land and steer round it
+        const d = rv.d - 50, i = mod(Math.floor(d / T.step), T.N);
+        if (Math.abs(T.k[i]) < 0.003) {
+          const rr = (a, b) => a + Math.random() * (b - a);      // not the level RNG: keeps daily tracks identical for everyone
+          this.oils.push({ d: mod(d, T.L), off: clamp(rv.off, -T.halfW * 0.7, T.halfW * 0.7), r: 26, dyn: true, ttl: 9, hit: 0,
+            blobs: [[0, 0, 1], [rr(-12, 12), rr(-10, 10), 0.7], [rr(-14, 14), rr(-12, 12), 0.5]] });
+          const [sx, sy] = this.scr(rv.d, rv.off, 30);
+          s.fx.text(sx, sy - 40, 'OIL!', { color: rv.glow, size: 18 });
+          if (!s.sound.muted) s.sound.noise({ dur: 0.3, vol: 0.06, freq: 500, to: 160, type: 'lowpass' });
+          rv.trickT = Math.max(3.5, 6.2 - 0.3 * (rv.n - 2));
+        }
+      }
+    } else if (rv.trick === 'phase') {
+      if (near) {
+        rv.phaseT = 2.2; rv.trickT = Math.max(4.5, 7 - 0.3 * (rv.n - 3));
+        const [sx, sy] = this.scr(rv.d, rv.off, 30);
+        s.fx.text(sx, sy - 40, 'PHASE!', { color: rv.glow, size: 18 });
+        if (!s.sound.muted) s.sound.tone({ freq: 880, to: 220, dur: 0.35, type: 'sine', vol: 0.06 });
+      }
+    }
+  }
+
   updateRival(rv, dt, auto = false) {
     const T = this.T, p = this.p;
     if (rv.spinT > 0) rv.spinT -= dt;
@@ -810,14 +863,19 @@ class NeonDrift {
     const gap = p.prog - rv.d;                       // > 0: the player is ahead of this car
     if (!auto && !this.bonus && !p.finished) {
       // the pack hunts a leader down: the further ahead you get, the harder they push (more so on later levels)
-      const maxCatch = 0.9 * Math.min(0.26, 0.15 + 0.015 * this.level);
+      const maxCatch = rv.boss ? 0.2 + 0.01 * Math.min(6, rv.n) : 0.9 * Math.min(0.26, 0.15 + 0.015 * this.level);
       if (gap > 80) { const u = clamp((gap - 80) / 1000, 0, 1); rb = 1 + maxCatch * u * u * (3 - 2 * u); }
+      else if (rv.boss && gap < -450) rb = 1 - Math.min(0.08, (-gap - 450) / 4000);   // a boss waits for you: always a duel
       else if (gap < -700) rb = 1 - Math.min(0.05, (-gap - 700) / 8000);
     }
-    const LAT = 1180 * this.sc * this.sc * rb * rb;    // pushing harder means braver cornering too
+    const LAT = 1180 * this.sc * this.sc * rb * rb * (rv.boss ? 1.06 : 1);    // pushing harder means braver cornering too
+    if (rv.boss && !auto) this.bossTrick(rv, dt, gap);
     // they drift-boost out of bends as well (more often on later levels)
     const bend = kk > 0.0028;
-    if (rv.wasBend && kk < 0.0015 && rv.spinT <= 0 && !auto && Math.random() < 0.9 * Math.min(0.85, 0.15 + 0.08 * this.level)) rv.boostT = Math.max(rv.boostT, 0.8);
+    if (rv.wasBend && kk < 0.0015 && rv.spinT <= 0 && !auto) {
+      if (rv.trick === 'boost') { rv.boostT = Math.max(rv.boostT, 1 + 0.1 * Math.min(4, rv.n - 1)); if (Math.abs(gap) < 600) this.s.sound.play('powerup'); }
+      else if (Math.random() < 0.9 * Math.min(0.85, 0.15 + 0.08 * this.level)) rv.boostT = Math.max(rv.boostT, 0.8);
+    }
     if (bend) rv.wasBend = true; else if (kk < 0.0015) rv.wasBend = false;
     let target = Math.min(rv.vmax * rb * (rv.boostT > 0 ? 1.25 : 1), Math.sqrt(LAT / Math.max(kk, 1e-4)));
     if (rv.finished) target = Math.min(target, this.maxV * 0.6);
@@ -833,8 +891,8 @@ class NeonDrift {
       const ahead = p.prog - rv.d;
       if (ahead > 0 && ahead < 110) { const [, , , , nx, nz] = at(T, rv.d); const pl = (p.x - rv.x) * nx + (p.z - rv.z) * nz; if (Math.abs(pl) < 50) offT = clamp(rv.off + (pl > 0 ? -70 : 70), -0.7 * hw, 0.7 * hw); }
       // defend: from level 3, a car just ahead of you on a straight moves across to cover your line
-      else if (this.level >= 3 && ahead < -25 && ahead > -200 && kk < 0.0022 && rv.spinT <= 0 && p.ghostT <= 0) {
-        offT = clamp(p.lat, -0.7 * hw, 0.7 * hw); lane = 55 + this.level * 4;
+      else if (this.level >= 3 && ahead < -25 && ahead > (rv.boss ? -260 : -200) && (kk < 0.0022 || rv.trick === 'phase') && rv.spinT <= 0 && p.ghostT <= 0) {
+        offT = clamp(p.lat, -0.7 * hw, 0.7 * hw); lane = rv.boss ? 100 + (rv.trick === 'phase' ? 30 : 0) : 55 + this.level * 4;
       }
     }
     rv.offT = offT;
@@ -851,10 +909,10 @@ class NeonDrift {
     const p = this.p, s = this.s, T = this.T;
     for (const rv of this.rivals) {
       const dx = p.x - rv.x, dz = p.z - rv.z, d = Math.hypot(dx, dz);
-      if (d < CAR_R * 2 && d > 0.01 && p.ghostT > 0) continue;      // ghosting: drive straight through
+      if (d < CAR_R * 2 && d > 0.01 && (p.ghostT > 0 || rv.phaseT > 0)) continue;      // ghosting / a phasing boss: straight through
       if (d < CAR_R * 2 && d > 0.01 && (p.drifting || p.slide > 0.5) && rv.spinT <= 0 && !rv.finished) {
         // swung the tail into them: THEY spin, you keep going
-        rv.spinT = 1.1; rv.v *= 0.65;
+        rv.spinT = rv.boss ? 0.75 : 1.1; rv.v *= rv.boss ? 0.75 : 0.65;
         p.ghostT = 1.2;
         const nx = dx / d, nz = dz / d; p.x += nx * (CAR_R * 2 - d) * 0.5; p.z += nz * (CAR_R * 2 - d) * 0.5;
         const [sx, sy] = this.scr((p.prog + rv.d) / 2, (p.lat + rv.off) / 2, 20);
@@ -892,6 +950,10 @@ class NeonDrift {
 
   objects(dt) {
     const p = this.p, s = this.s, T = this.T;
+    if (this.oils.some((o) => o.dyn)) {
+      for (const o of this.oils) if (o.dyn) o.ttl -= dt;
+      this.oils = this.oils.filter((o) => !o.dyn || o.ttl > 0);
+    }
     for (const o of this.oils) {
       const [ox, oz] = at(T, o.d, o.off);
       if (o.hit > 0) o.hit -= dt;
@@ -903,7 +965,7 @@ class NeonDrift {
         p.drift = 0; p.driftT = 0; s.resetCombo();
         p.charge *= 0.6;                              // spinning out spills some of the boost
       }
-      for (const rv of this.rivals) if (rv.spinT <= 0 && Math.abs(((rv.d - o.d) % T.L + T.L) % T.L) < 18 && Math.abs(rv.off - o.off) < o.r + 8) rv.spinT = 0.7;
+      if (!o.dyn) for (const rv of this.rivals) if (rv.spinT <= 0 && Math.abs(((rv.d - o.d) % T.L + T.L) % T.L) < 18 && Math.abs(rv.off - o.off) < o.r + 8) rv.spinT = 0.7;
     }
     for (const b of this.boosts) {
       if (b.cool > 0) b.cool -= dt;
@@ -962,11 +1024,11 @@ class NeonDrift {
     const lapDone = Math.max(0, Math.floor(p.prog / T.L));
     if (!p.finished && lapDone > p.lapDone) {
       p.lapDone = lapDone; p.passed.clear();
-      if (lapDone >= LAPS) return this.finish();
+      if (lapDone >= this.laps) return this.finish();
       for (const c of this.coins) if (c.line) c.got = false;
       for (const ln of this.lines || []) { ln.got = 0; ln.done = false; }
       s.award(80 * this.level, W / 2, H * 0.3);
-      s.fx.text(W / 2, H * 0.24, lapDone === LAPS - 1 ? 'FINAL LAP!' : `LAP ${lapDone + 1} / ${LAPS}`, { color: this.theme.edge, size: 34, life: 1.2 });
+      s.fx.text(W / 2, H * 0.24, lapDone === this.laps - 1 ? 'FINAL LAP!' : `LAP ${lapDone + 1} / ${this.laps}`, { color: this.theme.edge, size: 34, life: 1.2 });
       s.sound.play('golden');
     }
     // wrong way
@@ -974,7 +1036,7 @@ class NeonDrift {
     p.lastProg = p.prog;
     // overtakes + rivals finishing
     for (const rv of this.rivals) {
-      if (!rv.finished && rv.d >= LAPS * T.L) { rv.finished = true; this.finishedRivals++; }
+      if (!rv.finished && rv.d >= this.laps * T.L) { rv.finished = true; this.finishedRivals++; }
       const ahead = rv.d > p.prog;
       if (rv.ahead && !ahead && !p.finished && !rv.finished && this.raceT > 1.5 && !p.passed.has(rv.i)) {
         p.passed.add(rv.i);
@@ -990,7 +1052,7 @@ class NeonDrift {
     if (!p.finished && !this.result && this.finishedRivals >= need(this.level)) {
       this.result = 'fail';
       if (p.drift > 0) this.bankDrift();
-      s.fx.text(W / 2, H * 0.3, 'TOO SLOW!', { color: '#fb7185', size: 44, life: 1.4 });
+      s.fx.text(W / 2, H * 0.3, this.boss ? `${this.rivals[0].name} WINS` : 'TOO SLOW!', { color: '#fb7185', size: 44, life: 1.4 });
       s.fx.text(W / 2, H * 0.38, need(this.level) === 1 ? 'You had to win' : `You needed top ${need(this.level)}`, { color: '#fff', size: 20, life: 1.4 });
       this.after(1.3, () => s.hurt());
     }
@@ -1002,16 +1064,25 @@ class NeonDrift {
     if (p.drift > 0) this.bankDrift();
     p.place = this.finishedRivals + 1;
     const ok = p.place <= need(this.level);
-    s.fx.text(W / 2, H * 0.26, `${PLACES[p.place - 1]} PLACE!`, { color: ok ? '#a3e635' : '#fb7185', size: 46, life: 1.6 });
+    if (this.boss) s.fx.text(W / 2, H * 0.26, ok ? 'BOSS BEATEN!' : `${this.rivals[0].name} WINS`, { color: ok ? '#a3e635' : '#fb7185', size: 44, life: 1.8 });
+    else s.fx.text(W / 2, H * 0.26, `${PLACES[p.place - 1]} PLACE!`, { color: ok ? '#a3e635' : '#fb7185', size: 46, life: 1.6 });
     if (!ok) {
       if (this.result) return;
       this.result = 'fail';
-      s.fx.text(W / 2, H * 0.34, `You needed top ${need(this.level)}`, { color: '#fff', size: 20, life: 1.4 });
+      s.fx.text(W / 2, H * 0.34, this.boss ? 'Beat it to the line to go on' : `You needed top ${need(this.level)}`, { color: '#fff', size: 20, life: 1.4 });
       this.after(1.3, () => s.hurt());
       return;
     }
     this.result = 'win';
-    s.award(([600, 350, 180][p.place - 1] || 0) * this.level, W / 2, H * 0.34);
+    if (this.boss) {
+      const B = this.rivals[0];
+      s.award(1200 * this.level, W / 2, H * 0.34, { color: B.glow, size: 26 });
+      s.fx.confetti?.(W, H);
+      s.sound.play('highscore');
+      s.unlock('bossbeat');
+      this.bossesBeaten.add(B.name);
+      if (this.bossesBeaten.size >= BOSSES.length) s.unlock('bossrush');
+    } else s.award(([600, 350, 180][p.place - 1] || 0) * this.level, W / 2, H * 0.34);
     if (p.place === 1) { s.unlock('winner'); if (p.wallHits === 0) s.unlock('clean'); }
     this.after(1.4, () => s.completeLevel());
   }
@@ -1148,7 +1219,8 @@ class NeonDrift {
     for (let k = 0; k <= n; k++) { v.bk[k].length = 0; v.sk[k].length = 0; }
     const add = (d, z, fn) => { const k = this.kOf(d); if (k >= 0) v.bk[k].push({ z, fn }); };
     const p = this.p, st = this.s.state, gold = this.s.gold;
-    for (const rv of this.rivals) add(rv.d - CAR_HALF - 14, rv.d, () => this.drawRacer(ctx, { d: rv.d, off: rv.off, h: rv.h, pal: palette(rv.paint, { stripe: rv.stripe, glass: '#0b1222' }), glow: rv.glow, lights: { brake: rv.spinT > 0 }, roll: -rv.slip * 0.12, name: rv.name, boost: rv.boostT > 0 }));
+    for (const rv of this.rivals) add(rv.d - CAR_HALF - 14, rv.d, () => this.drawRacer(ctx, { d: rv.d, off: rv.off, h: rv.h, pal: palette(rv.paint, { stripe: rv.stripe, glass: '#0b1222' }), glow: rv.glow, lights: { brake: rv.spinT > 0 }, roll: -rv.slip * 0.12,
+      name: rv.boss ? `◆ ${rv.name} ◆` : rv.name, boost: rv.boostT > 0, boss: rv.boss, ghost: rv.phaseT > 0, ghostT: rv.phaseT }));
     if (st !== 'title' && !cockpit) add(p.prog - CAR_HALF - 14, p.prog, () => this.drawRacer(ctx, { d: p.prog, off: p.lat, h: p.h, pal: palette(gold ? '#fbbf24' : '#f43f5e', { stripe: gold ? '#fff7ed' : '#f8fafc', glass: '#140a1a', dark: gold ? '#78350f' : '#111827' }),
       glow: this.chargeCol(p.charge), ghost: p.ghostT > 0, lights: { brake: p.brake }, roll: -p.steer * 0.06 - (p.slip || 0) * 0.08, name: null, boost: p.boostT > 0, player: true }));
     for (const dc of this.deco) {
@@ -1387,11 +1459,12 @@ class NeonDrift {
     const cx = qc[0], cy = qc[1], csc = qc[2], cz = qc[3], gy = qc[6];
     if (cx < -160 || cx > W + 160 || cy < HZ - 200 || cy > H + 200) return;
     const fog = fogAt(cz);
-    if (o.ghost) ctx.globalAlpha = this.p.ghostT > 0.5 || Math.sin(this.t * 40) > 0 ? 0.45 : 0.85;
+    const gT = o.ghostT ?? this.p.ghostT;
+    if (o.ghost) ctx.globalAlpha = gT > 0.5 || Math.sin(this.t * 40) > 0 ? (o.boss ? 0.32 : 0.45) : 0.85;
     // shadow + underglow
     const squash = clamp((c.y - gy) / cz, 0.12, 0.9);
     ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.ellipse(cx, cy, 19 * csc, 33 * csc * squash + 1, 0, 0, TAU); ctx.fill();
-    if (!lo) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.translate(cx, cy); ctx.scale(1, squash * 1.3 + 0.1); glowDot(ctx, 0, 0, 44 * csc * (o.player ? 1 + 0.35 * this.p.charge : 1), o.glow, (o.player ? 0.55 + 0.3 * this.p.charge : 0.45) * (1 - fog)); ctx.restore(); }
+    if (!lo) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.translate(cx, cy); ctx.scale(1, squash * 1.3 + 0.1); glowDot(ctx, 0, 0, 44 * csc * (o.player ? 1 + 0.35 * this.p.charge : o.boss ? 1.6 + 0.15 * Math.sin(this.t * 6) : 1), o.glow, (o.player ? 0.55 + 0.3 * this.p.charge : o.boss ? 0.75 : 0.45) * (1 - fog)); ctx.restore(); }
     const qr = this.proj(o.d - Math.cos(rel) * CAR_HALF, o.off - Math.sin(rel) * CAR_HALF, 0); if (!qr) return;
     const rx = qr[0], ry = qr[1], rsc = qr[2], rz = qr[3], rth = qr[4], ry0 = qr[6];
     const view = Math.atan((rx - W / 2) / F);
@@ -1421,12 +1494,33 @@ class NeonDrift {
     if (o.player) this.playerScr = [cx, ry - CAR_U * rsc * 1.5];
     if (o.name && cz < 2200) {
       const ny = ry - CAR_U * rsc * 1.6 - 6;
-      ctx.font = `800 ${Math.round(clamp(rsc * 26, 9, 13))}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      ctx.font = `${o.boss ? 900 : 800} ${Math.round(clamp(rsc * 26, 9, 13) * (o.boss ? 1.25 : 1))}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
       ctx.globalAlpha = 1 - fog;
       ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillText(o.name, cx + 1, ny + 1);
       ctx.fillStyle = o.glow; ctx.fillText(o.name, cx, ny);
       ctx.globalAlpha = 1;
     }
+  }
+
+  /** boss duel meter: the gap between you and the boss, like a tug of war */
+  drawBossBar(ctx, mm) {
+    const B = this.rivals[0], p = this.p, x = 148, w = W - mm.S - 20 - x, y = 12;
+    const gap = p.prog - B.d, spd = Math.max(200, Math.hypot(p.vx, p.vz)), secs = Math.abs(gap) / spd;
+    const f = clamp(gap / 600, -1, 1), lead = gap >= 0;
+    ctx.fillStyle = 'rgba(5,3,15,0.7)'; roundRect(ctx, x, y, w, 52, 12); ctx.fill();
+    ctx.strokeStyle = hexA(B.glow, 0.6 + 0.3 * Math.sin(this.t * 5)); ctx.lineWidth = 1.5; roundRect(ctx, x, y, w, 52, 12); ctx.stroke();
+    ctx.textAlign = 'center'; ctx.font = '900 13px system-ui'; ctx.fillStyle = B.glow;
+    ctx.fillText(`BOSS · ${B.name}${B.phaseT > 0 ? ' (PHASED)' : ''}`, x + w / 2, y + 17);
+    // the meter: your side (left, pink) vs the boss's side (right, boss colour); the marker shows who's ahead
+    const bx = x + 12, bw = w - 24, by = y + 25, mid = bx + bw / 2;
+    ctx.fillStyle = 'rgba(255,255,255,0.08)'; roundRect(ctx, bx, by, bw, 8, 4); ctx.fill();
+    ctx.fillStyle = lead ? (this.s.gold ? '#fbbf24' : '#ff4fa3') : B.glow;
+    const fx = mid - f * bw / 2;
+    if (lead) roundRect(ctx, fx, by, mid - fx, 8, 4); else roundRect(ctx, mid, by, fx - mid, 8, 4);
+    ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.fillRect(mid - 1, by - 2, 2, 12);
+    ctx.font = '800 11px system-ui'; ctx.fillStyle = lead ? '#a3e635' : '#fb7185';
+    ctx.fillText(p.finished ? (p.place === 1 ? 'YOU WIN' : 'BEATEN') : `${lead ? 'AHEAD' : 'BEHIND'} ${secs.toFixed(1)}s`, x + w / 2, y + 47);
   }
 
   /** text on a panel standing in the world: corners (bottom-left, bottom-right, top-left) in screen space */
@@ -1440,8 +1534,8 @@ class NeonDrift {
   boardText(dc) {
     const s = this.s, n = dc.n, phase = Math.floor(this.t / 2.5 + n) % 4;
     if (phase === 0 && s.multiplier > 1) return `COMBO ×${s.multiplier}`;
-    if (phase === 1 && this.rivals.length) { const rv = this.rivals[n % 3]; return [`${rv.name}: CATCH ME`, `${rv.name} RULES`, `BEAT ${rv.name}`][n % 3]; }
-    if (phase === 2 && !this.bonus) return `LAP ${Math.min(LAPS, this.p.lapDone + 1)}/${LAPS}`;
+    if (phase === 1 && this.rivals.length) { const rv = this.rivals[n % this.rivals.length]; return [`${rv.name}: CATCH ME`, `${rv.name} RULES`, `BEAT ${rv.name}`][n % 3]; }
+    if (phase === 2 && !this.bonus) return this.boss ? `BOSS: ${this.rivals[0].name}` : `LAP ${Math.min(LAPS, this.p.lapDone + 1)}/${LAPS}`;
     return SIGNS[(n + this.level) % SIGNS.length];
   }
 
@@ -1497,7 +1591,7 @@ class NeonDrift {
         const bl = [b0[0], b0[1]], br = [b1[0], b1[1]];
         ctx.fillStyle = 'rgba(8,6,20,0.92)'; ctx.beginPath(); ctx.moveTo(bl[0], bl[1]); ctx.lineTo(br[0], br[1]); ctx.lineTo(r1[0], r1[1]); ctx.lineTo(l1[0], l1[1]); ctx.closePath(); ctx.fill();
         ctx.strokeStyle = th.edge; ctx.lineWidth = Math.max(1, 2.2 * sc * 3); ctx.stroke();
-        const lap = this.p.lapDone, txt = this.bonus ? '★ COIN RUSH ★' : lap >= LAPS - 1 && this.raceT > 0 ? 'FINAL LAP' : 'NEON DRIFT';
+        const lap = this.p.lapDone, txt = this.bonus ? '★ COIN RUSH ★' : this.boss ? 'BOSS RACE' : lap >= LAPS - 1 && this.raceT > 0 ? 'FINAL LAP' : 'NEON DRIFT';
         this.panelText(ctx, bl, br, l1, txt, th.kerb[0], 260, 34);
       }
     } else {
@@ -1531,15 +1625,24 @@ class NeonDrift {
   }
   drawOil(ctx, o) {
     const c = this.cam;
+    if (o.dyn) { ctx.save(); ctx.globalAlpha = clamp(Math.min(o.ttl, (9 - o.ttl) * 6), 0, 1); }
     for (const [bx, bz, s] of o.blobs) {
       const q = this.proj(o.d + bz, o.off + bx, 0); if (!q) continue;
       const r = o.r * s * q[2], sq = clamp((c.y - q[6]) / q[3], 0.08, 1);
       if (q[0] < -80 || q[0] > W + 80) continue;
+      if (o.dyn && !this.s.lowDetail) {
+        // VENOM's slick: a toxic green glow so you can see it land and steer round it
+        ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.translate(q[0], q[1]); ctx.scale(1, sq);
+        glowDot(ctx, 0, 0, r * 1.7, '#a3e635', 0.5 * ctx.globalAlpha); ctx.restore();
+        if (o.dyn) ctx.globalAlpha = clamp(Math.min(o.ttl, (9 - o.ttl) * 6), 0, 1);
+      }
       ctx.fillStyle = 'rgba(3,2,8,0.92)'; ctx.beginPath(); ctx.ellipse(q[0], q[1], r, r * sq, 0, 0, TAU); ctx.fill();
+      if (o.dyn) { ctx.strokeStyle = 'rgba(163,230,53,0.9)'; ctx.lineWidth = Math.max(1.2, 2.2 * q[2]); ctx.stroke(); }
       const g = ctx.createLinearGradient(q[0] - r, q[1], q[0] + r, q[1]);
       g.addColorStop(0, 'rgba(244,114,182,0.55)'); g.addColorStop(0.5, 'rgba(56,189,248,0.55)'); g.addColorStop(1, 'rgba(163,230,53,0.55)');
       ctx.strokeStyle = g; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.ellipse(q[0] - r * 0.15, q[1] - r * sq * 0.1, r * 0.6, r * 0.6 * sq, 0, 0.3, 2.6); ctx.stroke();
     }
+    if (o.dyn) ctx.restore();
   }
   drawCoin(ctx, cn) {
     const bob = Math.sin(this.t * 4 + cn.d) * 3, q = this.proj(cn.d, cn.off, 16 + bob);
@@ -1811,9 +1914,10 @@ class NeonDrift {
       ctx.font = '900 34px system-ui'; ctx.fillStyle = ok ? '#a3e635' : '#fb7185'; ctx.fillText(PLACES[place - 1], 20, 46);
       ctx.font = '800 14px system-ui'; ctx.fillStyle = '#94a3b8'; ctx.fillText(`/ ${this.rivals.length + 1}`, 82, 46);
       ctx.font = '700 11px system-ui'; ctx.fillStyle = '#cbd5e1'; ctx.fillText(need(this.level) === 1 ? 'MUST WIN' : `NEED TOP ${need(this.level)}`, 20, 64);
-      ctx.fillStyle = th.edge; ctx.font = '800 12px system-ui'; ctx.fillText(`LAP ${Math.min(LAPS, p.lapDone + 1)}/${LAPS}`, 20, 78);
+      ctx.fillStyle = th.edge; ctx.font = '800 12px system-ui'; ctx.fillText(this.boss ? 'ONE LAP' : `LAP ${Math.min(LAPS, p.lapDone + 1)}/${LAPS}`, 20, 78);
       const tt = this.raceT; ctx.fillStyle = '#94a3b8'; ctx.font = '700 11px system-ui'; ctx.textAlign = 'right';
       ctx.fillText(`${Math.floor(tt / 60)}:${(tt % 60).toFixed(1).padStart(4, '0')}`, 130, 78);
+      if (this.boss && this.rivals.length) this.drawBossBar(ctx, mm);
     }
     // live drift counter above the car
     if (p.drift > 1 && p.driftT > 0.25 && (this.playerScr || this.cam.cockpit)) {
