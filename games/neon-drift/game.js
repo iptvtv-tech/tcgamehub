@@ -93,7 +93,7 @@ runGame({
   detail: true,
   music: { bpm: 140, style: 'chase', lead: 'sawtooth', arp: [0, 2, 4, 2, 1, 3, 4, 3], oct: [12, 12, 24, 12, 12, 12, 24, 12], bass: 'drive' },
   levelInfo: (l, b) => b ? 'NEON COIN RUSH — no rivals. Drift between the coins!'
-    : l === 1 ? 'Finish in the top 3. Hold a turn at full speed to DRIFT — chain drifts for a big combo!'
+    : l === 1 ? 'Finish in the top 3. Hold a turn at full speed to DRIFT — drifting charges your ⚡ BOOST: fire it with ↑ / W or the BOOST button. Drift into a rival to spin them out!'
     : l === 2 ? 'Oil slicks! Hit one and you spin out. Top 3 to qualify.'
     : l === 3 ? 'Tighter track — only the top 2 qualify now.'
     : l === 4 ? 'Hit the ⚡ boost pads. Rivals are getting faster. Top 2.'
@@ -201,6 +201,9 @@ function glowDot(ctx, x, y, r, col, a) {
   g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.globalAlpha = a; ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2); ctx.globalAlpha = 1;
 }
+/** blend two hex colours (t 0..1) → 'rgb(...)' */
+function mixHex(a, b, t) { const x = rgb(a), y = rgb(b); return `rgb(${x[0] + (y[0] - x[0]) * t | 0},${x[1] + (y[1] - x[1]) * t | 0},${x[2] + (y[2] - x[2]) * t | 0})`; }
+const BOOST_MIN = 0.25;              // you need at least a quarter of the meter to fire the boost
 function darken(h, f) { const c = rgb(h); return `rgb(${c[0] * f | 0},${c[1] * f | 0},${c[2] * f | 0})`; }
 function hexA(h, a) { const c = rgb(h); return `rgba(${c[0]},${c[1]},${c[2]},${a})`; }
 const fogCache = new Map();
@@ -345,7 +348,7 @@ class NeonDrift {
     const p0 = -165, [x, z, h] = at(T, p0, 0.38 * hw);   // a car length further back than the rival ahead, so the cockpit view isn't filled by its bumper
     this.p = { x, z, h, vx: 0, vz: 0, steer: 0, slide: 0, spinT: 0, spinDir: 1, boostT: 0, idx: ((Math.round(p0 / T.step) % T.N) + T.N) % T.N,
       acc: Math.round(p0 / T.step), prog: p0, lat: 0.38 * hw, lapDone: 0, wallHits: 0, drift: 0, driftT: 0, calmT: 0, offroad: false, finished: false, place: 0,
-      passed: new Set(), wrongT: 0, lastProg: p0, squeal: 0, bumpT: 0, brake: false, slip: 0 };
+      passed: new Set(), wrongT: 0, lastProg: p0, squeal: 0, bumpT: 0, brake: false, slip: 0, charge: 0, boostMax: 1, ghostT: 0, fullShown: false };
     this.rivals = this.bonus ? [] : RIVALS.map((R, i) => {
       const d = i < 2 ? -40 : -110, off = (i === 0 ? -0.38 : i === 1 ? 0.38 : -0.38) * hw;
       const [rx, rz, rh] = at(T, d, off);
@@ -402,6 +405,32 @@ class NeonDrift {
     this.cam.init = false;
     this.updateCamera(0);
   }
+  boostButton() { return { x: 10, y: H - 46, w: 100, h: 34 }; }
+  /** fire the drift-charged boost: the whole meter goes in one burst (longer the fuller it was) */
+  fireBoost() {
+    const p = this.p, s = this.s;
+    if (this.count > 0 || this.tuneT > 0 || p.finished || p.spinT > 0 || s.state !== 'playing') return;
+    if (p.charge < BOOST_MIN) {
+      if (p.boostT <= 0) { s.sound.play('click'); s.fx.text(W / 2, H * 0.24, 'DRIFT TO CHARGE ⚡', { color: '#94a3b8', size: 16, life: 0.7 }); }
+      return;
+    }
+    const dur = 0.6 + p.charge * 1.7;
+    p.boostT = Math.max(p.boostT, dur); p.boostMax = Math.max(p.boostT, 0.1);
+    const f = 90 + 110 * p.charge; p.vx += Math.sin(p.h) * f; p.vz += Math.cos(p.h) * f;
+    const full = p.charge >= 0.999;
+    p.charge = 0; p.fullShown = false;
+    s.fx.text(W / 2, H * 0.24, full ? 'FULL BOOST!' : 'BOOST!', { color: '#67e8f9', size: full ? 34 : 28, life: 0.8 });
+    s.fx.shake(full ? 5 : 3, 0.25);
+    s.fx.flash('#67e8f9', full ? 0.22 : 0.12);
+    s.sound.play('powerup');
+    if (!s.sound.muted) s.sound.noise({ dur: 0.6, vol: 0.12, freq: 600, to: 3200, type: 'bandpass' });
+    if (full) s.unlock('fullboost');
+  }
+  /** underglow / meter colour: pink when empty → violet → cyan when full (gold run: amber → yellow) */
+  chargeCol(c) {
+    if (this.s.gold) return mixHex('#f59e0b', '#fef08a', c);
+    return c < 0.5 ? mixHex('#ff4fa3', '#a78bfa', c * 2) : mixHex('#a78bfa', '#22d3ee', (c - 0.5) * 2);
+  }
   viewButton() { return { x: W - 100, y: H - 46, w: 90, h: 34 }; }
   tuneButtons() { return STATIONS.map((_, i) => ({ x: 52 + i * 128, y: 352, w: 120, h: 74 })); }
 
@@ -424,9 +453,11 @@ class NeonDrift {
       }
       return;
     }
+    if (a === 'up' && !this.s.input.pointer.down) { this.fireBoost(); return; }
     if (a === 'press') {
-      const b = this.viewButton();
+      const b = this.viewButton(), bb = this.boostButton();
       if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) { this.toggleView(); this.viewPress = true; return; }
+      if (x >= bb.x && x <= bb.x + bb.w && y >= bb.y && y <= bb.y + bb.h) { this.fireBoost(); this.viewPress = true; return; }
       this.touchAt(x);
     }
     else if (a === 'release' && this.viewPress) { this.viewPress = false; this.touch = 0; this.handTouch = false; }
@@ -542,6 +573,7 @@ class NeonDrift {
     p.x += p.vx * dt; p.z += p.vz * dt;
     if (p.boostT > 0) p.boostT -= dt;
     if (p.bumpT > 0) p.bumpT -= dt;
+    if (p.ghostT > 0) p.ghostT -= dt;
     // where are we on the track?
     let bi = p.idx, bd = 1e12;
     for (let o = -10; o <= 10; o++) { const i = (p.idx + o + T.N) % T.N, dx = p.x - T.x[i], dz = p.z - T.z[i], d2 = dx * dx + dz * dz; if (d2 < bd) { bd = d2; bi = i; } }
@@ -585,6 +617,16 @@ class NeonDrift {
     if (drifting) {
       p.drift += Math.abs(slip) * spd * dt * 0.06 * (p.boostT > 0 ? 1.5 : 1);
       p.driftT += dt; p.calmT = 0;
+      // drifting charges the boost meter (not while the boost is burning)
+      if (p.boostT <= 0) {
+        p.charge = Math.min(1, p.charge + Math.abs(slip) * spd * dt * 0.0012);
+        if (p.charge >= 1 && !p.fullShown) {
+          p.fullShown = true;
+          const mob = matchMedia('(pointer: coarse)').matches;
+          s.fx.text(W / 2, H * 0.2, mob ? 'BOOST FULL — TAP ⚡ BOOST' : 'BOOST FULL — PRESS ↑', { color: '#22d3ee', size: 20, life: 1.2 });
+          s.sound.play('golden');
+        }
+      }
       if (p.driftT > 3) s.unlock('drift3s');
       p.squeal -= dt;
       if (p.squeal <= 0 && !s.sound.muted) { p.squeal = 0.1; s.sound.noise({ dur: 0.12, vol: 0.035 + Math.min(0.05, Math.abs(slip) * 0.08), freq: 2300 + Math.abs(slip) * 1600, type: 'bandpass' }); }
@@ -604,9 +646,8 @@ class NeonDrift {
       s.award(pts, sx, sy - 40, { chain: true, color: '#ff4fa3' });
       s.sound.play('combo', Math.min(6, s.comboCount));
       if (p.driftT > 1.6) s.fx.text(sx, sy - 74, p.driftT > 2.6 ? 'MEGA DRIFT!' : 'GREAT DRIFT!', { color: '#fde047', size: 22 });
-      if (p.driftT >= 0.8 && !p.offroad) {           // a good drift fires you out of the bend
-        p.boostT = Math.max(p.boostT, Math.min(1.1, p.driftT * 0.4));
-        s.fx.text(sx, sy - 100, 'DRIFT BOOST', { color: '#67e8f9', size: 16 });
+      if (p.driftT >= 0.8 && !p.offroad) {           // a good drift tops the meter up a little extra
+        p.charge = Math.min(1, p.charge + Math.min(0.12, p.driftT * 0.04));
       }
     }
     p.drift = 0; p.driftT = 0; p.calmT = 0;
@@ -669,6 +710,23 @@ class NeonDrift {
     const p = this.p, s = this.s, T = this.T;
     for (const rv of this.rivals) {
       const dx = p.x - rv.x, dz = p.z - rv.z, d = Math.hypot(dx, dz);
+      if (d < CAR_R * 2 && d > 0.01 && p.ghostT > 0) continue;      // ghosting: drive straight through
+      if (d < CAR_R * 2 && d > 0.01 && (p.drifting || p.slide > 0.5) && rv.spinT <= 0 && !rv.finished) {
+        // swung the tail into them: THEY spin, you keep going
+        rv.spinT = 1.1; rv.v *= 0.65;
+        p.ghostT = 1.2;
+        const nx = dx / d, nz = dz / d; p.x += nx * (CAR_R * 2 - d) * 0.5; p.z += nz * (CAR_R * 2 - d) * 0.5;
+        const [sx, sy] = this.scr((p.prog + rv.d) / 2, (p.lat + rv.off) / 2, 20);
+        s.award(120 * this.level, sx, sy - 30, { chain: true, color: rv.glow });
+        s.fx.text(sx, sy - 64, `SPUN ${rv.name}!`, { color: rv.glow, size: 22 });
+        s.fx.burst(sx, sy, { color: rv.glow, count: 22, speed: 260 });
+        s.fx.shake(4, 0.2);
+        s.sound.play('hit');
+        if (!s.sound.muted) s.sound.noise({ dur: 0.45, vol: 0.1, freq: 2600, to: 500, type: 'bandpass' });
+        p.charge = Math.min(1, p.charge + 0.15);
+        s.unlock('spinout');
+        continue;
+      }
       if (d < CAR_R * 2 && d > 0.01) {
         const nx = dx / d, nz = dz / d, over = CAR_R * 2 - d;
         p.x += nx * over * 0.6; p.z += nz * over * 0.6;
@@ -699,6 +757,7 @@ class NeonDrift {
         s.fx.text(sx, sy - 50, 'SPUN OUT!', { color: '#fb7185', size: 24 });
         s.sound.noise({ dur: 0.5, vol: 0.12, freq: 1800, to: 300, type: 'bandpass' });
         p.drift = 0; p.driftT = 0; s.resetCombo();
+        p.charge *= 0.6;                              // spinning out spills some of the boost
       }
       for (const rv of this.rivals) if (rv.spinT <= 0 && Math.abs(((rv.d - o.d) % T.L + T.L) % T.L) < 18 && Math.abs(rv.off - o.off) < o.r + 8) rv.spinT = 0.7;
     }
@@ -706,7 +765,7 @@ class NeonDrift {
       if (b.cool > 0) b.cool -= dt;
       const [bx, bz] = at(T, b.d, b.off);
       if (b.cool <= 0 && Math.hypot(p.x - bx, p.z - bz) < 40) {
-        b.cool = 1; p.boostT = 1.4;
+        b.cool = 1; p.boostT = Math.max(p.boostT, 1.4); p.boostMax = Math.max(p.boostT, 1.4);
         const f = 140; p.vx += Math.sin(p.h) * f; p.vz += Math.cos(p.h) * f;
         const [sx, sy] = this.scr(p.prog, p.lat, 40);
         s.fx.text(sx, sy - 50, 'BOOST!', { color: '#67e8f9', size: 26 });
@@ -923,7 +982,7 @@ class NeonDrift {
     const p = this.p, st = this.s.state, gold = this.s.gold;
     for (const rv of this.rivals) add(rv.d - CAR_HALF - 14, rv.d, () => this.drawRacer(ctx, { d: rv.d, off: rv.off, h: rv.h, pal: palette(rv.paint, { stripe: rv.stripe, glass: '#0b1222' }), glow: rv.glow, lights: { brake: rv.spinT > 0 }, roll: -rv.slip * 0.12, name: rv.name, boost: rv.boostT > 0 }));
     if (st !== 'title' && !cockpit) add(p.prog - CAR_HALF - 14, p.prog, () => this.drawRacer(ctx, { d: p.prog, off: p.lat, h: p.h, pal: palette(gold ? '#fbbf24' : '#f43f5e', { stripe: gold ? '#fff7ed' : '#f8fafc', glass: '#140a1a', dark: gold ? '#78350f' : '#111827' }),
-      glow: gold ? '#fde047' : '#ff4fa3', lights: { brake: p.brake }, roll: -p.steer * 0.06 - (p.slip || 0) * 0.08, name: null, boost: p.boostT > 0, player: true }));
+      glow: this.chargeCol(p.charge), ghost: p.ghostT > 0, lights: { brake: p.brake }, roll: -p.steer * 0.06 - (p.slip || 0) * 0.08, name: null, boost: p.boostT > 0, player: true }));
     for (const dc of this.deco) {
       if (lo && dc.kind === 'pillar' && dc.n % 2) continue;
       add(dc.d, dc.d - 0.5, () => this.drawDeco(ctx, dc));
@@ -1018,6 +1077,13 @@ class NeonDrift {
       if (items.length) { if (items.length > 1) items.sort((x, y) => y.z - x.z); for (const it of items) it.fn(); }
     }
     this.drawSpeedLines(ctx);
+    if (cockpit && st !== 'title' && !lo) {
+      const ch = p.charge, pulse = ch >= 1 ? 0.12 * Math.sin(this.t * 8) : 0;
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      ctx.translate(W / 2, 470); ctx.scale(2.6, 0.55);
+      glowDot(ctx, 0, 0, 120, p.boostT > 0 ? '#67e8f9' : this.chargeCol(ch), 0.18 + 0.32 * ch + pulse + (p.boostT > 0 ? 0.25 : 0));
+      ctx.restore();
+    }
     ctx.restore();
     if (cockpit) this.drawCockpit(ctx);
     this.drawHud(ctx);
@@ -1115,10 +1181,11 @@ class NeonDrift {
     const cx = qc[0], cy = qc[1], csc = qc[2], cz = qc[3], gy = qc[6];
     if (cx < -160 || cx > W + 160 || cy < HZ - 200 || cy > H + 200) return;
     const fog = fogAt(cz);
+    if (o.ghost && Math.sin(this.t * 40) > 0) ctx.globalAlpha = 0.45;
     // shadow + underglow
     const squash = clamp((c.y - gy) / cz, 0.12, 0.9);
     ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.ellipse(cx, cy, 19 * csc, 33 * csc * squash + 1, 0, 0, TAU); ctx.fill();
-    if (!lo) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.translate(cx, cy); ctx.scale(1, squash * 1.3 + 0.1); glowDot(ctx, 0, 0, 44 * csc, o.glow, (o.player ? 0.6 : 0.45) * (1 - fog)); ctx.restore(); }
+    if (!lo) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.translate(cx, cy); ctx.scale(1, squash * 1.3 + 0.1); glowDot(ctx, 0, 0, 44 * csc * (o.player ? 1 + 0.35 * this.p.charge : 1), o.glow, (o.player ? 0.55 + 0.3 * this.p.charge : 0.45) * (1 - fog)); ctx.restore(); }
     const qr = this.proj(o.d - Math.cos(rel) * CAR_HALF, o.off - Math.sin(rel) * CAR_HALF, 0); if (!qr) return;
     const rx = qr[0], ry = qr[1], rsc = qr[2], rz = qr[3], rth = qr[4], ry0 = qr[6];
     const view = Math.atan((rx - W / 2) / F);
@@ -1144,6 +1211,7 @@ class NeonDrift {
       }
       ctx.restore();
     }
+    ctx.globalAlpha = 1;
     if (o.player) this.playerScr = [cx, ry - CAR_U * rsc * 1.5];
     if (o.name && cz < 2200) {
       const ny = ry - CAR_U * rsc * 1.6 - 6;
@@ -1319,7 +1387,7 @@ class NeonDrift {
     // the body around the glass
     ctx.fillStyle = body;
     ctx.beginPath(); ctx.rect(-30, -30, W + 60, H + 60); glass(); ctx.fill('evenodd');
-    ctx.beginPath(); glass(); glowLine(neonA, 2.2, 14);
+    ctx.beginPath(); glass(); glowLine(p.ghostT > 0 && Math.sin(this.t * 30) > 0 ? '#f8fafc' : neonA, 2.2, 14);
     // rear-view mirror, hanging from the roof
     this.drawMirror(ctx, neonA);
     // dashboard with a raised instrument binnacle in the middle
@@ -1405,14 +1473,19 @@ class NeonDrift {
     ctx.font = '900 26px system-ui'; ctx.fillStyle = p.boostT > 0 ? cyan : '#f8fafc';
     glowOn(neonA, 10); ctx.textAlign = 'right'; ctx.fillText(String(kmh), W / 2 + 14, 506); glowOff();
     ctx.textAlign = 'left'; ctx.font = '800 10px system-ui'; ctx.fillStyle = hexA(neonA, 0.85); ctx.fillText('KM/H', W / 2 + 18, 506);
-    const boostF = clamp(p.boostT / 1.4, 0, 1), segs = 10, bw = 120, bx = W / 2 - bw / 2 + 6, by = 514, sw = bw / segs;
+    const burning = p.boostT > 0, boostF = burning ? clamp(p.boostT / p.boostMax, 0, 1) : p.charge;
+    const segs = 10, bw = 120, bx = W / 2 - bw / 2 + 6, by = 514, sw = bw / segs;
+    const ready = !burning && p.charge >= BOOST_MIN, full = !burning && p.charge >= 1;
     for (let i = 0; i < segs; i++) {
       const on = i < Math.ceil(boostF * segs - 0.001);
-      ctx.fillStyle = on ? cyan : 'rgba(103,232,249,0.14)';
-      if (on) glowOn(cyan, 8);
+      const col = burning ? '#e0f2fe' : this.chargeCol((i + 1) / segs);
+      ctx.fillStyle = on ? (full && Math.sin(this.t * 10) > 0 ? '#ffffff' : col) : 'rgba(103,232,249,0.12)';
+      if (on) glowOn(col, ready || burning ? 10 : 4);
       ctx.fillRect(bx + i * sw + 1, by, sw - 2, 6); glowOff();
     }
-    ctx.textAlign = 'right'; ctx.font = '800 10px system-ui'; ctx.fillStyle = boostF > 0 ? cyan : hexA(cyan, 0.5);
+    // the minimum you need to fire
+    ctx.fillStyle = 'rgba(248,250,252,0.6)'; ctx.fillRect(bx + BOOST_MIN * bw - 0.5, by - 2, 1, 10);
+    ctx.textAlign = 'right'; ctx.font = '800 10px system-ui'; ctx.fillStyle = ready || burning ? cyan : hexA(cyan, 0.5);
     ctx.fillText('⚡', bx - 3, by + 7);
   }
 
@@ -1541,10 +1614,29 @@ class NeonDrift {
     }
     // speed (in the cockpit it's on the dash)
     if (!this.cam.cockpit) {
-      const spd = Math.hypot(p.vx, p.vz), f = clamp(spd / (this.maxV * 1.3), 0, 1);
-      ctx.fillStyle = 'rgba(5,3,15,0.6)'; roundRect(ctx, 10, H - 40, 140, 28, 10); ctx.fill();
-      progressBar(ctx, 18, H - 31, 84, 10, f, p.boostT > 0 ? '#67e8f9' : th.edge, '');
-      ctx.textAlign = 'right'; ctx.font = '900 14px system-ui'; ctx.fillStyle = '#fff'; ctx.fillText(`${Math.round(spd * 0.4)}`, 142, H - 20);
+      const spd = Math.hypot(p.vx, p.vz), f = clamp(spd / (this.maxV * 1.3), 0, 1), Y = H - 92;
+      ctx.fillStyle = 'rgba(5,3,15,0.6)'; roundRect(ctx, 10, Y, 140, 40, 10); ctx.fill();
+      progressBar(ctx, 18, Y + 8, 84, 10, f, p.boostT > 0 ? '#67e8f9' : th.edge, '');
+      ctx.textAlign = 'right'; ctx.font = '900 14px system-ui'; ctx.fillStyle = '#fff'; ctx.fillText(`${Math.round(spd * 0.4)}`, 142, Y + 19);
+      const bf = p.boostT > 0 ? clamp(p.boostT / p.boostMax, 0, 1) : p.charge;
+      progressBar(ctx, 18, Y + 24, 124, 8, bf, p.boostT > 0 ? '#e0f2fe' : this.chargeCol(p.charge), '');
+      ctx.fillStyle = 'rgba(248,250,252,0.6)'; ctx.fillRect(18 + BOOST_MIN * 124, Y + 22, 1, 12);
+    }
+    // fire-boost button
+    if (this.tuneT <= 0 && !this.bonus) {
+      const b = this.boostButton(), mob = matchMedia('(pointer: coarse)').matches;
+      const burning = p.boostT > 0, ready = !burning && p.charge >= BOOST_MIN, full = p.charge >= 1;
+      const col = burning ? '#67e8f9' : this.chargeCol(p.charge);
+      ctx.fillStyle = ready ? hexA('#22d3ee', full ? 0.28 + 0.12 * Math.sin(this.t * 8) : 0.16) : 'rgba(5,3,15,0.7)';
+      roundRect(ctx, b.x, b.y, b.w, b.h, 10); ctx.fill();
+      // the meter fills the button from the left
+      if (!burning && p.charge > 0) { ctx.save(); roundRect(ctx, b.x, b.y, b.w, b.h, 10); ctx.clip(); ctx.fillStyle = hexA('#a78bfa', 0.22); ctx.fillRect(b.x, b.y, b.w * p.charge, b.h); ctx.restore(); }
+      ctx.strokeStyle = ready || burning ? col : 'rgba(148,163,184,0.45)'; ctx.lineWidth = ready ? 2 : 1.5;
+      roundRect(ctx, b.x, b.y, b.w, b.h, 10); ctx.stroke();
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '800 12px system-ui';
+      ctx.fillStyle = ready || burning ? '#f8fafc' : '#94a3b8';
+      ctx.fillText(burning ? '⚡ BOOSTING' : mob ? '⚡ BOOST' : '⚡ BOOST  ↑', b.x + b.w / 2, b.y + b.h / 2 + 1);
+      ctx.textBaseline = 'alphabetic';
     }
     // camera switch
     if (this.tuneT <= 0) {
