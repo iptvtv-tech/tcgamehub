@@ -1295,7 +1295,7 @@ class NeonDrift {
     // the windscreen: one wide curved pane, edge to edge — the roof bows up in the middle, the dash dips
     // below it, the corners are rounded and the side pillars are just a slim rim
     const glass = () => {
-      const lt = 14, lb = 5, rt = W - 14, rb = W - 5, top = 62, topC = 12, bot = 532, botC = 600, r = 30;
+      const lt = 10, lb = 5, rt = W - 10, rb = W - 5, top = 150, topC = 108, bot = 462, botC = 520, r = 30;
       ctx.moveTo(lt + r, top);
       ctx.quadraticCurveTo(W / 2, 2 * topC - top, rt - r, top);
       ctx.quadraticCurveTo(rt, top, rt + (rb - rt) * 0.06, top + r);
@@ -1325,31 +1325,31 @@ class NeonDrift {
     // dashboard with a raised instrument binnacle in the middle
     const dash = () => {
       ctx.beginPath();
-      ctx.moveTo(-10, 536); ctx.quadraticCurveTo(W * 0.15, 556, W * 0.27, 588);
-      ctx.bezierCurveTo(W * 0.31, 548, W * 0.69, 548, W * 0.73, 588);
-      ctx.quadraticCurveTo(W * 0.85, 556, W + 10, 536);
+      ctx.moveTo(-10, 466); ctx.quadraticCurveTo(W * 0.15, 486, W * 0.27, 516);
+      ctx.bezierCurveTo(W * 0.31, 476, W * 0.69, 476, W * 0.73, 516);
+      ctx.quadraticCurveTo(W * 0.85, 486, W + 10, 466);
     };
-    const dg = ctx.createLinearGradient(0, 536, 0, H);
+    const dg = ctx.createLinearGradient(0, 466, 0, H);
     dg.addColorStop(0, body2); dg.addColorStop(1, body);
     ctx.fillStyle = dg; dash(); ctx.lineTo(W + 10, H + 10); ctx.lineTo(-10, H + 10); ctx.closePath(); ctx.fill();
     dash(); glowLine(neonB, 2.4, 14);
     // dash vents / trim strips
     ctx.fillStyle = hexA(neonA, 0.25);
-    for (const x of [34, W - 34 - 70]) { roundRect(ctx, x, 612, 70, 5, 2.5); ctx.fill(); roundRect(ctx, x, 624, 70, 5, 2.5); ctx.fill(); }
+    for (const x of [34, W - 34 - 70]) { roundRect(ctx, x, 540, 70, 5, 2.5); ctx.fill(); roundRect(ctx, x, 552, 70, 5, 2.5); ctx.fill(); }
     // digital speed in the binnacle (full dials arrive with the HUD section)
     const spd = Math.round(Math.hypot(p.vx, p.vz) * 0.4);
     ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
     ctx.font = '900 26px system-ui'; ctx.fillStyle = p.boostT > 0 ? '#67e8f9' : '#f8fafc';
     if (!lo) { ctx.shadowColor = neonA; ctx.shadowBlur = 10; }
-    ctx.textAlign = 'right'; ctx.fillText(String(spd), W / 2 + 14, 592);
+    ctx.textAlign = 'right'; ctx.fillText(String(spd), W / 2 + 14, 520);
     ctx.shadowBlur = 0;
-    ctx.textAlign = 'left'; ctx.font = '800 10px system-ui'; ctx.fillStyle = hexA(neonA, 0.85); ctx.fillText('KM/H', W / 2 + 18, 592);
+    ctx.textAlign = 'left'; ctx.font = '800 10px system-ui'; ctx.fillStyle = hexA(neonA, 0.85); ctx.fillText('KM/H', W / 2 + 18, 520);
     this.drawWheel(ctx, neonA, neonB);
     ctx.restore();
   }
 
   drawWheel(ctx, neonA, neonB) {
-    const p = this.p, cx = W / 2, cy = 722, R = 116, lo = this.s.lowDetail;
+    const p = this.p, cx = W / 2, cy = 660, R = 116, lo = this.s.lowDetail;
     const ang = p.steer * 1.7 + (p.spinT > 0 ? Math.sin(this.t * 30) * 0.3 : 0);
     ctx.save(); ctx.translate(cx, cy); ctx.rotate(ang);
     // spokes (left, right, bottom) and hub
@@ -1375,8 +1375,8 @@ class NeonDrift {
 
   /** rear-view mirror: a dark glimpse of the road behind with the headlights of anyone chasing you */
   drawMirror(ctx, neonA) {
-    const p = this.p, mw = 156, mh = 36, mx = W / 2 - mw / 2, my = 40, hzY = my + 14;
-    ctx.fillStyle = '#0d0818'; ctx.fillRect(W / 2 - 3, 6, 6, 36);
+    const p = this.p, mw = 150, mh = 32, mx = W / 2 - mw / 2, my = 100, hzY = my + 12;
+    ctx.fillStyle = '#0d0818'; ctx.fillRect(W / 2 - 3, 80, 6, 24);
     ctx.save();
     roundRect(ctx, mx, my, mw, mh, 9); ctx.fillStyle = '#05030c'; ctx.fill();
     ctx.clip();
