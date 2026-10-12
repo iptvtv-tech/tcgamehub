@@ -98,6 +98,8 @@ export const GAMES = [
     color: '#fbbf24',
     isNew: false,
     legend: true,                           // this game can make you a Legend (see assets/js/legends.js)
+    legendLore: 'Legends say a flawless thief finds something special…',
+    legendHow: 'Start at level 1 and don\'t lose a single life. Something waits beyond level 15…',
     achievements: [
       { id: 'escape',   icon: '🚪', title: 'Great Escape',   desc: 'Get out of the museum after level 15' },
       { id: 'greedy',   icon: '💰', title: 'Clean Sweep',    desc: 'Grab every treasure in a level' },
@@ -208,6 +210,8 @@ export const GAMES = [
     color: '#fde047',
     isNew: true,
     legend: true,                   // Zone 2's Legends game
+    legendLore: 'Legends say a flawless crew finds a door no one else has seen…',
+    legendHow: 'Start at job 1 and don\'t lose a single life. A hidden door waits beyond job 15…',
     achievements: [
       { id: 'firsttry',    icon: '🧠', title: 'Mastermind',     desc: 'Pull off a job with your very first plan' },
       { id: 'gems',        icon: '💎', title: 'Sticky Fingers', desc: 'Grab a bonus gem during a heist' },
@@ -394,6 +398,7 @@ export const GAMES = [
     color: '#f59e0b',
     isNew: true,
     legend: true,                   // Zone 4's Legends game
+    legendLore: 'You saw the crown in the Crypt. Now steal it from the Vault.',
     legendHow: 'Carry the crown out of all 15 floors of Crown Heist (over as many visits as it takes).',
     achievements: [
       { id: 'ghost',     icon: '👻', title: 'Ghost',             desc: 'Escape floor 3 or later without a single guard spotting you' },
@@ -418,6 +423,8 @@ export const GAMES = [
     color: '#a78bfa',
     isNew: true,
     legend: true,                   // Zone 3's Legends game
+    legendLore: 'Legends say the Crypt Kings buried their crown where only a flawless explorer can find it…',
+    legendHow: 'Start at crypt 1 and never get caught. Watch for a crown carved into the wall in the deepest crypts…',
     achievements: [
       { id: 'secret',    icon: '🧱', title: 'Hidden Passage',   desc: 'Find a secret wall' },
       { id: 'chests',    icon: '💰', title: 'Grave Robber',     desc: 'Open 10 treasure chests in one run' },

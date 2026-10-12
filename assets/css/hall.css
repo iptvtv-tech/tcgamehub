@@ -69,3 +69,37 @@ a.crown-stand:hover { box-shadow: 0 0 0 2px #fbbf24, 0 0 30px rgba(251,191,36,.3
 .grand-title { white-space: nowrap; display: inline-block; font-size: .62em; }
 :root[data-gold-theme] .hall-card { background: linear-gradient(160deg, #3b2a06, #1d1507 60%); }
 :root[data-gold-theme] .egg-stand.won { background: linear-gradient(160deg, #4a3508, #1d1507 85%); }
+
+/* Locked Hall: how to become a Legend + the four Legends games */
+.vault-eggs { display: flex; align-items: center; gap: 10px; }
+.vault-eggs .crown-ghost { font-size: 1.7em; opacity: .4; filter: grayscale(.6); }
+.legend-path, .legend-games { margin-top: 28px; }
+.legend-path h2, .legend-games h2, .code-box h2 { color: #fde68a; font-size: 1.35em; text-align: center; }
+.legend-steps { list-style: none; margin: 0; padding: 0; counter-reset: st; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.legend-steps li { counter-increment: st; position: relative; padding: 16px 14px 14px 52px; border-radius: var(--radius); background: linear-gradient(160deg, #1f1a0a, #14142e 70%); border: 1px solid #a16207; }
+.legend-steps li::before { content: counter(st); position: absolute; left: 14px; top: 14px; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font: 800 .95em var(--font-head); color: #1c1003; background: linear-gradient(135deg, #fde68a, #f59e0b); }
+.legend-steps li > b { display: block; font-family: var(--font-head); color: #fde68a; margin-bottom: 2px; }
+.legend-steps span { color: var(--muted); font-size: .92em; }
+.legend-steps .pill { font-size: .8em; }
+.lg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 760px) { .lg-grid { grid-template-columns: 1fr; } }
+.lg-card { display: grid; grid-template-columns: 96px 1fr; grid-template-rows: 1fr auto; gap: 6px 14px; padding: 14px; border-radius: var(--radius); background: var(--card); border: 1px solid var(--line); border-top: 3px solid var(--c, #fbbf24); color: var(--text); text-decoration: none; transition: transform .2s, border-color .2s; }
+.lg-card:hover { transform: translateY(-2px); border-color: #fbbf24; }
+.lg-card.locked .lg-art img { filter: grayscale(.8) brightness(.6); }
+.lg-card.won { background: linear-gradient(160deg, #3b2a06, #1a1a3d 85%); border-color: #fbbf24; }
+.lg-art { position: relative; grid-row: span 2; align-self: start; }
+.lg-art img { width: 96px; height: 96px; border-radius: 12px; display: block; background: #0b0b1a; }
+.lg-egg { position: absolute; right: -10px; bottom: -14px; }
+.lg-body { min-width: 0; }
+.lg-zone { font-size: .78em; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.lg-body h3 { margin: 2px 0 6px; font-size: 1.15em; }
+.lg-body p { margin: 0 0 6px; font-size: .9em; }
+.lg-lore { font-style: italic; color: #fde68a; }
+.lg-clue { color: var(--text); }
+.lg-status { color: var(--muted); }
+.lg-status .lock-meter { display: inline-block; width: 60px; height: 6px; border-radius: 3px; background: #ffffff1a; vertical-align: middle; overflow: hidden; }
+.lg-status .lock-meter i { display: block; height: 100%; background: #fbbf24; }
+.lg-go { grid-column: 2; justify-self: start; font: 800 .9em var(--font-head); color: #fbbf24; }
+.code-box { margin-top: 32px; padding: 24px 0 8px; border-top: 1px solid var(--line); }
+.egg-stand .stand-link { margin-top: 4px; font-size: .85em; font-weight: 700; color: #fbbf24; }
+a.egg-stand:hover { border-color: #fbbf24; }

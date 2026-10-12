@@ -106,7 +106,7 @@ grid.innerHTML = ZONES.map((z) => {
     <div class="zone-head">
       <h3>${esc(z.name)}</h3>
       <span class="muted small">${esc(z.blurb)}</span>
-      ${z.legendGame ? `<span class="crown ${crown ? 'won' : ''}" title="${crown ? `You won the ${eggName(z.n)}!` : `Finish ${lg ? lg.title : 'the Legends game'} without losing a life to win the ${eggName(z.n)}`}">${crown ? `${eggSVG(z.n, { size: 16 })} Egg won` : '🥚 Egg: not yet'}</span>` : ''}
+      ${z.legendGame ? `<span class="crown ${crown ? 'won' : ''}" title="${crown ? `You won the ${eggName(z.n)}!` : `${lg?.legendHow || `Finish ${lg ? lg.title : 'the Legends game'} without losing a life.`} Wins the ${eggName(z.n)}.`}">${crown ? `${eggSVG(z.n, { size: 16 })} Egg won` : '🥚 Egg: not yet'}</span>` : ''}
     </div>
     ${open ? '' : `<div class="zone-lock">🔒 <b>Zone ${z.n} is locked.</b> Play every Zone ${z.n - 1} game at least once to open it <span class="lock-meter"><i style="width:${Math.round(lock.played / lock.need * 100)}%"></i></span> <b>${lock.played} / ${lock.need}</b></div>`}
     <div class="game-grid">${SLOTS.filter((sl) => sl.zone === z).map(card).join('')}</div>
@@ -162,9 +162,11 @@ if (Legends.isLegend()) {
   el.innerHTML = `<span class="banner-eggs">${Legends.eggs().map((n) => eggSVG(n, { size: 26 })).join('')}</span><div><b>${crowned ? '👑 You hold the Golden Crown.' : 'You are a Legend.'}</b><br><span class="muted small">${crowned ? `All ${legendZones().length} Golden Eggs. The Crown Room is yours — and so is the golden arcade.` : `Golden Eggs: ${Legends.eggs().map((n) => eggName(n).replace('Golden ', '')).join(' & ')}. Collect all ${legendZones().length} for the Golden Crown.`} Your golden characters are on in those zones' games — switch them from each game's menu.</span></div><span class="banner-btns">${crowned ? '<a class="btn gold-btn" href="crown-room/">👑 Crown Room</a>' : ''}<a class="btn" href="hall-of-legends/">🏛️ Hall of Legends</a></span>`;
   document.getElementById('games').before(el);
 } else {
+  // Not a Legend yet: show where the eggs are hidden, right above the games.
   const el = document.createElement('a');
   el.className = 'legend-banner hall-door';
   el.href = 'hall-of-legends/';
-  el.innerHTML = `<span style="font-size:1.8em">🏛️</span><div><b>The Hall of Legends</b><br><span class="muted small">This door only opens for true Legends. Nobody has ever been told how to become one…</span></div><span class="btn">🔑 Enter a Legend code</span>`;
-  document.getElementById('games').after(el);
+  const n = legendZones().length;
+  el.innerHTML = `<span class="banner-eggs">${legendZones().map((z) => eggSVG(z.n, { size: 26, won: false })).join('')}</span><div><b>${n} Golden Eggs are hidden in this arcade</b><br><span class="muted small">Each zone's 6th game, marked 👑 LEGENDS, holds one. Win an egg to enter the Hall of Legends, and collect all ${n} for the Golden Crown.</span></div><span class="btn">🏛️ How to become a Legend</span>`;
+  document.getElementById('games').before(el);
 }

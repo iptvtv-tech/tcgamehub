@@ -3,18 +3,66 @@ import { GAMES, ZONES, gameById, legendZones } from './games.js';
 import { Store } from './storage.js';
 import { Legends, hallPeople } from './legends.js';
 import { eggSVG, eggName, crownSVG } from './eggs.js';
+import { ZoneLock } from './zones.js';
 import { siteChrome, esc } from './site.js';
 
 siteChrome();
 const main = document.getElementById('hall');
 const date = (ts) => new Date(ts).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
+const UNIT = { 'heist-planner': 'job', 'crypt-of-crowns': 'crypt', 'crown-heist': 'floor' };
+
+/** One card per zone's Legends game: where it is, the clue, and how far you've got. */
+function legendCards() {
+  return legendZones().map((z) => {
+    const g = gameById(z.legendGame), won = Legends.hasEgg(z.n);
+    const lock = ZoneLock.progress(z.n), open = lock.played >= lock.need;
+    const far = Store.maxLevel(g.id), played = Store.plays(g.id) > 0;
+    const status = won ? `🥚 <b>${esc(eggName(z.n))} won!</b>`
+      : !open ? `🔒 Opens when you've played every Zone ${z.n - 1} game (<b>${lock.played} of ${lock.need}</b> so far)`
+      : played ? `Your furthest: <b>${UNIT[g.id] || 'level'} ${far}</b> of 15` : 'Unlocked — not played yet';
+    return `
+      <a class="lg-card${won ? ' won' : ''}${open ? '' : ' locked'}" href="../games/${g.id}/" style="--c:${g.color}">
+        <div class="lg-art"><img src="../games/${g.id}/thumb.svg" alt="" width="96" height="96" loading="lazy"><span class="lg-egg">${eggSVG(z.n, { size: 34, won })}</span></div>
+        <div class="lg-body">
+          <span class="lg-zone">Zone ${z.n} · Game #${g.number} · ${esc(g.difficulty)}</span>
+          <h3>${esc(g.title)}</h3>
+          <p class="lg-lore">“${esc(g.legendLore || '')}”</p>
+          <p class="lg-clue"><b>Clue:</b> ${esc(g.legendHow || `Finish ${g.title} without losing a life.`)}</p>
+          <p class="lg-status">${status}</p>
+        </div>
+        <span class="lg-go">${open ? (played ? 'Play again ▶' : 'Play ▶') : 'Take a look →'}</span>
+      </a>`;
+  }).join('');
+}
+
 function locked() {
+  const n = legendZones().length;
   main.innerHTML = `
     <section class="vault">
       <div class="vault-door" aria-hidden="true"><i></i><i></i><i></i></div>
       <h1>The Hall of Legends</h1>
-      <p>This door only opens for true Legends. Nobody has ever been told how to become one…</p>
+      <p>This door opens for anyone who wins a <b>Golden Egg</b>. There are ${n} hidden in the arcade, one in each zone's Legends game. Few players ever find one.</p>
+      <div class="vault-eggs" aria-hidden="true">${legendZones().map((z) => eggSVG(z.n, { size: 30, won: Legends.hasEgg(z.n) })).join('')}<span class="crown-ghost">👑</span></div>
+    </section>
+
+    <section class="legend-path">
+      <h2>How to become a Legend</h2>
+      <ol class="legend-steps">
+        <li><b>Open the zones</b><span>Play every game in a zone at least once and the next zone unlocks.</span></li>
+        <li><b>Find the Legends game</b><span>The 6th game in every zone is marked <span class="pill legend-pill">👑 LEGENDS</span> on the home page.</span></li>
+        <li><b>Win its Golden Egg</b><span>Each one hides its egg in a different way. The clues are below, and perfection is usually the key.</span></li>
+        <li><b>Collect all ${n}</b><span>You win the <b>Golden Crown</b>: the Crown Room, a golden arcade and a 👑 by your name on every leaderboard.</span></li>
+      </ol>
+    </section>
+
+    <section class="legend-games">
+      <h2>The ${n} Legends games</h2>
+      <div class="lg-grid">${legendCards()}</div>
+    </section>
+
+    <section class="vault code-box">
+      <h2>Already a Legend?</h2>
       <p class="small">Got a Legend code — from the Hall, or the one Crown Heist gives you? Enter it to bring back your eggs and your game progress on this phone or computer. Just the 6 letters and numbers is fine:</p>
       <form class="restore" autocomplete="off">
         <input name="c" placeholder="LEGEND-XXXXXX" maxlength="20" aria-label="Legend code" spellcheck="false" autocapitalize="characters" autocomplete="off" inputmode="text">
@@ -32,7 +80,7 @@ function locked() {
   });
   const fromLink = decodeURIComponent(location.hash.slice(1));
   if (/[A-Z0-9]{6}/i.test(fromLink)) { form.c.value = Legends.normalizeCode(fromLink); history.replaceState(null, '', location.pathname); }
-  if (matchMedia('(pointer: fine)').matches) form.c.focus();
+  if (form.c.value) form.c.scrollIntoView({ block: 'center' });
   form.onsubmit = async (e) => {
     e.preventDefault();
     form.querySelector('button').disabled = true; msg.className = 'restore-msg'; msg.textContent = 'Checking…';
@@ -60,7 +108,7 @@ async function open() {
       <p>Only players who have won a Legends game's Golden Egg have found their way in here. Every zone's Legends game has one — all ${legendZones().length} win the Golden Crown. Welcome, ${esc(me.name || Store.name() || 'Legend')}.</p>
       <div class="egg-shelf">${legendZones().map((z) => {
         const won = Legends.hasEgg(z.n), lg = gameById(z.legendGame);
-        return `<div class="egg-stand${won ? ' won' : ''}">${eggSVG(z.n, { size: 70, won })}<b>${esc(eggName(z.n))}</b><small>${won ? 'Won! Golden characters unlocked in Zone ' + z.n + '.' : esc(lg.legendHow || `Finish ${lg.title} without losing a life.`)}</small></div>`;
+        return `<a class="egg-stand${won ? ' won' : ''}" href="../games/${lg.id}/">${eggSVG(z.n, { size: 70, won })}<b>${esc(eggName(z.n))}</b><small>${won ? 'Won! Golden characters unlocked in Zone ' + z.n + '.' : esc(lg.legendHow || `Finish ${lg.title} without losing a life.`)}</small><span class="stand-link">${esc(lg.title)} →</span></a>`;
       }).join('')}
         ${Legends.hasGoldenCrown()
           ? `<a class="egg-stand crown-stand won" href="../crown-room/">${crownSVG({ size: 110, cls: 'spin' })}<b>The Golden Crown</b><small>All ${legendZones().length} eggs! Enter the Crown Room →</small></a>`
