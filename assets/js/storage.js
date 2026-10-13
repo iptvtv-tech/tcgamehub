@@ -9,16 +9,37 @@ let data = null;
 // Bump the number to reset that game again (badges are kept).
 const RESETS = { 'galactic-alien-shooter': 2, 'pinball-blast': 1 };   // pinball-blast: fresh start for the Extreme table
 
+// ── Schema check (audit P1): a corrupt or hand-edited save must never break the site ──
+const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+/** keep only { key: finite number ≥ 0 } entries */
+function numMap(v) {
+  const out = {};
+  if (!isObj(v)) return out;
+  for (const [k, n] of Object.entries(v)) if (typeof n === 'number' && Number.isFinite(n) && n >= 0 && k.length <= 80) out[k] = n;
+  return out;
+}
+function validate(raw) {
+  const d = isObj(raw) ? raw : {};
+  d.best = numMap(d.best);         // { gameId: score }
+  d.maxLevel = numMap(d.maxLevel); // { gameId: highest level reached }
+  d.plays = numMap(d.plays);       // { gameId: rounds played }
+  d.ach = numMap(d.ach);           // { 'gameId:achId' | 'g:achId': timestamp }
+  d.resets = numMap(d.resets);
+  // offline leaderboard entries
+  d.local = Array.isArray(d.local) ? d.local.filter((e) => isObj(e) && typeof e.game === 'string' && Number.isFinite(e.score)).slice(-600) : [];
+  d.settings = isObj(d.settings) ? d.settings : { muted: false, music: true };
+  if (typeof d.name !== 'string') delete d.name; else d.name = d.name.slice(0, 12);
+  if (d.last !== undefined && !(isObj(d.last) && typeof d.last.game === 'string')) delete d.last;
+  if (d.daily !== undefined && !(isObj(d.daily) && typeof d.daily.last === 'string' && Number.isFinite(d.daily.streak))) delete d.daily;
+  if (d.rev !== undefined && !Number.isFinite(d.rev)) delete d.rev;
+  return d;
+}
+
 function load() {
   if (data) return data;
-  try { data = JSON.parse(localStorage.getItem(KEY)) || {}; } catch { data = {}; }
-  data.best ??= {};       // { gameId: score }
-  data.maxLevel ??= {};   // { gameId: highest level reached }
-  data.plays ??= {};      // { gameId: rounds played }
-  data.ach ??= {};        // { 'gameId:achId' | 'g:achId': timestamp }
-  data.local ??= [];      // offline leaderboard entries
-  data.settings ??= { muted: false, music: true };
-  data.resets ??= {};
+  let raw = null;
+  try { raw = JSON.parse(localStorage.getItem(KEY)); } catch { raw = null; }
+  data = validate(raw);
   let changed = false;
   for (const [game, v] of Object.entries(RESETS)) {
     if ((data.resets[game] || 0) >= v) continue;
@@ -105,4 +126,22 @@ export const Store = {
 
   setting(k) { return load().settings[k]; },
   setSetting(k, v) { load().settings[k] = v; save(); },
+
+  /** Soft reset (audit P1): wipe this browser's arcade save. Legend codes live online, so
+   *  re-entering a code on the Legends page brings synced progress back. */
+  softReset() {
+    // keep the Legend / progress code (if it looks valid) so nothing online is lost
+    let keep = {};
+    try {
+      const raw = JSON.parse(localStorage.getItem(KEY));
+      const ok = (v) => isObj(v) && typeof v.code === 'string' && /^LEGEND-[A-Z0-9]{6}$/.test(v.code);
+      if (isObj(raw) && ok(raw.legend)) keep.legend = raw.legend;
+      if (isObj(raw) && ok(raw.progressCode)) keep.progressCode = raw.progressCode;
+    } catch { keep = {}; }
+    try {
+      for (const k of Object.keys(localStorage)) if (k.startsWith('arcade:')) localStorage.removeItem(k);
+      localStorage.setItem(KEY, JSON.stringify(keep));
+    } catch { /* storage unavailable */ }
+    data = null;
+  },
 };
