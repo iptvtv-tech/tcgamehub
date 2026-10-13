@@ -658,9 +658,9 @@ class TurboRush {
     const c = this.cam;
     if (!this.segs) return;
     const pz = this.position + PLAYER_Z, seg = this.segAt(pz), pct = clamp(this.speed / this.maxSpeed, 0, 1.3);
-    const ahead = this.segAt(pz + 4 * SEG), behind = this.segAt(pz - SEG);
-    const slope = ((ahead.y1 - behind.y1) / (5 * SEG));
-    const tpy = clamp(slope * 200, -60, 90);                     // climbing: look up the hill; cresting or dropping: look down the far side
+    // look where the road goes: render() measures how far the road ahead sits above (climb) or below (drop) where a
+    // flat road would be on screen, and the eyes tilt to keep it in the middle of the windscreen
+    const tpy = this.roadTilt || 0;
     const troll = -(this.steer || 0) * 0.035 - seg.curve * pct * 0.012;
     const off = Math.abs(this.playerX) > 1 && this.speed > 500;
     const kerb = Math.abs(this.playerX) > 0.92 && this.speed > 500;
@@ -671,7 +671,7 @@ class TurboRush {
     if (!c.init || dt <= 0) { c.roll = troll; c.py = tpy; c.rumble = rumble; c.zoom = zoom; c.wheel = want; c.wheelV = 0; c.init = true; }
     else {
       c.roll += (troll - c.roll) * Math.min(1, dt * 4);
-      c.py += (tpy - c.py) * Math.min(1, dt * 4);
+      c.py += (tpy - c.py) * Math.min(1, dt * 8);
       c.rumble += (rumble - c.rumble) * Math.min(1, dt * 10);
       c.zoom += (zoom - c.zoom) * Math.min(1, dt * 3);
       c.wheelV += ((want - c.wheel) * k - c.wheelV * damp) * dt; c.wheel += c.wheelV * dt;
@@ -1197,6 +1197,16 @@ class TurboRush {
       seg.hidden = false;
       visible.push(seg);
       maxy = seg.p2.y;
+    }
+    // cockpit: how far is the road 5-14 segments ahead from where a flat road would be? (up = positive)
+    if (cockpit) {
+      let e = 0, n = 0;
+      for (const k of [5, 8, 11, 14]) {
+        const sg = this.segs[base.i + k]; if (!sg) continue;
+        const d = sg.i * SEG - camZ; if (d <= CAM_DEPTH) continue;
+        e += HORIZON + CAM_DEPTH / d * CP_H * VS - sg.p1.y; n++;
+      }
+      this.roadRaw = n ? e / n : 0; this.roadTilt = n ? clamp(e / n * 0.9, -320, 300) : 0;
     }
     // the stretch of road right under the car (can dip below the nearest drawn segment on hills)
     const first = visible.find((sg) => !sg.hidden);
