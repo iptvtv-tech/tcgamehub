@@ -1,6 +1,7 @@
 // Small helpers shared by the non-game pages.
 import { CONFIG } from './config.js';
 import { Legends } from './legends.js';
+import { Store } from './storage.js';
 import './stats.js';   // privacy-friendly visitor stats (off unless CONFIG.goatcounter is set)
 
 export const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -32,6 +33,21 @@ export function siteChrome() {
       a.setAttribute('aria-current', 'page');
     }
     nav.appendChild(a);
+  }
+  // Site-wide sound switch (audit P2): the same setting every game's 🔊 button uses.
+  if (nav && !nav.querySelector('.mute-link')) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'mute-link';
+    const show = () => {
+      const m = Store.setting('muted') === true;
+      b.textContent = m ? '🔇' : '🔊';
+      b.setAttribute('aria-label', m ? 'Sound is off — turn sound on' : 'Sound is on — turn sound off');
+      b.setAttribute('aria-pressed', String(m));
+      b.title = m ? 'Sound off' : 'Sound on';
+    };
+    b.addEventListener('click', () => { Store.setSetting('muted', Store.setting('muted') !== true); show(); });
+    show();
+    nav.appendChild(b);
   }
   if ('serviceWorker' in navigator && location.protocol === 'https:') {
     const root = new URL('../../', import.meta.url); // assets/js/ → site root

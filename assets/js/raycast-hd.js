@@ -23,6 +23,8 @@ export function texData(canvas) {
   return new Uint32Array(g.getImageData(0, 0, canvas.width, canvas.height).data.buffer.slice(0));
 }
 
+const TOUCH = typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0;
+
 export class HDRaycaster {
   constructor({ x = 0, y = 0, w, h }) {
     this.vx = x; this.vy = y; this.vw = w; this.vh = h;
@@ -31,8 +33,11 @@ export class HDRaycaster {
     this.lut = null; this.lutLight = -1;
   }
 
-  /** Internal picture width (height follows the view's shape). */
+  /** Internal picture width (height follows the view's shape).
+   *  Phones and tablets cast a quarter fewer rays (audit P2): each ray is a column of pixels,
+   *  so this cuts the work by ~44% (fewer columns AND fewer rows) while staying sharp enough. */
   setRes(cols) {
+    if (TOUCH) cols = Math.round(cols * 0.75);
     if (cols === this.rw) return;
     this.rw = cols; this.rh = Math.round(cols * this.vh / this.vw);
     this.can = cnv(this.rw, this.rh); this.g = this.can.getContext('2d');

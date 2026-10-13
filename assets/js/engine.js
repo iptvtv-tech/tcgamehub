@@ -460,6 +460,7 @@ class Shell {
     if (!b) return;
     b.onclick = () => {
       Store.setSetting('lowDetail', !this.lowDetail);
+      Store.setSetting('detailChosen', true);                      // the player picked: the watchdog leaves it alone
       b.classList.toggle('on', !this.lowDetail); b.textContent = `🖥 Graphics: ${this.lowDetail ? 'LOW (smoother)' : 'HIGH'}`;
       this.game.onDetailChange?.(this.lowDetail);
       Sound.play('click');
@@ -468,13 +469,31 @@ class Shell {
   }
   /** Watch the frame rate for a few seconds of play; if this device struggles, switch to LOW once (the player can switch back). */
   checkFrameRate(dt) {
-    if (!this.def.detail || this.perfDone || Store.setting('lowDetail') !== undefined) return;
+    if (!this.def.detail) return;
+    this.watchFrameRate(dt);
+    if (this.perfDone || Store.setting('lowDetail') !== undefined) return;
     this.perfT = (this.perfT || 0) + dt;
     if (this.perfT < 2) return;                                    // let the level settle first
     this.perfN = (this.perfN || 0) + 1; this.perfS = (this.perfS || 0) + dt;
     if (this.perfS < 5) return;
     this.perfDone = true;
     if (this.perfN / this.perfS < 40) {
+      Store.setSetting('lowDetail', true);
+      this.game.onDetailChange?.(true);
+      this.fx.text(this.W / 2, this.H * 0.3, '🖥 Low graphics on for smoother play', { color: '#e2e8f0', size: 16, life: 2.6 });
+    }
+  }
+  /** Frame-rate watchdog (audit P2): on HIGH, if play drops below 25 fps for 3 seconds in a row,
+   *  switch to LOW — unless the player chose HIGH themselves. */
+  watchFrameRate(dt) {
+    if (this.lowDetail || Store.setting('detailChosen') || this.state !== 'playing') { this.wdT = this.wdN = this.wdBad = 0; return; }
+    if (dt > 0.5) return;                                          // a tab switch or a hitch, not a slow device
+    this.wdT = (this.wdT || 0) + dt; this.wdN = (this.wdN || 0) + 1;
+    if (this.wdT < 1) return;
+    this.wdBad = this.wdN / this.wdT < 25 ? (this.wdBad || 0) + 1 : 0;
+    this.wdT = this.wdN = 0;
+    if (this.wdBad >= 3) {
+      this.wdBad = 0; this.perfDone = true;
       Store.setSetting('lowDetail', true);
       this.game.onDetailChange?.(true);
       this.fx.text(this.W / 2, this.H * 0.3, '🖥 Low graphics on for smoother play', { color: '#e2e8f0', size: 16, life: 2.6 });
@@ -577,7 +596,7 @@ class Shell {
       </header>
       <main class="stage">
         <div class="canvas-wrap">
-          <canvas aria-label="${esc(m.title)} game"></canvas>
+          <canvas role="img" aria-label="${esc(m.title)} — ${esc((m.tagline || 'arcade game').replace(/[.!?]+$/, ''))}. Controls: ${esc(m.controls || 'keyboard, mouse or touch')}. Press Enter or Space to start, P to pause, M to mute."></canvas>
           <div class="banner" hidden><div class="banner-title"></div><div class="banner-sub"></div></div>
           <div class="overlay" hidden></div>
           <div class="toasts" aria-live="polite"></div>

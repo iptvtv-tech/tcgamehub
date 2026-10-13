@@ -259,3 +259,15 @@ a.legend-banner.hall-door:hover { border-color: #fbbf24; transform: translateY(-
 .zone-unlock-btn { min-width: 8em; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .zone-unlock-overlay, .zone-unlock-panel { animation: none; } }
+
+/* Site-wide sound switch in the header (audit P2) */
+.site-nav .mute-link { background: none; border: 0; color: var(--muted); font: inherit; font-size: 1.05em; padding: .45em .7em; border-radius: 999px; cursor: pointer; line-height: 1; }
+.site-nav .mute-link:hover, .site-nav .mute-link:focus-visible { color: var(--text); background: var(--card2); }
+@media (max-width: 400px) { .site-nav .mute-link { padding: .45em .42em; } }
+
+/* Leaderboard: rank cell is a row header (screen readers), up to 100 names, your row pinned (audit P2/P3) */
+.board tbody th { background: var(--card); padding: 12px 14px; text-align: left; color: var(--text); text-transform: none; letter-spacing: 0; border-radius: 12px 0 0 12px; width: 64px; font-weight: 800; font-family: var(--font-head); font-size: 1.15em; }
+.board tr.me th { background: #2b1f05; box-shadow: inset 1px 0 0 #a16207, inset 0 1px 0 #a16207, inset 0 -1px 0 #a16207; }
+.board tr.gap td { background: none; text-align: center; color: var(--muted); padding: 0; border-radius: 0; }
+.board-more { text-align: center; margin: 10px 0 0; }
+.board-me { text-align: center; margin: 8px 0 0; }

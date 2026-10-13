@@ -26,6 +26,13 @@ function ac() {
   return ctx;
 }
 
+// Safari / iOS only let audio start inside a tap or key press. If anything made the context
+// before the first gesture it starts "suspended", so wake it on the next gesture (audit P2).
+if (typeof window !== 'undefined') {
+  const wake = () => { if (ctx && ctx.state !== 'running') ctx.resume().catch?.(() => {}); };
+  for (const ev of ['pointerdown', 'touchend', 'keydown']) addEventListener(ev, wake, { capture: true, passive: true });
+}
+
 /** Route a sound to the left or right (pan −1 … 1) when the browser supports it. */
 function out(c, node, bus, pan) {
   if (pan && c.createStereoPanner) { const p = c.createStereoPanner(); p.pan.value = Math.max(-1, Math.min(1, pan)); node.connect(p).connect(bus); }
