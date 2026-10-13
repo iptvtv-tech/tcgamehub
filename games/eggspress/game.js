@@ -58,11 +58,11 @@ const EGG_PTS = (() => {
 
 const THEMES = {
   meadow: { name: 'Meadow Hills', sky: ['#38bdf8', '#e0f2fe'], far: '#93c5fd', mid: '#4ade80', grass: '#22c55e', road: '#a16207', dirt: ['#92400e', '#451a03'], sun: '#fde047', tree: ['#15803d', '#713f12', '#166534'], fog: '#e0f2fe' },
-  autumn: { name: 'Autumn Ridge', sky: ['#fb923c', '#fef3c7'], far: '#fca5a5', mid: '#f59e0b', grass: '#ea580c', road: '#78350f', dirt: ['#7c2d12', '#431407'], sun: '#fef9c3', tree: ['#dc2626', '#713f12', '#f59e0b'], fog: '#fde68a' },
+  autumn: { name: 'Autumn Ridge', sky: ['#fb923c', '#fef3c7'], far: '#fca5a5', mid: '#f59e0b', grass: '#ea580c', road: '#78350f', dirt: ['#7c2d12', '#431407'], sun: '#fef9c3', tree: ['#dc2626', '#713f12', '#f59e0b'], fog: '#fde68a', weather: 'rain', wCol: 'rgba(180,200,255,0.55)' },
   sunset: { name: 'Sunset Valley', sky: ['#6d28d9', '#fb7185'], far: '#a78bfa', mid: '#be185d', grass: '#db2777', road: '#581c87', dirt: ['#6b21a8', '#2e1065'], sun: '#fde047', tree: ['#831843', '#3b0764', '#be185d'], fog: '#f9a8d4' },
-  night: { name: 'Midnight Road', sky: ['#020617', '#1e3a8a'], far: '#1e293b', mid: '#0f766e', grass: '#14b8a6', road: '#134e4a', dirt: ['#115e59', '#042f2e'], sun: '#f8fafc', tree: ['#064e3b', '#022c22', '#0f766e'], fog: '#1e3a8a', stars: true },
+  night: { name: 'Midnight Road', sky: ['#020617', '#1e3a8a'], far: '#1e293b', mid: '#0f766e', grass: '#14b8a6', road: '#134e4a', dirt: ['#115e59', '#042f2e'], sun: '#f8fafc', tree: ['#064e3b', '#022c22', '#0f766e'], fog: '#1e3a8a', stars: true, weather: 'snow', wCol: 'rgba(220,240,255,0.75)' },
   candy: { name: 'Candy Canyon', sky: ['#e879f9', '#fef08a'], far: '#f9a8d4', mid: '#fbbf24', grass: '#facc15', road: '#c2410c', dirt: ['#d97706', '#9a3412'], sun: '#fff', tree: ['#ec4899', '#9d174d', '#f472b6'], fog: '#fde68a' },
-  moon: { name: 'Moon Dunes', sky: ['#0b0420', '#3b0764'], far: '#4c1d95', mid: '#6d28d9', grass: '#a78bfa', road: '#4c1d95', dirt: ['#4c1d95', '#1e1b4b'], sun: '#e9d5ff', tree: ['#581c87', '#2e1065', '#7e22ce'], fog: '#3b0764', stars: true },
+  moon: { name: 'Moon Dunes', sky: ['#0b0420', '#3b0764'], far: '#4c1d95', mid: '#6d28d9', grass: '#a78bfa', road: '#4c1d95', dirt: ['#4c1d95', '#1e1b4b'], sun: '#e9d5ff', tree: ['#581c87', '#2e1065', '#7e22ce'], fog: '#3b0764', stars: true, weather: 'dust', wCol: 'rgba(167,139,250,0.45)' },
   gold: { name: 'Golden Egg Run', sky: ['#f59e0b', '#fef9c3'], far: '#fcd34d', mid: '#fbbf24', grass: '#eab308', road: '#a16207', dirt: ['#b45309', '#78350f'], sun: '#fff', tree: ['#ca8a04', '#713f12', '#facc15'], fog: '#fef3c7' },
 };
 const THEME_ORDER = ['meadow', 'autumn', 'sunset', 'night', 'candy', 'moon'];
@@ -129,6 +129,16 @@ class Eggspress {
       wind: (L >= 7 && !B ? 100 : 1e9) * PX_PER_M, oil: (L >= 8 && !B ? 80 : 1e9) * PX_PER_M, coin: 500, prop: this.X0, fence: 200,
     };
     this.maxX = 0; this.distPaid = 0; this.time = 0; this.cracksLevel = 0; this.livesAtStart = this.s.lives; this.delivered = false;
+    // weather particles: rain streaks, snowflakes, or moon-dust motes
+    const wType = THEMES[this.themeKey]?.weather;
+    this.wxParticles = !wType ? [] : Array.from({ length: wType === 'snow' ? 55 : wType === 'dust' ? 40 : 80 }, () => ({
+      x: Math.random() * W, y: Math.random() * H,
+      vx: wType === 'rain' ? -1 - Math.random() * 1.5 : wType === 'dust' ? (-0.3 + Math.random() * 0.6) * 40 : (Math.random() - 0.5) * 15,
+      vy: wType === 'rain' ? 500 + Math.random() * 300 : wType === 'snow' ? 40 + Math.random() * 40 : 15 + Math.random() * 25,
+      r: wType === 'snow' ? 1.5 + Math.random() * 2 : wType === 'dust' ? 1 + Math.random() * 1.5 : 0,
+      len: wType === 'rain' ? 8 + Math.random() * 10 : 0,
+      phase: Math.random() * Math.PI * 2,
+    }));
     this.ensure(3000);
     this.spawn(60);
   }
@@ -369,6 +379,20 @@ class Eggspress {
 
     this.egg.crackCd = Math.max(0, this.egg.crackCd - dt);
     this.tickDust(dt);
+
+    // weather particle update
+    const wType = THEMES[this.themeKey]?.weather;
+    if (wType && this.wxParticles) {
+      const windNudge = this.windAt(this.car.x) * 0.012;
+      for (const p of this.wxParticles) {
+        p.x += (p.vx + windNudge) * dt;
+        p.y += p.vy * dt;
+        if (wType === 'snow') { p.x += Math.sin(this.t * 1.5 + p.phase) * 18 * dt; }
+        if (p.y > H + 10) { p.y = -10; p.x = Math.random() * W; }
+        if (p.x < -10) p.x = W + 10;
+        if (p.x > W + 10) p.x = -10;
+      }
+    }
   }
 
   stepCar(dt, th) {
@@ -635,6 +659,25 @@ class Eggspress {
       for (const st of this.streaks) { const a = cam.p(st.x, st.y, st.z), b = cam.p(st.x - Math.sign(st.vx) * 60, st.y, st.z); if (!a || !b) continue; ctx.globalAlpha = Math.min(1, st.life); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); }
       ctx.restore();
     }
+
+    // weather particles overlay (rain / snow / moon dust)
+    const wType = T.weather;
+    if (wType && this.wxParticles?.length && !lo) {
+      ctx.save();
+      ctx.strokeStyle = T.wCol; ctx.fillStyle = T.wCol;
+      if (wType === 'rain') {
+        ctx.lineWidth = 1.2; ctx.beginPath();
+        for (const p of this.wxParticles) { ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + p.vx * 0.018, p.y - p.len); }
+        ctx.stroke();
+      } else {
+        for (const p of this.wxParticles) {
+          ctx.globalAlpha = wType === 'dust' ? 0.35 + 0.2 * Math.sin(this.t + p.phase) : 0.65 + 0.2 * Math.sin(this.t * 1.5 + p.phase);
+          ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+      ctx.globalAlpha = 1; ctx.restore();
+    }
+
     this.drawHud(ctx);
   }
 

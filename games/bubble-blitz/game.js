@@ -343,8 +343,14 @@ class BubbleBlitz {
       const b = this.at(row, c); if (!b) continue;
       const [x, y] = this.xy(row, c);
       this.popColour = b.c;
-      this.popping.push({ x, y, col: b.stone ? '#94a3b8' : COLORS[b.c], t: 0 });
-      this.s.fx.burst(...this.sp(x, y), { colors: [b.stone ? '#94a3b8' : COLORS[b.c], '#fff'], count: 7, speed: 160, life: 0.35, size: 2.5 });
+      const pcol = b.stone ? '#94a3b8' : COLORS[b.c];
+      // 3D pop particles: 8 droplets arc outward in board-space, projected onto the 3D table
+      const dropsArr = Array.from({ length: 8 }, (_, i) => {
+        const a = (i / 8) * Math.PI * 2;
+        return { dx: Math.cos(a) * R * 0.85, dy: Math.sin(a) * R * 0.85, vr: 0.8 + Math.random() * 0.6, vh: R * (0.4 + Math.random() * 0.4) };
+      });
+      this.popping.push({ x, y, col: pcol, t: 0, drops: dropsArr });
+      this.s.fx.burst(...this.sp(x, y), { colors: [pcol, '#fff'], count: 7, speed: 160, life: 0.35, size: 2.5 });
       if (b.secret) effects.push({ kind: b.secret, row, c });
       this.grid[row][c] = null;
       n++;
@@ -499,8 +505,26 @@ class BubbleBlitz {
     for (const [row, c, b] of cells) { const [x, y] = this.xy(row, c); this.drawBubble(ctx, x, y, R, b); }
     for (const p of this.popping) {
       const k = p.t / 0.25, [px, py, sc] = cam.at(p.x, p.y, R);
+      // outer expanding ring
       ctx.globalAlpha = 1 - k; ctx.strokeStyle = p.col; ctx.lineWidth = 3 * sc;
       ctx.beginPath(); ctx.arc(px, py, R * sc * (1 + k * 0.7), 0, Math.PI * 2); ctx.stroke();
+      // inner flash (bright fill fading fast)
+      if (k < 0.35) {
+        ctx.globalAlpha = (1 - k / 0.35) * 0.55;
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(px, py, R * sc * (0.6 - k * 0.8), 0, Math.PI * 2); ctx.fill();
+      }
+      // 3D arc droplets: project each droplet using height arc so they appear to lift off the table
+      if (!lo && p.drops) {
+        for (const d of p.drops) {
+          const spread = k * d.vr;
+          const height = R + d.vh * Math.sin(k * Math.PI); // arc up then back down
+          const [dpx, dpy, dsc] = cam.at(p.x + d.dx * spread, p.y + d.dy * spread, height * (1 - k));
+          ctx.globalAlpha = (1 - k) * 0.8;
+          ctx.fillStyle = p.col;
+          ctx.beginPath(); ctx.arc(dpx, dpy, Math.max(1, 2.5 * dsc), 0, Math.PI * 2); ctx.fill();
+        }
+      }
     }
     ctx.globalAlpha = 1;
     for (const f of this.falling) if (f.y < GUN_Y) this.drawBubble(ctx, f.x, f.y, R, { c: COLORS.indexOf(f.col), stone: f.stone });

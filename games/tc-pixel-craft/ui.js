@@ -196,11 +196,81 @@ export class UI {
         this.text(ctx, g.toast.a.name, 148, y + 37, { size: 16 });
       }
       if (g.bonus) this.text(ctx, '★ STARFALL — catch the stars!', W / 2, 90, { size: 18, align: 'center', col: '#fde047' });
+      if (!this.open) this.drawMinimap(ctx);
     }
     this.drawPanel(ctx, inGame);
     if (this.open === 'inv') this.drawBag(ctx);
     if (this.open === 'adv') this.drawAdv(ctx);
     if (this.msg) { ctx.globalAlpha = Math.min(1, this.msg.t * 2); this.text(ctx, this.msg.text, W / 2, this.open ? 548 : 470, { size: 15, align: 'center', col: this.msg.col }); ctx.globalAlpha = 1; }
+  }
+
+  drawMinimap(ctx) {
+    const g = this.g, w = g.world;
+    if (!w) return;
+    const SX = 64, SZ = 64;
+    const SIZE = 70, PAD = 4;
+    const mx = W - SIZE - 8, my = 112;  // below the bag & adv buttons
+
+    // rebuild the pixel map when the world changes (track edit count)
+    const editCount = w.edits?.length ?? 0;
+    if (!this._mmCanvas || this._mmDirty !== editCount) {
+      this._mmDirty = editCount;
+      if (!this._mmCanvas) { this._mmCanvas = document.createElement('canvas'); this._mmCanvas.width = SX; this._mmCanvas.height = SZ; }
+      const mc = this._mmCanvas.getContext('2d');
+      const img = mc.createImageData(SX, SZ);
+      const d = img.data;
+      for (let z = 0; z < SZ; z++) for (let x = 0; x < SX; x++) {
+        const topY = w.top[z * SX + x];
+        const block = w.get(x, topY, z);
+        const shade = Math.max(0, Math.min(1, (topY - 10) / 18));
+        let r = 80, gr = 120, b2 = 80;
+        // block-colour palette for the map
+        if (block === B.WATER) { r = 30; gr = 90; b2 = 200; }
+        else if (block === B.LAVA) { r = 240; gr = 80; b2 = 20; }
+        else if (block === B.SAND || block === B.GRAVEL) { r = 220; gr = 200; b2 = 140; }
+        else if (block === B.SNOW) { r = 230; gr = 230; b2 = 240; }
+        else if (block === B.GRASS) { r = 60 + shade * 30; gr = 140 + shade * 40; b2 = 55; }
+        else if (block === B.DIRT || block === B.SANDSTONE) { r = 130; gr = 90; b2 = 60; }
+        else if (block === B.STONE || block === B.COBBLE) { r = 100 + shade * 30; gr = 100 + shade * 30; b2 = 105 + shade * 30; }
+        else if (block === B.LOG || block === B.PLANKS) { r = 110; gr = 75; b2 = 40; }
+        else if (block === B.LEAVES) { r = 40; gr = 100; b2 = 40; }
+        else if (block === B.BEDROCK) { r = 30; gr = 30; b2 = 30; }
+        else { r = 90; gr = 90; b2 = 90; }
+        const i = (z * SX + x) * 4;
+        d[i] = r; d[i + 1] = gr; d[i + 2] = b2; d[i + 3] = 255;
+      }
+      mc.putImageData(img, 0, 0);
+    }
+
+    // border + bg
+    ctx.save();
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle = 'rgba(0,0,0,.55)';
+    roundRect(ctx, mx - PAD, my - PAD, SIZE + PAD * 2, SIZE + PAD * 2, 5); ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // map image scaled to SIZE
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(this._mmCanvas, mx, my, SIZE, SIZE);
+    ctx.imageSmoothingEnabled = true;
+
+    // player dot (white triangle pointing in yaw direction)
+    const px = g.p.x, pz = g.p.z;
+    const sx = mx + (px / SX) * SIZE, sy = my + (pz / SZ) * SIZE;
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(-g.yaw);
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.moveTo(0, -5); ctx.lineTo(3, 3); ctx.lineTo(-3, 3); ctx.closePath(); ctx.fill();
+    ctx.restore();
+
+    // spawn marker (green dot)
+    if (g.spawn) {
+      const spx = mx + (g.spawn[0] / SX) * SIZE, spy = my + (g.spawn[2] / SZ) * SIZE;
+      ctx.fillStyle = '#4ade80';
+      ctx.beginPath(); ctx.arc(spx, spy, 2.5, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
   }
 
   bolt(ctx, x, y, fill, blink) {
