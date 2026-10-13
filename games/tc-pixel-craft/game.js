@@ -42,7 +42,7 @@ const MOB = {
   thorn: { hp: 14, w: 0.8, h: 1.0, sprH: 1.05, speed: 2.0, dmg: 3, pts: 70, hostile: true, drops: [[I.THORN, 1, 2], [I.STICK, 0, 1]] },
   boom: { hp: 14, w: 0.7, h: 1.1, sprH: 1.15, speed: 2.4, dmg: 0, pts: 80, hostile: true, drops: [[I.SPORE, 1, 2]] },
   crawler: { hp: 10, w: 0.95, h: 0.6, sprH: 0.75, speed: 3.6, dmg: 2, pts: 70, hostile: true, drops: [[I.SILK, 1, 2]] },
-  fluff: { hp: 8, w: 0.8, h: 0.9, sprH: 1.0, speed: 1.4, dmg: 0, pts: 10, hostile: false, drops: [[I.WOOL, 1, 2]] },
+  fluff: { hp: 8, w: 0.8, h: 0.9, sprH: 1.0, speed: 0.9, dmg: 0, pts: 10, hostile: false, drops: [[I.WOOL, 1, 2]] },
   king: { hp: 420, w: 2.4, h: 2.8, sprH: 3.0, speed: 3.2, dmg: 6, pts: 5000, hostile: true, drops: [] },
 };
 
@@ -172,7 +172,7 @@ class PixelCraft {
     };
   }
   /** energy used per second, before activity */
-  drainRate() { return 20 / Math.max(110, 280 / this.s.speed(0.08, 2.6)); }
+  drainRate() { return 20 / Math.max(110, 280 / this.s.speed(0.08, 2.6)) * 0.4; }
   sunsetAt() { return 135 - (this.day >= 5 ? Math.min(30, (this.day - 4) * 6) : 0); }
 
   // ── Input ───────────────────────────────────────────────────
@@ -635,6 +635,16 @@ class PixelCraft {
     const s = this.s, it = this.held(), id = it?.id;
     this.useCd = 0.2;
     if (target && target.v === B.BUSH_RIPE) return this.harvest(target);
+    if (id === I.BERRIES && target && (target.v === B.GRASS || target.v === B.DIRT || target.v === B.SAND)) {
+      const px = target.px, py = target.py, pz = target.pz;
+      if (this.world.inside(px, py, pz) && this.world.get(px, py, pz) === B.AIR) {
+        this.world.set(px, py, pz, B.BUSH);
+        it.n--; if (!it.n) this.inv[this.sel] = null;
+        this.useCd = 0.3;
+        this.s.fx.text(W / 2, VIEW_H * 0.45, 'Berry bush planted!', { color: '#86efac', size: 18 });
+        return;
+      }
+    }
     if (it && INFO[id].food) { this.startEat(); return; }
     if (target) {
       if (target.v === B.TABLE || target.v === B.FURNACE) { this.findStations(); this.ui.toggle('inv'); return; }
@@ -662,7 +672,6 @@ class PixelCraft {
     const s = this.s;
     this.spawn = [t.x + 0.5, t.y + 1, t.z + 0.5]; this.bedSet = true;
     if (!this.isNight()) { s.fx.text(W / 2, VIEW_H * 0.5, 'Respawn point set. You can only sleep at night.', { color: '#e0e7ff', size: 16 }); return; }
-    if (this.boss || this.mobs.some((m) => MOB[m.type].hostile && Math.hypot(m.x - this.p.x, m.z - this.p.z) < 10)) { s.fx.text(W / 2, VIEW_H * 0.5, 'You can\'t sleep — monsters nearby!', { color: '#fca5a5', size: 18 }); return; }
     if (this.energy < 3) { s.fx.text(W / 2, VIEW_H * 0.5, 'Too hungry to sleep…', { color: '#fca5a5', size: 18 }); return; }
     this.sleepT = 1.6;
     s.sound.play('life');
@@ -889,7 +898,10 @@ class PixelCraft {
         m.wander -= dt;
         if (m.wander <= 0) { m.wander = r.range(2, 5); const a = r.range(0, Math.PI * 2), go = r.chance(0.6); m.wx = go ? Math.cos(a) : 0; m.wz = go ? Math.sin(a) : 0; }
         const flee = m.aggro && d < 10;
-        tvx = flee ? -dx / d * 3.2 : m.wx * M.speed; tvz = flee ? -dz / d * 3.2 : m.wz * M.speed;
+        tvx = flee ? -dx / d * 2.0 : m.wx * M.speed; tvz = flee ? -dz / d * 2.0 : m.wz * M.speed;
+        // Sheep stop at water edges — don't walk into water
+        const fluffOnWater = this.touching(m, M.w / 2, 0.1, B.WATER);
+        if (fluffOnWater) { tvx = 0; tvz = 0; m.wx = 0; m.wz = 0; m.wander = 0; }
       } else if (m.type === 'thorn') {
         const want = d > 9 ? 1 : d < 5 ? -1 : 0;
         tvx = dx / d * m.speed * want; tvz = dz / d * m.speed * want;
@@ -1056,7 +1068,8 @@ class PixelCraft {
         const fl = m.flash > 0 || (m.type === 'boom' && m.fuse > 0 && Math.sin(this.t * 30) > 0);
         const yaw = m.type === 'fluff' && Math.hypot(m.vx, m.vz) > 0.2 ? Math.atan2(m.vx, m.vz) : Math.atan2(ex - m.x, ez - m.z);
         const [sk, bl] = lightOf(m.x, m.y + 0.5, m.z);
-        ents.push({ x: m.x, y: m.y + bob, z: m.z, w: M.w * (m.type === 'king' ? 1.25 : 1.15) * (m.armoured ? 1.06 : 1), h: M.sprH, spr: m.type, yaw, flash: fl, sky: sk, blk: bl, gold: false });
+        const groundY = this.world.top[Math.min(SZ - 1, Math.max(0, Math.floor(m.z))) * SX + Math.min(SX - 1, Math.max(0, Math.floor(m.x)))] + 1;
+        ents.push({ x: m.x, y: m.y + bob, z: m.z, w: M.w * (m.type === 'king' ? 1.25 : 1.15) * (m.armoured ? 1.06 : 1), h: M.sprH, spr: m.type, yaw, flash: fl, sky: sk, blk: bl, gold: false, phase: m.t || 0, groundY });
       }
       for (const b of this.shots) ents.push({ x: b.x, y: b.y - 0.2, z: b.z, w: 0.5, h: 0.5, spr: b.kind, yaw: Math.atan2(ex - b.x, ez - b.z), sky: 1, blk: 1 });
       for (const a2 of this.arrows) ents.push({ x: a2.x, y: a2.y - 0.25, z: a2.z, w: 0.9, h: 0.9, spr: 'arrow', yaw: a2.stuck ? a2.yaw : (a2.yaw = Math.atan2(a2.vx, a2.vz) - Math.PI / 2), ...(() => { const [sk, bl] = lightOf(a2.x, a2.y, a2.z); return { sky: sk, blk: bl }; })() });
