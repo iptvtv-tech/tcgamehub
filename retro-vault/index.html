@@ -48,6 +48,7 @@
 
     <!-- The player. The emulator runs in its own frame so it can be swapped cleanly between games. -->
     <section class="cabinet-wrap" id="player" aria-label="Game screen">
+      <button class="big-exit" type="button" id="big-exit">✕ Exit big screen</button>
       <div class="cabinet">
         <div class="cabinet-screen">
           <iframe id="screen" title="Retro Vault game screen" src="player.html" allow="autoplay; fullscreen; gamepad" allowfullscreen></iframe>
@@ -60,6 +61,7 @@
           <span class="muted small" id="np-meta">Pick a game below or load your own ROM.</span>
         </div>
         <div class="np-actions">
+          <button class="btn primary" type="button" id="np-big" hidden>⛶ Big screen</button>
           <a class="btn wa" id="np-share" href="#" target="_blank" rel="noopener" hidden>Share</a>
           <button class="btn" type="button" id="np-stop" hidden>■ Stop</button>
         </div>

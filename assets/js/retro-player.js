@@ -8,6 +8,12 @@
 // EmulatorJS as a File: it is never uploaded anywhere.
 import { GAMES, SYSTEMS } from './retro-catalogue.js';
 import { Store } from './storage.js';
+import { buildTouchControls } from './retro-touch.js';
+
+// Phones and tablets get our own touch controls instead of the emulator's.
+const TOUCH = matchMedia('(pointer: coarse)').matches || (navigator.maxTouchPoints > 0 && matchMedia('(hover: none)').matches);
+// Shape of each console's picture, so the screen area fits it on phones.
+const ASPECT = { nes: '4 / 3', snes: '4 / 3', gb: '10 / 9', gba: '3 / 2', segaMD: '4 / 3', segaMS: '4 / 3', segaGG: '10 / 9', atari2600: '4 / 3', mame: '4 / 3' };
 
 const params = new URLSearchParams(location.search);
 const idle = document.getElementById('idle');
@@ -16,6 +22,17 @@ const say = (html, isErr) => { idle.hidden = false; idle.innerHTML = `<div class
 function start({ system, gameUrl, gameName }) {
   if (!SYSTEMS[system]) { say('That system isn\'t supported here.', true); return; }
   idle.hidden = true;
+  document.documentElement.style.setProperty('--ar', ASPECT[system] || '4 / 3');
+  if (TOUCH) {
+    document.body.classList.add('touch');
+    const pad = document.getElementById('pad');
+    let woke = false;
+    buildTouchControls(pad, system, (index, down) => {
+      const emu = window.EJS_emulator;
+      if (!woke) { woke = true; wakeAudio(emu); }   // the first press counts as the tap iPhones need for sound
+      try { emu?.gameManager?.simulateInput(0, index, down ? 1 : 0); } catch { /* game not ready yet */ }
+    });
+  }
   const muted = Store.setting('muted') === true;
   Object.assign(window, {
     EJS_player: '#game',
@@ -45,12 +62,18 @@ function start({ system, gameUrl, gameName }) {
     emu.__vaultPatched = true;
   };
   window.EJS_onGameStart = () => {
+    if (TOUCH) { try { window.EJS_emulator.toggleVirtualGamepad(false); } catch { /* ignore */ } }
     try { parent.postMessage({ retro: 'started', gameName }, location.origin); } catch { /* not framed */ }
   };
   const s = document.createElement('script');
   s.src = '../vendor/emulatorjs/loader.js';
   s.onerror = () => say('The emulator files are missing. Please try again later.', true);
   document.body.appendChild(s);
+}
+
+/** iPhones keep game sound muted until a tap; resume it from our own button presses too. */
+function wakeAudio(emu) {
+  try { emu?.Module?.AL?.currentCtx?.sources?.forEach((src) => src.gain?.context?.resume?.()); } catch { /* ignore */ }
 }
 
 const id = params.get('game');

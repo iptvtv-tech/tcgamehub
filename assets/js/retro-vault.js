@@ -43,6 +43,7 @@ function setNowPlaying(title, meta, game) {
   $('np-title').textContent = title;
   $('np-meta').textContent = meta;
   $('np-stop').hidden = false;
+  $('np-big').hidden = false;
   const share = $('np-share');
   if (game) {
     const url = new URL(`?play=${game.id}`, location.href).href;
@@ -78,7 +79,8 @@ $('np-stop').addEventListener('click', () => {
   screen.src = 'player.html';
   $('np-title').textContent = 'Nothing yet';
   $('np-meta').textContent = 'Pick a game below or load your own ROM.';
-  $('np-stop').hidden = true; $('np-share').hidden = true;
+  $('np-stop').hidden = true; $('np-share').hidden = true; $('np-big').hidden = true;
+  exitBig();
   cabinet.classList.remove('playing');
   document.querySelectorAll('[data-play]').forEach((b) => b.classList.remove('current'));
   history.replaceState(null, '', location.pathname);
@@ -214,3 +216,34 @@ function badgeHint() {
   if (n) el.innerHTML = `📼 <b>Time Traveller</b> badge: ${n} of 3 Vault games played.`;
 }
 badgeHint();
+
+// ── Big screen ──────────────────────────────────────────────────
+// Real fullscreen where the browser allows it (computers, Android, iPad); iPhones don't
+// allow it for web pages, so there the game just fills the visible screen instead.
+const wrap = $('player');
+let big = false;
+function enterBig() {
+  if (big) return;
+  big = true;
+  wrap.classList.add('big');
+  document.documentElement.classList.add('big-screen');
+  const fs = wrap.requestFullscreen || wrap.webkitRequestFullscreen;
+  if (fs) { try { const r = fs.call(wrap); if (r?.catch) r.catch(() => {}); } catch { /* not allowed here: the CSS version is enough */ } }
+  try { history.pushState({ retroBig: true }, ''); } catch { /* ignore */ }
+  focusScreen(false);
+}
+function exitBig(fromHistory) {
+  if (!big) return;
+  big = false;
+  wrap.classList.remove('big');
+  document.documentElement.classList.remove('big-screen');
+  const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+  if (fsEl) { try { (document.exitFullscreen || document.webkitExitFullscreen).call(document); } catch { /* ignore */ } }
+  if (!fromHistory && history.state?.retroBig) { try { history.back(); } catch { /* ignore */ } }
+}
+$('np-big').addEventListener('click', enterBig);
+$('big-exit').addEventListener('click', () => exitBig());
+window.addEventListener('popstate', () => exitBig(true));          // phone back button leaves big screen
+const onFs = () => { if (big && !(document.fullscreenElement || document.webkitFullscreenElement)) exitBig(); };
+document.addEventListener('fullscreenchange', onFs);
+document.addEventListener('webkitfullscreenchange', onFs);
