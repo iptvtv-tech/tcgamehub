@@ -216,6 +216,7 @@ kbd { background: #2c2c5a; border: 1px solid #45458a; border-bottom-width: 2px; 
 .game-card.zone-locked .thumb img { filter: grayscale(.8) brightness(.6); }
 .game-card .chip3d { position: absolute; bottom: 10px; left: 12px; font-weight: 900; font-size: .75em; letter-spacing: .06em; color: #e0f2fe; background: linear-gradient(135deg, #0369a1, #7c3aed); border: 1px solid #38bdf8; padding: .15em .6em; border-radius: 999px; box-shadow: 0 0 10px rgba(56,189,248,.45); }
 .game-card .lock-badge { position: absolute; top: 12px; right: 12px; z-index: 2; background: #1a1a3d; border: 1px solid #be185d; color: #fda4af; font-weight: 800; border-radius: 999px; padding: .25em .8em; font-size: .85em; }
+.game-card .played-badge { position: absolute; top: 12px; left: 12px; z-index: 2; background: #052e16; border: 1px solid #16a34a; color: #86efac; font-weight: 800; border-radius: 999px; padding: .25em .65em; font-size: .8em; line-height: 1; }
 .game-card.zone-locked .play-cta { display: none; }
 
 a.legend-banner.hall-door { text-decoration: none; color: var(--text); margin: 0 0 18px; border-color: #a16207; background: linear-gradient(135deg, #1f1a0a, #14142e 70%); transition: border-color .2s, transform .2s; }
@@ -246,3 +247,15 @@ a.legend-banner.hall-door:hover { border-color: #fbbf24; transform: translateY(-
 .crown-svg.spin { animation: crown-turn 6s ease-in-out infinite; }
 @keyframes crown-turn { 0%, 100% { transform: rotateY(-25deg); } 50% { transform: rotateY(25deg) translateY(-6px); } }
 @media (prefers-reduced-motion: reduce) { .crown-svg.spin { animation: none; } }
+
+/* ── Zone unlock celebration overlay ────────────────────────── */
+.zone-unlock-overlay { position: fixed; inset: 0; z-index: 9999; display: grid; place-items: center; background: rgba(6,6,18,.75); backdrop-filter: blur(4px); animation: fadeIn .35s ease-out; }
+.confetti-canvas { position: absolute; inset: 0; pointer-events: none; }
+.zone-unlock-panel { position: relative; text-align: center; background: #14143acc; border: 1px solid #4ade8055; border-radius: 22px; padding: 2.4em 2em 2em; box-shadow: 0 0 60px rgba(74,222,128,.18), 0 24px 60px #0009; max-width: 22em; animation: panelIn .35s cubic-bezier(.2,1.4,.4,1); }
+.zone-unlock-emoji { font-size: 3.2em; margin: 0 0 .1em; line-height: 1; }
+.zone-unlock-panel h2 { font: 700 1.8em var(--font-head,sans-serif); color: #4ade80; margin: 0 0 .15em; }
+.zone-unlock-name { font-weight: 700; color: #86efac; margin: 0 0 .4em; font-size: 1.05em; }
+.zone-unlock-sub { color: var(--muted,#94a3b8); font-size: .92em; margin: 0 0 1.2em; }
+.zone-unlock-btn { min-width: 8em; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .zone-unlock-overlay, .zone-unlock-panel { animation: none; } }

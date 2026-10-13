@@ -78,9 +78,11 @@ const card = (sl) => {
         <div class="meta">${tierBar(sl)}<span>Coming soon</span></div></div>
     </div>`;
   const locked = !ZoneLock.isOpen(sl.zone.n);
+  const played = !locked && Store.plays(g.id) > 0;
   return `
     <a class="game-card${sl.legendSlot ? ' legend-slot' : ''}${locked ? ' zone-locked' : ''}" href="games/${g.id}/" style="--c:${g.color}">
       ${locked ? '<span class="lock-badge">🔒 Locked</span>' : ''}
+      ${played ? '<span class="played-badge">✓ Played</span>' : ''}
       <div class="thumb"><span class="num">#${sl.n}</span><img src="games/${g.id}/thumb.svg" alt="" width="120" height="120" loading="lazy">${g.is3d ? '<span class="chip3d" title="Built with a 3D engine">3D</span>' : ''}</div>
       <span class="play-cta">PLAY ▶</span>
       <div class="body">
@@ -170,3 +172,63 @@ if (Legends.isLegend()) {
   el.innerHTML = `<span class="banner-eggs">${legendZones().map((z) => eggSVG(z.n, { size: 26, won: false })).join('')}</span><div><b>${n} Golden Eggs are hidden in this arcade</b><br><span class="muted small">Each zone's 6th game, marked 👑 LEGENDS, holds one. Win an egg to enter the Hall of Legends, and collect all ${n} for the Golden Crown.</span></div><span class="btn">🏛️ How to become a Legend</span>`;
   document.getElementById('games').before(el);
 }
+
+// ── Zone unlock celebration ─────────────────────────────────
+// On first home-page load after a zone is newly unlocked, fire confetti.
+(function checkZoneUnlocks() {
+  const KEY = 'arcade:zone-seen';
+  let seen;
+  try { seen = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { seen = {}; }
+  const newly = [];
+  for (const z of ZONES) {
+    if (z.n === 1) continue; // Zone 1 always open
+    if (ZoneLock.isOpen(z.n) && !seen[z.n]) newly.push(z);
+  }
+  if (!newly.length) return;
+  // Mark them all seen before firing so a refresh doesn't repeat
+  for (const z of newly) seen[z.n] = 1;
+  try { localStorage.setItem(KEY, JSON.stringify(seen)); } catch { /* ignore */ }
+  // Build overlay
+  const zone = newly[newly.length - 1]; // celebrate the highest newly-opened zone
+  const ov = document.createElement('div');
+  ov.className = 'zone-unlock-overlay';
+  ov.innerHTML = `
+    <div class="zone-unlock-panel">
+      <div class="zone-unlock-burst" aria-hidden="true"></div>
+      <p class="zone-unlock-emoji">🔓</p>
+      <h2>Zone ${zone.n} Unlocked!</h2>
+      <p class="zone-unlock-name">${esc(zone.name)}</p>
+      <p class="zone-unlock-sub">You played every Zone ${zone.n - 1} game. ${zone.n <= 2 ? '2D arcade' : '3D worlds'} await.</p>
+      <button class="btn primary zone-unlock-btn">Let's go ▶</button>
+    </div>`;
+  document.body.appendChild(ov);
+  // Canvas confetti
+  const c = document.createElement('canvas');
+  c.className = 'confetti-canvas';
+  ov.prepend(c);
+  c.width = window.innerWidth; c.height = window.innerHeight;
+  const ctx = c.getContext('2d');
+  const COLORS = ['#fbbf24','#34d399','#60a5fa','#f472b6','#a78bfa','#fb923c'];
+  const bits = Array.from({ length: 80 }, () => ({
+    x: Math.random() * c.width, y: -20 - Math.random() * 200,
+    vx: (Math.random() - .5) * 3, vy: 2 + Math.random() * 3,
+    r: 5 + Math.random() * 6, spin: (Math.random() - .5) * .2,
+    angle: Math.random() * Math.PI * 2, col: COLORS[Math.floor(Math.random() * COLORS.length)],
+  }));
+  let raf;
+  function draw() {
+    ctx.clearRect(0, 0, c.width, c.height);
+    for (const b of bits) {
+      b.x += b.vx; b.y += b.vy; b.vy += .06; b.angle += b.spin;
+      ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.angle);
+      ctx.fillStyle = b.col; ctx.fillRect(-b.r, -b.r / 2, b.r * 2, b.r);
+      ctx.restore();
+    }
+    if (bits.some((b) => b.y < c.height + 40)) raf = requestAnimationFrame(draw);
+  }
+  draw();
+  const dismiss = () => { cancelAnimationFrame(raf); ov.remove(); };
+  ov.querySelector('.zone-unlock-btn').addEventListener('click', dismiss);
+  ov.addEventListener('click', (e) => { if (e.target === ov) dismiss(); });
+  setTimeout(dismiss, 7000);
+})();
