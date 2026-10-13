@@ -481,6 +481,29 @@ export const GAMES = [
       { id: 'score10k', icon: '🏅', title: 'Ten Grand',        desc: 'Score 10,000 in one run' },
     ],
   },
+  {
+    id: 'lunar-delivery',
+    gold: 'Golden Hopper',          // golden character (Zone 5 has no Legends game yet, so the Golden Crown unlocks it)
+    title: 'Lunar Delivery 3D',
+    is3d: true,
+    tagline: 'Fly a moon hopper between lunar bases with a cargo crate swinging on your tow cable. Set it down gently on the green ring — past craters, ridges, meteor showers and dust geysers, with Earth hanging over the horizon.',
+    controls: 'Thrust: Space · Tilt: ↑/↓ or W/S · Turn: ←/→ or A/D · Sidestep: Q/E (touch: stick to tilt and turn, hold THRUST)',
+    color: '#67e8f9',
+    isNew: true,
+    achievements: [
+      { id: 'feather',  icon: '🪶', title: 'Feather Touch',   desc: 'Set a crate down at under 1 m/s' },
+      { id: 'pristine', icon: '📦', title: 'Not a Scratch',   desc: 'Finish run 3 or later without a single bump' },
+      { id: 'meteor',   icon: '☄️', title: 'Close Shave',     desc: 'Have a meteor land right next to you — and live' },
+      { id: 'geyser',   icon: '🌋', title: 'Geyser Rider',    desc: 'Get blasted by a dust geyser and keep flying' },
+      { id: 'heavy',    icon: '🏋️', title: 'Heavy Lifter',    desc: 'Deliver a HEAVY steel crate' },
+      { id: 'glass',    icon: '🔷', title: 'Handle With Care', desc: 'Deliver a FRAGILE glass crate without a scratch' },
+      { id: 'night',    icon: '🌑', title: 'Dark Side',       desc: 'Make a delivery on a night run' },
+      { id: 'hoard',    icon: '✨', title: 'Stardust Hoarder', desc: 'Collect 60 stardust in one game' },
+      { id: 'storm',    icon: '⭐', title: 'Storm Chaser',    desc: 'Grab 60 stars in one Stardust Storm' },
+      { id: 'level10',  icon: '🌕', title: 'Moonwalker',      desc: 'Reach run 10' },
+      { id: 'score10k', icon: '🏅', title: 'Ten Grand',       desc: 'Score 10,000 in one run' },
+    ],
+  },
 ];
 
 // Badges that any game can earn (unlocked automatically by the engine).
@@ -533,6 +556,8 @@ export const ZONES = [
   { n: 4, name: 'Zone 4 · Ultra', blurb: 'Ultra difficulty — for players who have played every Zone 3 game. Crown Heist 3D is this zone\'s Legends game.',
     legendGame: 'crown-heist',
     slots: ['tc-pixel-craft', 'dungeon-escape', 'neon-drift', 'crystal-cascade', 'void-breaker', 'crown-heist'] },
+  { n: 5, name: 'Zone 5 · Beyond', blurb: 'Ultra difficulty, out past the Earth — for players who have played every Zone 4 game.',
+    slots: ['lunar-delivery', null, null, null, null, null] },
 ];
 
 /** Icon for each zone's prize (a Golden Egg — see eggs.js for the full artwork). */
