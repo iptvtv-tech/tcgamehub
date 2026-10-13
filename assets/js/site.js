@@ -21,7 +21,8 @@ export function siteChrome() {
   document.querySelectorAll('[data-year]').forEach((el) => { el.textContent = new Date().getFullYear(); });
   // Everyone can find the door to the Hall of Legends — only Legends get in.
   const nav = document.querySelector('.site-nav');
-  // Retro Vault (homebrew console games) sits next to About on every page.
+  // Retro Vault (homebrew console games): every page has the link in its HTML;
+  // this only adds it to a page that's missing it.
   if (nav && !nav.querySelector('.retro-link')) {
     const root = new URL('../../', import.meta.url);
     const r = document.createElement('a');

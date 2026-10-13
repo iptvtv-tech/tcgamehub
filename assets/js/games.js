@@ -496,6 +496,7 @@ export const GLOBAL_ACHIEVEMENTS = [
   { id: 'bonus',   icon: '⭐', title: 'Bonus Hunter',    desc: 'Reach a bonus round' },
   { id: 'famous',  icon: '🏆', title: 'Famous',          desc: 'Put your name on a leaderboard' },
   { id: 'pb',      icon: '📈', title: 'Getting Better',  desc: 'Beat your own best score' },
+  { id: 'retro3',  icon: '📼', title: 'Time Traveller',  desc: 'Play 3 different games in the Retro Vault (your own ROM counts as one)' },
   { id: 'legend',  icon: '👑', title: 'Legend',          desc: 'Win a Golden Egg in one of the Legends games', legendary: true, secret: true },
   { id: 'crown1',  icon: '🥚', title: 'Golden Vault Egg', desc: 'Win Zone 1\'s Legends game perfectly — unlocks the golden characters in games 1–6', legendary: true, secret: true },
   { id: 'crown2',  icon: '🥚', title: 'Golden Heist Egg', desc: 'Win Zone 2\'s Legends game perfectly — unlocks the golden characters in games 7–12', legendary: true, secret: true },

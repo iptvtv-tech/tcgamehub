@@ -102,3 +102,14 @@ button.game-card { font: inherit; text-align: left; padding: 0; cursor: pointer;
 
 @media (prefers-reduced-motion: reduce) { .drop { transition: none; } }
 #hosted-grid { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+
+/* Badge toast (same look as the in-game one) */
+.retro-toast { position: fixed; left: 50%; top: calc(76px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); z-index: 50; display: flex; align-items: center; gap: .7em; padding: .5em 1.1em .5em .6em; background: linear-gradient(135deg, #3b2a06, #1a1a3d); border: 1px solid var(--gold); border-radius: 999px; box-shadow: 0 8px 30px #000a; white-space: nowrap; animation: retroToastIn .4s cubic-bezier(.2, 1.4, .4, 1); }
+.retro-toast small { display: block; color: var(--gold); font-size: .72em; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.retro-toast b { font-family: var(--font-head); }
+.retro-toast .toast-icon { font-size: 1.6em; }
+.retro-toast.out { opacity: 0; transform: translate(-50%, -10px); transition: .4s; }
+@keyframes retroToastIn { from { opacity: 0; transform: translate(-50%, -14px) scale(.9); } }
+@media (prefers-reduced-motion: reduce) { .retro-toast { animation: none; } .retro-toast.out { transition: none; } }
+.badge-hint { margin: 10px 2px 0; font-size: .88em; color: var(--muted); }
+.badge-hint b { color: var(--gold); }

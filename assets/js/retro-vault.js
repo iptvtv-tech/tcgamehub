@@ -2,6 +2,8 @@
 import { siteChrome, esc, whatsappLink, WA_ICON } from './site.js';
 import { event } from './stats.js';
 import { GAMES, SYSTEMS, systemForFile } from './retro-catalogue.js';
+import { GLOBAL_ACHIEVEMENTS } from './games.js';
+import { Store } from './storage.js';
 
 siteChrome();
 
@@ -63,6 +65,7 @@ function focusScreen(scroll) {
 function playHosted(id, scroll) {
   const g = hosted.find((x) => x.id === id);
   if (!g) return;
+  current = g.id;
   screen.src = `player.html?game=${encodeURIComponent(g.id)}`;
   setNowPlaying(g.title, `${g.by} · ${SYSTEMS[g.system].label} · ${g.tip}`, g);
   history.replaceState(null, '', `?play=${g.id}`);
@@ -71,6 +74,7 @@ function playHosted(id, scroll) {
 }
 
 $('np-stop').addEventListener('click', () => {
+  current = null;
   screen.src = 'player.html';
   $('np-title').textContent = 'Nothing yet';
   $('np-meta').textContent = 'Pick a game below or load your own ROM.';
@@ -106,9 +110,31 @@ drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.ad
 drop.addEventListener('dragleave', () => drop.classList.remove('over'));
 drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('over'); chooseFile(e.dataTransfer.files[0]); });
 
+// ── Time Traveller badge: 3 different Vault games actually started ──
+// Which games have been played is kept on this browser only; the badge itself
+// goes in the normal badge store, so it shows on the home page and travels with a Legend code.
+const PLAYED = 'arcade:retro-played';
+let current = null;   // id of what's loading: a hosted game id, or 'own' for a visitor's ROM
+function playedList() { try { const v = JSON.parse(localStorage.getItem(PLAYED)); return Array.isArray(v) ? v.filter((x) => typeof x === 'string').slice(0, 50) : []; } catch { return []; } }
+function markPlayed(id) {
+  const list = playedList();
+  if (!list.includes(id)) { list.push(id); try { localStorage.setItem(PLAYED, JSON.stringify(list)); } catch { /* private mode */ } }
+  if (list.length >= 3 && Store.unlockAch('g:retro3')) toast(GLOBAL_ACHIEVEMENTS.find((a) => a.id === 'retro3'));
+  badgeHint();
+}
+function toast(a) {
+  if (!a) return;
+  const el = document.createElement('div');
+  el.className = 'retro-toast'; el.setAttribute('role', 'status');
+  el.innerHTML = `<span class="toast-icon">${a.icon}</span><span><small>Badge unlocked</small><b>${esc(a.title)}</b></span>`;
+  document.body.appendChild(el);
+  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 500); }, 4200);
+}
+
 let pending = null;   // the ROM waiting for the player frame to say it's ready
 window.addEventListener('message', (e) => {
   if (e.origin !== location.origin || e.source !== screen.contentWindow || !e.data) return;
+  if (e.data.retro === 'started' && current) { markPlayed(current); current = null; return; }
   if (e.data.retro === 'ready' && pending) { screen.contentWindow.postMessage({ retro: 'rom', ...pending }, location.origin); pending = null; }
 });
 
@@ -116,6 +142,7 @@ $('byor-play').addEventListener('click', () => {
   if (!romFile || !sel.value) return;
   pref.set(sel.value);
   pending = { file: romFile, system: sel.value };
+  current = 'own';
   screen.src = `player.html?byor=1&system=${encodeURIComponent(sel.value)}`;
   setNowPlaying(romFile.name.replace(/\.[^.]+$/, ''), `Your ROM · ${SYSTEMS[sel.value].label} · stays on this device`, null);
   history.replaceState(null, '', location.pathname);
@@ -178,3 +205,12 @@ $('credit-rows').innerHTML = hosted.map((g) => `
 // ── Deep link: ?play=<id> loads that game ───────────────────────
 const deep = new URLSearchParams(location.search).get('play');
 if (deep && hosted.some((g) => g.id === deep)) playHosted(deep, false);
+
+// Badge progress line under the controls
+function badgeHint() {
+  const el = $('badge-hint');
+  if (Store.hasAch('g:retro3')) { el.innerHTML = '📼 You have the <b>Time Traveller</b> badge.'; return; }
+  const n = Math.min(3, playedList().length);
+  if (n) el.innerHTML = `📼 <b>Time Traveller</b> badge: ${n} of 3 Vault games played.`;
+}
+badgeHint();
