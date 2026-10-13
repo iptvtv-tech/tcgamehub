@@ -660,7 +660,7 @@ class TurboRush {
     const pz = this.position + PLAYER_Z, seg = this.segAt(pz), pct = clamp(this.speed / this.maxSpeed, 0, 1.3);
     const ahead = this.segAt(pz + 4 * SEG), behind = this.segAt(pz - SEG);
     const slope = ((ahead.y1 - behind.y1) / (5 * SEG));
-    const tpy = clamp(-slope * 260, -60, 60);
+    const tpy = clamp(slope * 200, -60, 90);                     // climbing: look up the hill; cresting or dropping: look down the far side
     const troll = -(this.steer || 0) * 0.035 - seg.curve * pct * 0.012;
     const off = Math.abs(this.playerX) > 1 && this.speed > 500;
     const kerb = Math.abs(this.playerX) > 0.92 && this.speed > 500;
