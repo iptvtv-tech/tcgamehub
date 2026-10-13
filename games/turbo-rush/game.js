@@ -29,6 +29,7 @@
 import { runGame, roundRect, progressBar, clamp } from '../../assets/js/engine.js';
 import { SPORTS, SEDAN, SUV, TRUCK, POLICE, drawCar, palette, rgb } from '../../assets/js/car-models.js';
 import { tilt } from '../../assets/js/tilt.js';
+import { TouchWheel } from '../../assets/js/touch-wheel.js';
 
 const ID = 'turbo-rush';
 const W = 480, H = 720;
@@ -262,11 +263,18 @@ class TurboRush {
     this.view = 'cockpit';
     try { if (localStorage.getItem('tr-view') === 'chase') this.view = 'chase'; } catch { /* storage blocked */ }
     addEventListener('keydown', (e) => { if (e.code === 'KeyC' && !e.repeat && !(e.target instanceof HTMLInputElement) && this.s.state === 'playing') this.toggleView(); });
-    this.cam = { roll: 0, py: 0, bobX: 0, bobY: 0, rumble: 0, jolt: 0, zoom: 1, wheel: 0, wheelV: 0, init: false };
+    this.cam = { roll: 0, py: 0, bobX: 0, bobY: 0, rumble: 0, jolt: 0, zoom: 1, wheel: 0, wheelV: 0, lean: 0, init: false };
     this.sfx = null;                // continuous sounds (engine, wind, rain, squeal, nitro roar), made on first use
     try { if (new URLSearchParams(location.search).has('trdebug')) window.__tr = this; } catch { /* no window */ }   // test hook
     // ── Tilt steering ──────────────────────────────────────────
     this.tiltDev = tilt();          // shared phone-tilt reader (asks iOS for permission on a real tap)
+    // ── Touch wheel: on a phone in the cockpit, drag the steering wheel; hold NITRO with the other thumb.
+    //    Tilt then only leans the camera (chase cam keeps side zones + tilt steering).
+    this.wheelTouch = new TouchWheel(s, {
+      zone: () => ({ x: 96, y: 536, w: W - 192, h: H - 536 }),
+      enabled: () => this.cockpit && this.s.state === 'playing',
+      holds: { nitro: () => this.nitroButton() },
+    });
     this.startLevel(1, false);
   }
 
@@ -278,8 +286,12 @@ class TurboRush {
     this.s.sound.play('click');
     this.s.fx.text(W / 2, 200, this.view === 'cockpit' ? 'COCKPIT VIEW' : 'CHASE CAM', { color: '#f8fafc', size: 22, life: 0.9 });
     this.cam.init = false;
+    this.wheelTouch?.release();
   }
   viewButton() { return { x: W - 92, y: H - 44, w: 84, h: 34 }; }
+  /** NITRO (hold) — only in touch-wheel mode, bottom-left, mirroring VIEW */
+  nitroButton() { return { x: 8, y: H - 92, w: 88, h: 82 }; }
+  get wheelMode() { return this.wheelTouch.active; }
   onAction(a, x, y) {
     if (a === 'press') {
       const b = this.viewButton();
@@ -535,6 +547,14 @@ class TurboRush {
   controls() {
     const s = this.s, inp = s.input, p = inp.pointer;
     let left = inp.isDown('left'), right = inp.isDown('right'), boost = inp.isDown('up'), brake = inp.isDown('down');
+    if (this.wheelMode) {
+      // cockpit on a phone: the wheel steers (analogue), NITRO is held, tilt only leans the camera
+      this._wheel = this.wheelTouch.value();
+      this._tiltFrac = 0;
+      this._lean = this.tiltEnabled ? this.tiltDev.steer(2, 25) : 0;
+      return { left, right, boost: boost || this.wheelTouch.held('nitro'), brake };
+    }
+    this._wheel = 0; this._lean = 0;
     if (p.down && !this.btnPress) {
       if (this.tiltEnabled) {
         // Tilt active: any tap in the middle 60% = boost; edges still steer as fallback
@@ -676,6 +696,7 @@ class TurboRush {
       c.zoom += (zoom - c.zoom) * Math.min(1, dt * 3);
       c.wheelV += ((want - c.wheel) * k - c.wheelV * damp) * dt; c.wheel += c.wheelV * dt;
     }
+    c.lean += ((this._lean || 0) - c.lean) * Math.min(1, dt * 6);   // tilt leans your head a touch (touch-wheel mode)
     c.jolt = Math.max(0, c.jolt - dt * 3);
     if (this.crashFx > 0) this.crashFx = Math.max(0, this.crashFx - dt * 1.5);
     const t = this.t;
@@ -738,7 +759,12 @@ class TurboRush {
 
     // steering + the road pulling you wide on bends
     const dx = dt * (2 + 0.5 * clamp(pct, 0, 1.3)) * Math.min(1, pct + 0.15) * this.grip;   // quicker lane changes the faster you go
-    if (this.tiltEnabled && this._tiltFrac) {
+    if (this._wheel) {
+      // touch wheel: a gentle curve so small thumb movements make fine corrections
+      const w = clamp(this._wheel, -1, 1);
+      this.playerX += dx * w * Math.sqrt(Math.abs(w));
+      this.steer = lerp(this.steer || 0, w, Math.min(1, dt * 12));
+    } else if (this.tiltEnabled && this._tiltFrac) {
       // Analogue tilt: scale dx by how far the phone is tilted; more expressive than binary keys
       const tf = clamp(this._tiltFrac, -1, 1);
       this.playerX += dx * tf * Math.abs(tf);   // square-law for fine control near centre
@@ -1169,7 +1195,7 @@ class TurboRush {
       // the world rolls, bobs and pitches round you; the cabin (drawn after) stays put
       ctx.fillStyle = th.sky[1]; ctx.fillRect(0, 0, W, CP_HZ);
       ctx.fillStyle = mix(this.col.grass[0], this.col.fog, 0.6); ctx.fillRect(0, CP_HZ, W, H - CP_HZ);
-      ctx.translate(W / 2 + c.bobX, CP_HZ + c.bobY); ctx.rotate(c.roll); ctx.scale(c.zoom * CP_SCALE, c.zoom * CP_SCALE); ctx.translate(-W / 2, -HORIZON + c.py);
+      ctx.translate(W / 2 + c.bobX - c.lean * 12, CP_HZ + c.bobY); ctx.rotate(c.roll - c.lean * 0.035); ctx.scale(c.zoom * CP_SCALE, c.zoom * CP_SCALE); ctx.translate(-W / 2, -HORIZON + c.py);
     }
     this.drawSky(ctx);
     ctx.fillStyle = mix(this.col.grass[0], this.col.fog, 0.6); ctx.fillRect(-60, HORIZON, W + 120, H - HORIZON + 120);
@@ -1959,13 +1985,14 @@ class TurboRush {
     const hy = this.cockpit ? 380 : H - 10;
     if (s.state === 'playing' && this.position < SEG * 60) {
       const mobile = matchMedia('(pointer: coarse)').matches;
-      if (mobile && this.tiltEnabled) ctx.fillText('Tilt to steer · tap middle to boost', W / 2, hy);
+      if (this.wheelMode) ctx.fillText('Drag the wheel to steer · hold NITRO to boost', W / 2, hy);
+      else if (mobile && this.tiltEnabled) ctx.fillText('Tilt to steer · tap middle to boost', W / 2, hy);
       else if (mobile && this._needsTiltPermission) ctx.fillText('Tap to enable tilt steering · or hold sides to steer', W / 2, hy);
       else if (mobile) ctx.fillText('Hold left / right side to steer · middle to boost', W / 2, hy);
       else ctx.fillText('← → steer · ↑ boost · ↓ brake · C view', W / 2, hy);
     }
     // Tilt steering indicator (shown when tilt is active and playing)
-    if (this.tiltEnabled && s.state === 'playing') {
+    if (this.tiltEnabled && s.state === 'playing' && !this.wheelMode) {
       const bw = 80, bh = 10, bx = W / 2 - bw / 2, by = H - 28;
       ctx.fillStyle = 'rgba(0,0,0,0.35)';
       roundRect(ctx, bx, by, bw, bh, 5); ctx.fill();
@@ -1986,6 +2013,17 @@ class TurboRush {
       ctx.strokeStyle = 'rgba(248,250,252,.45)'; ctx.lineWidth = 1.5; ctx.stroke();
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '800 12px system-ui'; ctx.fillStyle = '#e2e8f0';
       ctx.fillText(mob ? '🎥 VIEW' : '🎥 VIEW  C', b.x + b.w / 2, b.y + b.h / 2 + 1);
+      if (this.wheelMode) {
+        // NITRO: glows while held, the fill shows what's left in the tank
+        const n = this.nitroButton(), on = this.boosting, f = clamp(this.boost, 0, 1);
+        ctx.fillStyle = on ? 'rgba(14,116,144,.75)' : 'rgba(3,5,20,.7)'; roundRect(ctx, n.x, n.y, n.w, n.h, 14); ctx.fill();
+        ctx.save(); roundRect(ctx, n.x, n.y, n.w, n.h, 14); ctx.clip();
+        ctx.fillStyle = 'rgba(34,211,238,.22)'; ctx.fillRect(n.x, n.y + n.h * (1 - f), n.w, n.h * f); ctx.restore();
+        ctx.strokeStyle = on ? '#67e8f9' : f > 0.05 ? 'rgba(103,232,249,.7)' : 'rgba(248,250,252,.35)'; ctx.lineWidth = on ? 2.5 : 1.5;
+        roundRect(ctx, n.x, n.y, n.w, n.h, 14); ctx.stroke();
+        ctx.fillStyle = f > 0.05 ? '#f8fafc' : '#94a3b8'; ctx.font = '900 22px system-ui'; ctx.fillText('🔥', n.x + n.w / 2, n.y + n.h / 2 - 10);
+        ctx.font = '800 12px system-ui'; ctx.fillText('NITRO', n.x + n.w / 2, n.y + n.h / 2 + 18);
+      }
     }
     ctx.restore();
   }

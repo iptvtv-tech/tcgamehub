@@ -28,6 +28,7 @@
 import { runGame, roundRect, progressBar, clamp } from '../../assets/js/engine.js';
 import { SPORTS, drawCar, palette, rgb } from '../../assets/js/car-models.js';
 import { tilt } from '../../assets/js/tilt.js';
+import { TouchWheel } from '../../assets/js/touch-wheel.js';
 
 const ID = 'neon-drift';
 const W = 480, H = 720;
@@ -294,7 +295,7 @@ class NeonDrift {
     try { const v = +localStorage.getItem('nd-station'); if (v >= 0 && v < STATIONS.length) this.station = v | 0; } catch (e) { /* storage blocked */ }
     Object.assign(MUSIC, STATIONS[this.station].music);
     this.sfx = null;                // continuous sounds (squeal, engine, afterburner), made on first use
-    this.cam = { s: 0, lat: 0, lz: 0, yaw: 0, y: CAM_H, py: 0, roll: 0, bobX: 0, bobY: 0, init: false, cockpit: false };
+    this.cam = { s: 0, lat: 0, lz: 0, yaw: 0, y: CAM_H, py: 0, roll: 0, bobX: 0, bobY: 0, lean: 0, init: false, cockpit: false };
     // camera: cockpit (default) or chase cam — C on a keyboard, the VIEW button on touch
     this.view = 'cockpit';
     try { if (localStorage.getItem('nd-view') === 'chase') this.view = 'chase'; } catch (e) { /* storage blocked */ }
@@ -307,6 +308,14 @@ class NeonDrift {
     // tilt steering (phones): gamma = left/right lean, calibrated to however the player holds the phone
     this.tiltFrac = 0; this.handTouch = false;
     this.tiltDev = tilt();          // shared phone-tilt reader (asks iOS for permission on a real tap)
+    // touch wheel: on a phone in the cockpit, drag the steering wheel; hold HANDBRAKE with the other thumb.
+    // Tilt then only leans the camera (chase cam keeps side zones + tilt steering).
+    this.lean = 0;
+    this.wheelTouch = new TouchWheel(s, {
+      zone: () => ({ x: 104, y: 520, w: W - 208, h: H - 520 }),
+      enabled: () => this.view === 'cockpit' && this.s.state === 'playing' && this.tuneT <= 0,
+      holds: { hand: () => this.handButton() },
+    });
     try { if (new URLSearchParams(location.search).has('nddebug')) window.__nd = this; } catch (e) { /* no window */ }   // test hook
     this.bossesBeaten = new Set();
     this.startLevel(1, false);      // the attract-mode race behind the title screen
@@ -499,6 +508,7 @@ class NeonDrift {
     if (this.s.state === 'playing') this.s.fx.text(W / 2, H * 0.2, this.view === 'cockpit' ? 'COCKPIT VIEW' : 'CHASE CAM', { color: this.theme.edge, size: 22, life: 0.9 });
     this.cam.init = false;
     this.updateCamera(0);
+    this.wheelTouch?.release();
   }
   boostButton() { return { x: 10, y: H - 46, w: 100, h: 34 }; }
   /** fire the drift-charged boost: the whole meter goes in one burst (longer the fuller it was) */
@@ -566,7 +576,10 @@ class NeonDrift {
     if (this.s.gold) return mixHex('#f59e0b', '#fef08a', c);
     return c < 0.5 ? mixHex('#ff4fa3', '#a78bfa', c * 2) : mixHex('#a78bfa', '#22d3ee', (c - 0.5) * 2);
   }
-  viewButton() { return { x: W - 100, y: H - 46, w: 90, h: 34 }; }
+  /** in touch-wheel mode HANDBRAKE takes the bottom-right corner and VIEW sits just above it (under the drift gauge) */
+  viewButton() { return this.wheelMode ? { x: W - 100, y: H - 86, w: 90, h: 32 } : { x: W - 100, y: H - 46, w: 90, h: 34 }; }
+  handButton() { return { x: W - 100, y: H - 46, w: 90, h: 34 }; }
+  get wheelMode() { return this.wheelTouch.active; }
   tuneButtons() { return STATIONS.map((_, i) => ({ x: 52 + i * 128, y: 352, w: 120, h: 74 })); }
 
   // ── Input ───────────────────────────────────────────────────
@@ -593,12 +606,13 @@ class NeonDrift {
       const b = this.viewButton(), bb = this.boostButton();
       if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) { this.toggleView(); this.viewPress = true; return; }
       if (x >= bb.x && x <= bb.x + bb.w && y >= bb.y && y <= bb.y + bb.h) { this.fireBoost(); this.viewPress = true; return; }
+      if (this.wheelMode) return;      // the wheel and HANDBRAKE track their own fingers (touch-wheel.js)
       this.touchAt(x);
     }
     else if (a === 'release' && this.viewPress) { this.viewPress = false; this.touch = 0; this.handTouch = false; }
     else if (a === 'release') { this.touch = 0; this.handTouch = false; }
   }
-  onPointerMove(x, y, down) { if (down && this.tuneT <= 0 && !this.viewPress) this.touchAt(x); }
+  onPointerMove(x, y, down) { if (down && this.tuneT <= 0 && !this.viewPress && !this.wheelMode) this.touchAt(x); }
   onLifeLost() { this.touch = 0; this.handTouch = false; this.resetRace(); }
 
   after(t, fn) { this.timers.push({ t, fn }); }
@@ -654,6 +668,13 @@ class NeonDrift {
 
   steerInput() {
     const i = this.s.input;
+    if (this.wheelMode) {
+      // cockpit on a phone: the wheel steers, tilt only leans the camera
+      this.tiltFrac = 0; this.touch = 0; this.handTouch = false;
+      this.lean = this.tiltOn ? this.tiltDev.steer(2, 25) : 0;
+      return clamp((i.isDown('right') ? 1 : 0) - (i.isDown('left') ? 1 : 0) + this.wheelTouch.value(), -1, 1);
+    }
+    this.lean = 0;
     return clamp((i.isDown('right') ? 1 : 0) - (i.isDown('left') ? 1 : 0) + this.touch + this.tiltSteer(), -1, 1);
   }
 
@@ -665,7 +686,7 @@ class NeonDrift {
       steerIn = clamp(wrapA(Math.atan2(ax - p.x, az - p.z) - p.h) * 3, -1, 1);
     } else {
       steerIn = this.steerInput();
-      hand = s.input.isDown('down') || s.input.isDown('action') || this.handTouch;
+      hand = s.input.isDown('down') || s.input.isDown('action') || this.handTouch || this.wheelTouch.held('hand');
     }
     p.brake = hand;
     // ease the wheel: turning in builds over ~0.2 s, letting go returns a little faster (keyboard taps don't snap)
@@ -1125,6 +1146,7 @@ class NeonDrift {
         c.roll += (troll - c.roll) * Math.min(1, dt * 4);
         c.rumble += (rumble - c.rumble) * Math.min(1, dt * 10);
         c.sway += (sway - c.sway) * Math.min(1, dt * 3);
+        c.lean += (this.lean - c.lean) * Math.min(1, dt * 6);      // tilt leans your head a touch (touch-wheel mode)
         const t = this.t, v = spd / Math.max(1, this.maxV);
         // layered sines = smooth "noise": no frame-to-frame jitter
         c.bobX = c.rumble * (0.6 * Math.sin(t * 47) + 0.4 * Math.sin(t * 71 + 1.3)) + c.sway * Math.sin(t * 2.3) * 1.2 + jolt * Math.sin(t * 38);
@@ -1142,7 +1164,7 @@ class NeonDrift {
         c.lat += (lat * 0.88 - c.lat) * Math.min(1, dt * 6);
         c.y += (ty - c.y) * k;
       }
-      c.s = d - CAMB; c.lz = 0; c.py = 0; c.roll = 0; c.bobX = c.bobY = 0;
+      c.s = d - CAMB; c.lz = 0; c.py = 0; c.roll = 0; c.bobX = c.bobY = 0; c.lean = 0;
     }
     this.buildView();
   }
@@ -1198,7 +1220,7 @@ class NeonDrift {
     if (cockpit) {
       ctx.fillStyle = th.sky[0]; ctx.fillRect(0, 0, W, HZ);
       ctx.fillStyle = th.gnd[0]; ctx.fillRect(0, HZ, W, H - HZ);
-      ctx.translate(W / 2 + c.bobX, HZ + c.bobY); ctx.rotate(c.roll); ctx.scale(1.04, 1.04); ctx.translate(-W / 2, -HZ + c.py);
+      ctx.translate(W / 2 + c.bobX - c.lean * 12, HZ + c.bobY); ctx.rotate(c.roll - c.lean * 0.035); ctx.scale(1.04, 1.04); ctx.translate(-W / 2, -HZ + c.py);
     }
     this.drawSky(ctx);
     const hw = T.halfW, WW = hw + RUNOFF;
@@ -1961,15 +1983,21 @@ class NeonDrift {
       ctx.strokeStyle = hexA(th.edge, 0.7); ctx.lineWidth = 1.5; ctx.stroke();
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '800 12px system-ui'; ctx.fillStyle = '#e2e8f0';
       ctx.fillText(mob ? '🎥 VIEW' : '🎥 VIEW  C', b.x + b.w / 2, b.y + b.h / 2 + 1);
+      if (this.wheelMode) {
+        const h = this.handButton(), on = this.wheelTouch.held('hand');
+        ctx.fillStyle = on ? hexA('#ff4fa3', 0.35) : 'rgba(5,3,15,0.7)'; roundRect(ctx, h.x, h.y, h.w, h.h, 10); ctx.fill();
+        ctx.strokeStyle = on ? '#ff4fa3' : hexA('#ff4fa3', 0.6); ctx.lineWidth = on ? 2 : 1.5; ctx.stroke();
+        ctx.fillStyle = '#f8fafc'; ctx.fillText('HANDBRAKE', h.x + h.w / 2, h.y + h.h / 2 + 1);
+      }
       ctx.textBaseline = 'alphabetic';
     }
     // phone controls: hint for the first few seconds, and a tilt meter while tilt is steering
     const mobile = matchMedia('(pointer: coarse)').matches;
     if (mobile && this.tuneT <= 0 && this.raceT < 6) {
       ctx.textAlign = 'center'; ctx.font = '600 12px system-ui'; ctx.fillStyle = 'rgba(226,232,240,.6)';
-      ctx.fillText(this.tiltOn ? 'Tilt to steer · hold the middle to drift' : this.needTiltPermission ? 'Tap to enable tilt steering · or hold a side to steer' : 'Hold the left or right side to steer', W / 2, H - 52);
+      ctx.fillText(this.wheelMode ? 'Drag the wheel to steer · full lock to drift' : this.tiltOn ? 'Tilt to steer · hold the middle to drift' : this.needTiltPermission ? 'Tap to enable tilt steering · or hold a side to steer' : 'Hold the left or right side to steer', W / 2, H - 52);
     }
-    if (this.tiltOn && this.tuneT <= 0) {
+    if (this.tiltOn && this.tuneT <= 0 && !this.wheelMode) {
       const bw = 90, bh = 10, bx = W / 2 - bw / 2 + 40, by = H - 31, fr = clamp(this.tiltFrac, -1, 1), fw = Math.abs(fr) * (bw / 2 - 3);
       ctx.fillStyle = 'rgba(5,3,15,0.6)'; roundRect(ctx, bx, by, bw, bh, 5); ctx.fill();
       ctx.fillStyle = Math.abs(fr) > 0.6 ? (s.gold ? '#fde047' : '#ff4fa3') : th.edge;   // pink once you're at drift lock
