@@ -209,23 +209,26 @@ export class UI {
     if (!w) return;
     const SX = 64, SZ = 64;
     const SIZE = 70, PAD = 4;
-    const mx = W - SIZE - 8, my = 112;  // below the bag & adv buttons
+    const mx = W - SIZE - 8, my = 126;  // below the bag & adv buttons and the badge count
 
-    // rebuild the pixel map when the world changes (track edit count)
-    const editCount = w.edits?.length ?? 0;
-    if (!this._mmCanvas || this._mmDirty !== editCount) {
-      this._mmDirty = editCount;
+    // rebuild the pixel map when the world changes (World.version goes up on every block edit;
+    // a new island is a new World object)
+    const ver = w.version || 0;
+    if (!this._mmCanvas || this._mmDirty !== ver || this._mmWorld !== w) {
+      this._mmDirty = ver; this._mmWorld = w;
       if (!this._mmCanvas) { this._mmCanvas = document.createElement('canvas'); this._mmCanvas.width = SX; this._mmCanvas.height = SZ; }
       const mc = this._mmCanvas.getContext('2d');
       const img = mc.createImageData(SX, SZ);
       const d = img.data;
       for (let z = 0; z < SZ; z++) for (let x = 0; x < SX; x++) {
         const topY = w.top[z * SX + x];
-        const block = w.get(x, topY, z);
+        // the top-block map skips water, so look one above the ground for the sea and lakes
+        const wet = w.get(x, topY + 1, z) === B.WATER;
+        const block = wet ? B.WATER : w.get(x, topY, z);
         const shade = Math.max(0, Math.min(1, (topY - 10) / 18));
         let r = 80, gr = 120, b2 = 80;
         // block-colour palette for the map
-        if (block === B.WATER) { r = 30; gr = 90; b2 = 200; }
+        if (block === B.WATER) { const deep = Math.min(1, Math.max(0, (14 - topY) / 8)); r = 40 - deep * 20; gr = 120 - deep * 50; b2 = 215 - deep * 40; }
         else if (block === B.LAVA) { r = 240; gr = 80; b2 = 20; }
         else if (block === B.SAND || block === B.GRAVEL) { r = 220; gr = 200; b2 = 140; }
         else if (block === B.SNOW) { r = 230; gr = 230; b2 = 240; }
@@ -259,9 +262,9 @@ export class UI {
     const sx = mx + (px / SX) * SIZE, sy = my + (pz / SZ) * SIZE;
     ctx.save();
     ctx.translate(sx, sy);
-    ctx.rotate(-g.yaw);
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath(); ctx.moveTo(0, -5); ctx.lineTo(3, 3); ctx.lineTo(-3, 3); ctx.closePath(); ctx.fill();
+    ctx.rotate(Math.PI - g.yaw);   // forward is (sin yaw, cos yaw) on the map: x right, z down
+    ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#111827'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(0, -7); ctx.lineTo(4.5, 4.5); ctx.lineTo(0, 2); ctx.lineTo(-4.5, 4.5); ctx.closePath(); ctx.stroke(); ctx.fill();
     ctx.restore();
 
     // spawn marker (green dot)

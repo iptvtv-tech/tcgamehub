@@ -118,24 +118,24 @@ class VoidBreaker {
     this.startLevel(1, false);
   }
 
-  reset() { this.novas = 1; this.hp = 100; this.power = {}; this.perks = { maxHp: 100, armour: 0, shotSpd: 0, extraNovas: 0 }; }
+  reset() { this.novas = 1; this.hp = 100; this.power = {}; this.perks = { maxHp: 100, armour: 0, chrono: 0 }; }
 
   // ── Between-wave upgrade panel ─────────────────────────────
   static UPGRADE_POOL = [
-    { id: 'heal',      icon: '❤️',  col: '#4ade80', name: 'Repair Field',    desc: 'Restore 30 HP now',           apply(g) { g.hp = Math.min(g.perks.maxHp, g.hp + 30); } },
-    { id: 'maxhp',     icon: '🛡️',  col: '#86efac', name: 'Hull Plating',    desc: '+20 max HP (permanent)',      apply(g) { g.perks.maxHp += 20; g.hp = Math.min(g.perks.maxHp, g.hp + 20); } },
-    { id: 'nova',      icon: '✺',   col: '#ffffff', name: 'Nova Core',       desc: '+2 Nova charges',             apply(g) { g.novas += 2; g.perks.extraNovas += 2; } },
+    { id: 'heal',      icon: '❤️',  col: '#4ade80', name: 'Repair Field',    desc: 'Restore 30 shield now',       apply(g) { g.hp = Math.min(g.perks.maxHp, g.hp + 30); } },
+    { id: 'maxhp',     icon: '🛡️',  col: '#86efac', name: 'Hull Plating',    desc: '+20 max shield (this run)',  apply(g) { g.perks.maxHp += 20; g.hp = Math.min(g.perks.maxHp, g.hp + 20); } },
+    { id: 'nova',      icon: '✺',   col: '#ffffff', name: 'Nova Core',       desc: '+2 Nova charges (max 3)',     apply(g) { g.novas = Math.min(3, g.novas + 2); } },
     { id: 'armour',    icon: '⬡',   col: '#60a5fa', name: 'Energy Armour',   desc: 'Take 20% less damage',        apply(g) { g.perks.armour += 0.2; } },
     { id: 'twin30',    icon: '⫴',   col: '#22d3ee', name: 'Twin Beams',      desc: 'Twin beams for 30s',          apply(g) { g.power.twin = 30; } },
     { id: 'rapid30',   icon: '»',   col: '#fde047', name: 'Rapid Fire',      desc: 'Rapid fire for 30s',          apply(g) { g.power.rapid = 30; } },
     { id: 'spread30',  icon: '⋔',   col: '#f472b6', name: 'Spread Shot',     desc: 'Spread shot for 30s',         apply(g) { g.power.spread = 30; } },
-    { id: 'chrono30',  icon: '◷',   col: '#93c5fd', name: 'Chrono Field',    desc: 'Slow time for 30s',           apply(g) { g.slowT = 30; } },
+    { id: 'chrono30',  icon: '◷',   col: '#93c5fd', name: 'Chrono Field',    desc: 'Slow time for 12s',           apply(g) { g.perks.chrono = 12; } },
   ];
 
   pickUpgrades(n = 3) {
     const pool = [...VoidBreaker.UPGRADE_POOL];
     // Don't offer armour past 40% reduction
-    const filtered = pool.filter((u) => u.id !== 'armour' || this.perks.armour < 0.4);
+    const filtered = pool.filter((u) => (u.id !== 'armour' || this.perks.armour < 0.4) && (u.id !== 'nova' || this.novas < 3) && (u.id !== 'heal' || this.hp < this.perks.maxHp));
     const out = [];
     while (out.length < n && filtered.length) {
       const i = Math.floor(this.s.rng.next() * filtered.length);
@@ -145,7 +145,9 @@ class VoidBreaker {
   }
 
   startUpgrade() {
-    this.upgradePhase = { opts: this.pickUpgrades(), hover: -1, chosen: -1, t: 0 };
+    this.upgradePhase = { opts: this.pickUpgrades(), hover: 1, chosen: -1, t: 0 };
+    // a locked mouse can't point at the cards: let it go without pausing the game
+    if (document.pointerLockElement) { this.quietUnlock = true; this.releaseMouse(); }
   }
   applyUpgrade(idx) {
     const up = this.upgradePhase.opts[idx];
@@ -170,7 +172,8 @@ class VoidBreaker {
     });
     document.addEventListener('pointerlockchange', () => {
       const locked = document.pointerLockElement === cv;
-      if (!locked && this.wasLocked && playing()) this.s.togglePause();
+      if (!locked && this.wasLocked && playing() && !this.quietUnlock) this.s.togglePause();
+      if (!locked) this.quietUnlock = false;
       this.wasLocked = locked;
     });
   }
@@ -187,7 +190,7 @@ class VoidBreaker {
     this.total = bonus ? 0 : isBossLevel(level) ? 0 : Math.min(75, 12 + level * 3);
     this.maxAlive = Math.min(22, 6 + level);
     this.tookDamage = false; this.novaR = 0; this.novaKills = 0; this.hurtT = 0; this.flashT = 0; this.invuln = 0;
-    this.slowT = 0; this.fireCD = 0; this.recoil = 0; this.hitMark = 0; this.streak = []; this.quickTurn = 0;
+    this.slowT = this.perks?.chrono || 0; if (this.perks) this.perks.chrono = 0; this.fireCD = 0; this.recoil = 0; this.hitMark = 0; this.streak = []; this.quickTurn = 0;
     this.starsHit = 0; this.starT = 0; this.cometT = 3;
     this.boss = null; this.introT = 0; this.after = 0; this.slowmo = 0; this.novaFlash = 0;
     if (isBossLevel(level) && !bonus) this.makeBoss(bossOf(level), bossMk(level));
@@ -207,7 +210,10 @@ class VoidBreaker {
         }
         return;
       }
-      if (a === 'action') { this.applyUpgrade(0); return; } // keyboard Enter picks first
+      const up = this.upgradePhase, n = up.opts.length;
+      if (a === 'left') up.hover = (up.hover + n - 1) % n;
+      if (a === 'right') up.hover = (up.hover + 1) % n;
+      if (a === 'action') this.applyUpgrade(clamp(up.hover, 0, n - 1));   // Space / Enter picks the highlighted card
       return;
     }
     if (a === 'press') {
@@ -564,13 +570,13 @@ class VoidBreaker {
   }
 
   dropPickup(p) {
-    const r = this.s.rng, kinds = Object.keys(PICKUPS).filter((k) => k !== 'nova' || this.novas < 3).filter((k) => k !== 'shield' || this.hp < 90);
+    const r = this.s.rng, kinds = Object.keys(PICKUPS).filter((k) => k !== 'nova' || this.novas < 3).filter((k) => k !== 'shield' || this.hp < this.perks.maxHp - 10);
     this.pickups.push({ type: r.pick(kinds), p: p.slice(), t: 0, life: 12 });
   }
   collect(pk) {
     const s = this.s, P = PICKUPS[pk.type];
     pk.dead = true;
-    if (pk.type === 'shield') this.hp = Math.min(100, this.hp + 35);
+    if (pk.type === 'shield') this.hp = Math.min(this.perks.maxHp, this.hp + 35);
     else if (pk.type === 'nova') this.novas = Math.min(3, this.novas + 1);
     else if (pk.type === 'chrono') this.slowT = 5;
     else this.power[pk.type] = pk.type === 'twin' ? 12 : 10;
@@ -641,12 +647,12 @@ class VoidBreaker {
   hurtPlayer(dmg) {
     const s = this.s;
     if (this.invuln > 0 || this.bonus || s.state !== 'playing') return;
-    this.hp -= dmg; this.tookDamage = true; this.hurtT = 0.5;
+    this.hp -= dmg * (1 - Math.min(0.6, this.perks?.armour || 0)); this.tookDamage = true; this.hurtT = 0.5;   // Energy Armour
     s.resetCombo(); s.sound.play('hit'); s.fx.shake(7, 0.3); s.fx.flash('#ff2244', 0.28);
     if (this.hp <= 0) { this.hp = 0; s.hurt(); }
   }
   onLifeLost() {
-    this.hp = 100; this.invuln = 2.5; this.orbs = []; this.power = {};
+    this.hp = this.perks.maxHp; this.invuln = 2.5; this.orbs = []; this.power = {};
     for (const e of this.enemies) if (flat(e.pos) < 24) this.kill(e, false);
     if (this.boss) this.introT = 0;
   }
@@ -888,8 +894,8 @@ class VoidBreaker {
     else {
       ctx.font = '900 13px system-ui'; ctx.fillStyle = th.hud;
       ctx.fillText(this.boss ? 'BOSS' : `${Math.max(0, this.total - this.killedWave)} LEFT`, 14, 23);
-      const hpc = this.hp > 50 ? '#4ade80' : this.hp > 25 ? '#fbbf24' : '#f87171';
-      progressBar(ctx, 96, 13, 230, 20, this.hp / 100, hpc, `SHIELD ${Math.ceil(this.hp)}`);
+      const hpk = this.hp / this.perks.maxHp, hpc = hpk > 0.5 ? '#4ade80' : hpk > 0.25 ? '#fbbf24' : '#f87171';
+      progressBar(ctx, 96, 13, 230, 20, this.hp / this.perks.maxHp, hpc, `SHIELD ${Math.ceil(this.hp)}${this.perks.maxHp > 100 ? ' / ' + this.perks.maxHp : ''}`);
       ctx.textAlign = 'right'; ctx.font = '900 13px system-ui'; ctx.fillStyle = '#e0f2fe'; ctx.fillText('NOVA', W - 66, 23);
       for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(W - 52 + i * 16, 23, 5.5, 0, TAU); ctx.fillStyle = i < this.novas ? '#e0f2fe' : 'rgba(224,242,254,.15)'; ctx.fill(); }
     }
@@ -961,7 +967,7 @@ class VoidBreaker {
     ctx.fillText('WAVE CLEARED', W / 2, 120);
     ctx.shadowBlur = 0;
     ctx.font = '600 14px system-ui'; ctx.fillStyle = 'rgba(226,232,240,.7)';
-    ctx.fillText('Choose your upgrade', W / 2, 150);
+    ctx.fillText(this.coarse ? 'Tap an upgrade' : 'Choose your upgrade  ·  ← → then Space, or click', W / 2, 150);
 
     // Cards
     const cw = 130, ch = 160, gap = 10, total = up.opts.length;
@@ -969,16 +975,16 @@ class VoidBreaker {
     this._upgradeCardRects = [];
     up.opts.forEach((opt, i) => {
       const cx0 = startX + i * (cw + gap), cy0 = 180;
-      const chosen = up.chosen === i;
+      const chosen = up.chosen === i, hot = up.chosen < 0 && up.hover === i;
       const rect = { x: cx0, y: cy0, w: cw, h: ch };
       this._upgradeCardRects.push(rect);
       // card bg
       ctx.fillStyle = chosen ? opt.col + '44' : 'rgba(14,12,40,.9)';
-      ctx.strokeStyle = chosen ? opt.col : opt.col + '88';
-      ctx.lineWidth = chosen ? 3 : 1.5;
+      ctx.strokeStyle = chosen || hot ? opt.col : opt.col + '88';
+      ctx.lineWidth = chosen ? 3 : hot ? 2.5 : 1.5;
       roundRect(ctx, cx0, cy0, cw, ch, 14); ctx.fill(); ctx.stroke();
       // icon
-      ctx.font = '32px system-ui'; ctx.textAlign = 'center';
+      ctx.font = '32px system-ui'; ctx.textAlign = 'center'; ctx.fillStyle = opt.col;   // (was still the card's dark fill: the icons didn't show)
       ctx.fillText(opt.icon, cx0 + cw / 2, cy0 + 44);
       // name
       ctx.font = '700 13px system-ui'; ctx.fillStyle = opt.col;

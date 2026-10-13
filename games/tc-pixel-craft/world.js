@@ -53,6 +53,7 @@ export class World {
     this.b[idx(x, y, z)] = v;
     this.dirty = true;
     this.edits.push(x, z);
+    this.version = (this.version || 0) + 1;   // only ever goes up (the minimap redraws when it changes)
     this.updateTop(x, z);
   }
   updateTop(x, z) { let y = SY - 1; while (y > 0 && isClear(this.b[idx(x, y, z)]) && this.b[idx(x, y, z)] !== B.LEAVES) y--; this.top[z * SX + x] = y; }
@@ -148,6 +149,7 @@ export class World {
     for (let z = 0; z < SZ; z++) for (let x = 0; x < SX; x++) this.updateTop(x, z);
     this.heights = H; this.biome = biome;
     this.edits = [];
+    this.version = (this.version || 0) + 1;   // a new island: the minimap redraws
     this.relight();
     this.lightEdits = null;   // null = everything changed
   }

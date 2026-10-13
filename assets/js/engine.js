@@ -167,7 +167,8 @@ class Input {
     p.x = x; p.y = y;
     if (type === 'down') {
       e.preventDefault();
-      s.canvas.setPointerCapture?.(e.pointerId);
+      // throws while the mouse is locked (Void Breaker, TC Pixel Craft): skip it then, so the tap still counts
+      if (!document.pointerLockElement) { try { s.canvas.setPointerCapture?.(e.pointerId); } catch { /* not capturable */ } }
       p.down = true; p.used = true;
       this.swipe = { x, y, t: performance.now(), moved: false };
       Sound.unlock();
