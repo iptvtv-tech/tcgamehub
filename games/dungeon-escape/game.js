@@ -13,11 +13,15 @@ import { runGame, progressBar, clamp } from '../../assets/js/engine.js';
 import { tryMove, canSee } from '../../assets/js/raycast.js';
 import { HDRaycaster } from '../../assets/js/raycast-hd.js';
 import { makeHDTextures, makeHDSprites, drawTorchHand } from '../../assets/js/raycast-art.js';
+import { Thumbstick } from '../../assets/js/thumbstick.js';
 
 const ID = 'dungeon-escape';
 const W = 480, H = 720;
 const VIEW = { x: 0, y: 44, w: 480, h: 500 };
 const PANEL_Y = VIEW.y + VIEW.h;
+const STICK = { x: 82, y: PANEL_Y + 88, r: 58 };          // the Crown Heist roller-ball stick
+const FLASH_BTN = { x: W - 58, y: PANEL_Y + 88, r: 38 };
+const MAP = { x: 166, y: PANEL_Y + 12, s: 140 };
 
 runGame({
   id: ID,
@@ -32,7 +36,7 @@ runGame({
   levelInfo(level, bonus) {
     if (bonus) return '★ TREASURE VAULT! Scoop up as much gold as you can in 15 seconds.';
     const notes = {
-      1: 'Walk: ↑ ↓ · Turn: ← → (touch: hold left/right side to turn, middle to walk). Find the 🔑 key, then the golden stairs. Don\'t let your torch go out!',
+      1: 'Walk: ↑ ↓ · Turn: ← → (touch: roll the stick, drag the view to look). Find the 🔑 key, then the golden stairs. Don\'t let your torch go out!',
       2: 'Ghouls wander the halls… and hunt you when they see you. ⚡ Space = FLASH to stun them.',
       3: '🔺 Spike traps! Cross when the spikes are down. Two keys now.',
       5: '',
@@ -47,6 +51,11 @@ class DungeonEscape {
   constructor(s) {
     this.s = s; this.t = 0;
     this.rc = new HDRaycaster(VIEW);
+    this.stick = new Thumbstick(s, STICK, {
+      view: VIEW,
+      onLook: (da) => { if (this.p && !this.hurtT) this.p.a += da; },
+      claim: (x, y) => Math.hypot(x - FLASH_BTN.x, y - FLASH_BTN.y) < FLASH_BTN.r + 8,
+    });
     const art = makeHDTextures();
     this.tex = art.tex; this.floors = art.floors; this.spr = makeHDSprites();
     this.startLevel(1, false);
@@ -205,17 +214,14 @@ class DungeonEscape {
   // ── Input ──────────────────────────────────────────────────
   onAction(a, x, y) {
     if (a === 'action') this.flash();
-    if (a === 'press' && Math.hypot(x - (W - 58), y - (PANEL_Y + 88)) < 40) this.flash();
+    if (a === 'press' && Math.hypot(x - FLASH_BTN.x, y - FLASH_BTN.y) < FLASH_BTN.r + 8) { this.flashPress = 0.2; this.flash(); }
   }
+  /** Keys plus the roller-ball stick (same feel as Crown Heist). fwd: -1..1, turn: -1..1 */
   controls() {
-    const inp = this.s.input, p = inp.pointer;
-    let fwd = inp.isDown('up') ? 1 : 0, back = inp.isDown('down'), turn = (inp.isDown('right') ? 1 : 0) - (inp.isDown('left') ? 1 : 0);
-    if (p.down && p.y >= VIEW.y && p.y < PANEL_Y) {
-      if (p.x < W * 0.3) turn = -1; else if (p.x > W * 0.7) turn = 1; else fwd = 1;
-      if (p.x < W * 0.3 || p.x > W * 0.7) fwd = p.y < VIEW.y + VIEW.h * 0.55 ? 1 : fwd;   // upper corners: walk while turning
-    }
-    if (p.down && p.y >= PANEL_Y && Math.abs(p.x - W / 2) < 70) back = true;
-    return { fwd, back, turn };
+    const inp = this.s.input, st = this.stick.axes();
+    let fwd = (inp.isDown('up') ? 1 : 0) - (inp.isDown('down') ? 1 : 0) + st.fwd;
+    let turn = (inp.isDown('right') ? 1 : 0) - (inp.isDown('left') ? 1 : 0) + st.turn;
+    return { fwd: clamp(fwd, -1, 1), turn: clamp(turn, -1, 1) };
   }
 
   flash() {
@@ -253,7 +259,7 @@ class DungeonEscape {
     // walking
     const c = this.controls();
     p.a += c.turn * 2.5 * dt;
-    const sp = 2.7 * dt * ((c.fwd ? 1 : 0) - (c.back ? 0.7 : 0));
+    const sp = 2.7 * dt * (c.fwd < 0 ? c.fwd * 0.7 : c.fwd);   // backing up is slower, as before
     if (sp) { tryMove(this.solid, p, Math.cos(p.a) * sp, Math.sin(p.a) * sp, 0.22); p.walk += dt * 9; if (Math.floor(p.walk / Math.PI) !== Math.floor((p.walk - dt * 9) / Math.PI)) s.sound.noise({ dur: 0.04, vol: 0.04, freq: 500, type: 'lowpass' }); }
     // what you've seen goes on the map
     const px = Math.floor(p.x), py = Math.floor(p.y);
@@ -415,7 +421,7 @@ class DungeonEscape {
     ctx.fillStyle = '#0c0a09'; ctx.fillRect(0, PANEL_Y, W, H - PANEL_Y);
     ctx.fillStyle = '#292524'; ctx.fillRect(0, PANEL_Y, W, 3);
     // minimap (only what you've seen)
-    const size = 150, ox = 14, oy = PANEL_Y + 12, cs = size / Math.max(this.gw, this.gh);
+    const size = MAP.s, ox = MAP.x, oy = MAP.y, cs = size / Math.max(this.gw, this.gh);
     ctx.fillStyle = '#000'; ctx.fillRect(ox - 2, oy - 2, size + 4, size + 4);
     for (let y = 0; y < this.gh; y++) for (let x = 0; x < this.gw; x++) {
       if (!this.seen[y][x]) continue;
@@ -430,20 +436,22 @@ class DungeonEscape {
     if (this.level <= 3 || this.bonus) for (const g of this.ghouls) if (this.seen[Math.floor(g.y)]?.[Math.floor(g.x)]) { ctx.fillStyle = '#22c55e'; ctx.fillRect(ox + g.x * cs - 2, oy + g.y * cs - 2, 4, 4); }
     ctx.save(); ctx.translate(ox + p.x * cs, oy + p.y * cs); ctx.rotate(p.a);
     ctx.fillStyle = '#e0f2fe'; ctx.beginPath(); ctx.moveTo(5, 0); ctx.lineTo(-4, -3.5); ctx.lineTo(-4, 3.5); ctx.fill(); ctx.restore();
+    // the stick (same roller ball as Crown Heist)
+    this.stick.draw(ctx);
     // flash button
+    if (this.flashPress > 0) this.flashPress -= 1 / 60;
+    const F = FLASH_BTN;
     ctx.save();
     ctx.globalAlpha = this.flashes ? 1 : 0.35;
-    ctx.fillStyle = '#0c4a6e'; ctx.strokeStyle = '#7dd3fc'; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.arc(W - 58, PANEL_Y + 88, 38, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = this.flashPress > 0 ? '#0369a1' : '#0c4a6e'; ctx.strokeStyle = '#7dd3fc'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(F.x, F.y, F.r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     ctx.fillStyle = '#e0f2fe'; ctx.font = '900 14px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('⚡ FLASH', W - 58, PANEL_Y + 82); ctx.font = '700 12px system-ui'; ctx.fillText(`${this.flashes} left`, W - 58, PANEL_Y + 100);
+    ctx.fillText('⚡ FLASH', F.x, F.y - 6); ctx.font = '700 12px system-ui'; ctx.fillText(`${this.flashes} left`, F.x, F.y + 12);
     ctx.restore();
-    // back button + help
-    ctx.fillStyle = '#1c1917'; ctx.strokeStyle = '#44403c'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(W / 2 + 10, PANEL_Y + 88, 30, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#a8a29e'; ctx.font = '800 20px system-ui'; ctx.textAlign = 'center'; ctx.fillText('↓', W / 2 + 10, PANEL_Y + 89);
-    ctx.font = '600 11px system-ui'; ctx.fillStyle = 'rgba(214,211,209,.5)';
-    ctx.fillText(matchMedia('(pointer: coarse)').matches ? 'Hold sides to turn · middle to walk' : '↑ walk · ← → turn · Space flash', W / 2 + 10, PANEL_Y + 140);
-    if (s.gold) { ctx.fillStyle = '#fbbf24'; ctx.font = '700 12px system-ui'; ctx.fillText('★ GOLDEN TORCH', W / 2 + 10, PANEL_Y + 30); }
+    // help
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = '600 10.5px system-ui'; ctx.fillStyle = 'rgba(214,211,209,.5)';
+    ctx.fillText(this.stick.coarse ? 'Drag the view to look around' : '↑↓ walk · ← → turn · Space flash', MAP.x + MAP.s / 2, H - 10);
+    if (s.gold) { ctx.fillStyle = '#fbbf24'; ctx.font = '700 12px system-ui'; ctx.fillText('★ GOLDEN TORCH', F.x, PANEL_Y + 150); }
   }
 }

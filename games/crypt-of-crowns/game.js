@@ -14,6 +14,7 @@
 import { runGame, roundRect, clamp } from '../../assets/js/engine.js';
 import { HDRaycaster } from '../../assets/js/raycast-hd.js';
 import { makeHDTextures, makeHDSprites, drawTorchHand } from '../../assets/js/raycast-art.js';
+import { Thumbstick } from '../../assets/js/thumbstick.js';
 import { LEVELS } from './levels.js';
 import { TICK, ACT, DIRS, parse, skelAt, spikeUp, freshState, tryAct, applyAct, pickKey, danger, jammed } from './sim.js';
 
@@ -21,9 +22,9 @@ const ID = 'crypt-of-crowns';
 const W = 480, H = 720;
 const VIEW = { x: 0, y: 46, w: 480, h: 430 };
 const PANEL_Y = VIEW.y + VIEW.h;
-const PAD = { up: [282, PANEL_Y + 52], left: [222, PANEL_Y + 112], right: [342, PANEL_Y + 112], down: [282, PANEL_Y + 172] };
-const SEARCH_BTN = [420, PANEL_Y + 112];
-const BTN_R = 29;
+const STICK = { x: 82, y: PANEL_Y + 128, r: 58 };          // the Crown Heist roller-ball stick, same spot
+const SEARCH_BTN = { x: 404, y: PANEL_Y + 112, r: 42 };
+const MAP = { x: 160, y: PANEL_Y + 14, s: 150 };
 
 runGame({
   id: ID,
@@ -61,6 +62,9 @@ class CryptOfCrowns {
   constructor(s) {
     this.s = s; this.t = 0;
     this.rc = new HDRaycaster(VIEW);
+    // the stick: push up/down to keep stepping, flick left/right to turn one square-face
+    this.stick = new Thumbstick(s, STICK, { claim: (x, y) => this.buttonAt(x, y) === 'search' });
+    this.stickWas = null;
     const art = makeHDTextures();
     this.tex = art.tex; this.floors = art.floors; this.spr = makeHDSprites();
     this.dust = Array.from({ length: 46 }, () => ({ x: Math.random() * VIEW.w, y: VIEW.y + Math.random() * VIEW.h, v: 4 + Math.random() * 9, p: Math.random() * 7, r: Math.random() < 0.3 ? 1.6 : 1 }));
@@ -144,6 +148,11 @@ class CryptOfCrowns {
 
   // ── Input ──────────────────────────────────────────────────
   onAction(a, x, y) {
+    // a drag on the stick also looks like a swipe to the engine — the stick handles that itself
+    if (this.stick.active && (a === 'up' || a === 'down' || a === 'left' || a === 'right' || a === 'tap')) return;
+    // one swipe on the view = one move, however long the finger drags
+    if (a === 'press') this.swipes = 0;
+    if ((a === 'up' || a === 'down' || a === 'left' || a === 'right') && this.s.input.pointer.down && this.swipes++) return;
     if (a === 'up') this.next = 'fwd';
     else if (a === 'down') this.next = 'back';
     else if (a === 'left') this.next = 'left';
@@ -153,8 +162,7 @@ class CryptOfCrowns {
     else if (a === 'tap' && y >= VIEW.y && y < PANEL_Y) this.next = x < W * 0.3 ? 'left' : x > W * 0.7 ? 'right' : 'fwd';
   }
   buttonAt(x, y) {
-    for (const [k, [bx, by]] of Object.entries(PAD)) if (Math.hypot(x - bx, y - by) < BTN_R + 8) return { up: 'fwd', down: 'back', left: 'left', right: 'right' }[k];
-    if (Math.hypot(x - SEARCH_BTN[0], y - SEARCH_BTN[1]) < 44) return 'search';
+    if (Math.hypot(x - SEARCH_BTN.x, y - SEARCH_BTN.y) < SEARCH_BTN.r + 6) { this.searchPress = 0.2; return 'search'; }
     return null;
   }
   /** Walking keeps going while the key / button is held. */
@@ -162,7 +170,9 @@ class CryptOfCrowns {
     const inp = this.s.input, p = inp.pointer;
     if (inp.isDown('up')) return 'fwd';
     if (inp.isDown('down')) return 'back';
-    if (p.down) { const b = this.buttonAt(p.x, p.y); if (b === 'fwd' || b === 'back') return b; }
+    const d = this.stick.dir();
+    if (d === 'up') return 'fwd';
+    if (d === 'down') return 'back';
     return null;
   }
 
@@ -170,6 +180,10 @@ class CryptOfCrowns {
   update(dt) {
     this.t += dt;
     if (this.done) return;
+    // a flick of the stick left/right = one turn (push again for another), so you never over-spin past a corridor
+    const sd = this.stick.dir();
+    if ((sd === 'left' || sd === 'right') && sd !== this.stickWas) this.next = sd;
+    this.stickWas = sd;
     this.acc += dt;
     if (this.caughtFx) { this.caughtFx.t += dt; if (this.caughtFx.t >= this.caughtFx.dur) { this.caughtFx = null; this.s.hurt(); } return; }
     while (this.acc >= TICK && !this.done && !this.caughtFx) { this.acc -= TICK; this.tick(); if (this.s.state !== 'playing') { this.acc = 0; return; } }
@@ -572,7 +586,7 @@ class CryptOfCrowns {
     ctx.fillStyle = '#0c0a09'; ctx.fillRect(0, PANEL_Y, 480, H - PANEL_Y);
     ctx.fillStyle = '#292524'; ctx.fillRect(0, PANEL_Y, 480, 3);
     // map
-    const size = 168, ox = 10, oy = PANEL_Y + 18, cs = Math.min(size / W.w, size / W.h);
+    const size = MAP.s, cs = Math.min(size / W.w, size / W.h), ox = MAP.x + (size - W.w * cs) / 2, oy = MAP.y;
     ctx.fillStyle = '#000'; ctx.fillRect(ox - 3, oy - 3, W.w * cs + 6, W.h * cs + 6);
     for (let y = 0; y < W.h; y++) for (let x = 0; x < W.w; x++) {
       if (!this.seen[y][x]) continue;
@@ -592,23 +606,17 @@ class CryptOfCrowns {
     const r = Math.max(3, cs * 0.45);
     ctx.fillStyle = s.gold ? '#fbbf24' : '#38bdf8'; ctx.beginPath(); ctx.moveTo(r, 0); ctx.lineTo(-r * 0.7, -r * 0.7); ctx.lineTo(-r * 0.7, r * 0.7); ctx.fill(); ctx.restore();
 
-    // d-pad
-    const held = this.heldMove();
-    const btn = (x, y, label, on) => {
-      ctx.fillStyle = on ? '#44403c' : '#1c1917'; ctx.strokeStyle = '#57534e'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(x, y, BTN_R, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = '#e7e5e4'; ctx.font = '900 20px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, x, y + 1);
-    };
-    btn(...PAD.up, '▲', held === 'fwd'); btn(...PAD.down, '▼', held === 'back');
-    btn(...PAD.left, '↺', this.act?.type === 'turn' && this.act.to === (p.d + 3) % 4);
-    btn(...PAD.right, '↻', this.act?.type === 'turn' && this.act.to === (p.d + 1) % 4);
+    // the stick (same roller ball as Crown Heist)
+    this.stick.draw(ctx);
     // search
-    const [sx, sy] = SEARCH_BTN;
-    ctx.fillStyle = '#2e1065'; ctx.strokeStyle = '#a78bfa'; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.arc(sx, sy, 42, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#ede9fe'; ctx.font = '900 13px system-ui'; ctx.fillText('🔍', sx, sy - 10); ctx.fillText('SEARCH', sx, sy + 10);
-    ctx.font = '600 11px system-ui'; ctx.fillStyle = 'rgba(214,211,209,.55)';
-    ctx.fillText(matchMedia('(pointer: coarse)').matches ? 'Tap the view: sides turn, middle steps' : '↑↓ step · ←→ turn · Space search', 330, H - 14);
-    if (s.gold) { ctx.fillStyle = '#fbbf24'; ctx.font = '700 11px system-ui'; ctx.fillText('★ GOLDEN EXPLORER', 330, PANEL_Y + 14); }
+    if (this.searchPress > 0) this.searchPress -= 1 / 60;
+    const SB = SEARCH_BTN;
+    ctx.fillStyle = this.searchPress > 0 ? '#4c1d95' : '#2e1065'; ctx.strokeStyle = '#a78bfa'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(SB.x, SB.y, SB.r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#ede9fe'; ctx.font = '900 13px system-ui'; ctx.fillText('🔍', SB.x, SB.y - 10); ctx.fillText('SEARCH', SB.x, SB.y + 10);
+    ctx.font = '600 10.5px system-ui'; ctx.fillStyle = 'rgba(214,211,209,.55)';
+    ctx.fillText(this.stick.coarse ? 'Stick: ▲▼ step · flick ◀▶ to turn' : '↑↓ step · ←→ turn · Space search', MAP.x + MAP.s / 2, H - 12);
+    if (s.gold) { ctx.fillStyle = '#fbbf24'; ctx.font = '700 11px system-ui'; ctx.fillText('★ GOLDEN EXPLORER', MAP.x + MAP.s / 2, PANEL_Y + MAP.s + 30); }
   }
 }
