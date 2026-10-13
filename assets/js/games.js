@@ -227,8 +227,8 @@ export const GAMES = [
     gold: 'Golden Racer',           // golden character unlocked by the Zone 3 egg
     title: 'Turbo Rush 3D',
     is3d: true,                     // 3D engine — shows the 3D chip on the home page
-    tagline: 'Race the clock through neon cities, tunnels and storms. Skim past cars for near-miss combos, slipstream for free nitro, dodge roadworks and police — and beat VIPER in the rival duels.',
-    controls: 'Steer ← → (or A / D) · ↑ / W nitro boost · ↓ / S brake · tuck in behind a car to slipstream · touch: hold the left or right side to steer, the middle to boost',
+    tagline: 'Race the clock from the driver\'s seat — coast roads, mountain passes, tunnels, city freeways and storms. Skim past cars for near-miss combos, slipstream and drive clean to charge your nitro, dodge roadworks and police — and beat VIPER in the rival duels.',
+    controls: 'Steer ← → (or A / D) · hold ↑ / W for nitro · ↓ / S brake · C swaps cockpit / chase cam · tuck in behind a car to slipstream · touch: hold the left or right side to steer, the middle to boost, 🎥 VIEW to swap camera',
     color: '#ef4444',
     isNew: true,
     achievements: [
