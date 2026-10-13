@@ -50,7 +50,9 @@ const WALL_GAP = 9 * SEG;             // traffic never fills all three lanes ins
 const HIT_FRONT = 190, HIT_BACK = 120; // how far ahead / behind your rear bumper a car's rear can be and still touch you
 // cockpit camera: eye height above the road, where the driver's eyes sit relative to your rear bumper
 // (negative = ahead of it), and how far the horizon is lifted on screen (so more road shows over the dash)
-const CP_H = 300, CP_BACK = -120, CP_LIFT = 56;
+const CP_H = 300, CP_BACK = -120;
+// the shorter windscreen: where the horizon sits on screen, and how much the world is scaled down so the same view fits in it
+const CP_HZ = 252, CP_SCALE = 0.87;
 
 const lerp = (a, b, t) => a + (b - a) * t;
 const easeIn = (a, b, t) => a + (b - a) * t * t;
@@ -285,7 +287,7 @@ class TurboRush {
     } else if (a === 'release') this.btnPress = false;
   }
   /** fx that would land on the dashboard are lifted into the windscreen in the cockpit */
-  fy(y) { return this.cockpit && y > 380 ? y - 190 : y; }
+  fy(y) { return this.cockpit && y > 360 ? y - 210 : y; }
 
   /** tilt is steering once real sensor readings arrive (see assets/js/tilt.js) */
   get tiltEnabled() { return this.tiltDev.on; }
@@ -585,7 +587,7 @@ class TurboRush {
     }
   }
   /** a screen point at the left (-1) or right (1) side of your car — for sparks and dust */
-  side(sd) { return this.cockpit ? [sd < 0 ? 46 : W - 46, 430] : [W / 2 + sd * 45, PLAYER_Y - 20]; }
+  side(sd) { return this.cockpit ? [sd < 0 ? 46 : W - 46, 396] : [W / 2 + sd * 45, PLAYER_Y - 20]; }
 
   /** the nitro kicking in: a rushing whoosh, a low thump and a turbo whistle */
   boostSound() {
@@ -689,12 +691,12 @@ class TurboRush {
     const wet = this.themeId === 'rain' && !this.inTunnel && this.underT <= 0;
     const pct = clamp(this.speed / this.maxSpeed, 0, 1.3);
     if (wet && this.drops.length < (this.lo ? 25 : 60) && Math.random() < dt * 40) {
-      this.drops.push({ x: 20 + Math.random() * (W - 40), y: 150 + Math.random() * 300, r: 1.5 + Math.random() * 2.8, life: 1 });
+      this.drops.push({ x: 20 + Math.random() * (W - 40), y: 180 + Math.random() * 230, r: 1.5 + Math.random() * 2.8, life: 1 });
     }
     for (const d of this.drops) {
       d.y -= (20 + pct * 120 * (d.r / 3)) * dt;                   // airflow pushes the drops up the glass
       d.x += (d.x - W / 2) * 0.25 * dt * pct;
-      if (d.y < 140) d.life = 0;
+      if (d.y < 165) d.life = 0;
     }
     // the wiper sweeps every ~1.4 s in the rain
     if (wet || this.wiperT > 0) {
@@ -702,7 +704,7 @@ class TurboRush {
       if (this.wiperT > 1.4) this.wiperT = wet ? 0.0001 : 0;
       const a = this.wiperAngle();
       if (a != null) {
-        const cx = W * 0.32, cy = 470;
+        const cx = W * 0.32, cy = 434;
         for (const d of this.drops) { const da = Math.atan2(d.y - cy, d.x - cx); if (Math.abs(da - a) < 0.12) d.life = 0; }
       }
     }
@@ -766,7 +768,7 @@ class TurboRush {
     // hard braking: tyre smoke (and a squeal — see carAudio)
     this.skid = c.brake && pct > 0.35;
     if (this.skid && Math.random() < dt * 14) {
-      if (this.cockpit) s.fx.burst(Math.random() < 0.5 ? 40 : W - 40, 450, { colors: ['#cbd5e1', '#94a3b8', '#e2e8f0'], count: 2, speed: 60, life: 0.7, gravity: -40 });
+      if (this.cockpit) s.fx.burst(Math.random() < 0.5 ? 40 : W - 40, 414, { colors: ['#cbd5e1', '#94a3b8', '#e2e8f0'], count: 2, speed: 60, life: 0.7, gravity: -40 });
       else s.fx.burst(W / 2 + (Math.random() < 0.5 ? -1 : 1) * PLAYER_PX * 0.4, this.fy(PLAYER_Y - 4), { colors: ['#cbd5e1', '#94a3b8', '#e2e8f0'], count: 2, speed: 60, life: 0.7, gravity: -40 });
     }
     const off = Math.abs(this.playerX) > 1;
@@ -1117,7 +1119,7 @@ class TurboRush {
 
   drawSky(ctx) {
     const th = this.theme, t = this.t, sk = this.sky;
-    ctx.drawImage(sk.sky, 0, 0);
+    ctx.drawImage(sk.sky, -60, 0, W + 120, HORIZON);
     if (this.themeId === 'night') for (const st of this.stars) { ctx.globalAlpha = 0.5 + 0.5 * Math.sin(t * 2 + st.x); ctx.fillStyle = '#fff'; ctx.fillRect(st.x, st.y, st.r, st.r); }
     ctx.globalAlpha = 1;
     if (th.sun) {
@@ -1142,13 +1144,13 @@ class TurboRush {
       }
     }
     // mountains and skyline scroll with the bends at different speeds
-    const tile = (img, f, y) => { const w = img.width, o = (((this.skyOff * f) % w) + w) % w; ctx.drawImage(img, -o, y); ctx.drawImage(img, w - o, y); };
+    const tile = (img, f, y) => { const w = img.width, o = (((this.skyOff * f) % w) + w) % w; ctx.drawImage(img, -w - o, y); ctx.drawImage(img, -o, y); ctx.drawImage(img, w - o, y); };
     tile(sk.mount, 40, HORIZON - sk.mount.height + 2);
     if (sk.city) tile(sk.city, 140, HORIZON - sk.city.height + 2);
     if (th.sea) {                                                    // the sea on the horizon, glittering
       const sg = ctx.createLinearGradient(0, HORIZON - 16, 0, HORIZON + 2);
       sg.addColorStop(0, th.sea[0]); sg.addColorStop(1, th.sea[1]);
-      ctx.fillStyle = sg; ctx.fillRect(0, HORIZON - 16, W, 18);
+      ctx.fillStyle = sg; ctx.fillRect(-60, HORIZON - 16, W + 120, 18);
       ctx.fillStyle = 'rgba(255,255,255,.8)';
       for (let i = 0; i < 40; i++) { const x = ((i * 53.7 - this.skyOff * 100) % W + W) % W, y = HORIZON - 14 + (i * 7 % 13); if (Math.sin(t * 3 + i * 1.7) > 0.6) ctx.fillRect(x, y, 3 + (i % 3), 1); }
     }
@@ -1165,9 +1167,9 @@ class TurboRush {
     ctx.save(); ctx.translate(shx, shy);
     if (cockpit) {
       // the world rolls, bobs and pitches round you; the cabin (drawn after) stays put
-      ctx.fillStyle = th.sky[0]; ctx.fillRect(0, 0, W, HORIZON);
-      ctx.fillStyle = mix(this.col.grass[0], this.col.fog, 0.6); ctx.fillRect(0, HORIZON, W, H - HORIZON);
-      ctx.translate(W / 2 + c.bobX, HORIZON + c.bobY); ctx.rotate(c.roll); ctx.scale(c.zoom, c.zoom); ctx.translate(-W / 2, -HORIZON + c.py - CP_LIFT);
+      ctx.fillStyle = th.sky[1]; ctx.fillRect(0, 0, W, CP_HZ);
+      ctx.fillStyle = mix(this.col.grass[0], this.col.fog, 0.6); ctx.fillRect(0, CP_HZ, W, H - CP_HZ);
+      ctx.translate(W / 2 + c.bobX, CP_HZ + c.bobY); ctx.rotate(c.roll); ctx.scale(c.zoom * CP_SCALE, c.zoom * CP_SCALE); ctx.translate(-W / 2, -HORIZON + c.py);
     }
     this.drawSky(ctx);
     ctx.fillStyle = mix(this.col.grass[0], this.col.fog, 0.6); ctx.fillRect(-60, HORIZON, W + 120, H - HORIZON + 120);
@@ -1226,10 +1228,10 @@ class TurboRush {
       if (cockpit) {
         // two beams thrown down the road from just under the bonnet
         for (const sd of [-1, 1]) {
-          const gx = ctx.createLinearGradient(0, 520, 0, HORIZON + 6);
+          const gx = ctx.createLinearGradient(0, 560, 0, HORIZON + 6);
           gx.addColorStop(0, 'rgba(254,249,195,0.16)'); gx.addColorStop(1, 'rgba(254,249,195,0)');
           ctx.fillStyle = gx; ctx.beginPath();
-          ctx.moveTo(W / 2 + sd * 40, 540); ctx.lineTo(W / 2 + sd * 230, 540); ctx.lineTo(W / 2 + sd * 34, HORIZON + 6); ctx.lineTo(W / 2 + sd * 6, HORIZON + 6); ctx.closePath(); ctx.fill();
+          ctx.moveTo(W / 2 + sd * 40, 560); ctx.lineTo(W / 2 + sd * 230, 560); ctx.lineTo(W / 2 + sd * 34, HORIZON + 6); ctx.lineTo(W / 2 + sd * 6, HORIZON + 6); ctx.closePath(); ctx.fill();
         }
       } else {
         ctx.translate(W / 2, PLAYER_Y - 150); ctx.scale(1, 0.42);
@@ -1322,7 +1324,7 @@ class TurboRush {
       }
       const a = this.wiperAngle();
       if (a != null) {
-        const cx = W * 0.32, cy = 470, L = 300;
+        const cx = W * 0.32, cy = 434, L = 300;
         ctx.strokeStyle = '#0b0b0f'; ctx.lineCap = 'round'; ctx.lineWidth = 5;
         ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a) * L, cy + Math.sin(a) * L); ctx.stroke();
         ctx.lineWidth = 2; ctx.strokeStyle = '#27272a';
@@ -1334,7 +1336,7 @@ class TurboRush {
     // a crash cracks the glass for a moment
     if (this.crashFx > 0.05) {
       ctx.save(); ctx.globalAlpha = Math.min(1, this.crashFx * 1.5); ctx.strokeStyle = 'rgba(241,245,249,.85)'; ctx.lineWidth = 1.2;
-      const ox = W * 0.62, oy = 250, rr = mulberry(this.crashes * 31 + 7);
+      const ox = W * 0.62, oy = 290, rr = mulberry(this.crashes * 31 + 7);
       ctx.beginPath();
       for (let i = 0; i < 9; i++) {
         let x = ox, y = oy, a = i / 9 * Math.PI * 2 + rr() * 0.4;
@@ -1353,7 +1355,7 @@ class TurboRush {
     if (this.inTunnel && !lo) {
       const u = ((this.position / SEG) % 3) / 3;
       ctx.save(); ctx.beginPath(); glassPath(ctx); ctx.clip(); ctx.globalCompositeOperation = 'lighter';
-      glow(ctx, W / 2, 470 - u * 60, 140, '#fdba74', 0.18 * (1 - u));
+      glow(ctx, W / 2, 434 - u * 60, 140, '#fdba74', 0.18 * (1 - u));
       ctx.restore();
     }
     // the glass edge: a cyan glow with a shield, a flicker while you're invulnerable
@@ -1369,8 +1371,8 @@ class TurboRush {
 
   /** rear-view mirror: the road behind, with the lights of anyone coming up on you (police, VIPER) and your own nitro flame */
   drawMirror(ctx) {
-    const th = this.theme, mw = 164, mh = 36, mx = W / 2 - mw / 2, my = 70, hzY = my + 13, pz = this.position + PLAYER_Z, t = this.t;
-    ctx.fillStyle = '#111114'; ctx.fillRect(W / 2 - 4, 58, 8, 14);
+    const th = this.theme, mw = 164, mh = 36, mx = W / 2 - mw / 2, my = 112, hzY = my + 13, pz = this.position + PLAYER_Z, t = this.t;
+    ctx.fillStyle = '#111114'; ctx.fillRect(W / 2 - 4, 64, 8, 50);
     ctx.save();
     roundRect(ctx, mx, my, mw, mh, 8); ctx.fillStyle = '#05060a'; ctx.fill(); ctx.clip();
     const g = ctx.createLinearGradient(0, my, 0, hzY); g.addColorStop(0, th.sky[1]); g.addColorStop(1, th.sky[2]);
@@ -1438,7 +1440,7 @@ class TurboRush {
       ctx.fillStyle = '#27272a'; ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2); ctx.fill();
       ctx.strokeStyle = '#71717a'; ctx.lineWidth = 1; ctx.stroke();
     };
-    const SX = W / 2 - 74, TX = W / 2 + 74, DY = 522, R = 50;
+    const SX = W / 2 - 74, TX = W / 2 + 74, DY = 486, R = 50;
     // binnacle glow behind the dials (the car's red ambient light)
     if (!lo) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.translate(W / 2, DY); ctx.scale(2.4, 0.9); glow(ctx, 0, 0, 70, accent, backlit ? 0.22 : 0.12); ctx.restore(); }
     dial(SX, DY, R, this.mphN / 240, 12, 'MPH', null, (i) => String(i * 20));
@@ -1454,7 +1456,7 @@ class TurboRush {
     if (redline) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; glow(ctx, TX, DY - 24, 10, accent, 0.9); ctx.restore(); }
     // the nitro gauge between the dials: ten segments, pulsing when full
     if (!this.bonus) {
-      const gx = W / 2 - 7, gy = 476, gh = 80, segs = 10, sh = gh / segs, full = this.boost >= 0.999;
+      const gx = W / 2 - 7, gy = 440, gh = 80, segs = 10, sh = gh / segs, full = this.boost >= 0.999;
       ctx.fillStyle = '#09090c'; roundRect(ctx, gx - 3, gy - 3, 20, gh + 6, 4); ctx.fill();
       for (let i = 0; i < segs; i++) {
         const on = i < Math.round(this.boost * segs), y = gy + gh - (i + 1) * sh;
@@ -1474,8 +1476,8 @@ class TurboRush {
     const warn = this.warnT > 0 && (this.warnT > 5 || Math.sin(t * 9 + Math.sin(t * 3)) > 0.1);
     const dark = this.inTunnel || this.themeId === 'night' || this.themeId === 'rain' || this.themeId === 'fog' || this.underT > 0;
     const lamps = [
-      [34, 606, '🌡', warn, '#f97316'], [66, 606, '🛢', warn && this.warnT < 6, '#ef4444'], [98, 606, '🛡', this.shield, '#67e8f9'], [130, 606, '🚨', cop && Math.floor(t * 6) % 2, '#3b82f6'],
-      [W - 130, 606, '⏱', this.timeMax && this.timeLeft < 6 && Math.floor(t * 4) % 2, '#fbbf24'], [W - 98, 606, '💨', this.drafting, '#e0f2fe'], [W - 66, 606, '⚡', this.boosting, '#38bdf8'], [W - 34, 606, '💡', dark, '#a3e635'],
+      [34, 570, '🌡', warn, '#f97316'], [66, 570, '🛢', warn && this.warnT < 6, '#ef4444'], [98, 570, '🛡', this.shield, '#67e8f9'], [130, 570, '🚨', cop && Math.floor(t * 6) % 2, '#3b82f6'],
+      [W - 130, 570, '⏱', this.timeMax && this.timeLeft < 6 && Math.floor(t * 4) % 2, '#fbbf24'], [W - 98, 570, '💨', this.drafting, '#e0f2fe'], [W - 66, 570, '⚡', this.boosting, '#38bdf8'], [W - 34, 570, '💡', dark, '#a3e635'],
     ];
     ctx.font = '13px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     for (const [x, y, ic, on, col] of lamps) {
@@ -1487,7 +1489,7 @@ class TurboRush {
 
   /** the wheel: flat-bottomed GT rim, three spokes, a red top marker — and your gloved hands on it */
   drawWheel(ctx, paint) {
-    const c = this.cam, cx = W / 2, cy = 712, R = 128, lo = this.lo;
+    const c = this.cam, cx = W / 2, cy = 690, R = 128, lo = this.lo;
     const ang = clamp(c.wheel, -1.4, 1.4) * 1.5;
     // forearms in a red race suit, reaching up from the bottom corners to the hands
     const hand = (sd) => { const a = -Math.PI / 2 + sd * 1.08 + ang; return [cx + Math.cos(a) * R, cy + Math.sin(a) * R, a]; };
@@ -1936,7 +1938,7 @@ class TurboRush {
     // 🚨 police coming up behind you
     const p = this.police, pz = this.position + PLAYER_Z;
     if (p && p.z < pz && p.z > pz - 34 * SEG) {
-      const x = clamp(W / 2 + (p.x - this.playerX) * 230, 30, W - 30), y = this.cockpit ? 410 : H - 46, on = Math.floor(t * 8) % 2;
+      const x = clamp(W / 2 + (p.x - this.playerX) * 230, 30, W - 30), y = this.cockpit ? 396 : H - 46, on = Math.floor(t * 8) % 2;
       ctx.fillStyle = on ? '#ef4444' : '#3b82f6'; ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 14;
       ctx.beginPath(); ctx.moveTo(x, y - 18); ctx.lineTo(x + 18, y + 8); ctx.lineTo(x - 18, y + 8); ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0;
       ctx.font = '800 12px system-ui'; ctx.fillStyle = '#fff'; ctx.textAlign = 'center';
@@ -1944,7 +1946,7 @@ class TurboRush {
     }
     // touch hint
     ctx.textAlign = 'center'; ctx.font = '600 12px system-ui'; ctx.fillStyle = this.cockpit ? 'rgba(248,250,252,.85)' : 'rgba(226,232,240,.4)';
-    const hy = this.cockpit ? 396 : H - 10;
+    const hy = this.cockpit ? 380 : H - 10;
     if (s.state === 'playing' && this.position < SEG * 60) {
       const mobile = matchMedia('(pointer: coarse)').matches;
       if (mobile && this.tiltEnabled) ctx.fillText('Tilt to steer · tap middle to boost', W / 2, hy);
@@ -1991,10 +1993,10 @@ function saveGhost(mode, level, g) { try { localStorage.setItem(ghostKey(mode, l
 const CAB_PAD = 12;
 /** the windscreen: a wide pane, slightly bowed at the roof, with the dash curving under it */
 function glassPath(g) {
-  g.moveTo(72, 122);
-  g.quadraticCurveTo(W / 2, 102, W - 72, 122);
-  g.lineTo(W - 6, 452);
-  g.quadraticCurveTo(W / 2, 496, 6, 452);
+  g.moveTo(72, 172);
+  g.quadraticCurveTo(W / 2, 152, W - 72, 172);
+  g.lineTo(W - 6, 416);
+  g.quadraticCurveTo(W / 2, 460, 6, 416);
   g.closePath();
 }
 const CABS = new Map();
@@ -2005,52 +2007,52 @@ function cockpitArt(paint, gold) {
   g.translate(P, P);
   const pc = hex(paint), light = css(mixA(pc, [255, 255, 255], 0.28)), dark = css(mixA(pc, [0, 0, 0], 0.45)), deep = css(mixA(pc, [0, 0, 0], 0.7));
   // roof lining
-  const rg = g.createLinearGradient(0, -P, 0, 140); rg.addColorStop(0, '#15151a'); rg.addColorStop(1, '#2a2a31');
-  g.fillStyle = rg; g.fillRect(-P, -P, W + P * 2, 150 + P);
+  const rg = g.createLinearGradient(0, -P, 0, 190); rg.addColorStop(0, '#15151a'); rg.addColorStop(1, '#2a2a31');
+  g.fillStyle = rg; g.fillRect(-P, -P, W + P * 2, 200 + P);
   // sun visors folded up against the roof
   g.fillStyle = '#202027';
-  for (const sd of [-1, 1]) { g.beginPath(); g.moveTo(W / 2 + sd * 40, 98); g.lineTo(W / 2 + sd * 190, 104); g.lineTo(W / 2 + sd * 186, 118); g.lineTo(W / 2 + sd * 44, 112); g.closePath(); g.fill(); }
+  for (const sd of [-1, 1]) { g.beginPath(); g.moveTo(W / 2 + sd * 40, 136); g.lineTo(W / 2 + sd * 190, 142); g.lineTo(W / 2 + sd * 186, 156); g.lineTo(W / 2 + sd * 44, 150); g.closePath(); g.fill(); }
   // A-pillars in the car's paint, lit along the edge nearest the glass
   for (const sd of [-1, 1]) {
     const x0 = sd < 0 ? -P : W + P, gx = sd < 0 ? 72 : W - 72, bx = sd < 0 ? 6 : W - 6;
     const pg = g.createLinearGradient(x0, 0, gx, 0); pg.addColorStop(0, deep); pg.addColorStop(0.6, dark); pg.addColorStop(0.92, paint); pg.addColorStop(1, light);
-    g.fillStyle = pg; g.beginPath(); g.moveTo(x0, 30); g.lineTo(gx + sd * -14, 104); g.lineTo(gx, 122); g.lineTo(bx, 452); g.lineTo(bx + sd * 6, 470); g.lineTo(x0, 470); g.closePath(); g.fill();
+    g.fillStyle = pg; g.beginPath(); g.moveTo(x0, 80); g.lineTo(gx + sd * -14, 154); g.lineTo(gx, 172); g.lineTo(bx, 416); g.lineTo(bx + sd * 6, 434); g.lineTo(x0, 434); g.closePath(); g.fill();
   }
   // the dashboard: carbon fibre with a leather top lip
   const carbon = canvas(8, 8), cg = carbon.getContext('2d');
   cg.fillStyle = '#121216'; cg.fillRect(0, 0, 8, 8);
   cg.fillStyle = '#1d1d23'; cg.fillRect(0, 0, 4, 4); cg.fillRect(4, 4, 4, 4);
   cg.fillStyle = 'rgba(255,255,255,.05)'; cg.fillRect(0, 0, 4, 1); cg.fillRect(4, 4, 4, 1);
-  const dashTop = () => { g.moveTo(-P, 446); g.lineTo(6, 452); g.quadraticCurveTo(W / 2, 496, W - 6, 452); g.lineTo(W + P, 446); };
+  const dashTop = () => { g.moveTo(-P, 410); g.lineTo(6, 416); g.quadraticCurveTo(W / 2, 460, W - 6, 416); g.lineTo(W + P, 410); };
   g.beginPath(); dashTop(); g.lineTo(W + P, H + P); g.lineTo(-P, H + P); g.closePath();
   g.fillStyle = g.createPattern(carbon, 'repeat'); g.fill();
-  const shade = g.createLinearGradient(0, 450, 0, H); shade.addColorStop(0, 'rgba(0,0,0,0)'); shade.addColorStop(1, 'rgba(0,0,0,.55)');
+  const shade = g.createLinearGradient(0, 414, 0, H); shade.addColorStop(0, 'rgba(0,0,0,0)'); shade.addColorStop(1, 'rgba(0,0,0,.55)');
   g.fillStyle = shade; g.fill();
   g.beginPath(); dashTop(); g.strokeStyle = '#0a0a0c'; g.lineWidth = 10; g.stroke();
   // round air vents at the ends of the dash
   for (const vx of [36, W - 36]) {
-    g.fillStyle = '#0a0a0c'; g.beginPath(); g.arc(vx, 530, 22, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#0a0a0c'; g.beginPath(); g.arc(vx, 494, 22, 0, Math.PI * 2); g.fill();
     g.strokeStyle = '#52525b'; g.lineWidth = 3; g.stroke();
-    g.strokeStyle = '#27272a'; g.lineWidth = 2; for (let k = -2; k <= 2; k++) { g.beginPath(); g.moveTo(vx - 17, 530 + k * 7); g.lineTo(vx + 17, 530 + k * 7); g.stroke(); }
+    g.strokeStyle = '#27272a'; g.lineWidth = 2; for (let k = -2; k <= 2; k++) { g.beginPath(); g.moveTo(vx - 17, 494 + k * 7); g.lineTo(vx + 17, 494 + k * 7); g.stroke(); }
   }
   // the car's red ambient strip along the dash
-  g.fillStyle = paint; g.globalAlpha = 0.85; g.fillRect(0, 582, 150, 2); g.fillRect(W - 150, 582, 150, 2); g.globalAlpha = 1;
+  g.fillStyle = paint; g.globalAlpha = 0.85; g.fillRect(0, 546, 150, 2); g.fillRect(W - 150, 546, 150, 2); g.globalAlpha = 1;
   // cut out the glass…
   g.globalCompositeOperation = 'destination-out'; g.beginPath(); glassPath(g); g.fill(); g.globalCompositeOperation = 'source-over';
   g.beginPath(); glassPath(g); g.strokeStyle = '#08080a'; g.lineWidth = 5; g.stroke();
   // …and the bonnet seen through it, in your paint with white racing stripes
   g.save(); g.beginPath(); glassPath(g); g.clip();
-  const bonnet = () => { g.moveTo(-20, 476); g.quadraticCurveTo(W / 2, 414, W + 20, 476); g.lineTo(W + 20, 520); g.lineTo(-20, 520); g.closePath(); };
-  const bg = g.createLinearGradient(0, 440, 0, 500); bg.addColorStop(0, light); bg.addColorStop(0.25, paint); bg.addColorStop(1, dark);
+  const bonnet = () => { g.moveTo(-20, 440); g.quadraticCurveTo(W / 2, 378, W + 20, 440); g.lineTo(W + 20, 484); g.lineTo(-20, 484); g.closePath(); };
+  const bg = g.createLinearGradient(0, 404, 0, 464); bg.addColorStop(0, light); bg.addColorStop(0.25, paint); bg.addColorStop(1, dark);
   g.beginPath(); bonnet(); g.fillStyle = bg; g.fill();
   g.fillStyle = gold ? '#fff7ed' : '#f8fafc';
-  for (const sd of [-1, 1]) { g.beginPath(); g.moveTo(W / 2 + sd * 7, 444); g.lineTo(W / 2 + sd * 22, 444); g.lineTo(W / 2 + sd * 46, 520); g.lineTo(W / 2 + sd * 15, 520); g.closePath(); g.fill(); }
-  const sh = g.createRadialGradient(W * 0.38, 452, 4, W * 0.38, 452, 120); sh.addColorStop(0, 'rgba(255,255,255,.35)'); sh.addColorStop(1, 'rgba(255,255,255,0)');
+  for (const sd of [-1, 1]) { g.beginPath(); g.moveTo(W / 2 + sd * 7, 408); g.lineTo(W / 2 + sd * 22, 408); g.lineTo(W / 2 + sd * 46, 484); g.lineTo(W / 2 + sd * 15, 484); g.closePath(); g.fill(); }
+  const sh = g.createRadialGradient(W * 0.38, 416, 4, W * 0.38, 416, 120); sh.addColorStop(0, 'rgba(255,255,255,.35)'); sh.addColorStop(1, 'rgba(255,255,255,0)');
   g.beginPath(); bonnet(); g.fillStyle = sh; g.fill();
-  g.beginPath(); g.moveTo(-20, 476); g.quadraticCurveTo(W / 2, 414, W + 20, 476); g.strokeStyle = 'rgba(255,255,255,.4)'; g.lineWidth = 1.5; g.stroke();
+  g.beginPath(); g.moveTo(-20, 440); g.quadraticCurveTo(W / 2, 378, W + 20, 440); g.strokeStyle = 'rgba(255,255,255,.4)'; g.lineWidth = 1.5; g.stroke();
   g.restore();
   // the instrument hood over the dials, with red stitching
-  const hood = () => { g.moveTo(W / 2 - 150, 585); g.bezierCurveTo(W / 2 - 150, 470, W / 2 - 130, 466, W / 2, 466); g.bezierCurveTo(W / 2 + 130, 466, W / 2 + 150, 470, W / 2 + 150, 585); };
+  const hood = () => { g.moveTo(W / 2 - 150, 549); g.bezierCurveTo(W / 2 - 150, 434, W / 2 - 130, 430, W / 2, 430); g.bezierCurveTo(W / 2 + 130, 430, W / 2 + 150, 434, W / 2 + 150, 549); };
   g.beginPath(); hood(); g.closePath(); g.fillStyle = '#141418'; g.fill();
   g.beginPath(); hood(); g.strokeStyle = '#0a0a0c'; g.lineWidth = 4; g.stroke();
   g.save(); g.translate(0, 5); g.beginPath(); hood(); g.setLineDash([4, 4]); g.strokeStyle = gold ? '#fbbf24' : '#b91c1c'; g.lineWidth = 1.2; g.stroke(); g.restore();
