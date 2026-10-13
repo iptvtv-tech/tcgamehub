@@ -131,6 +131,8 @@ See **[docs/ADDING_A_GAME.md](docs/ADDING_A_GAME.md)**. In short: copy `games/_t
 - **Daily challenge streaks** (🔥 3 / 7 / 30-day badges) are counted in the player's own browser only.
 - **"Beat my score" links**: the WhatsApp share opens the game with a challenge banner (`?beat=12450&by=Sam`) and tells the friend if they won.
 - **Fair scores**: every game starts with a server-timed ticket (`start_game` → `submit_score_v2`), see `supabase/update-2026-10.sql`.
+- **Security check**: paste `supabase/verify-audit-2026-10.sql` into the SQL Editor any time — it changes nothing and every row should say `true` (Row Level Security on, old score function closed, helpers private).
+- **Releases**: bump `CACHE_VERSION` in `sw.js` so returning visitors drop the old cached files; pages never visited show `offline.html` when there's no connection.
 - **Visitor stats (optional)**: set `goatcounter` in `assets/js/config.js` to your GoatCounter code. No cookies; only page paths and anonymous game start/finish events are counted.
 
 | Feature | Where |
@@ -203,4 +205,6 @@ assets/js/tilt.js          phone tilt steering for the racers (asks iOS for moti
 hall-of-legends/           the hidden Hall of Legends page
 assets/css/                styles
 supabase/schema.sql        database setup (run once)
+supabase/verify-audit-2026-10.sql  read-only security check
+offline.html               shown by the service worker for unsaved pages when offline
 ```
