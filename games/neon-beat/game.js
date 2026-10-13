@@ -10,6 +10,7 @@
 //  Every 5th level: ★ FEVER bonus — 15 s of golden notes, no energy loss.
 // ─────────────────────────────────────────────────────────────
 import { runGame, roundRect, progressBar, clamp } from '../../assets/js/engine.js';
+import { Store } from '../../assets/js/storage.js';
 
 const ID = 'neon-beat';
 const W = 480, H = 720;
@@ -62,7 +63,14 @@ class NeonBeat {
     this.flash = [0, 0, 0, 0];
     this.pointerLane = -1;
     this.pulse = 0;
+    this._offsetFlash = 0;
     this.stars = Array.from({ length: 70 }, () => ({ x: Math.random() * W, y: Math.random() * H, z: Math.random() }));
+    // [ and ] nudge audio offset (not in engine KEYMAP, so we listen directly)
+    this._offsetKey = (e) => {
+      if (e.code === 'BracketLeft')  { this.onAction('offsetDown'); e.preventDefault(); }
+      if (e.code === 'BracketRight') { this.onAction('offsetUp');   e.preventDefault(); }
+    };
+    addEventListener('keydown', this._offsetKey);
     this.startLevel(1, false);
   }
 
@@ -139,13 +147,24 @@ class NeonBeat {
       if (lane >= 0 && lane < LANES) { this.pointerLane = lane; this.press(lane); }
     }
     if (a === 'release') this.pointerLane = -1;
+    // [ and ] nudge the audio offset by ±10 ms (stored, persists across sessions)
+    if (a === 'offsetDown') {
+      const v = clamp((Store.setting('beatOffset') || 0) - 10, -150, 150);
+      Store.setSetting('beatOffset', v);
+      this._offsetFlash = 1.2;
+    }
+    if (a === 'offsetUp') {
+      const v = clamp((Store.setting('beatOffset') || 0) + 10, -150, 150);
+      Store.setSetting('beatOffset', v);
+      this._offsetFlash = 1.2;
+    }
   }
 
   laneHeld(lane) { return this.s.input.isDown(DIRS[lane]) || (this.s.input.pointer.down && this.pointerLane === lane); }
 
   press(lane) {
     this.flash[lane] = 1;
-    const t = this.songT;
+    const t = this.songT + (Store.setting('beatOffset') || 0) / 1000;
     let best = null;
     for (const n of this.notes) {
       if (n.lane !== lane || n.state !== 'live') continue;
@@ -236,6 +255,7 @@ class NeonBeat {
     for (let i = 0; i < LANES; i++) { this.flash[i] = Math.max(0, this.flash[i] - dt * 5); this.bad[i] = Math.max(0, this.bad[i] - dt * 4); }
     this.pulse = Math.max(0, this.pulse - dt * 4);
     if (this.judge) this.judge.t += dt;
+    this._offsetFlash = Math.max(0, (this._offsetFlash || 0) - dt * 1.5);
   }
 
   // ── Update ─────────────────────────────────────────────────
@@ -374,7 +394,10 @@ class NeonBeat {
       if (b >= 0) {
         ctx.save(); ctx.textAlign = 'center'; ctx.font = '900 64px system-ui'; ctx.fillStyle = '#fff';
         ctx.globalAlpha = 1 - (this.songT / this.beat - b);
-        ctx.fillText(['4', '3', '2', '1'][b] || '', W / 2, H * 0.42); ctx.restore();
+        ctx.fillText(['4', '3', '2', '1'][b] || '', W / 2, H * 0.42);
+        ctx.font = '600 12px system-ui'; ctx.fillStyle = '#94a3b8'; ctx.globalAlpha = 0.7;
+        ctx.fillText('[ / ] to adjust timing offset', W / 2, H * 0.42 + 44);
+        ctx.restore();
       }
     }
 
@@ -388,6 +411,22 @@ class NeonBeat {
       progressBar(ctx, LX, H - 30, LANES * LW, 14, this.hp / 100, c, 'ENERGY');
     }
     if (gold) { ctx.save(); ctx.font = '700 12px system-ui'; ctx.fillStyle = '#fbbf24'; ctx.textAlign = 'right'; ctx.fillText('★ GOLDEN NOTES', W - 10, H - 34); ctx.restore(); }
+
+    // Offset calibration indicator (shown when recently changed, or always if non-zero)
+    const offsetMs = Store.setting('beatOffset') || 0;
+    const showOffset = this._offsetFlash > 0 || offsetMs !== 0;
+    if (showOffset) {
+      const alpha = this._offsetFlash > 0 ? Math.min(1, this._offsetFlash) : 0.45;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.font = '700 11px system-ui';
+      ctx.textAlign = 'left';
+      const sign = offsetMs > 0 ? '+' : '';
+      const col = offsetMs === 0 ? '#94a3b8' : offsetMs > 0 ? '#fb923c' : '#60a5fa';
+      ctx.fillStyle = col;
+      ctx.fillText(`OFFSET ${sign}${offsetMs}ms  [ / ]`, 8, H - 34);
+      ctx.restore();
+    }
   }
 
   drawArrow(ctx, x, y, lane, scale, receptor, gold, chord) {

@@ -118,7 +118,43 @@ class VoidBreaker {
     this.startLevel(1, false);
   }
 
-  reset() { this.novas = 1; this.hp = 100; this.power = {}; }
+  reset() { this.novas = 1; this.hp = 100; this.power = {}; this.perks = { maxHp: 100, armour: 0, shotSpd: 0, extraNovas: 0 }; }
+
+  // ── Between-wave upgrade panel ─────────────────────────────
+  static UPGRADE_POOL = [
+    { id: 'heal',      icon: '❤️',  col: '#4ade80', name: 'Repair Field',    desc: 'Restore 30 HP now',           apply(g) { g.hp = Math.min(g.perks.maxHp, g.hp + 30); } },
+    { id: 'maxhp',     icon: '🛡️',  col: '#86efac', name: 'Hull Plating',    desc: '+20 max HP (permanent)',      apply(g) { g.perks.maxHp += 20; g.hp = Math.min(g.perks.maxHp, g.hp + 20); } },
+    { id: 'nova',      icon: '✺',   col: '#ffffff', name: 'Nova Core',       desc: '+2 Nova charges',             apply(g) { g.novas += 2; g.perks.extraNovas += 2; } },
+    { id: 'armour',    icon: '⬡',   col: '#60a5fa', name: 'Energy Armour',   desc: 'Take 20% less damage',        apply(g) { g.perks.armour += 0.2; } },
+    { id: 'twin30',    icon: '⫴',   col: '#22d3ee', name: 'Twin Beams',      desc: 'Twin beams for 30s',          apply(g) { g.power.twin = 30; } },
+    { id: 'rapid30',   icon: '»',   col: '#fde047', name: 'Rapid Fire',      desc: 'Rapid fire for 30s',          apply(g) { g.power.rapid = 30; } },
+    { id: 'spread30',  icon: '⋔',   col: '#f472b6', name: 'Spread Shot',     desc: 'Spread shot for 30s',         apply(g) { g.power.spread = 30; } },
+    { id: 'chrono30',  icon: '◷',   col: '#93c5fd', name: 'Chrono Field',    desc: 'Slow time for 30s',           apply(g) { g.slowT = 30; } },
+  ];
+
+  pickUpgrades(n = 3) {
+    const pool = [...VoidBreaker.UPGRADE_POOL];
+    // Don't offer armour past 40% reduction
+    const filtered = pool.filter((u) => u.id !== 'armour' || this.perks.armour < 0.4);
+    const out = [];
+    while (out.length < n && filtered.length) {
+      const i = Math.floor(this.s.rng.next() * filtered.length);
+      out.push(filtered.splice(i, 1)[0]);
+    }
+    return out;
+  }
+
+  startUpgrade() {
+    this.upgradePhase = { opts: this.pickUpgrades(), hover: -1, chosen: -1, t: 0 };
+  }
+  applyUpgrade(idx) {
+    const up = this.upgradePhase.opts[idx];
+    if (!up) return;
+    up.apply(this);
+    this.upgradePhase.chosen = idx;
+    this.upgradePhase.t = 0;
+    this.s.sound.play('powerup');
+  }
 
   // ── Mouse look (pointer lock) ───────────────────────────────
   setupMouse() {
@@ -161,6 +197,19 @@ class VoidBreaker {
   buttons() { return this.coarse ? { nova: { x: W - 64, y: H - 74, r: 34 }, turn: { x: 64, y: H - 74, r: 30 } } : {}; }
   onAction(a, x, y) {
     const s = this.s;
+    // Upgrade panel intercepts taps
+    if (this.upgradePhase && this.upgradePhase.chosen < 0) {
+      if (a === 'press' || a === 'tap') {
+        const upCards = this._upgradeCardRects;
+        if (upCards) for (let i = 0; i < upCards.length; i++) {
+          const r = upCards[i];
+          if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) { this.applyUpgrade(i); return; }
+        }
+        return;
+      }
+      if (a === 'action') { this.applyUpgrade(0); return; } // keyboard Enter picks first
+      return;
+    }
     if (a === 'press') {
       this.drag = null; this.onButton = false;
       const b = this.buttons();
@@ -415,7 +464,13 @@ class VoidBreaker {
     this.streak = this.streak.filter((t) => this.t - t < 1.4);
 
     // wave over?
-    if (this.after > 0) { this.after -= rdt; if (this.after <= 0) s.completeLevel(); return; }
+    if (this.upgradePhase) {
+      const up = this.upgradePhase;
+      up.t += dt;
+      if (up.chosen >= 0 && up.t > 0.7) { this.upgradePhase = null; s.completeLevel(); }
+      return;
+    }
+    if (this.after > 0) { this.after -= rdt; if (this.after <= 0) { this.startUpgrade(); } return; }
     if (!this.bonus && !this.boss && !isBossLevel(this.level) && this.spawned >= this.total && !this.enemies.length) { this.after = 0.9; }
   }
 
@@ -884,6 +939,66 @@ class VoidBreaker {
       const a = 0.18 + 0.12 * Math.sin(t * 8), gr = ctx.createRadialGradient(cx, cy, H * 0.25, cx, cy, H * 0.7);
       gr.addColorStop(0, 'rgba(255,0,40,0)'); gr.addColorStop(1, `rgba(255,0,40,${a})`); ctx.fillStyle = gr; ctx.fillRect(0, 0, W, H);
     }
+    ctx.restore();
+
+    // Between-wave upgrade panel
+    if (this.upgradePhase) this.drawUpgradePanel(ctx);
+  }
+
+  drawUpgradePanel(ctx) {
+    const up = this.upgradePhase, th = this.theme;
+    const fade = Math.min(1, up.t * 3);
+    ctx.save();
+    ctx.globalAlpha = fade;
+    // Dimmed backdrop
+    ctx.fillStyle = 'rgba(5,4,18,.82)';
+    ctx.fillRect(0, 0, W, H);
+    // Header
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = '900 26px system-ui';
+    ctx.fillStyle = th.hud;
+    ctx.shadowColor = th.hud; ctx.shadowBlur = 20;
+    ctx.fillText('WAVE CLEARED', W / 2, 120);
+    ctx.shadowBlur = 0;
+    ctx.font = '600 14px system-ui'; ctx.fillStyle = 'rgba(226,232,240,.7)';
+    ctx.fillText('Choose your upgrade', W / 2, 150);
+
+    // Cards
+    const cw = 130, ch = 160, gap = 10, total = up.opts.length;
+    const startX = (W - (cw * total + gap * (total - 1))) / 2;
+    this._upgradeCardRects = [];
+    up.opts.forEach((opt, i) => {
+      const cx0 = startX + i * (cw + gap), cy0 = 180;
+      const chosen = up.chosen === i;
+      const rect = { x: cx0, y: cy0, w: cw, h: ch };
+      this._upgradeCardRects.push(rect);
+      // card bg
+      ctx.fillStyle = chosen ? opt.col + '44' : 'rgba(14,12,40,.9)';
+      ctx.strokeStyle = chosen ? opt.col : opt.col + '88';
+      ctx.lineWidth = chosen ? 3 : 1.5;
+      roundRect(ctx, cx0, cy0, cw, ch, 14); ctx.fill(); ctx.stroke();
+      // icon
+      ctx.font = '32px system-ui'; ctx.textAlign = 'center';
+      ctx.fillText(opt.icon, cx0 + cw / 2, cy0 + 44);
+      // name
+      ctx.font = '700 13px system-ui'; ctx.fillStyle = opt.col;
+      ctx.shadowColor = opt.col; ctx.shadowBlur = chosen ? 12 : 0;
+      ctx.fillText(opt.name, cx0 + cw / 2, cy0 + 78);
+      ctx.shadowBlur = 0;
+      // desc (word-wrap to 2 lines)
+      ctx.font = '500 11px system-ui'; ctx.fillStyle = 'rgba(226,232,240,.75)';
+      const words = opt.desc.split(' '), lines = [];
+      let line = '';
+      for (const w of words) {
+        const t2 = line ? line + ' ' + w : w;
+        if (ctx.measureText(t2).width > cw - 16) { lines.push(line); line = w; } else line = t2;
+      }
+      lines.push(line);
+      lines.forEach((l, li) => ctx.fillText(l, cx0 + cw / 2, cy0 + 102 + li * 16));
+      // chosen checkmark
+      if (chosen) { ctx.font = '900 20px system-ui'; ctx.fillStyle = opt.col; ctx.fillText('✓', cx0 + cw / 2, cy0 + ch - 18); }
+    });
+    ctx.textBaseline = 'alphabetic';
     ctx.restore();
   }
   /** angle of a point round from where you're facing (0 = ahead, + = to the right) */

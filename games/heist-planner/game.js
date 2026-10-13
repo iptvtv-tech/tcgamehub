@@ -424,14 +424,50 @@ class HeistPlanner {
       progressBar(ctx, 40, top + 60, W - 80, 14, this.view / Math.max(1, this.run.res.frames.length - 1), '#fbbf24', '');
       return;
     }
-    // crew tabs
+    // crew role cards (rich version)
+    const ROLE_DESC = { T: 'Grabs loot & gems', K: 'Hacks cameras & lasers', M: 'Smashes locked doors' };
     const n = L.crew.length, tw = (W - 24 - (n - 1) * 8) / n;
+    const cardH = 64;
     L.crew.forEach((c, i) => {
       const info = CREW[c.id];
-      btn(12 + i * (tw + 8), top, tw, 38, `${i + 1} ${info.icon} ${info.name} · ${this.plans[c.id].length}`, () => this.select(c.id), { on: this.sel === c.id, color: info.color, text: this.sel === c.id ? '#0b0b1a' : '#fff' });
+      const sel = this.sel === c.id;
+      const steps = this.plans[c.id].length;
+      const cx0 = 12 + i * (tw + 8), cy0 = top;
+      // card background
+      ctx.save();
+      ctx.fillStyle = sel ? info.color + '22' : '#111827';
+      ctx.strokeStyle = sel ? info.color : '#334155';
+      ctx.lineWidth = sel ? 2.5 : 1.5;
+      roundRect(ctx, cx0, cy0, tw, cardH, 10); ctx.fill(); ctx.stroke();
+      // left accent bar
+      ctx.fillStyle = info.color;
+      roundRect(ctx, cx0, cy0 + 8, 4, cardH - 16, 2); ctx.fill();
+      // icon
+      ctx.font = `${sel ? 22 : 19}px system-ui`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.fillText(info.icon, cx0 + 12, cy0 + 22);
+      // name
+      ctx.font = `${sel ? '800' : '700'} 13px system-ui`; ctx.fillStyle = sel ? info.color : '#e2e8f0';
+      ctx.fillText(`${i + 1}. ${info.name}`, cx0 + 34, cy0 + 19);
+      // role description
+      ctx.font = '500 10px system-ui'; ctx.fillStyle = sel ? info.color + 'cc' : '#64748b';
+      ctx.fillText(ROLE_DESC[c.id], cx0 + 34, cy0 + 35);
+      // steps count
+      ctx.font = '700 11px system-ui'; ctx.fillStyle = steps > 0 ? (sel ? info.color : '#94a3b8') : '#475569';
+      ctx.fillText(`${steps} step${steps !== 1 ? 's' : ''}`, cx0 + 12, cy0 + 52);
+      // mini plan progress dots (up to 8 dots showing plan density)
+      const dotSlots = 8, dotW = (tw - 60) / dotSlots;
+      for (let d = 0; d < dotSlots; d++) {
+        const filled = d < Math.min(steps, dotSlots);
+        ctx.fillStyle = filled ? info.color + (sel ? 'ff' : '99') : '#1e293b';
+        ctx.beginPath(); ctx.arc(cx0 + 56 + d * dotW + dotW / 2, cy0 + 52, 3.5, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.textBaseline = 'alphabetic';
+      ctx.restore();
+      this.buttons.push({ x: cx0, y: cy0, w: tw, h: cardH, fn: () => this.select(c.id) });
     });
+    const cardBottom = top + cardH + 8;
     // timeline
-    const ty = top + 48;
+    const ty = cardBottom;
     btn(12, ty, 40, 30, '◀', () => this.scrub(-1));
     btn(W - 52, ty, 40, 30, '▶', () => this.scrub(1));
     const tot = Math.max(1, this.maxT);

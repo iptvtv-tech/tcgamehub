@@ -104,6 +104,7 @@ export const GAMES = [
       { id: 'escape',   icon: '🚪', title: 'Great Escape',   desc: 'Get out of the museum after level 15' },
       { id: 'greedy',   icon: '💰', title: 'Clean Sweep',    desc: 'Grab every treasure in a level' },
       { id: 'shadow',   icon: '🌿', title: 'In the Shadows', desc: 'Stay hidden while a guard walks right past you' },
+      { id: 'nohit',    icon: '👻', title: 'Ghost',          desc: 'Complete a level without triggering a single alarm' },
       { id: 'level10',  icon: '🔦', title: 'Night Shift',    desc: 'Reach level 10' },
       { id: 'score10k', icon: '🏅', title: 'Ten Grand',      desc: 'Score 10,000 in one run' },
       { id: 'egg',      icon: '💎', title: 'The Display Case', desc: 'Open the display case in the vault', legendary: true, secret: true },

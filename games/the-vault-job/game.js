@@ -68,6 +68,7 @@ class VaultJob {
     this.p = { x: sx, y: sy, fx: sx, fy: sy, k: 1, face: 'up' };
     this.taken = 0; this.total = this.L.treasures.length;
     this.alarm = null; this.finale = null; this.shadowDone = false;
+    this.ghostLevel = true;   // stays true if no alarm fires this level
     this.exhibits = {};
   }
 
@@ -146,6 +147,13 @@ class VaultJob {
       s.fx.burst(cx(p.x), cy(p.y), { colors: ['#fde047', '#fff'], count: 6, speed: 100, life: 0.35 });
     } else if (ch === 'E' && !this.secret && !this.bonus) {
       if (this.level === 15) s.unlock('escape');
+      if (this.ghostLevel) {
+        const bonus = 200 * this.level;
+        s.award(bonus, cx(p.x), cy(p.y) - 30, { color: '#a3e635', size: 26 });
+        s.fx.text(W / 2, H * 0.38, '👻 GHOST! +' + bonus, { color: '#a3e635', size: 22, life: 2.0 });
+        s.fx.ring(cx(p.x), cy(p.y), { color: '#a3e635', radius: 60, width: 4 });
+        s.unlock('nohit');
+      }
       s.sound.tone({ freq: 520, to: 1040, dur: 0.25, type: 'triangle', vol: 0.12 });
       s.completeLevel();
     } else if (ch === 'V' && this.secret) {
@@ -155,6 +163,7 @@ class VaultJob {
 
   getCaught(who) {
     const s = this.s;
+    this.ghostLevel = false;
     this.alarm = { t: 0, who };
     for (let i = 0; i < 3; i++) s.sound.tone({ freq: 620, to: 1250, dur: 0.22, type: 'sawtooth', vol: 0.11, delay: i * 0.27 });
     s.fx.flash('#ef4444', 0.3);

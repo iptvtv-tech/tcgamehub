@@ -11,12 +11,12 @@ const W = 480, H = 720, GROUND = 650, BIRD_X = 130, R = 15;
 const GRAVITY = 1350, FLAP = -410, MAX_FALL = 560, PILLAR_W = 72;
 
 const THEMES = [
-  { name: 'day',    sky: ['#38bdf8', '#bae6fd'], far: '#7dd3fc', hill: '#4ade80', hill2: '#22c55e', ground: '#a16207', grass: '#65a30d', pillar: ['#16a34a', '#15803d'], cap: '#22c55e', body: '#f97316' },
-  { name: 'sunset', sky: ['#7c3aed', '#fb923c'], far: '#c084fc', hill: '#be185d', hill2: '#9d174d', ground: '#7c2d12', grass: '#c2410c', pillar: ['#b45309', '#92400e'], cap: '#f59e0b', body: '#22d3ee' },
-  { name: 'night',  sky: ['#020617', '#312e81'], far: '#1e1b4b', hill: '#1e3a8a', hill2: '#172554', ground: '#1e293b', grass: '#334155', pillar: ['#0d9488', '#115e59'], cap: '#2dd4bf', body: '#fbbf24' },
-  { name: 'aurora', sky: ['#020617', '#134e4a'], far: '#0f766e', hill: '#064e3b', hill2: '#022c22', ground: '#1c1917', grass: '#14532d', pillar: ['#7c3aed', '#5b21b6'], cap: '#c4b5fd', body: '#f472b6' },
+  { name: 'day',    sky: ['#38bdf8', '#bae6fd'], far: '#7dd3fc', hill: '#4ade80', hill2: '#22c55e', ground: '#a16207', grass: '#65a30d', pillar: ['#16a34a', '#15803d'], cap: '#22c55e', body: '#f97316', mid: '#15803d', midAlpha: 0.85 },
+  { name: 'sunset', sky: ['#7c3aed', '#fb923c'], far: '#c084fc', hill: '#be185d', hill2: '#9d174d', ground: '#7c2d12', grass: '#c2410c', pillar: ['#b45309', '#92400e'], cap: '#f59e0b', body: '#22d3ee', mid: '#4a1942', midAlpha: 0.9 },
+  { name: 'night',  sky: ['#020617', '#312e81'], far: '#1e1b4b', hill: '#1e3a8a', hill2: '#172554', ground: '#1e293b', grass: '#334155', pillar: ['#0d9488', '#115e59'], cap: '#2dd4bf', body: '#fbbf24', mid: '#0f172a', midAlpha: 1 },
+  { name: 'aurora', sky: ['#020617', '#134e4a'], far: '#0f766e', hill: '#064e3b', hill2: '#022c22', ground: '#1c1917', grass: '#14532d', pillar: ['#7c3aed', '#5b21b6'], cap: '#c4b5fd', body: '#f472b6', mid: '#071a11', midAlpha: 1 },
 ];
-const BONUS_THEME = { name: 'gold', sky: ['#f59e0b', '#fef3c7'], far: '#fcd34d', hill: '#fbbf24', hill2: '#f59e0b', ground: '#b45309', grass: '#d97706', pillar: ['#fff', '#fff'], cap: '#fff', body: '#f97316' };
+const BONUS_THEME = { name: 'gold', sky: ['#f59e0b', '#fef3c7'], far: '#fcd34d', hill: '#fbbf24', hill2: '#f59e0b', ground: '#b45309', grass: '#d97706', pillar: ['#fff', '#fff'], cap: '#fff', body: '#f97316', mid: '#d97706', midAlpha: 0.5 };
 
 const need = (level) => 6 + level;
 
@@ -316,6 +316,19 @@ class FeatherDash {
     ctx.fillStyle = th.hill2;
     this.layer(ctx, sx * 0.7, 70, (i) => 580 + Math.sin(i * 1.3 + 1) * 22, GROUND);
 
+    // Mid-ground silhouette — trees (day/aurora) or city skyline (sunset/night) at 0.85× scroll
+    ctx.save();
+    ctx.globalAlpha = th.midAlpha ?? 0.9;
+    ctx.fillStyle = th.mid ?? th.hill2;
+    if (th.name === 'sunset' || th.name === 'night') {
+      // City skyline with lit windows
+      midCity(ctx, sx * 0.85, th.name === 'night' ? '#fbbf24' : '#fb923c', t);
+    } else {
+      // Tree line
+      midTrees(ctx, sx * 0.85, th.mid ?? th.hill2);
+    }
+    ctx.restore();
+
     // Pillars
     for (const p of this.pillars) {
       const top = p.gapY - p.gap / 2, bot = p.gapY + p.gap / 2;
@@ -452,4 +465,61 @@ function shade(hex, amt) {
   const n = parseInt(hex.slice(1), 16);
   const c = (v) => clamp(v + amt, 0, 255);
   return `rgb(${c(n >> 16)}, ${c((n >> 8) & 255)}, ${c(n & 255)})`;
+}
+
+// ── Mid-ground parallax silhouettes ────────────────────────
+function midTrees(ctx, offset, color) {
+  // A repeating strip of pine trees
+  const SPAN = 60, BASE = GROUND - 30;
+  const start = Math.floor(offset / SPAN) - 1;
+  const count = Math.ceil(W / SPAN) + 3;
+  ctx.fillStyle = color;
+  for (let i = start; i < start + count; i++) {
+    const x = i * SPAN - offset + ((i * 37) % SPAN) * 0.3;
+    const h = 70 + ((Math.abs(i * 13 + 7) % 30));
+    // Triangle pine
+    ctx.beginPath();
+    ctx.moveTo(x, BASE - h);
+    ctx.lineTo(x - 18, BASE);
+    ctx.lineTo(x + 18, BASE);
+    ctx.closePath(); ctx.fill();
+    // Second tier
+    ctx.beginPath();
+    ctx.moveTo(x, BASE - h - 22);
+    ctx.lineTo(x - 13, BASE - h + 14);
+    ctx.lineTo(x + 13, BASE - h + 14);
+    ctx.closePath(); ctx.fill();
+    // Trunk
+    ctx.fillRect(x - 3, BASE - 22, 6, 22);
+  }
+}
+
+function midCity(ctx, offset, winColor, t) {
+  // Silhouette city blocks with random lit windows
+  const SPAN = 80, BASE = GROUND;
+  const start = Math.floor(offset / SPAN) - 1;
+  const count = Math.ceil(W / SPAN) + 3;
+  for (let i = start; i < start + count; i++) {
+    const seed = Math.abs(i * 17 + 3);
+    const x = i * SPAN - offset + (seed % 20) - 10;
+    const bw = 28 + (seed % 24);
+    const bh = 55 + (seed % 90);
+    ctx.fillRect(x, BASE - bh, bw, bh);
+    // lit windows
+    const rows = Math.floor(bh / 16), cols = Math.floor(bw / 12);
+    const savedFill = ctx.fillStyle;
+    ctx.globalAlpha *= 0.85;
+    for (let wr = 1; wr < rows; wr++) {
+      for (let wc = 0; wc < cols; wc++) {
+        const on = ((seed * (wr + 1) * (wc + 7)) % 5) !== 0;
+        if (!on) continue;
+        const blink = ((seed + wr * 3 + wc) % 7 === 0) && (Math.floor(t * 1.5 + seed * 0.1) % 3 === 0);
+        if (blink) continue;
+        ctx.fillStyle = winColor;
+        ctx.fillRect(x + 5 + wc * 12, BASE - bh + wr * 16 + 4, 7, 8);
+      }
+    }
+    ctx.fillStyle = savedFill;
+    ctx.globalAlpha /= 0.85;
+  }
 }

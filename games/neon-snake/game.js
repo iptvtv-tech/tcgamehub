@@ -31,8 +31,9 @@ runGame({
     const notes = {
       1: 'Eat the glowing fruit. Arrow keys or swipe.',
       2: 'Golden fruit! Grab it before it fades.',
-      3: 'Watch out for the blocks!',
+      3: 'Watch out for the blocks! 🫐 Berry clusters give 1.5× points.',
       4: 'Careful — the walls are solid now!',
+      5: '⭐ Star fruit appears — worth 2.5× more!',
       6: 'Portals! In one side, out the other.',
       7: 'Sparks! Don\'t let one touch your head.',
     };
@@ -112,7 +113,14 @@ class NeonSnake {
     }
     return { x: 0, y: 0 };
   }
-  spawnFood() { const c = this.freeCell(); this.foods.push({ ...c, hue: this.s.rng.int(0, 359), born: this.t }); }
+  spawnFood() {
+    const c = this.freeCell(), r = this.s.rng;
+    // Fruit variety: from level 3 occasionally spawn a star (2×) or berry (1.5×) fruit
+    let type = 'normal', pts = 10;
+    if (this.level >= 5 && r.chance(0.15)) { type = 'star';  pts = 25; }
+    else if (this.level >= 3 && r.chance(0.22)) { type = 'berry'; pts = 15; }
+    this.foods.push({ ...c, hue: r.int(0, 359), born: this.t, type, pts });
+  }
   spawnGem() { const c = this.freeCell({ min: 2 }); this.gems.push({ ...c, hue: this.s.rng.int(0, 359), born: this.t }); }
 
   // ── Input ──────────────────────────────────────────────────
@@ -197,7 +205,8 @@ class NeonSnake {
     if (fi >= 0) {
       const f = this.foods.splice(fi, 1)[0];
       const color = `hsl(${f.hue} 95% 65%)`;
-      s.award(10 * this.level, cx(nx), cy(ny) - 10, { chain: true, color });
+      const pts = (f.pts || 10) * this.level;
+      s.award(pts, cx(nx), cy(ny) - 10, { chain: true, color, size: f.type === 'star' ? 26 : undefined });
       s.sound.play('eat', s.comboCount);
       s.fx.burst(cx(nx), cy(ny), { color, count: 18, speed: 200 });
       this.grow += 1;
@@ -310,14 +319,38 @@ class NeonSnake {
     for (const f of this.foods) {
       const pulse = 1 + Math.sin(t * 6 + f.hue) * 0.12;
       const born = Math.max(0, Math.min(1, (t - f.born) * 5));
-      const r = Math.max(1.5, CELL * 0.33 * pulse * born);
+      const fr = Math.max(1.5, CELL * 0.33 * pulse * born);
+      const hcol = `hsl(${f.hue} 95% 60%)`;
       ctx.save(); ctx.translate(cx(f.x), cy(f.y));
-      ctx.shadowColor = `hsl(${f.hue} 95% 60%)`; ctx.shadowBlur = 18;
-      const g = ctx.createRadialGradient(-r / 3, -r / 3, 1, 0, 0, r);
-      g.addColorStop(0, '#fff'); g.addColorStop(0.35, `hsl(${f.hue} 95% 70%)`); g.addColorStop(1, `hsl(${f.hue} 90% 45%)`);
-      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
-      ctx.shadowBlur = 0; ctx.fillStyle = '#4ade80';
-      ctx.beginPath(); ctx.ellipse(r * 0.35, -r * 1.05, r * 0.45, r * 0.22, -0.6, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowColor = hcol; ctx.shadowBlur = 18;
+      if (f.type === 'star') {
+        // Star fruit: golden star shape, pulsing faster
+        ctx.rotate(t * 2); ctx.fillStyle = `hsl(${f.hue} 95% 65%)`;
+        star(ctx, 5, fr * 1.15, fr * 0.48); ctx.fill();
+        // small glow ring
+        ctx.shadowBlur = 24; ctx.strokeStyle = `hsl(${f.hue} 100% 80%)`; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(0, 0, fr * 1.3, 0, Math.PI * 2); ctx.stroke();
+      } else if (f.type === 'berry') {
+        // Berry: cluster of 3 small circles
+        ctx.shadowBlur = 14;
+        const rr = fr * 0.62;
+        const berryColors = [`hsl(${f.hue} 95% 65%)`, `hsl(${(f.hue+35)%360} 95% 65%)`, `hsl(${(f.hue+70)%360} 95% 60%)`];
+        for (let b = 0; b < 3; b++) {
+          const ba = (b / 3) * Math.PI * 2 - Math.PI / 2;
+          ctx.fillStyle = berryColors[b];
+          ctx.beginPath(); ctx.arc(Math.cos(ba) * rr * 0.75, Math.sin(ba) * rr * 0.75, rr, 0, Math.PI * 2); ctx.fill();
+        }
+        // stem
+        ctx.shadowBlur = 0; ctx.fillStyle = '#4ade80';
+        ctx.beginPath(); ctx.ellipse(fr * 0.2, -fr * 1.2, fr * 0.35, fr * 0.18, -0.5, 0, Math.PI * 2); ctx.fill();
+      } else {
+        // Normal fruit: glowing circle
+        const g = ctx.createRadialGradient(-fr / 3, -fr / 3, 1, 0, 0, fr);
+        g.addColorStop(0, '#fff'); g.addColorStop(0.35, `hsl(${f.hue} 95% 70%)`); g.addColorStop(1, `hsl(${f.hue} 90% 45%)`);
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, fr, 0, Math.PI * 2); ctx.fill();
+        ctx.shadowBlur = 0; ctx.fillStyle = '#4ade80';
+        ctx.beginPath(); ctx.ellipse(fr * 0.35, -fr * 1.05, fr * 0.45, fr * 0.22, -0.6, 0, Math.PI * 2); ctx.fill();
+      }
       ctx.restore();
     }
 

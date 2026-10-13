@@ -696,6 +696,18 @@ class CrystalCascade {
     if (this.feverT > 0) {                                      // fever: the shaft pulses with colour
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
       ctx.fillStyle = `hsla(${(this.t * 160) % 360},90%,60%,${0.1 + 0.05 * Math.sin(this.t * 12)})`; ctx.fillRect(0, 0, W, H); ctx.restore();
+      // Rainbow border glow during fever
+      const bw = 18 + 6 * Math.sin(this.t * 10);
+      ctx.save();
+      const hue = (this.t * 120) % 360;
+      const grad = ctx.createLinearGradient(0, 0, W, H);
+      grad.addColorStop(0,   `hsla(${hue},100%,70%,0.75)`);
+      grad.addColorStop(0.5, `hsla(${(hue+120)%360},100%,70%,0.75)`);
+      grad.addColorStop(1,   `hsla(${(hue+240)%360},100%,70%,0.75)`);
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = bw;
+      ctx.strokeRect(bw / 2, bw / 2, W - bw, H - bw);
+      ctx.restore();
     }
     this.drawDust(ctx, lo);
     this.drawPlatform(ctx, lo);
