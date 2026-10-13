@@ -231,17 +231,28 @@ void main() {
 
 // Entity vertex: position in model-space, then each "bone" offset applied
 const ENT_VS = `#version 300 es
+// Vertex layout is x y z | nx ny nz | r g b | glow — normal at offset 12, colour at 24.
 layout(location=0) in vec3 aPos;
-layout(location=1) in vec3 aCol;
-layout(location=2) in vec3 aNorm;  // object-space normal
+layout(location=1) in vec3 aNorm;  // object-space normal (offset 12)
+layout(location=2) in vec3 aCol;   // colour (offset 24)
 layout(location=3) in float aGlow;
+layout(location=4) in vec3 aRig;   // limb swing sign, pivot y, pivot z (0 = rigid)
 uniform mat4 uVP, uModel;
-uniform float uBoneAngle;  // generic bone parameter (leg swing etc)
+uniform float uBoneAngle;  // walk-cycle swing angle in radians
 out vec3 vCol; out vec3 vNorm; out float vGlow; out vec3 vWorld;
 void main() {
-  vec4 w = uModel * vec4(aPos, 1.0);
+  vec3 p = aPos, n = aNorm;
+  float a = aRig.x * uBoneAngle;
+  if (a != 0.0) {
+    // swing the limb about its hip/shoulder (rotation around the model's X axis)
+    float c = cos(a), s = sin(a);
+    vec2 q = vec2(p.y - aRig.y, p.z - aRig.z);
+    p.y = aRig.y + q.x * c - q.y * s; p.z = aRig.z + q.x * s + q.y * c;
+    n = vec3(n.x, n.y * c - n.z * s, n.y * s + n.z * c);
+  }
+  vec4 w = uModel * vec4(p, 1.0);
   vCol = aCol;
-  vNorm = (uModel * vec4(aNorm, 0.0)).xyz;
+  vNorm = (uModel * vec4(n, 0.0)).xyz;
   vGlow = aGlow;
   vWorld = w.xyz;
   gl_Position = uVP * w;
@@ -711,15 +722,31 @@ function compileModel(parts) {
   for (const p of parts) { totalVerts += p.V.length / STRIDE; totalIdx += p.I.length; }
   const verts = new Float32Array(totalVerts * STRIDE);
   const indices = new Uint32Array(totalIdx);
+  const rig = new Float32Array(totalVerts * 3);
   let vi = 0, ii = 0, base = 0;
   for (const p of parts) {
     const count = p.V.length / STRIDE;
     verts.set(p.V, vi);
     for (const i of p.I) indices[ii++] = base + i;
+    const sw = limbSwing(p.name), py = p.pivot ? p.pivot[1] : 0, pz = p.pivot ? p.pivot[2] : 0;
+    for (let k = 0; k < count; k++) { rig[(base + k) * 3] = sw; rig[(base + k) * 3 + 1] = py; rig[(base + k) * 3 + 2] = pz; }
     vi += p.V.length;
     base += count;
   }
-  return { verts, indices, parts };
+  return { verts, indices, rig, parts };
+}
+
+// Which way a part swings in the walk cycle: +1 / -1, or 0 for rigid parts.
+// Two-legged mobs swing legs opposite each other and arms opposite the legs;
+// four-legged ones (the sheep) use a diagonal gait — front-left with back-right.
+function limbSwing(name) {
+  switch (name) {
+    case 'legL': case 'armR': case 'handR': return 1;
+    case 'legR': case 'armL': case 'handL': return -1;
+    case 'legFLu': case 'legFLh': case 'legBRu': case 'legBRh': return 1;
+    case 'legFRu': case 'legFRh': case 'legBLu': case 'legBLh': return -1;
+    default: return 0;
+  }
 }
 
 // ── tiny matrix helpers ─────────────────────────────────────────
@@ -801,9 +828,12 @@ export class GLRenderer {
       gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, compiled.indices, gl.STATIC_DRAW);
       const stride = 10*4;
       gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, stride, 0);    // pos
-      gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, stride, 12);   // colour (reuse colour attrib as aCol)
-      gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 3, gl.FLOAT, false, stride, 24);   // normal → aNorm
+      gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, stride, 12);   // normal → aNorm
+      gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 3, gl.FLOAT, false, stride, 24);   // colour → aCol
       gl.enableVertexAttribArray(3); gl.vertexAttribPointer(3, 1, gl.FLOAT, false, stride, 36);   // glow
+      const rbo = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, rbo);
+      gl.bufferData(gl.ARRAY_BUFFER, compiled.rig, gl.STATIC_DRAW);
+      gl.enableVertexAttribArray(4); gl.vertexAttribPointer(4, 3, gl.FLOAT, false, 12, 0);       // limb rig → aRig
       gl.bindVertexArray(null);
       this.entModels[name] = { vao, n: compiled.indices.length };
     }
@@ -889,8 +919,8 @@ export class GLRenderer {
     const ib = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(Ix), gl.STATIC_DRAW);
     const stride = 10*4;
     gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, stride, 0);   // pos
-    gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, stride, 12);  // colour
-    gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 3, gl.FLOAT, false, stride, 24);  // normal
+    gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, stride, 12);  // normal → aNorm
+    gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 3, gl.FLOAT, false, stride, 24);  // colour → aCol
     gl.enableVertexAttribArray(3); gl.vertexAttribPointer(3, 1, gl.FLOAT, false, stride, 36);  // glow
     gl.bindVertexArray(null);
     return { vao, n: Ix.length };
@@ -1102,6 +1132,9 @@ export class GLRenderer {
         // Articulated model — build model matrix with animation
         const t = env.t;
         const walkCycle = Math.sin(t * 5.0 + e.phase);
+        // swing scales with how fast the mob is moving, so standing mobs stand still
+        const stride = Math.min(1, (e.spd || 0) / 1.2);
+        gl.uniform1f(E.u.uBoneAngle, walkCycle * 0.55 * stride);
         const sx = e.w || 1, sy = e.h || 1;
         // Scale the model to fit the logical entity size
         const M = model(e.x, e.y, e.z, e.yaw, sx, sy);
