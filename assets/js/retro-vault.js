@@ -200,7 +200,7 @@ document.addEventListener('click', (e) => {
 // ── Credits table ──────────────────────────────────────────────
 $('credit-rows').innerHTML = hosted.map((g) => `
   <tr><td><b>${esc(g.title)}</b> (${g.year})</td><td>${esc(g.by)}</td><td>${esc(g.licence)}</td>
-  <td><a href="${g.source}" download>Download source</a> · <a href="${g.upstream}" target="_blank" rel="noopener">Project page ↗</a><br><span class="muted small">Built from commit ${g.commit}</span></td></tr>`).join('');
+  <td><a href="${g.source}" download>Download source</a> · <a href="${g.upstream}" target="_blank" rel="noopener">Project page ↗</a>${g.manual ? ` · <a href="${g.manual}" target="_blank" rel="noopener">Manual (PDF)</a>` : ''}<br><span class="muted small">${g.manual ? 'ROM as released by the creators; source from' : 'Built from'} commit ${g.commit}</span></td></tr>`).join('');
 
 // ── Deep link: ?play=<id> loads that game ───────────────────────
 const deep = new URLSearchParams(location.search).get('play');

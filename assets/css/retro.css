@@ -101,7 +101,8 @@ button.game-card { font: inherit; text-align: left; padding: 0; cursor: pointer;
 .credits code { background: #2c2c5a; padding: 0 .3em; border-radius: 4px; }
 
 @media (prefers-reduced-motion: reduce) { .drop { transition: none; } }
-#hosted-grid { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+#hosted-grid { grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); gap: 16px; }
+#hosted-grid .game-card h3 { font-size: 1.2em; }
 
 /* Badge toast (same look as the in-game one) */
 .retro-toast { position: fixed; left: 50%; top: calc(76px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); z-index: 50; display: flex; align-items: center; gap: .7em; padding: .5em 1.1em .5em .6em; background: linear-gradient(135deg, #3b2a06, #1a1a3d); border: 1px solid var(--gold); border-radius: 999px; box-shadow: 0 8px 30px #000a; white-space: nowrap; animation: retroToastIn .4s cubic-bezier(.2, 1.4, .4, 1); }

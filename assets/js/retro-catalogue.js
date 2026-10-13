@@ -63,15 +63,16 @@ export const GAMES = [
     commit: '71fb08e',
     tip: 'Arrows move, Z selects, X goes back. Enter opens the menu. It saves to your browser.',
   },
+  {
+    id: 'tobu-tobu-girl', host: 'hosted', system: 'gb', rom: 'roms/tobu-tobu-girl.gb',
+    title: 'Tobu Tobu Girl', by: 'Tangram Games', year: 2017, genre: 'Arcade platformer',
+    blurb: 'A girl chases her runaway cat into the sky, bouncing off enemies to climb ever higher. Gorgeous pixel art and a great score chase.',
+    licence: 'Code MIT · art, music and text CC BY 4.0', source: 'roms/source/tobu-tobu-girl-source.tar.gz', upstream: 'https://github.com/SimonLarsen/tobutobugirl',
+    commit: '048a22c', manual: 'roms/tobu-tobu-girl-manual.pdf', home: 'https://tangramgames.dk/tobutobugirl',
+    tip: 'Arrows move, hold X to boost upward, Z plus a direction dashes. Enter takes a break.',
+  },
 
   // ── Free from the creator: download, then load with "Your ROM" ──
-  {
-    id: 'tobu-tobu-girl', host: 'download', system: 'gb',
-    title: 'Tobu Tobu Girl', by: 'Tangram Games', year: 2017, genre: 'Arcade platformer',
-    blurb: 'Bounce higher and higher to rescue a lost cat. Gorgeous pixel art and a great score chase.',
-    licence: 'MIT code, CC BY 4.0 art. Free on itch.io (the Deluxe version is paid).',
-    url: 'https://tangramgames.itch.io/tobutobugirl',
-  },
   {
     id: 'alter-ego', host: 'download', system: 'nes',
     title: 'Alter Ego', by: 'Denis Grachev (RetroSouls)', year: 2011, genre: 'Puzzle platformer',
