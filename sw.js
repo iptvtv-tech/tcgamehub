@@ -1,7 +1,7 @@
 // Offline support: always try the network first (so updates show up straight away),
 // and fall back to the last cached copy when the visitor is offline.
 // Bump CACHE_VERSION with every release: old caches are deleted when the new worker activates.
-const CACHE_VERSION = '2026-10-13';
+const CACHE_VERSION = '2026-10-13b';
 const CACHE = 'arcade-' + CACHE_VERSION;
 const OFFLINE = new URL('offline.html', self.registration.scope).href;
 

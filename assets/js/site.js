@@ -21,6 +21,17 @@ export function siteChrome() {
   document.querySelectorAll('[data-year]').forEach((el) => { el.textContent = new Date().getFullYear(); });
   // Everyone can find the door to the Hall of Legends — only Legends get in.
   const nav = document.querySelector('.site-nav');
+  // Retro Vault (homebrew console games) sits next to About on every page.
+  if (nav && !nav.querySelector('.retro-link')) {
+    const root = new URL('../../', import.meta.url);
+    const r = document.createElement('a');
+    r.className = 'retro-link';
+    r.href = new URL('retro-vault/', root).href;
+    r.innerHTML = '🕹️<span class="nav-label"> Retro</span>';
+    r.title = 'Retro Vault';
+    if (location.pathname.includes('/retro-vault/')) r.setAttribute('aria-current', 'page');
+    nav.appendChild(r);
+  }
   if (nav && !nav.querySelector('.legend-link')) {
     const root = new URL('../../', import.meta.url);
     const a = document.createElement('a');

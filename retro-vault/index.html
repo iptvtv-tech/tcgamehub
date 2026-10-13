@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.goatcounter.com; font-src 'self'; connect-src 'self' https://*.supabase.co; frame-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Retro Vault · Free homebrew console games · Quick Play Arcade</title>
+  <meta name="description" content="Play free, legal homebrew NES and Game Boy games in your browser, or load your own ROM. Nothing to install, and your files never leave your device.">
+  <link rel="canonical" href="https://tcgamehub.win/retro-vault/">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://tcgamehub.win/retro-vault/">
+  <meta property="og:title" content="Retro Vault — free homebrew games in your browser">
+  <meta property="og:description" content="Legal homebrew NES and Game Boy games, ready to play. Or bring your own ROM.">
+  <meta property="og:image" content="https://tcgamehub.win/assets/img/og.png">
+  <meta name="theme-color" content="#0b0b1a">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="stylesheet" href="../assets/css/site.css">
+  <link rel="stylesheet" href="../assets/css/retro.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="logo" href="../"><img src="../favicon.svg" alt=""><span data-site-name>Quick Play Arcade</span></a>
+      <nav class="site-nav">
+        <a href="../">Games</a>
+        <a href="../leaderboard/">Leaderboard</a>
+        <a href="../about/">About</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="retro-hero">
+      <div>
+        <p class="retro-eyebrow">New · Classic consoles in your browser</p>
+        <h1>Retro <span class="glow">Vault</span></h1>
+        <p class="lede">Brand-new games made for old consoles by independent developers, all free and legal. Play them here in one tap, or load your own ROM. Your file stays on your device.</p>
+      </div>
+      <ul class="retro-facts" aria-label="At a glance">
+        <li><b id="count-hosted">4</b><span>ready to play</span></li>
+        <li><b id="count-download">16</b><span>free to download</span></li>
+        <li><b>0</b><span>uploads</span></li>
+      </ul>
+    </section>
+
+    <!-- The player. The emulator runs in its own frame so it can be swapped cleanly between games. -->
+    <section class="cabinet-wrap" id="player" aria-label="Game screen">
+      <div class="cabinet">
+        <div class="cabinet-screen">
+          <iframe id="screen" title="Retro Vault game screen" src="player.html" allow="autoplay; fullscreen; gamepad" allowfullscreen></iframe>
+        </div>
+      </div>
+      <div class="now-playing">
+        <div class="np-info">
+          <span class="np-label">Now playing</span>
+          <b id="np-title">Nothing yet</b>
+          <span class="muted small" id="np-meta">Pick a game below or load your own ROM.</span>
+        </div>
+        <div class="np-actions">
+          <a class="btn wa" id="np-share" href="#" target="_blank" rel="noopener" hidden>Share</a>
+          <button class="btn" type="button" id="np-stop" hidden>■ Stop</button>
+        </div>
+      </div>
+      <p class="keys" aria-label="Keyboard controls">
+        <span><kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd> move</span>
+        <span><kbd>Z</kbd> A</span>
+        <span><kbd>X</kbd> B</span>
+        <span><kbd>Enter</kbd> Start</span>
+        <span><kbd>V</kbd> Select</span>
+        <span><kbd>Q</kbd><kbd>E</kbd> L / R</span>
+        <span class="muted">Gamepads work too. On phones, touch buttons appear on the screen.</span>
+      </p>
+    </section>
+
+    <section class="section" id="play-now">
+      <div class="section-head"><h2>Play now</h2><span class="muted small">Open-licence games, hosted here with credit</span></div>
+      <div class="game-grid" id="hosted-grid"></div>
+    </section>
+
+    <section class="section" id="byor">
+      <div class="section-head"><h2>Load your own ROM</h2><span class="muted small">The file never leaves your device</span></div>
+      <div class="byor">
+        <label class="drop" id="drop" for="rom-file">
+          <input type="file" id="rom-file" accept=".nes,.sfc,.smc,.gb,.gbc,.gba,.md,.gen,.smd,.bin,.sms,.gg,.a26,.zip">
+          <span class="drop-icon" aria-hidden="true">🕹️</span>
+          <b id="drop-title">Drop a ROM here, or tap to choose one</b>
+          <span class="muted small" id="drop-sub">NES · SNES · Game Boy / Color · GBA · Mega Drive · Master System · Game Gear · Atari 2600 · Arcade (MAME 2003-Plus .zip)</span>
+        </label>
+        <div class="byor-side">
+          <p class="byor-hint" id="byor-hint" hidden></p>
+          <label class="field" for="system">
+            <span>System</span>
+            <select id="system">
+              <option value="">Work it out from the file</option>
+            </select>
+          </label>
+          <button class="btn primary" type="button" id="byor-play" disabled>▶ Play my ROM</button>
+          <p class="muted small byor-note">Only load games you have the right to play: homebrew, freeware, or backups of cartridges you own. The game is read in your browser and nothing is sent to us.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="download">
+      <div class="section-head"><h2>Free homebrew to download</h2><span class="muted small">Get it from the creator, then load it above</span></div>
+      <div class="tabs" role="tablist" aria-label="Filter by system" id="filters"></div>
+      <div class="dl-grid" id="download-grid"></div>
+    </section>
+
+    <section class="section" id="support">
+      <div class="section-head"><h2>Support the developers</h2><span class="muted small">Paid homebrew, worth every penny</span></div>
+      <div class="dl-grid" id="paid-grid"></div>
+    </section>
+
+    <section class="section credits" id="credits">
+      <div class="section-head"><h2>Credits &amp; licences</h2></div>
+      <p class="muted">The games in <b>Play now</b> are shared under their creators' open licences. Each one's full source code is here too, as those licences ask.</p>
+      <div class="credit-table-wrap">
+        <table class="credit-table">
+          <thead><tr><th scope="col">Game</th><th scope="col">Made by</th><th scope="col">Licence</th><th scope="col">Source code</th></tr></thead>
+          <tbody id="credit-rows"></tbody>
+        </table>
+      </div>
+      <p class="muted small">The emulator is <a href="https://github.com/EmulatorJS/EmulatorJS" target="_blank" rel="noopener">EmulatorJS</a> 4.2.3 (GPL v3), running <a href="https://www.libretro.com/" target="_blank" rel="noopener">libretro</a> cores: FCEUmm (NES), Snes9x (SNES), Gambatte (Game Boy), mGBA (GBA), Genesis Plus GX (Sega), Stella 2014 (Atari 2600) and MAME 2003-Plus (arcade). All files are served from this site. Each core's licence travels inside its file in <code>vendor/emulatorjs/cores/</code>. Snes9x, Genesis Plus GX and MAME 2003-Plus allow non-commercial use only, which is why this page has no ads or paid extras.</p>
+      <p class="muted small">Retro Vault games aren't on the leaderboard, because scores from an emulator can't be checked. Save states stay in your browser.</p>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <span>© <span data-year></span> <span data-site-name>Quick Play Arcade</span> · Free games, no sign-up</span>
+      <span><a href="../leaderboard/">Leaderboard</a> · <a href="../about/">About & privacy</a></span>
+    </div>
+  </footer>
+
+  <script type="module" src="../assets/js/retro-vault.js"></script>
+</body>
+</html>

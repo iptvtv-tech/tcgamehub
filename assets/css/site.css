@@ -222,7 +222,7 @@ kbd { background: #2c2c5a; border: 1px solid #45458a; border-bottom-width: 2px; 
 a.legend-banner.hall-door { text-decoration: none; color: var(--text); margin: 0 0 18px; border-color: #a16207; background: linear-gradient(135deg, #1f1a0a, #14142e 70%); transition: border-color .2s, transform .2s; }
 a.legend-banner.hall-door:hover { border-color: #fbbf24; transform: translateY(-2px); }
 .site-nav a.legend-link:not(.is-legend) { color: #d6b25e; }
-@media (max-width: 480px) { .site-nav a.legend-link .nav-label { display: none; } .site-nav { gap: 0; } }
+@media (max-width: 480px) { .site-nav a.legend-link .nav-label, .site-nav a.retro-link .nav-label { display: none; } .site-nav { gap: 0; } }
 @media (max-width: 400px) { .site-nav a { padding: .45em .42em; font-size: .92em; } }
 .daily-streak { color: #fdba74; font-size: .95em; } .daily-streak b { color: #fb923c; }
 
@@ -271,3 +271,12 @@ a.legend-banner.hall-door:hover { border-color: #fbbf24; transform: translateY(-
 .board tr.gap td { background: none; text-align: center; color: var(--muted); padding: 0; border-radius: 0; }
 .board-more { text-align: center; margin: 10px 0 0; }
 .board-me { text-align: center; margin: 8px 0 0; }
+
+/* Home: link to the Retro Vault */
+.retro-banner { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 16px 18px; margin: 8px 0 28px; border-radius: var(--radius); text-decoration: none; color: var(--text); background: linear-gradient(135deg, #0e3b58, #1a1a3d 60%); border: 1px solid #22d3ee55; transition: border-color .2s, transform .2s; }
+.retro-banner:hover { border-color: var(--cyan); transform: translateY(-2px); }
+.retro-banner > span:nth-child(2) { flex: 1; min-width: 14em; }
+.retro-banner-icon { font-size: 2em; line-height: 1; }
+@media (prefers-reduced-motion: reduce) { .retro-banner { transition: none; } }
+/* Six items in the header on small phones (Games, Leaderboard, About, Retro, Legends, sound) */
+@media (max-width: 420px) { .site-nav a, .site-nav .mute-link { padding: .45em .3em; font-size: .88em; } .logo img { width: 30px; height: 30px; } }

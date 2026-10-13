@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <!-- The emulator runs in this frame only, so the rest of the site keeps its strict rules.
+       It needs WebAssembly ('wasm-unsafe-eval'), 'unsafe-eval' (EmulatorJS's 7z core unpacker builds
+       functions at runtime) and blob: scripts/workers for the emulator cores.
+       Nothing is loaded from other websites. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' blob:; connect-src 'self' blob: data:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="robots" content="noindex">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Retro Vault player</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #05050f; color: #f1f0ff; font: 15px/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; overflow: hidden; }
+    #game { width: 100%; height: 100%; }
+    .idle { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 16px; }
+    .idle p { margin: .3em 0; color: #a4a3c8; }
+    .idle b { font-size: 1.4em; color: #22d3ee; letter-spacing: .2em; }
+    .err { color: #fda4af; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <div id="game"></div>
+  <div class="idle" id="idle"><div><b>INSERT GAME</b><p>Pick a game, or load your own ROM.</p></div></div>
+  <script type="module" src="../assets/js/retro-player.js"></script>
+</body>
+</html>

@@ -188,6 +188,18 @@ Every zone's 6th game is a **Legends game** (*The Vault Job* for Zone 1, *Heist 
 
 Run `supabase/legends-update.sql` once to switch on the Hall of Legends, and `supabase/zone2-update.sql` for the Zone 2 games. Level checkers: `node tools/check-vault-levels.mjs`, `node tools/check-heist-levels.mjs`. Adding golden characters and new Legend games is covered in docs/ADDING_A_GAME.md.
 
+## Retro Vault (homebrew console games)
+
+`/retro-vault/` plays legal homebrew for classic consoles in the browser, using a self-hosted copy of [EmulatorJS](https://github.com/EmulatorJS/EmulatorJS) 4.2.3 (GPL v3). Nothing is loaded from other websites.
+
+- **Play now:** ROMs whose licences allow re-hosting live in `retro-vault/roms/`, with their full source in `retro-vault/roms/source/` (GPL requires it) and credits on the page.
+- **Your ROM:** visitors load a file from their own device. It's handed to the emulator frame in the browser and never uploaded.
+- **Catalogue:** `assets/js/retro-catalogue.js`. `host: 'hosted'` only when the licence lets you re-host; otherwise use `'download'` (link to the creator) or `'paid'`.
+- **Emulator:** `vendor/emulatorjs/` holds only the cores in use (NES, SNES, Game Boy, GBA, Sega, Atari 2600, MAME 2003-Plus). Add a core by copying `cores/<name>-wasm.data`, `cores/<name>-legacy-wasm.data` and `cores/reports/<name>.json` from the same EmulatorJS release.
+- The emulator runs in `retro-vault/player.html`, an iframe with its own looser Content Security Policy (WebAssembly, `eval` for the 7z unpacker, `blob:` workers). Every other page keeps the strict policy.
+- Snes9x, Genesis Plus GX and MAME 2003-Plus are licensed for **non-commercial use only**. If the site ever adds ads or paid features, remove those cores and the Nova the Squirrel ROM (CC BY-NC-SA art).
+- Retro Vault games don't post scores to the leaderboard: emulator scores can't be verified.
+
 ## Project layout
 
 ```
@@ -195,6 +207,8 @@ index.html                 home page
 leaderboard/  about/       other pages
 games/<id>/                one folder per game (index.html, game.js, thumb.svg)
 games/_template/           copy this to start a new game
+retro-vault/               Retro Vault page, player frame, hosted homebrew ROMs + source
+vendor/emulatorjs/         self-hosted EmulatorJS (only the cores in use)
 assets/js/config.js        ← your settings (Supabase keys, site name)
 assets/js/games.js         ← game registry (add new games here)
 assets/js/engine.js        shared game engine (loop, input, levels, game over…)
