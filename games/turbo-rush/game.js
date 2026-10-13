@@ -691,12 +691,12 @@ class TurboRush {
     const wet = this.themeId === 'rain' && !this.inTunnel && this.underT <= 0;
     const pct = clamp(this.speed / this.maxSpeed, 0, 1.3);
     if (wet && this.drops.length < (this.lo ? 25 : 60) && Math.random() < dt * 40) {
-      this.drops.push({ x: 20 + Math.random() * (W - 40), y: 180 + Math.random() * 230, r: 1.5 + Math.random() * 2.8, life: 1 });
+      this.drops.push({ x: 4 + Math.random() * (W - 8), y: 160 + Math.random() * 250, r: 1.5 + Math.random() * 2.8, life: 1 });
     }
     for (const d of this.drops) {
       d.y -= (20 + pct * 120 * (d.r / 3)) * dt;                   // airflow pushes the drops up the glass
       d.x += (d.x - W / 2) * 0.25 * dt * pct;
-      if (d.y < 165) d.life = 0;
+      if (d.y < 143) d.life = 0;
     }
     // the wiper sweeps every ~1.4 s in the rain
     if (wet || this.wiperT > 0) {
@@ -1381,8 +1381,8 @@ class TurboRush {
 
   /** rear-view mirror: the road behind, with the lights of anyone coming up on you (police, VIPER) and your own nitro flame */
   drawMirror(ctx) {
-    const th = this.theme, mw = 164, mh = 36, mx = W / 2 - mw / 2, my = 112, hzY = my + 13, pz = this.position + PLAYER_Z, t = this.t;
-    ctx.fillStyle = '#111114'; ctx.fillRect(W / 2 - 4, 64, 8, 50);
+    const th = this.theme, mw = 164, mh = 36, mx = W / 2 - mw / 2, my = 90, hzY = my + 13, pz = this.position + PLAYER_Z, t = this.t;
+    ctx.fillStyle = '#111114'; ctx.fillRect(W / 2 - 4, 44, 8, 48);
     ctx.save();
     roundRect(ctx, mx, my, mw, mh, 8); ctx.fillStyle = '#05060a'; ctx.fill(); ctx.clip();
     const g = ctx.createLinearGradient(0, my, 0, hzY); g.addColorStop(0, th.sky[1]); g.addColorStop(1, th.sky[2]);
@@ -2003,10 +2003,10 @@ function saveGhost(mode, level, g) { try { localStorage.setItem(ghostKey(mode, l
 const CAB_PAD = 12;
 /** the windscreen: a wide pane, slightly bowed at the roof, with the dash curving under it */
 function glassPath(g) {
-  g.moveTo(72, 172);
-  g.quadraticCurveTo(W / 2, 152, W - 72, 172);
-  g.lineTo(W - 6, 416);
-  g.quadraticCurveTo(W / 2, 460, 6, 416);
+  g.moveTo(14, 152);
+  g.quadraticCurveTo(W / 2, 128, W - 14, 152);
+  g.lineTo(W - 3, 416);
+  g.quadraticCurveTo(W / 2, 460, 3, 416);
   g.closePath();
 }
 const CABS = new Map();
@@ -2017,16 +2017,16 @@ function cockpitArt(paint, gold) {
   g.translate(P, P);
   const pc = hex(paint), light = css(mixA(pc, [255, 255, 255], 0.28)), dark = css(mixA(pc, [0, 0, 0], 0.45)), deep = css(mixA(pc, [0, 0, 0], 0.7));
   // roof lining
-  const rg = g.createLinearGradient(0, -P, 0, 190); rg.addColorStop(0, '#15151a'); rg.addColorStop(1, '#2a2a31');
-  g.fillStyle = rg; g.fillRect(-P, -P, W + P * 2, 200 + P);
+  const rg = g.createLinearGradient(0, -P, 0, 170); rg.addColorStop(0, '#15151a'); rg.addColorStop(1, '#2a2a31');
+  g.fillStyle = rg; g.fillRect(-P, -P, W + P * 2, 180 + P);
   // sun visors folded up against the roof
   g.fillStyle = '#202027';
-  for (const sd of [-1, 1]) { g.beginPath(); g.moveTo(W / 2 + sd * 40, 136); g.lineTo(W / 2 + sd * 190, 142); g.lineTo(W / 2 + sd * 186, 156); g.lineTo(W / 2 + sd * 44, 150); g.closePath(); g.fill(); }
+  for (const sd of [-1, 1]) { g.beginPath(); g.moveTo(W / 2 + sd * 40, 112); g.lineTo(W / 2 + sd * 200, 118); g.lineTo(W / 2 + sd * 196, 132); g.lineTo(W / 2 + sd * 44, 126); g.closePath(); g.fill(); }
   // A-pillars in the car's paint, lit along the edge nearest the glass
   for (const sd of [-1, 1]) {
-    const x0 = sd < 0 ? -P : W + P, gx = sd < 0 ? 72 : W - 72, bx = sd < 0 ? 6 : W - 6;
+    const x0 = sd < 0 ? -P : W + P, gx = sd < 0 ? 14 : W - 14, bx = sd < 0 ? 3 : W - 3;
     const pg = g.createLinearGradient(x0, 0, gx, 0); pg.addColorStop(0, deep); pg.addColorStop(0.6, dark); pg.addColorStop(0.92, paint); pg.addColorStop(1, light);
-    g.fillStyle = pg; g.beginPath(); g.moveTo(x0, 80); g.lineTo(gx + sd * -14, 154); g.lineTo(gx, 172); g.lineTo(bx, 416); g.lineTo(bx + sd * 6, 434); g.lineTo(x0, 434); g.closePath(); g.fill();
+    g.fillStyle = pg; g.beginPath(); g.moveTo(x0, 60); g.lineTo(gx + sd * -10, 134); g.lineTo(gx, 152); g.lineTo(bx, 416); g.lineTo(bx + sd * 6, 434); g.lineTo(x0, 434); g.closePath(); g.fill();
   }
   // the dashboard: carbon fibre with a leather top lip
   const carbon = canvas(8, 8), cg = carbon.getContext('2d');
