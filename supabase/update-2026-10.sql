@@ -14,7 +14,7 @@
 
 -- 0. Turbo Rush joins the leaderboard
 insert into public.games (id, title, max_points_per_second)
-values ('turbo-rush', 'Turbo Rush', 10000)
+values ('turbo-rush', 'Turbo Rush 3D', 10000)   -- (kept as "3D": re-running must not undo rename-3d-titles.sql)
 on conflict (id) do update set title = excluded.title, max_points_per_second = excluded.max_points_per_second;
 
 -- 1. Game tickets (no personal data: a one-way hash of the connection address, deleted after 6 hours)
