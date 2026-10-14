@@ -184,9 +184,9 @@ class LunarDelivery {
     if (this.stick) { tilt += -this.stick.dy; turn += this.stick.dx; }
     tilt = clamp(tilt, -1, 1); turn = clamp(turn, -1, 1);
     if (!this.landed) {
-      this.yaw -= turn * 1.7 * dt;
-      this.pitch = sm(this.pitch, tilt * MAX_TILT, Math.min(1, dt * 4));
-      this.roll = sm(this.roll, roll * ROLL_TILT, Math.min(1, dt * 4));
+      this.yaw -= turn * 2.0 * dt;
+      this.pitch = sm(this.pitch, tilt * MAX_TILT, Math.min(1, dt * 7));
+      this.roll = sm(this.roll, roll * ROLL_TILT, Math.min(1, dt * 7));
     } else { this.pitch = sm(this.pitch, 0, Math.min(1, dt * 8)); this.roll = sm(this.roll, 0, Math.min(1, dt * 8)); if (turn) this.yaw -= turn * 0.8 * dt; }
     const M = model(this.p, this.yaw, this.pitch, this.roll, 1);
     const up = V3.norm([M[4], M[5], M[6]]);
@@ -528,7 +528,7 @@ class LunarDelivery {
       return { eye, target: [P.x, P.y + 2, P.z], fov: 1.05 };
     }
     let dy = this.yaw - this.camYaw; dy = ((dy + Math.PI) % TAU + TAU) % TAU - Math.PI;
-    this.camYaw += dy * Math.min(1, dt * 3);
+    this.camYaw += dy * Math.min(1, dt * 4.5);
     const carry = this.crate?.hooked ? 1 : 0, dist = 15 + carry * 8, hgt = 6 + carry * 8;
     let eye = [p[0] - fwd[0] * dist, p[1] + hgt, p[2] - fwd[2] * dist];
     const ge = this.W.ground(eye[0], eye[2]) + 2.5;
