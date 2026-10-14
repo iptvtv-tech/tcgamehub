@@ -509,7 +509,7 @@ export const GAMES = [
     id: 'vault-of-stars',
     gold: 'Golden Astronaut',       // golden character unlocked by the Zone 5 egg (gold suit and visor)
     title: 'Vault of Stars',
-    tagline: 'Sixteen sealed vaults on an alien moon. Time the laser grids, slip past the sentry drones, drift across zero-g fields and reach the airlock before your oxygen runs out. Same layout every time: learn it, then beat the par.',
+    tagline: 'Fifteen sealed vaults on an alien moon. Time the laser grids, slip past the sentry drones, drift across zero-g fields and reach the airlock before your oxygen runs out. Same layout every time: learn it, then beat the par.',
     controls: 'Move: arrows or WASD, or swipe (touch: D-pad) · Restart the vault: Space twice or ⟲ (costs a life)',
     color: '#6ee7b7',
     isNew: true,
