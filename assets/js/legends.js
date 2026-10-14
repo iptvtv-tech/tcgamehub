@@ -13,22 +13,24 @@
 //  (Crown Heist, Zone 4's Legends game, is the one exception: its egg is won by carrying the
 //  crown out of all 15 floors, across as many sessions as it takes — a flawless run also opens
 //  its secret 16th floor.)
-//  Every egg (all four) → THE GOLDEN CROWN (badge "grand"): the hidden Crown Room page
+//  The first four eggs (Zones 1–4) → THE GOLDEN CROWN (badge "grand"): the hidden Crown Room page
 //  (/crown-room/), a golden theme for the whole site, and a 👑 by your name on
-//  the leaderboards.
+//  the leaderboards. The crown never changes: every Legends game after Zone 4 adds a JEWEL
+//  to it instead (see crownZones / jewelZones in games.js), so a new zone never takes it away.
 //
 //  Any future game can join by adding `legend: {...}` to its entry in games.js
 //  and finalLevel / secretLevel to its runGame() settings. See docs/ADDING_A_GAME.md
 // ─────────────────────────────────────────────────────────────
 import { Store } from './storage.js';
-import { GAMES, ZONES, zoneOf, legendZones } from './games.js';
+import { GAMES, ZONES, zoneOf, gameById, crownZones, jewelZones } from './games.js';
 
 import { rpc, ONLINE, nameProblem } from './scores.js';
 
 let crownSet = null, crownPromise = null;
 const missingFn = (err) => /could not find the function|does not exist|PGRST202|404/i.test(String(err?.message || err));
 
-/** Group Hall rows by name: [{ name, at, zones:Set, games:[], crownAt }] (crownAt = when their last egg came in). */
+/** Group Hall rows by name: [{ name, at, zones:Map, games:[], crown, jewels, crownAt }]
+ *  (crownAt = when the last of their four crown eggs came in; jewels = eggs won beyond the crown). */
 export function hallPeople(rows) {
   const byName = new Map();
   for (const r of rows) {
@@ -38,8 +40,12 @@ export function hallPeople(rows) {
     if (z && (!e.zones.has(z.n) || e.zones.get(z.n) > r.at)) e.zones.set(z.n, r.at);
     e.games.push(r.game);
   }
-  const need = legendZones().length;
-  return [...byName.values()].map((p) => ({ ...p, crown: need > 0 && legendZones().every((z) => p.zones.has(z.n)), crownAt: Math.max(...p.zones.values()) }));
+  const cz = crownZones();
+  return [...byName.values()].map((p) => {
+    const crown = cz.length > 0 && cz.every((z) => p.zones.has(z.n));
+    return { ...p, crown, jewels: jewelZones().filter((z) => p.zones.has(z.n)).length,
+      crownAt: crown ? Math.max(...cz.map((z) => p.zones.get(z.n))) : Math.max(...p.zones.values()) };
+  });
 }
 export const crownHolders = (rows) => hallPeople(rows).filter((p) => p.crown).sort((a, b) => a.crownAt - b.crownAt);
 
@@ -172,8 +178,10 @@ export const Legends = {
     return ZONES.filter((z) => z.legendGame && done.includes(z.legendGame)).map((z) => z.n);
   },
   hasEgg(zoneN) { return this.eggs().includes(zoneN); },
-  /** The Golden Crown: every zone's egg. */
-  hasGoldenCrown() { const need = legendZones().length; return need > 0 && this.eggs().length >= need; },
+  /** The Golden Crown: the eggs of Zones 1–4. */
+  hasGoldenCrown() { const cz = crownZones(); return cz.length > 0 && cz.every((z) => this.hasEgg(z.n)); },
+  /** Zones whose egg adds a jewel to the crown (Zone 5 on) that this player has won. */
+  jewels() { return jewelZones().filter((z) => this.hasEgg(z.n)).map((z) => z.n); },
   /** When the crown was won (first seen on this device). */
   crownAt() { return data().legend?.crownAt || null; },
   // old names, still used in a few places
@@ -183,7 +191,7 @@ export const Legends = {
   syncCrowns() {
     const c = this.eggs();
     for (const n of c) Store.unlockAch(`g:crown${n}`);
-    // "grand" used to mean "every crown so far" — it's now The Golden Crown (all three eggs)
+    // "grand" = The Golden Crown (the four eggs of Zones 1–4)
     if (!this.hasGoldenCrown() && Store.hasAch('g:grand')) Store.lockAch('g:grand');
     if (this.hasGoldenCrown()) {
       Store.unlockAch('g:grand');
@@ -197,8 +205,15 @@ export const Legends = {
   setGoldTheme(on) { Store.setSetting('goldTheme', !!on); applyTheme(); },
 
   /** Is the golden character unlocked for this game? (needs the egg of the game's zone;
-   *  in a zone that has no Legends game yet, the Golden Crown unlocks it instead) */
-  goldUnlocked(gameId) { const z = zoneOf(gameId); return !!z && (z.legendGame ? this.hasEgg(z.n) : this.hasGoldenCrown()); },
+   *  in a zone that has no Legends game yet, the Golden Crown unlocks it instead. A game whose
+   *  golden character crown holders already had before its zone got a Legends game keeps it for
+   *  them — `goldWithCrown: true` in games.js, e.g. Lunar Delivery's Golden Hopper.) */
+  goldUnlocked(gameId) {
+    const z = zoneOf(gameId);
+    if (!z) return false;
+    if (!z.legendGame) return this.hasGoldenCrown();
+    return this.hasEgg(z.n) || (!!gameById(gameId)?.goldWithCrown && this.hasGoldenCrown());
+  },
   /** Is the golden character switched on for this game? (on by default once unlocked) */
   goldOn(gameId) { return this.goldUnlocked(gameId) && Store.setting(`gold:${gameId}`) !== false; },
   setGold(gameId, on) { Store.setSetting(`gold:${gameId}`, !!on); },

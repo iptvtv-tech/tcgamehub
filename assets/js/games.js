@@ -483,7 +483,8 @@ export const GAMES = [
   },
   {
     id: 'lunar-delivery',
-    gold: 'Golden Hopper',          // golden character (Zone 5 has no Legends game yet, so the Golden Crown unlocks it)
+    gold: 'Golden Hopper',          // golden character unlocked by the Zone 5 egg — crown holders keep it too (they had it first)
+    goldWithCrown: true,
     title: 'Lunar Delivery 3D',
     is3d: true,
     tagline: 'Fly a moon hopper between lunar bases with a cargo crate swinging on your tow cable. Set it down gently on the green ring — past craters, ridges, meteor showers and dust geysers, with Earth hanging over the horizon.',
@@ -502,6 +503,29 @@ export const GAMES = [
       { id: 'storm',    icon: '⭐', title: 'Storm Chaser',    desc: 'Grab 60 stars in one Stardust Storm' },
       { id: 'level10',  icon: '🌕', title: 'Moonwalker',      desc: 'Reach run 10' },
       { id: 'score10k', icon: '🏅', title: 'Ten Grand',       desc: 'Score 10,000 in one run' },
+    ],
+  },
+  {
+    id: 'vault-of-stars',
+    gold: 'Golden Astronaut',       // golden character unlocked by the Zone 5 egg (gold suit and visor)
+    title: 'Vault of Stars',
+    tagline: 'Sixteen sealed vaults on an alien moon. Time the laser grids, slip past the sentry drones, drift across zero-g fields and reach the airlock before your oxygen runs out. Same layout every time: learn it, then beat the par.',
+    controls: 'Move: arrows or WASD, or swipe (touch: D-pad) · Restart the vault: Space twice or ⟲ (costs a life)',
+    color: '#6ee7b7',
+    isNew: true,
+    legend: true,                   // Zone 5's Legends game
+    legendLore: 'Legends say something deep inside the moon is still sending a signal…',
+    legendHow: 'Start at vault 1 and clear all 15 without losing a life. Something is waiting beyond vault 15…',
+    achievements: [
+      { id: 'contact',  icon: '👩‍🚀', title: 'First Contact',     desc: 'Clear vault 1' },
+      { id: 'relics',   icon: '✦',  title: 'Relic Hunter',      desc: 'Collect every crystal in a vault' },
+      { id: 'par',      icon: '⏱️', title: 'Speed of Light',    desc: 'Clear a vault from vault 2 on within half a second of its par time' },
+      { id: 'zerog',    icon: '🌀', title: 'Zero-G',            desc: 'Drift 8 tiles in one go' },
+      { id: 'blackout', icon: '🔦', title: 'Blackout',          desc: 'Clear a dark vault without losing a life in it' },
+      { id: 'breach',   icon: '💨', title: 'Hull Breach',       desc: 'Reach the airlock of the Core Chamber after the hull breaches' },
+      { id: 'cache',    icon: '💎', title: 'Cache Raider',      desc: 'Grab 40 crystals in one relic cache' },
+      { id: 'level10',  icon: '🔭', title: 'Deep Space',        desc: 'Reach vault 10' },
+      { id: 'beacon',   icon: '⭐', title: 'The Signal Room',   desc: 'Reach the Golden Beacon in the hidden 16th vault', legendary: true, secret: true },
     ],
   },
 ];
@@ -525,7 +549,8 @@ export const GLOBAL_ACHIEVEMENTS = [
   { id: 'crown2',  icon: '🥚', title: 'Golden Heist Egg', desc: 'Win Zone 2\'s Legends game perfectly — unlocks the golden characters in games 7–12', legendary: true, secret: true },
   { id: 'crown3',  icon: '🥚', title: 'Golden Crypt Egg', desc: 'Win Zone 3\'s Legends game perfectly — unlocks the golden characters in games 13–18', legendary: true, secret: true },
   { id: 'crown4',  icon: '🥚', title: 'Golden Throne Egg', desc: 'Carry the crown out of all 15 floors of Crown Heist — unlocks the golden characters in games 19–24', legendary: true, secret: true },
-  { id: 'grand',   icon: '👑', title: 'The Golden Crown', desc: 'Collect all four Golden Eggs — opens the Crown Room', legendary: true, secret: true },
+  { id: 'crown5',  icon: '🥚', title: 'Golden Beacon Egg', desc: 'Reach the Golden Beacon in Vault of Stars — unlocks the golden characters in games 25–30 and adds a jewel to the Golden Crown', legendary: true, secret: true },
+  { id: 'grand',   icon: '👑', title: 'The Golden Crown', desc: 'Collect the Golden Eggs of Zones 1–4 — opens the Crown Room', legendary: true, secret: true },
 ];
 
 // ── Difficulty tiers & zones ─────────────────────────────────
@@ -556,14 +581,20 @@ export const ZONES = [
   { n: 4, name: 'Zone 4 · Ultra', blurb: 'Ultra difficulty — for players who have played every Zone 3 game. Crown Heist 3D is this zone\'s Legends game.',
     legendGame: 'crown-heist',
     slots: ['tc-pixel-craft', 'dungeon-escape', 'neon-drift', 'crystal-cascade', 'void-breaker', 'crown-heist'] },
-  { n: 5, name: 'Zone 5 · Beyond', blurb: 'Ultra difficulty, out past the Earth — for players who have played every Zone 4 game.',
-    slots: ['lunar-delivery', null, null, null, null, null] },
+  { n: 5, name: 'Zone 5 · Beyond', blurb: 'Ultra difficulty, out past the Earth — for players who have played every Zone 4 game. Vault of Stars is this zone\'s Legends game.',
+    legendGame: 'vault-of-stars',
+    slots: ['lunar-delivery', null, null, null, null, 'vault-of-stars'] },
 ];
 
 /** Icon for each zone's prize (a Golden Egg — see eggs.js for the full artwork). */
 export const crownIcon = () => '🥚';
-/** Zones that have a Legends game yet (The Golden Crown = the egg of every one of these). */
+/** Zones that have a Legends game yet (each one hides a Golden Egg). */
 export const legendZones = () => ZONES.filter((z) => z.legendGame);
+/** The Golden Crown is the first four eggs (Zones 1–4) and never changes, so adding a zone never
+ *  takes it away from anyone. Every Legends game after that adds one jewel to the crown instead. */
+export const CROWN_EGGS = 4;
+export const crownZones = () => legendZones().filter((z) => z.n <= CROWN_EGGS);
+export const jewelZones = () => legendZones().filter((z) => z.n > CROWN_EGGS);
 
 /** Every slot in order: { n, zone, tier, legendSlot, game|null } */
 export const SLOTS = ZONES.flatMap((z) => z.slots.map((id, i) => {

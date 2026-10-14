@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <radialGradient id="neb" cx=".75" cy=".2" r=".9"><stop offset="0" stop-color="#4c1d95" stop-opacity=".55"/><stop offset="1" stop-color="#04060f" stop-opacity="0"/></radialGradient>
+    <radialGradient id="beacon" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fde68a"/><stop offset=".45" stop-color="#6ee7b7" stop-opacity=".45"/><stop offset="1" stop-color="#6ee7b7" stop-opacity="0"/></radialGradient>
+    <radialGradient id="drone" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fb923c" stop-opacity=".55"/><stop offset="1" stop-color="#fb923c" stop-opacity="0"/></radialGradient>
+    <pattern id="floor" width="20" height="20" patternUnits="userSpaceOnUse"><rect width="20" height="20" fill="#0d1028"/><rect x="1.5" y="1.5" width="17" height="17" fill="none" stroke="#fff" stroke-opacity=".05"/></pattern>
+  </defs>
+  <rect width="200" height="200" fill="#04060f"/>
+  <rect width="200" height="200" fill="url(#neb)"/>
+  <g fill="#fff"><circle cx="14" cy="18" r=".9"/><circle cx="182" cy="30" r="1.2"/><circle cx="168" cy="176" r=".8"/><circle cx="26" cy="182" r="1"/><circle cx="104" cy="10" r=".8"/></g>
+  <!-- vault floor -->
+  <rect x="20" y="20" width="160" height="160" fill="url(#floor)"/>
+  <!-- walls (lit edges) -->
+  <g fill="#33337a" stroke="#818cf8" stroke-opacity=".6" stroke-width="1.5">
+    <rect x="20" y="20" width="160" height="12"/><rect x="20" y="168" width="160" height="12"/>
+    <rect x="20" y="20" width="12" height="160"/><rect x="168" y="20" width="12" height="160"/>
+    <rect x="52" y="52" width="96" height="10"/><rect x="52" y="138" width="96" height="10"/>
+    <rect x="52" y="52" width="10" height="96"/><rect x="138" y="52" width="10" height="44"/><rect x="138" y="114" width="10" height="34"/>
+  </g>
+  <!-- drift field -->
+  <g stroke="#a5b4fc" stroke-opacity=".5" stroke-width="1.4"><path d="M72 78l6-5M88 92l6-5M118 76l6-5M76 120l6-5M112 124l6-5"/></g>
+  <!-- laser grid across the gap -->
+  <g stroke="#ef4444" stroke-linecap="round">
+    <path d="M141 98v14M145 98v14" stroke-width="5" stroke-opacity=".3"/>
+    <path d="M141 98v14M145 98v14" stroke-width="1.6" stroke="#fee2e2">
+      <animate attributeName="stroke-opacity" values="1;1;0;0;1" dur="1.6s" repeatCount="indefinite"/>
+    </path>
+  </g>
+  <!-- the beacon -->
+  <circle cx="100" cy="100" r="30" fill="url(#beacon)">
+    <animate attributeName="r" values="26;32;26" dur="2.4s" repeatCount="indefinite"/>
+  </circle>
+  <path d="M100 88l3.5 7.5 8.2.8-6.2 5.4 1.9 8.1-7.4-4.3-7.4 4.3 1.9-8.1-6.2-5.4 8.2-.8z" fill="#fde047" stroke="#fffbeb" stroke-width=".8"/>
+  <!-- sentry drone on patrol -->
+  <g>
+    <animateTransform attributeName="transform" type="translate" values="0 0;84 0;0 0" dur="5s" repeatCount="indefinite"/>
+    <circle cx="48" cy="42" r="14" fill="url(#drone)"/>
+    <circle cx="48" cy="42" r="7.5" fill="#1f2937" stroke="#f59e0b" stroke-width="1.6"/>
+    <circle cx="50" cy="42" r="2.6" fill="#ef4444"/>
+  </g>
+  <!-- key card -->
+  <rect x="152" y="150" width="14" height="10" rx="2" fill="#f59e0b"/><rect x="154" y="152" width="5" height="2" fill="#0f172a"/>
+  <!-- astronaut -->
+  <circle cx="42" cy="152" r="13" fill="#38bdf8" opacity=".25"/>
+  <rect x="35" y="146" width="10" height="11" rx="3" fill="#94a3b8"/>
+  <circle cx="43" cy="152" r="7.5" fill="#e2e8f0" stroke="#94a3b8" stroke-width="1.2"/>
+  <ellipse cx="46.5" cy="152" rx="3" ry="5" fill="#38bdf8"/>
+  <!-- airlock -->
+  <circle cx="156" cy="42" r="8" fill="none" stroke="#4ade80" stroke-width="2.5"/>
+  <circle cx="156" cy="42" r="14" fill="#4ade80" opacity=".15"/>
+</svg>

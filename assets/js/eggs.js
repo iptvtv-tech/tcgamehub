@@ -1,12 +1,15 @@
 // ─────────────────────────────────────────────────────────────
 //  The Golden Eggs (one per zone's Legends game) and the Golden Crown
-//  (all four eggs — the crown's jewels match them: diamonds, sapphires, amethysts, rubies). Drawn as inline SVG so they stay crisp at any size.
+//  (the four eggs of Zones 1–4 — the crown's jewels match them: diamonds, sapphires, amethysts, rubies).
+//  Every egg after that adds a star-cut jewel in its own colour to the top of the crown.
+//  Drawn as inline SVG so they stay crisp at any size.
 // ─────────────────────────────────────────────────────────────
 export const EGGS = {
   1: { name: 'Golden Vault Egg', short: 'Vault Egg', jewel: '#e0f2fe', jewel2: '#67e8f9', band: 'diamonds' },
   2: { name: 'Golden Heist Egg', short: 'Heist Egg', jewel: '#60a5fa', jewel2: '#1d4ed8', band: 'sapphires' },
   3: { name: 'Golden Crypt Egg', short: 'Crypt Egg', jewel: '#c084fc', jewel2: '#6b21a8', band: 'amethysts' },
   4: { name: 'Golden Throne Egg', short: 'Throne Egg', jewel: '#fca5a5', jewel2: '#b91c1c', band: 'rubies' },
+  5: { name: 'Golden Beacon Egg', short: 'Beacon Egg', jewel: '#6ee7b7', jewel2: '#047857', band: 'star emeralds' },
 };
 export const eggName = (n) => EGGS[n]?.name || `Zone ${n} Egg`;
 
@@ -29,8 +32,10 @@ export function eggSVG(n, { size = 64, won = true, title = '' } = {}) {
       ? `<path d="M${x} ${y - 6} l5 6 -5 6 -5 -6z" fill="url(#${id}j)" stroke="#fff" stroke-width=".8"/>`
       : `<circle cx="${x}" cy="${y}" r="${i === 2 ? 6 : 4.5}" fill="url(#${id}j)" stroke="#fde68a" stroke-width="1.2"/>`;
   }).join('');
-  // a little motif on top: Zone 1 a keyhole, Zone 2 a mask, Zone 3 a skull, Zone 4 a throne
-  const motif = n === 4
+  // a little motif on top: Zone 1 a keyhole, Zone 2 a mask, Zone 3 a skull, Zone 4 a throne, Zone 5 a ringed moon and its beacon star
+  const motif = n === 5
+    ? `<ellipse cx="50" cy="42" rx="17" ry="5" fill="none" stroke="#065f46" stroke-width="2.2" transform="rotate(-14 50 42)"/><circle cx="50" cy="42" r="9" fill="#065f46"/><circle cx="47" cy="39" r="2.4" fill="#6ee7b7" opacity=".8"/><path d="M50 18 l2 5 5 .4 -4 3.2 1.4 5 -4.4 -2.8 -4.4 2.8 1.4 -5 -4 -3.2 5 -.4z" fill="#fef3c7" stroke="#065f46" stroke-width=".8"/>`
+    : n === 4
     ? `<path d="M40 30 h20 v16 h3 v12 h-4 v-6 h-18 v6 h-4 v-12 h3z" fill="#7f1d1d"/><path d="M43 33 h14 v11 h-14z" fill="#dc2626"/><path d="M41 30 l3 -5 3 5 3 -6 3 6 3 -5 3 5" fill="none" stroke="#7f1d1d" stroke-width="1.6"/>`
     : n === 1
     ? `<circle cx="50" cy="40" r="6" fill="#78350f"/><path d="M47 42 h6 l2 12 h-10z" fill="#78350f"/>`
@@ -52,9 +57,22 @@ export function eggSVG(n, { size = 64, won = true, title = '' } = {}) {
   </svg>`;
 }
 
-/** The Golden Crown (for holders of every egg). */
-export function crownSVG({ size = 240, cls = '' } = {}) {
+// Where the extra jewels sit (the egg of Zone 5 first, then 6, 7…): above the centre, then out along the band.
+const JEWEL_SPOTS = [[120, 64], [42, 116], [198, 116], [94, 104], [146, 104], [120, 42]];
+const jewelStar = (x, y, r, fill) => {
+  let d = '';
+  for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.45 : r; d += `${i ? 'L' : 'M'}${(x + Math.cos(a) * rr).toFixed(1)} ${(y + Math.sin(a) * rr).toFixed(1)}`; }
+  return `<path d="${d}Z" fill="${fill}" stroke="#fef3c7" stroke-width="1.6" stroke-linejoin="round"/>`;
+};
+
+/** The Golden Crown (for holders of the four eggs of Zones 1–4).
+ *  jewels: zone numbers of the eggs won beyond that (Legends.jewels()) — each adds a star jewel. */
+export function crownSVG({ size = 240, cls = '', jewels = [] } = {}) {
   const id = `crown_${++uid}`;
+  const extra = jewels.slice(0, JEWEL_SPOTS.length).map((n, i) => {
+    const e = EGGS[n] || EGGS[1], [x, y] = JEWEL_SPOTS[i];
+    return `<radialGradient id="${id}x${i}" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#fff"/><stop offset=".35" stop-color="${e.jewel}"/><stop offset="1" stop-color="${e.jewel2}"/></radialGradient>${jewelStar(x, y, i ? 9 : 13, `url(#${id}x${i})`)}`;
+  }).join('');
   return `<svg class="crown-svg ${cls}" viewBox="0 0 240 180" width="${size}" height="${Math.round(size * 0.75)}" role="img" aria-label="The Golden Crown">
     <defs>
       <linearGradient id="${id}g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fffbea"/><stop offset=".3" stop-color="#fde68a"/><stop offset=".7" stop-color="#f59e0b"/><stop offset="1" stop-color="#92400e"/></linearGradient>
@@ -72,5 +90,6 @@ export function crownSVG({ size = 240, cls = '' } = {}) {
     <path d="M66 112 l6 9 -6 9 -6 -9z" fill="url(#${id}b)"/><path d="M174 112 l6 9 -6 9 -6 -9z" fill="url(#${id}p)"/>
     <path d="M40 136 Q120 120 200 136" stroke="#fef3c7" stroke-width="2" fill="none" opacity=".7"/>
     <text x="120" y="176" text-anchor="middle" font-size="9" font-weight="800" fill="#78350f" font-family="system-ui" letter-spacing="2">TC LEGENDS</text>
+    ${extra}
   </svg>`;
 }

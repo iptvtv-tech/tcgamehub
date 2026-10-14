@@ -11,5 +11,16 @@ insert into public.games (id, title, max_points_per_second)
 values ('lunar-delivery', 'Lunar Delivery 3D', 8000)
 on conflict (id) do update set title = excluded.title, max_points_per_second = excluded.max_points_per_second;
 
--- Check: one row should come back.
-select id, title, max_points_per_second from public.games where id in ('lunar-delivery');
+-- Game 30 · Vault of Stars — Zone 5's Legends game. Joins the leaderboard and lets
+-- a flawless run sign the Hall of Legends (claim_legend_v2 checks has_legend).
+-- legend_min_ms: the fastest possible run through all 16 vaults is about 2 minutes of play
+-- (vaults/check.mjs), so a Legend claim faster than 90 seconds is refused.
+alter table public.games add column if not exists has_legend boolean not null default false;
+alter table public.games add column if not exists legend_min_ms integer not null default 90000;
+insert into public.games (id, title, max_points_per_second, has_legend, legend_min_ms)
+values ('vault-of-stars', 'Vault of Stars', 3000, true, 90000)
+on conflict (id) do update set title = excluded.title, max_points_per_second = excluded.max_points_per_second,
+  has_legend = excluded.has_legend, legend_min_ms = excluded.legend_min_ms;
+
+-- Check: two rows should come back.
+select id, title, max_points_per_second, has_legend, legend_min_ms from public.games where id in ('lunar-delivery', 'vault-of-stars');

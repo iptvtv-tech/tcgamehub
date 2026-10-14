@@ -101,6 +101,8 @@ Games are laid out in `ZONES` in `assets/js/games.js` (6 per zone, difficulty ri
 
 A zone opens once every game in the zone before it has been played. The zone's crown unlocks the golden characters of its 6 games (and a `crownN` badge — add it to `GLOBAL_ACHIEVEMENTS`).
 
+The Golden Crown is the eggs of Zones 1–4 and never changes (`CROWN_EGGS` in games.js). The egg of every later zone adds a jewel to the crown instead, so adding a zone never takes the crown away from anyone. Give each new egg an entry in `EGGS` (assets/js/eggs.js) — its jewel colours are used for the crown jewel too.
+
 ### 4e. (Optional) Open-world / day-based games
 Three optional `runGame({...})` settings for games that aren't built from separate levels (see TC Pixel Craft):
 
