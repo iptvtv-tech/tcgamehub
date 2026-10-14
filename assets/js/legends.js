@@ -13,7 +13,7 @@
 //  (Crown Heist, Zone 4's Legends game, is the one exception: its egg is won by carrying the
 //  crown out of all 15 floors, across as many sessions as it takes — a flawless run also opens
 //  its secret 16th floor.)
-//  Every egg (all four) → THE GOLDEN CROWN (badge "grand"): the hidden Crown Room page
+//  Every egg (all five) → THE GOLDEN CROWN (badge "grand"): the hidden Crown Room page
 //  (/crown-room/), a golden theme for the whole site, and a 👑 by your name on
 //  the leaderboards.
 //

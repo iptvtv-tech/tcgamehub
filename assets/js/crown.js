@@ -60,7 +60,7 @@ function open() {
           <p class="muted small">A picture of your Golden Crown with your name on it — save it or share it.</p>
           <img class="cert-preview" alt="Golden Crown certificate" hidden>
           <p><button class="btn gold-btn" data-cert>🖼️ Make my certificate</button>
-          <a class="btn wa" href="${whatsappLink(`👑 I won the Golden Crown at ${location.origin}/ — all four Golden Eggs. Can you?`)}" target="_blank" rel="noopener">${WA_ICON} Share</a></p>
+          <a class="btn wa" href="${whatsappLink(`👑 I won the Golden Crown at ${location.origin}/ — all five Golden Eggs. Can you?`)}" target="_blank" rel="noopener">${WA_ICON} Share</a></p>
         </section>
       </div>
     </div>`;

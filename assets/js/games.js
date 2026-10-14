@@ -504,6 +504,28 @@ export const GAMES = [
       { id: 'score10k', icon: '🏅', title: 'Ten Grand',       desc: 'Score 10,000 in one run' },
     ],
   },
+  {
+    id: 'vault-of-stars',
+    gold: 'Golden Astronaut',       // golden character unlocked by the Zone 5 egg
+    title: 'Vault of Stars',
+    tagline: 'An ancient alien moon hides fifteen sealed vaults. Navigate laser grids, dodge sentry drones, collect relics — and reach the airlock before your oxygen runs out.',
+    controls: 'Move: ↑/↓/←/→ or WASD (touch: D-pad)',
+    color: '#38bdf8',
+    legend: true,                   // Zone 5's Legends game
+    legendLore: 'Something beyond the stars left this here. For the one who could reach it without losing a step.',
+    legendHow: 'Complete all 15 vaults of Vault of Stars without losing a single life — a hidden vault opens for those who never fall.',
+    achievements: [
+      { id: 'first_contact', icon: '👾', title: 'First Contact',      desc: 'Complete Vault 1' },
+      { id: 'relic_hunter',  icon: '🛸', title: 'Relic Hunter',       desc: 'Collect every relic in a single run' },
+      { id: 'ghost_protocol',icon: '👻', title: 'Ghost Protocol',     desc: 'Complete vault 3 or later without triggering a drone alarm' },
+      { id: 'speed_of_light',icon: '⚡', title: 'Speed of Light',     desc: 'Clear a vault under 30 seconds' },
+      { id: 'blackout',      icon: '🌑', title: 'Blackout Survivor',  desc: 'Survive a power-outage vault without touching a drone' },
+      { id: 'zero_g',        icon: '🌀', title: 'Zero-G Master',      desc: 'Use 5 drift tiles in one vault without losing a life' },
+      { id: 'level10',       icon: '🔭', title: 'Deep Space',         desc: 'Reach vault 10' },
+      { id: 'beacon',        icon: '⭐', title: 'The Signal Room',    desc: 'Find the hidden vault 16 and reach the Golden Beacon', legendary: true, secret: true },
+      { id: 'flawless',      icon: '🪐', title: 'Flawless Explorer',  desc: 'Complete all 15 vaults without losing a single life', legendary: true, secret: true },
+    ],
+  },
 ];
 
 // Badges that any game can earn (unlocked automatically by the engine).
@@ -524,8 +546,9 @@ export const GLOBAL_ACHIEVEMENTS = [
   { id: 'crown1',  icon: '🥚', title: 'Golden Vault Egg', desc: 'Win Zone 1\'s Legends game perfectly — unlocks the golden characters in games 1–6', legendary: true, secret: true },
   { id: 'crown2',  icon: '🥚', title: 'Golden Heist Egg', desc: 'Win Zone 2\'s Legends game perfectly — unlocks the golden characters in games 7–12', legendary: true, secret: true },
   { id: 'crown3',  icon: '🥚', title: 'Golden Crypt Egg', desc: 'Win Zone 3\'s Legends game perfectly — unlocks the golden characters in games 13–18', legendary: true, secret: true },
-  { id: 'crown4',  icon: '🥚', title: 'Golden Throne Egg', desc: 'Carry the crown out of all 15 floors of Crown Heist — unlocks the golden characters in games 19–24', legendary: true, secret: true },
-  { id: 'grand',   icon: '👑', title: 'The Golden Crown', desc: 'Collect all four Golden Eggs — opens the Crown Room', legendary: true, secret: true },
+  { id: 'crown4',  icon: '🥚', title: 'Golden Throne Egg',  desc: 'Carry the crown out of all 15 floors of Crown Heist — unlocks the golden characters in games 19–24', legendary: true, secret: true },
+  { id: 'crown5',  icon: '🥚', title: 'Golden Beacon Egg',  desc: 'Complete all 15 vaults of Vault of Stars without losing a life — unlocks the golden characters in games 25–30', legendary: true, secret: true },
+  { id: 'grand',   icon: '👑', title: 'The Golden Crown',   desc: 'Collect all five Golden Eggs — opens the Crown Room', legendary: true, secret: true },
 ];
 
 // ── Difficulty tiers & zones ─────────────────────────────────
@@ -556,8 +579,9 @@ export const ZONES = [
   { n: 4, name: 'Zone 4 · Ultra', blurb: 'Ultra difficulty — for players who have played every Zone 3 game. Crown Heist 3D is this zone\'s Legends game.',
     legendGame: 'crown-heist',
     slots: ['tc-pixel-craft', 'dungeon-escape', 'neon-drift', 'crystal-cascade', 'void-breaker', 'crown-heist'] },
-  { n: 5, name: 'Zone 5 · Beyond', blurb: 'Ultra difficulty, out past the Earth — for players who have played every Zone 4 game.',
-    slots: ['lunar-delivery', null, null, null, null, null] },
+  { n: 5, name: 'Zone 5 · Beyond', blurb: 'Ultra difficulty, out past the Earth — for players who have played every Zone 4 game. Vault of Stars is this zone\'s Legends game.',
+    legendGame: 'vault-of-stars',
+    slots: ['lunar-delivery', null, null, null, null, 'vault-of-stars'] },
 ];
 
 /** Icon for each zone's prize (a Golden Egg — see eggs.js for the full artwork). */

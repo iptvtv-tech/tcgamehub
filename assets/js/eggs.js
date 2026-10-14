@@ -1,12 +1,13 @@
 // ─────────────────────────────────────────────────────────────
 //  The Golden Eggs (one per zone's Legends game) and the Golden Crown
-//  (all four eggs — the crown's jewels match them: diamonds, sapphires, amethysts, rubies). Drawn as inline SVG so they stay crisp at any size.
+//  (all five eggs — the crown's jewels match them: diamonds, sapphires, amethysts, rubies, star sapphires). Drawn as inline SVG so they stay crisp at any size.
 // ─────────────────────────────────────────────────────────────
 export const EGGS = {
-  1: { name: 'Golden Vault Egg', short: 'Vault Egg', jewel: '#e0f2fe', jewel2: '#67e8f9', band: 'diamonds' },
-  2: { name: 'Golden Heist Egg', short: 'Heist Egg', jewel: '#60a5fa', jewel2: '#1d4ed8', band: 'sapphires' },
-  3: { name: 'Golden Crypt Egg', short: 'Crypt Egg', jewel: '#c084fc', jewel2: '#6b21a8', band: 'amethysts' },
-  4: { name: 'Golden Throne Egg', short: 'Throne Egg', jewel: '#fca5a5', jewel2: '#b91c1c', band: 'rubies' },
+  1: { name: 'Golden Vault Egg',   short: 'Vault Egg',   jewel: '#e0f2fe', jewel2: '#67e8f9', band: 'diamonds' },
+  2: { name: 'Golden Heist Egg',   short: 'Heist Egg',   jewel: '#60a5fa', jewel2: '#1d4ed8', band: 'sapphires' },
+  3: { name: 'Golden Crypt Egg',   short: 'Crypt Egg',   jewel: '#c084fc', jewel2: '#6b21a8', band: 'amethysts' },
+  4: { name: 'Golden Throne Egg',  short: 'Throne Egg',  jewel: '#fca5a5', jewel2: '#b91c1c', band: 'rubies' },
+  5: { name: 'Golden Beacon Egg',  short: 'Beacon Egg',  jewel: '#ddd6fe', jewel2: '#4c1d95', band: 'cosmic gems' },
 };
 export const eggName = (n) => EGGS[n]?.name || `Zone ${n} Egg`;
 
