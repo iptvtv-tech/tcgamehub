@@ -100,9 +100,9 @@ class DungeonEscape {
     }
     // ghouls start far from you
     this.ghouls = [];
-    const nG = Math.min(7, level === 1 ? 1 : 1 + Math.floor(level / 2));
+    const nG = Math.min(6, level <= 2 ? 1 : 1 + Math.floor(level / 2.5)); // slightly fewer ghouls (~20% reduction)
     for (let i = 0; i < nG; i++) { const c = r.pick(cells.filter((q) => q.d > Math.max(6, cells[cells.length - 1].d * 0.4))); this.ghouls.push(this.newGhoul(c)); }
-    this.fuelMax = Math.round(40 + n * n * 1.1);
+    this.fuelMax = Math.round(48 + n * n * 1.32); // ~20% more torch fuel
     this.fuel = this.fuelMax;
     this.placePlayer();
     this.setupLight();
@@ -302,7 +302,7 @@ class DungeonEscape {
 
     // ghouls
     let nearest = 99;
-    const gSpeed = Math.min(2.4, 1.35 + L * 0.07);
+    const gSpeed = Math.min(1.92, 1.08 + L * 0.056); // ~20% slower ghouls
     for (const g of this.ghouls) {
       if (g.stun > 0) { g.stun -= dt; continue; }
       const d = Math.hypot(g.x - p.x, g.y - p.y);

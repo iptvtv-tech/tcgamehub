@@ -38,8 +38,9 @@ const CALM = { bpm: 84, style: 'crypt', lead: 'triangle', arp: [0, 2, 1, 2, 0, 3
 const CHASE = { bpm: 148, style: 'chase', lead: 'sawtooth', arp: [0, 1, 2, 3, 2, 1, 0, 1], oct: [12, 24, 12, 24, 12, 24, 12, 24], bass: 'drive' };
 
 const GUARD = {
-  skeleton: { walk: 1.0, alert: 1.35, run: 1.85, range: 4.6, cone: 0.55, light: [1.15, 0.6, 0.24], rad: 4.4 },
-  knight:   { walk: 1.15, alert: 1.55, run: 2.45, range: 5.6, cone: 0.6, light: [1.3, 0.85, 0.35], rad: 5.0 },
+  // speeds reduced ~20%, detection range reduced ~10% for a gentler difficulty curve
+  skeleton: { walk: 0.80, alert: 1.08, run: 1.48, range: 4.1, cone: 0.55, light: [1.15, 0.6, 0.24], rad: 4.4 },
+  knight:   { walk: 0.92, alert: 1.24, run: 1.96, range: 5.0, cone: 0.6,  light: [1.3, 0.85, 0.35], rad: 5.0 },
 };
 
 runGame({
@@ -527,7 +528,7 @@ class CrownHeist {
   canSee(g) {
     const p = this.p, T = GUARD[g.kind], dx = p.x - g.x, dy = p.y - g.y, d = Math.hypot(dx, dy);
     if (this.hidden) return d < 0.8;
-    const range = T.range + (g.alert ? 1.2 : 0) + (this.has ? 1.5 : 0);
+    const range = T.range + (g.alert ? 1.2 : 0) + (this.has ? 1.0 : 0); // crown-carry range bonus reduced (was 1.5)
     if (d > range) return false;
     if (d > 1.15 && Math.abs(angDiff(Math.atan2(dy, dx), g.a)) > T.cone + (g.alert ? 0.15 : 0)) return false;
     return this.lineClear(g.x, g.y, p.x, p.y);
@@ -544,7 +545,7 @@ class CrownHeist {
       const seen = this.canSee(g), d = Math.hypot(p.x - g.x, p.y - g.y);
       if (seen) {
         g.seeT = 0; g.last = [p.x, p.y];
-        const rate = (1 / (0.42 + d * 0.13)) * (g.alert ? 1.6 : 1) * (this.has ? 1.35 : 1) * (this.moving ? 1 : 0.6);
+        const rate = (1 / (0.42 + d * 0.13)) * (g.alert ? 1.6 : 1) * (this.has ? 1.10 : 1) * (this.moving ? 1 : 0.6); // crown suspicion multiplier eased (was 1.35)
         if (g.state !== 'chase') g.sus = Math.min(1, g.sus + rate * dt);
       } else {
         g.seeT += dt;

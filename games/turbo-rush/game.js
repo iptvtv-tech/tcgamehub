@@ -353,7 +353,7 @@ class TurboRush {
     this.ghostRun = bonus ? null : loadGhost(s.mode || 'normal', level);
     this.ghost = this.ghostRun ? { ghost: true, z: 0, x: 0, w: 0.35 * CW, kind: 'sports', color: '#e0f2fe' } : null;
     this.ghostDelta = null;
-    const avg = Math.min(0.76, 0.62 + level * 0.01);            // average speed the clock expects (fraction of top speed)
+    const avg = Math.min(0.61, 0.50 + level * 0.01);            // average speed the clock expects (fraction of top speed) — tuned down ~20% for a gentler time limit
     this.timeMax = bonus ? 0 : Math.round(this.finishZ / (this.maxSpeed * avg) + 3 + (this.closures.length ? 2 : 0));
     this.timeLeft = this.timeMax;
     this.done = false;
@@ -469,7 +469,7 @@ class TurboRush {
 
   buildTraffic(r) {
     const L = this.level, cars = [];
-    const gap = Math.max(12, 30 - L * 1.5);                      // segments between cars (on average)
+    const gap = Math.max(15, 36 - L * 1.5);                      // segments between cars (on average) — widened ~20% for lighter traffic
     let pairGap = 0;
     const kindFor = (truck) => (truck ? 'truck' : r.chance(0.25) ? 'suv' : r.chance(0.15) ? 'sports' : 'sedan');
     const pickLane = (z, avoid = -1) => {
@@ -486,7 +486,7 @@ class TurboRush {
       cars.push({
         z: i * SEG, x: LANES[lane], lane, truck, kind,
         w: (truck ? 0.5 : kind === 'suv' ? 0.37 : 0.36) * CW,
-        speed: this.maxSpeed * (truck ? r.range(0.2, 0.3) : r.range(0.28, 0.5 + Math.min(0.15, L * 0.01))),
+        speed: this.maxSpeed * (truck ? r.range(0.16, 0.24) : r.range(0.22, 0.40 + Math.min(0.12, L * 0.008))),
         color: r.pick(CAR_COLS),
         changer: !truck && L >= 7 && r.chance(Math.min(0.35, 0.12 + (L - 7) * 0.03)),
         blink: 0, nextChange: r.range(1.5, 4), scored: false, ahead: true,

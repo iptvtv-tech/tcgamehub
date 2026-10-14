@@ -49,7 +49,7 @@ const STEP = 24;                     // track sample spacing (world units)
 const RUNOFF = 34;                   // run-off strip between the track edge and the wall
 const WALL_H = 22;
 const CAR_U = 15;                    // world units per car-model unit (car ≈ 30 wide, 58 long)
-const BOT_EASE = 0.97;                // rivals' top speed scale (dialled back ~10% overall with the catch-up and boost odds)
+const BOT_EASE = 0.78;                // rivals' top speed scale — reduced ~20% for a gentler challenge
 const CAR_R = 22;                    // collision radius
 const CAR_HALF = SPORTS.len * CAR_U / 2;
 const LAPS = 3;
@@ -57,7 +57,7 @@ const PLACES = ['1st', '2nd', '3rd', '4th', '5th', '6th'];
 const wrapA = (a) => ((a + Math.PI) % TAU + TAU) % TAU - Math.PI;
 const mod = (a, n) => ((a % n) + n) % n;
 const isBoss = (l) => l % 5 === 0;
-const need = (l) => (isBoss(l) ? 1 : l <= 2 ? 3 : l <= 6 ? 2 : 1);
+const need = (l) => (isBoss(l) ? 1 : l <= 2 ? 3 : l <= 8 ? 2 : 1); // top 2 qualifying extended to level 8
 const isIce = (l) => l >= 9 && l % 5 === 4;
 const BONUS_LEVELS = Array.from({ length: 400 }, (_, i) => 3 + i * 5);   // ★ Coin Rush: 3, 8, 13 …
 const needText = (l) => (need(l) === 1 ? 'Win the race.' : `Top ${need(l)} to qualify.`);
@@ -122,8 +122,8 @@ runGame({
     : l === 1 ? 'Finish in the top 3. Hold a turn at full speed to DRIFT — drifting charges your ⚡ BOOST: fire it with ↑ / W or the BOOST button. Drift into a rival to spin them out!'
     : isBoss(l) ? `One lap, one on one — beat ${bossFor(l).name} to the line! ${bossFor(l).intro}`
     : l === 2 ? 'Oil on a corner! Hit it and you spin out — tighten your line. Top 3 to qualify.'
-    : l === 4 ? 'Tighter track and ⚡ boost pads — only the top 2 qualify now. A BOSS waits on level 5!'
-    : l === 7 ? 'From here on, ONLY A WIN COUNTS.'
+    : l === 4 ? 'Tighter track and ⚡ boost pads. Top 2 to qualify. A BOSS waits on level 5!'
+    : l === 9 ? 'From here on, ONLY A WIN COUNTS.'
     : isIce(l) ? `BLACK ICE — less grip everywhere! ${needText(l)}`
     : `Faster rivals, tighter turns. ${needText(l)}`,
   create: (shell) => new NeonDrift(shell),

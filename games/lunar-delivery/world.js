@@ -45,12 +45,12 @@ export const PHYS = {
   THRUST: 5.6,       // main engine (m/s² on the empty hopper)
   CABLE: 7,          // tow cable length (m)
   FEET: 1.9,         // hopper centre to feet
-  BURN: 2.3,         // fuel % per second of thrust at level 1
+  BURN: 1.85,        // fuel % per second of thrust at level 1 — reduced ~20% for more forgiving runs
   REFUEL: 30,        // % per second while landed on a pad
-  CAN: 35,           // a fuel canister
-  SAFE_VY: 3.4,      // fastest safe touchdown (m/s down)
-  SAFE_VH: 4.5,      // fastest safe sideways touchdown
-  DROP_V: 2.2,       // the crate must be this slow to count as set down
+  CAN: 42,           // a fuel canister — bumped from 35 for a ~20% fuel bonus
+  SAFE_VY: 4.0,      // fastest safe touchdown (m/s down) — raised from 3.4 (~18% more forgiving)
+  SAFE_VH: 5.4,      // fastest safe sideways touchdown — raised from 4.5 (20% more forgiving)
+  DROP_V: 2.6,       // the crate must be this slow to count as set down — raised from 2.2
 };
 export const burnFor = (level) => PHYS.BURN * Math.min(1.35, 1 + 0.022 * (level - 1)) * (level >= 3 ? 1.08 : 1);
 

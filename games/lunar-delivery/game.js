@@ -27,7 +27,7 @@ const MAX_TILT = 0.42, ROLL_TILT = 0.3;
 const CRATES = {
   normal:  { name: 'CARGO',   mass: 0.5, safe: 2.6, col: [0.62, 0.2, 0.035], frame: [0.22, 0.22, 0.25] },
   heavy:   { name: 'HEAVY',   mass: 0.9, safe: 2.9, col: [0.36, 0.38, 0.43], frame: [0.95, 0.75, 0.18] },
-  fragile: { name: 'FRAGILE', mass: 0.4, safe: 1.5, col: [0.45, 0.85, 1.0],  frame: [0.85, 0.9, 0.95], alpha: 0.72 },
+  fragile: { name: 'FRAGILE', mass: 0.4, safe: 1.8, col: [0.45, 0.85, 1.0],  frame: [0.85, 0.9, 0.95], alpha: 0.72 }, // safe speed raised from 1.5 (~20% more forgiving)
 };
 const sm = (a, b, k) => a + (b - a) * k;
 
@@ -120,7 +120,7 @@ class LunarDelivery {
     this.shade = sunShade(this.W, this.sunDir);
     this.gl?.setWorld(this.W, this.shade);
     this.burn = burnFor(level);
-    this.meteorRate = level >= 6 && !bonus ? Math.max(2.4, 8.5 / s.speed(0.06)) : 0;
+    this.meteorRate = level >= 6 && !bonus ? Math.max(3.0, 10.5 / s.speed(0.06)) : 0; // fewer meteors (~20% longer gap between showers)
     this.leg = 0; this.legs = bonus ? 0 : this.W.pads.length - 1;
     this.delivered = [];               // crates sitting on pads (decoration)
     this.dustGot = 0; this.dustTotal = this.W.dust.length; this.stormStars = 0;

@@ -1,10 +1,10 @@
 // Crypt of Crowns — the hand-built crypts. See sim.js for the map key.
-// par: seconds to beat for a time bonus (about twice the solver's perfect run).
+// par: seconds to beat for a time bonus (about twice the solver's perfect run) — raised ~20% across the board.
 // dir: which way you face at the start (0 E, 1 S, 2 W, 3 N). skel: ticks per skeleton step (lower = faster).
 export const LEVELS = [];
 const L = (n, def) => { LEVELS[n] = def; };
 
-L(1, { par: 26, name: 'The Entry Hall', dir: 0,
+L(1, { par: 31, name: 'The Entry Hall', dir: 0,
   tip: 'Find the 🔑 key and open the gold door. Cracked walls hide secrets — face one and SEARCH (Space).',
   map: [
     '###########',
@@ -18,7 +18,7 @@ L(1, { par: 26, name: 'The Entry Hall', dir: 0,
     '###########',
   ] });
 
-L(2, { par: 30, name: 'The Gatehouse', dir: 0,
+L(2, { par: 36, name: 'The Gatehouse', dir: 0,
   tip: 'Walk into a lever to pull it — it works the iron gates.',
   map: [
     '#############',
@@ -32,7 +32,7 @@ L(2, { par: 30, name: 'The Gatehouse', dir: 0,
     '#############',
   ] });
 
-L(3, { par: 29, name: 'Bone Patrol', dir: 1,
+L(3, { par: 35, name: 'Bone Patrol', dir: 1,
   tip: 'A skeleton guards the hall. It walks the same beat forever — watch it, then time your move.',
   map: [
     '#############',
@@ -46,7 +46,7 @@ L(3, { par: 29, name: 'Bone Patrol', dir: 1,
     '#############',
   ] });
 
-L(4, { par: 26, name: 'Spike Walk', dir: 1, spikePhase: (x) => (48 - 2 * x) % 24,
+L(4, { par: 31, name: 'Spike Walk', dir: 1, spikePhase: (x) => (48 - 2 * x) % 24,
   tip: 'Spike traps rise and fall on a beat. Cross while they are down.',
   map: [
     '#############',
@@ -73,7 +73,7 @@ L(5, { bonus: true, name: 'The Gold Room', dir: 3,
     '#############',
   ] });
 
-L(6, { par: 36, name: 'The Blue Door', dir: 0,
+L(6, { par: 43, name: 'The Blue Door', dir: 0,
   tip: 'Blue keys open blue doors. The gold key is further in…',
   map: [
     '###############',
@@ -89,7 +89,7 @@ L(6, { par: 36, name: 'The Blue Door', dir: 0,
     '###############',
   ] });
 
-L(7, { par: 37, name: 'Two Levers', dir: 0,
+L(7, { par: 44, name: 'Two Levers', dir: 0,
   tip: 'Some gates open when you pull a lever… and some close. Think before you pull.',
   map: [
     '#########M#####',
@@ -103,7 +103,7 @@ L(7, { par: 37, name: 'Two Levers', dir: 0,
     '###############',
   ] });
 
-L(8, { par: 37, name: 'The Long Hall', dir: 1,
+L(8, { par: 44, name: 'The Long Hall', dir: 1,
   tip: 'Four patrols cross the hall. Wait in the gaps between them.',
   map: [
     '#################',
@@ -117,7 +117,7 @@ L(8, { par: 37, name: 'The Long Hall', dir: 1,
     '#################',
   ] });
 
-L(9, { par: 29, name: 'Hidden Ways', dir: 0,
+L(9, { par: 35, name: 'Hidden Ways', dir: 0,
   tip: 'The way on is hidden. Look for cracks in the walls.',
   map: [
     '###############',
@@ -144,7 +144,7 @@ L(10, { bonus: true, name: 'The Bone Vault', dir: 3,
     '###############',
   ] });
 
-L(11, { par: 67, name: 'The Ossuary', dir: 0,
+L(11, { par: 80, name: 'The Ossuary', dir: 0,
   tip: 'Gold key, blue key, a lever — and the dead walk the bone road.',
   map: [
     '###############',
@@ -160,7 +160,7 @@ L(11, { par: 67, name: 'The Ossuary', dir: 0,
     '###############',
   ] });
 
-L(12, { par: 40, name: 'Spike Maze', dir: 0, spikePhase: (x, y) => (x * 7 + y * 11) % 24,
+L(12, { par: 48, name: 'Spike Maze', dir: 0, spikePhase: (x, y) => (x * 7 + y * 11) % 24,
   tip: 'A whole floor of traps, each on its own beat. Stop only on safe stone.',
   map: [
     '###############',
@@ -174,7 +174,7 @@ L(12, { par: 40, name: 'Spike Maze', dir: 0, spikePhase: (x, y) => (x * 7 + y * 
     '###############',
   ] });
 
-L(13, { par: 48, name: 'Lever Labyrinth', dir: 1,
+L(13, { par: 58, name: 'Lever Labyrinth', dir: 1,
   tip: 'Two levers, three gates, two colours of key. Plan your route.',
   map: [
     '########L########',
@@ -187,7 +187,7 @@ L(13, { par: 48, name: 'Lever Labyrinth', dir: 1,
     '#################',
   ] });
 
-L(14, { par: 36, name: "The Warden's Hall", dir: 0, skel: 4,
+L(14, { par: 43, name: "The Warden's Hall", dir: 0, skel: 4,
   tip: 'Faster patrols on every street. Find the gold key in the far corner.',
   map: [
     '#################',
@@ -203,7 +203,7 @@ L(14, { par: 36, name: "The Warden's Hall", dir: 0, skel: 4,
     '#################',
   ] });
 
-L(15, { par: 106, name: 'The Crown Door', dir: 1, skel: 4, spikePhase: (x, y) => (x * 5 + y * 9) % 24,
+L(15, { par: 127, name: 'The Crown Door', dir: 1, skel: 4, spikePhase: (x, y) => (x * 5 + y * 9) % 24,
   tip: 'The last crypt. Every trick you have learned — and one lever hidden in the dark.',
   map: [
     '###################',

@@ -47,7 +47,7 @@ export function parse(def) {
       const i0 = route.findIndex(([rx, ry]) => rx === x && ry === y), n = route.length;
       const cyc = Math.max(1, 2 * (n - 1));
       const k0 = n < 2 ? 0 : sign > 0 ? (i0 === n - 1 ? n - 1 : i0) : (i0 === 0 ? 0 : cyc - i0);
-      W.skels.push({ route, k0, cyc, sk: def.skel ?? 5 });
+      W.skels.push({ route, k0, cyc, sk: def.skel ? Math.round(def.skel * 1.25) : 6 }); // ~20% slower patrols
     }
   }
   // the world timetable repeats every P ticks
