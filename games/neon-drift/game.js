@@ -510,7 +510,8 @@ class NeonDrift {
     this.updateCamera(0);
     this.wheelTouch?.release();
   }
-  boostButton() { return { x: 10, y: H - 46, w: 100, h: 34 }; }
+  /** in touch-wheel mode BOOST sits above HANDBRAKE on the right (one thumb for both), VIEW goes bottom-left */
+  boostButton() { return this.wheelMode ? { x: W - 100, y: H - 86, w: 90, h: 32 } : { x: 10, y: H - 46, w: 100, h: 34 }; }
   /** fire the drift-charged boost: the whole meter goes in one burst (longer the fuller it was) */
   fireBoost() {
     const p = this.p, s = this.s;
@@ -576,8 +577,7 @@ class NeonDrift {
     if (this.s.gold) return mixHex('#f59e0b', '#fef08a', c);
     return c < 0.5 ? mixHex('#ff4fa3', '#a78bfa', c * 2) : mixHex('#a78bfa', '#22d3ee', (c - 0.5) * 2);
   }
-  /** in touch-wheel mode HANDBRAKE takes the bottom-right corner and VIEW sits just above it (under the drift gauge) */
-  viewButton() { return this.wheelMode ? { x: W - 100, y: H - 86, w: 90, h: 32 } : { x: W - 100, y: H - 46, w: 90, h: 34 }; }
+  viewButton() { return this.wheelMode ? { x: 10, y: H - 46, w: 90, h: 34 } : { x: W - 100, y: H - 46, w: 90, h: 34 }; }
   handButton() { return { x: W - 100, y: H - 46, w: 90, h: 34 }; }
   get wheelMode() { return this.wheelTouch.active; }
   tuneButtons() { return STATIONS.map((_, i) => ({ x: 52 + i * 128, y: 352, w: 120, h: 74 })); }

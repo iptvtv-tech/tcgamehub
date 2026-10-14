@@ -288,9 +288,10 @@ class TurboRush {
     this.cam.init = false;
     this.wheelTouch?.release();
   }
-  viewButton() { return { x: W - 92, y: H - 44, w: 84, h: 34 }; }
-  /** NITRO (hold) — only in touch-wheel mode, bottom-left, mirroring VIEW */
-  nitroButton() { return { x: 8, y: H - 92, w: 88, h: 82 }; }
+  /** in touch-wheel mode NITRO takes the bottom-right corner (the boosting thumb) and VIEW moves bottom-left */
+  viewButton() { return this.wheelMode ? { x: 8, y: H - 44, w: 84, h: 34 } : { x: W - 92, y: H - 44, w: 84, h: 34 }; }
+  /** NITRO (hold) — only in touch-wheel mode */
+  nitroButton() { return { x: W - 96, y: H - 92, w: 88, h: 82 }; }
   get wheelMode() { return this.wheelTouch.active; }
   onAction(a, x, y) {
     if (a === 'press') {
