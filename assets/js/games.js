@@ -3,9 +3,30 @@
 //  The home page, leaderboard, daily challenge and badges all read this list.
 //  See docs/ADDING_A_GAME.md.
 // ─────────────────────────────────────────────────────────────
+// Genres: the "browse by genre" pages (/games/<id>/) and the genre pills on cards.
+// A game lists one or more genre ids in `genres` (first one is its main genre). Keep ids lowercase.
+// A genre only gets its own page once at least two games use it. '3d' and 'legends' come from the
+// is3d / legend flags and need not be listed.
+export const GENRES = [
+  { id: 'arcade',    label: 'Arcade',           blurb: 'Quick classics you can learn in a minute: snake, brick breakers, stacking, pinball and reflex games. The pace climbs every level.' },
+  { id: 'action',    label: 'Action',           blurb: 'Fast games about reflexes and timing. Levels get a little quicker each time, with a bonus round every fifth level.' },
+  { id: 'puzzle',    label: 'Puzzle',           blurb: 'Think before you move: sliding snakes, heist plans, bubble boards and sealed vaults with a par time to beat.' },
+  { id: 'shooter',   label: 'Shooter',          blurb: 'Asteroids, alien fleets, star corridors and arena waves. Hold to fire, grab power-ups and take down the bosses.' },
+  { id: 'racing',    label: 'Racing & driving', blurb: 'From the driver\'s seat: beat the clock, chain drifts, slipstream rivals — and deliver an egg in one piece.' },
+  { id: 'space',     label: 'Space',            blurb: 'Starfighters, moon hoppers and alien vaults. Everything set beyond the Earth.' },
+  { id: 'stealth',   label: 'Stealth',          blurb: 'Dodge guards, cameras and torch cones; grab the loot and get out. Three of the five Legends games live here.' },
+  { id: 'adventure', label: '3D adventure',     blurb: 'First-person crypts, mazes, vaults and an open block world — explore, find keys and survive.' },
+  { id: 'snake',     label: 'Snake',            blurb: 'Two takes on the classic: a neon arcade snake, and a sliding-snake puzzle.' },
+  { id: 'sports',    label: 'Sports',           blurb: 'Crazy golf, for now. More to come.' },
+  { id: 'music',     label: 'Rhythm',           blurb: 'Hit the notes on the beat and play the tune.' },
+  { id: 'survival',  label: 'Survival',         blurb: 'Craft, build and last the night.' },
+];
+export const genreById = (id) => GENRES.find((g) => g.id === id);
+
 export const GAMES = [
   {
     id: 'neon-snake',
+    genres: ['arcade', 'snake', 'action'],
     gold: 'Golden Snake',            // golden character unlocked for Legends                       // must match the folder name and the Supabase games table
     title: 'Neon Snake',
     tagline: 'Eat, grow, glow. Dodge the walls as the pace climbs.',
@@ -23,6 +44,7 @@ export const GAMES = [
   },
   {
     id: 'feather-dash',
+    genres: ['arcade', 'action'],
     gold: 'Golden Bird',            // golden character unlocked for Legends
     title: 'Feather Dash',
     tagline: 'Flap through the pillars from sunrise to the northern lights.',
@@ -40,6 +62,7 @@ export const GAMES = [
   },
   {
     id: 'prism-breaker',
+    genres: ['arcade', 'action'],
     gold: 'Golden Paddle & Ball',            // golden character unlocked for Legends
     title: 'Prism Breaker',
     tagline: 'Smash rainbow bricks, chain combos, catch the power-ups.',
@@ -57,6 +80,7 @@ export const GAMES = [
   },
   {
     id: 'astro-blaster',
+    genres: ['shooter', 'space'],
     gold: 'Golden Ship',            // golden character unlocked for Legends
     title: 'Astro Blaster',
     tagline: 'Blast colourful asteroids — shoot a ⚡ shock rock for a huge chain reaction.',
@@ -74,6 +98,7 @@ export const GAMES = [
   },
   {
     id: 'crazy-putt',
+    genres: ['arcade', 'sports'],
     gold: 'Golden Golf Ball',            // golden character unlocked for Legends
     title: 'Crazy Putt',
     tagline: 'Crazy golf that looks easy… until the hidden traps get you. Go for a hole in one!',
@@ -91,6 +116,7 @@ export const GAMES = [
   },
   {
     id: 'the-vault-job',
+    genres: ['stealth', 'puzzle'],
     gold: 'Golden Thief',
     title: 'The Vault Job',
     tagline: 'Sneak through the museum after dark. Dodge guards, cameras and lasers… grab the loot if you dare.',
@@ -112,6 +138,7 @@ export const GAMES = [
   },
   {
     id: 'snake-escape-puzzle',
+    genres: ['puzzle', 'snake'],
     gold: 'Golden Snakes',          // golden character unlocked by the Zone 2 egg
     title: 'Snake Escape Puzzle',
     tagline: 'A knot of snakes, every one in another\'s way. Each tap slides a snake until it\'s blocked — clear the board before you run out of moves.',
@@ -130,6 +157,7 @@ export const GAMES = [
   },
   {
     id: 'neon-beat',
+    genres: ['arcade', 'music'],
     gold: 'Golden Notes',           // golden character unlocked by the Zone 2 egg
     title: 'Neon Beat',
     tagline: 'Hit the falling notes on the beat — every note you hit plays the tune. Chords, holds and stealth notes!',
@@ -148,6 +176,7 @@ export const GAMES = [
   },
   {
     id: 'tower-topple',
+    genres: ['arcade', 'action'],
     gold: 'Golden Bricks',          // golden character unlocked by the Zone 2 egg
     title: 'Tower Topple',
     tagline: 'Drop swinging floors from the crane and build sky-high. Off-centre floors make it lean… and TOPPLE!',
@@ -166,6 +195,7 @@ export const GAMES = [
   },
   {
     id: 'hyper-hex',
+    genres: ['arcade', 'action'],
     gold: 'Golden Arrow',           // golden character unlocked by the Zone 2 egg
     title: 'Hyper Hex',
     tagline: 'Circle the core and slip through the gaps as hexagon walls close in and the world spins. Pure reflexes.',
@@ -183,6 +213,7 @@ export const GAMES = [
   },
   {
     id: 'galactic-alien-shooter',
+    genres: ['shooter', 'space'],
     gold: 'Golden Starfighter',     // golden character unlocked for Legends
     title: 'Galactic Alien Shooter',
     tagline: 'Five alien warships, five different weapons. Grab lasers, rockets and blasters, rescue your abducted ship, then face four different bosses!',
@@ -204,6 +235,7 @@ export const GAMES = [
 
   {
     id: 'heist-planner',
+    genres: ['puzzle', 'stealth'],
     gold: 'Golden Heist Crew',      // golden character unlocked by the Zone 2 egg
     title: 'Heist Planner',
     tagline: 'Plan every step of your crew — thief, hacker and muscle — then press GO and watch the heist play out.',
@@ -225,6 +257,7 @@ export const GAMES = [
   },
   {
     id: 'turbo-rush',
+    genres: ['racing'],
     gold: 'Golden Racer',           // golden character unlocked by the Zone 3 egg
     title: 'Turbo Rush 3D',
     is3d: true,                     // 3D engine — shows the 3D chip on the home page
@@ -246,6 +279,7 @@ export const GAMES = [
   },
   {
     id: 'bubble-blitz',
+    genres: ['puzzle', 'arcade'],
     gold: 'Golden Launcher',        // golden character unlocked by the Zone 3 egg
     title: 'Bubble Blitz 3D',
     is3d: true,
@@ -266,6 +300,7 @@ export const GAMES = [
   },
   {
     id: 'pinball-blast',
+    genres: ['arcade', 'action'],
     gold: 'Golden Ball',            // golden character unlocked by the Zone 3 egg
     title: 'Pinball Blast 3D',
     is3d: true,
@@ -288,6 +323,7 @@ export const GAMES = [
   },
   {
     id: 'star-strike',
+    genres: ['shooter', 'space'],
     gold: 'Golden Fighter',         // golden character unlocked by the Zone 3 egg
     title: 'Star Strike 3D',
     is3d: true,
@@ -310,6 +346,7 @@ export const GAMES = [
   },
   {
     id: 'dungeon-escape',
+    genres: ['adventure', 'action'],
     gold: 'Golden Torch',           // golden character unlocked by the Zone 4 egg
     title: 'Dungeon Escape 3D',
     is3d: true,
@@ -329,6 +366,7 @@ export const GAMES = [
   },
   {
     id: 'neon-drift',
+    genres: ['racing'],
     gold: 'Golden Racer',           // golden character unlocked by the Zone 4 egg
     title: 'Neon Drift 3D',
     is3d: true,
@@ -353,6 +391,7 @@ export const GAMES = [
   },
   {
     id: 'crystal-cascade',
+    genres: ['puzzle', 'shooter'],
     gold: 'Golden Crystal Cannon',  // golden character unlocked by the Zone 4 egg
     title: 'Crystal Cascade 3D',
     is3d: true,
@@ -375,6 +414,7 @@ export const GAMES = [
   },
   {
     id: 'void-breaker',
+    genres: ['shooter', 'space', 'action'],
     gold: 'Golden Gauntlet',        // golden character unlocked by the Zone 4 egg
     title: 'Void Breaker 3D',
     is3d: true,
@@ -396,6 +436,7 @@ export const GAMES = [
   },
   {
     id: 'crown-heist',
+    genres: ['stealth', 'adventure'],
     gold: 'Golden Thief',           // golden character unlocked by the Zone 4 egg (golden glove and torch)
     title: 'Crown Heist 3D',
     is3d: true,
@@ -421,6 +462,7 @@ export const GAMES = [
   },
   {
     id: 'crypt-of-crowns',
+    genres: ['adventure', 'stealth'],
     gold: 'Golden Explorer',        // golden character unlocked by the Zone 3 egg
     title: 'Crypt of Crowns 3D',
     is3d: true,
@@ -443,6 +485,7 @@ export const GAMES = [
   },
   {
     id: 'tc-pixel-craft',
+    genres: ['adventure', 'survival'],
     gold: 'Golden Hand',            // golden character unlocked by the Zone 4 egg
     title: 'TC Pixel Craft 3D',
     is3d: true,
@@ -463,6 +506,7 @@ export const GAMES = [
   },
   {
     id: 'eggspress',
+    genres: ['racing', 'action'],
     gold: 'Golden Egg Truck',       // golden character unlocked by the Zone 3 egg
     title: 'Eggspress 3D',
     is3d: true,
@@ -483,6 +527,7 @@ export const GAMES = [
   },
   {
     id: 'lunar-delivery',
+    genres: ['space', 'action'],
     gold: 'Golden Hopper',          // golden character unlocked by the Zone 5 egg — crown holders keep it too (they had it first)
     goldWithCrown: true,
     title: 'Lunar Delivery 3D',
@@ -507,6 +552,7 @@ export const GAMES = [
   },
   {
     id: 'vault-of-stars',
+    genres: ['puzzle', 'space'],
     gold: 'Golden Astronaut',       // golden character unlocked by the Zone 5 egg (gold suit and visor)
     title: 'Vault of Stars',
     tagline: 'Fifteen sealed vaults on an alien moon. Time the laser grids, slip past the sentry drones, drift across zero-g fields and reach the airlock before your oxygen runs out. Same layout every time: learn it, then beat the par.',

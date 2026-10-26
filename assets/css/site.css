@@ -280,3 +280,30 @@ a.legend-banner.hall-door:hover { border-color: #fbbf24; transform: translateY(-
 @media (prefers-reduced-motion: reduce) { .retro-banner { transition: none; } }
 /* Six items in the header on small phones (Games, Leaderboard, About, Retro, Legends, sound) */
 @media (max-width: 420px) { .site-nav a, .site-nav .mute-link { padding: .45em .3em; font-size: .88em; } .logo img { width: 30px; height: 30px; } }
+
+/* ── Static pages + site-map footer (tools/build-pages.mjs) ───────────── */
+.site-footer .footer-map { display: block; }
+.footer-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 18px 24px; }
+.footer-cols b { display: block; color: var(--text); font-family: var(--font-head); margin-bottom: 6px; }
+.footer-cols ul { list-style: none; margin: 0; padding: 0; }
+.footer-cols li { margin: 2px 0; font-size: .92em; }
+.footer-cols a { text-decoration: none; }
+.footer-cols a:hover { color: var(--text); text-decoration: underline; }
+.footer-base { margin-top: 24px; padding-top: 16px; border-top: 1px solid #ffffff10; }
+.crumbs { font-size: .9em; color: var(--muted); margin: 18px 0 8px; }
+.crumbs a { color: var(--muted); text-decoration: none; }
+.crumbs a:hover { color: var(--text); }
+.pills { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 18px; }
+.pill.genre { color: var(--text); text-decoration: none; }
+.pill.genre:hover, .pill.genre.on { border-color: var(--cyan); color: var(--cyan); }
+.lead { font-size: 1.12em; color: #d6d5f0; max-width: 760px; }
+.game-card .genres { font-size: .8em; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.genre-page h1 { font-size: 2.4em; margin-top: 8px; }
+.genre-page .section-head h2 a { color: var(--text); text-decoration: none; }
+.genre-page .section-head h2 a:hover { color: var(--cyan); }
+.game-grid.mini { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px; }
+.game-grid.mini .game-card .body { padding: 10px 12px 12px; }
+.game-grid.mini .game-card h3 { font-size: 1.1em; }
+.game-grid.mini .game-card p:not(.genres) { display: none; }
+.game-grid.mini .game-card .thumb { aspect-ratio: 16/9; }
+@media (max-width: 560px) { .site-nav a:not(.retro-link):not(.legend-link) { padding: .45em .5em; } }

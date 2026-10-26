@@ -5,47 +5,222 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.goatcounter.com; font-src 'self'; connect-src 'self' https://*.supabase.co; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Astro Blaster · Quick Play Arcade</title>
-  <meta name="description" content="Play Astro Blaster free in your browser: dodge and blast colourful asteroids, set off shock asteroids for huge chain reactions, grab power-ups and beat the high score.">
+  <title>Astro Blaster – free online asteroid shooter | Quick Play Arcade</title>
+  <meta name="description" content="Blast colourful asteroids in a free space shooter. Shoot a shock rock to set off a chain reaction, dodge UFOs and climb the levels.">
   <link rel="canonical" href="https://tcgamehub.win/games/astro-blaster/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Quick Play Arcade">
+  <meta property="og:url" content="https://tcgamehub.win/games/astro-blaster/">
   <meta property="og:title" content="Astro Blaster — free browser game">
-  <meta property="og:description" content="Play Astro Blaster free in your browser: dodge and blast colourful asteroids, set off shock asteroids for huge chain reactions, grab power-ups and beat the high score.">
-  <meta property="og:image" content="https://tcgamehub.win/assets/img/og.png">
-  <meta name="theme-color" content="#0b0b1a">
+  <meta property="og:description" content="Blast colourful asteroids in a free space shooter. Shoot a shock rock to set off a chain reaction, dodge UFOs and climb the levels.">
+  <meta property="og:image" content="https://tcgamehub.win/games/astro-blaster/og.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Astro Blaster — free browser game">
+  <meta name="twitter:description" content="Blast colourful asteroids in a free space shooter. Shoot a shock rock to set off a chain reaction, dodge UFOs and climb the levels.">
+  <meta name="twitter:image" content="https://tcgamehub.win/games/astro-blaster/og.jpg">
+  <meta name="theme-color" content="#a855f7">
   <link rel="icon" href="../../favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="../../manifest.webmanifest">
+  <link rel="apple-touch-icon" href="../../assets/img/icon-192.png">
   <link rel="stylesheet" href="../../assets/css/site.css">
   <link rel="stylesheet" href="../../assets/css/game.css">
   <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "VideoGame",
-    "name": "Astro Blaster",
-    "description": "Play Astro Blaster free in your browser: dodge and blast colourful asteroids, set off shock asteroids for huge chain reactions, grab power-ups and beat the high score.",
-    "url": "https://tcgamehub.win/games/astro-blaster/",
-    "image": "https://tcgamehub.win/games/astro-blaster/thumb.svg",
-    "applicationCategory": "Game",
-    "operatingSystem": "Web Browser",
-    "offers": {
-      "@type": "Offer",
-      "price": "0",
-      "priceCurrency": "USD"
+{
+  "@context": "https://schema.org",
+  "@type": "VideoGame",
+  "@id": "https://tcgamehub.win/games/astro-blaster/#game",
+  "name": "Astro Blaster",
+  "url": "https://tcgamehub.win/games/astro-blaster/",
+  "description": "Blast colourful asteroids in a free space shooter. Shoot a shock rock to set off a chain reaction, dodge UFOs and climb the levels.",
+  "image": "https://tcgamehub.win/games/astro-blaster/og.jpg",
+  "genre": [
+    "Shooter",
+    "Space"
+  ],
+  "gamePlatform": "Web Browser",
+  "applicationCategory": "Game",
+  "operatingSystem": "Any",
+  "playMode": "SinglePlayer",
+  "numberOfPlayers": {
+    "@type": "QuantitativeValue",
+    "minValue": 1,
+    "maxValue": 1
+  },
+  "isAccessibleForFree": true,
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD",
+    "availability": "https://schema.org/InStock"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "@id": "https://tcgamehub.win/#org",
+    "name": "TC Game Hub",
+    "alternateName": "Quick Play Arcade",
+    "url": "https://tcgamehub.win/",
+    "logo": "https://tcgamehub.win/assets/img/icon-512.png"
+  },
+  "isPartOf": {
+    "@id": "https://tcgamehub.win/#website"
+  },
+  "inLanguage": "en"
+}
+  </script>
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Quick Play Arcade",
+      "item": "https://tcgamehub.win/"
     },
-    "genre": [
-      "Arcade",
-      "Action",
-      "Browser Game"
-    ],
-    "publisher": {
-      "@type": "Organization",
-      "name": "TC Game Hub",
-      "url": "https://tcgamehub.win"
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Games",
+      "item": "https://tcgamehub.win/games/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 3,
+      "name": "Zone 1: Arcade Classics",
+      "item": "https://tcgamehub.win/#zone-1"
+    },
+    {
+      "@type": "ListItem",
+      "position": 4,
+      "name": "Astro Blaster",
+      "item": "https://tcgamehub.win/games/astro-blaster/"
     }
-  }
+  ]
+}
   </script>
 </head>
 <body class="game-page">
-  <div id="app"><noscript><p style="padding:2em">This game needs JavaScript switched on.</p></noscript></div>
+  <div id="app"><noscript><p style="padding:2em">This game needs JavaScript switched on. <a href="../../">Back to the arcade</a>.</p></noscript></div>
+
+  <section class="game-info wrap" id="about">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="../../">Quick Play Arcade</a> › <a href="../../games/">Games</a> › <a href="../../#zone-1">Zone 1 · Arcade Classics</a> › <span>Astro Blaster</span></nav>
+    <h1>Astro Blaster</h1>
+    <p class="lead">Asteroid shooter — Blast colourful asteroids in a free space shooter. Shoot a shock rock to set off a chain reaction, dodge UFOs and climb the levels.</p>
+    <p class="pills">
+      <a class="pill genre" href="../../games/shooter/">Shooter</a> <a class="pill genre" href="../../games/space/">Space</a>
+      <span class="pill" title="Difficulty 4 of 30">Medium · Zone 1</span>
+      
+      <span class="pill">Free · no sign-up · no download</span>
+    </p>
+    <div class="info-grid">
+      <div>
+        <h2>How to play Astro Blaster</h2>
+        <ol><li>Move the ship with the mouse, the arrow keys, or by dragging on a phone.</li><li>Hold Space or the mouse button to fire (touch and hold on a phone). The ship never fires by itself.</li><li>Destroy the number of asteroids shown at the top to clear the level.</li><li>Shoot a ⚡ shock rock when others are close to it for a huge chain reaction.</li></ol>
+        <p><b>Controls:</b> Move: mouse / arrows / drag · Fire: hold Space or mouse button (touch &amp; hold on phones).</p>
+        
+        <p>Press <kbd>P</kbd> to pause and <kbd>M</kbd> to mute. Works on desktop, tablet and phone.</p>
+      </div>
+      <div>
+        <h2>Levels, bonus rounds and scoring</h2>
+        <p>Astro Blaster is game 4 of 30 on Quick Play Arcade, in <a href="../../#zone-1">Zone 1 · Arcade Classics</a> (Medium difficulty). Zone 1 is open to everyone.</p>
+        <ul>
+          <li>Every level is a little faster than the last, with something new every few levels.</li>
+          <li>Every 5th level is a <b>bonus round</b>: no way to lose, a timer and lots of points. Clear it to unlock a checkpoint you can start from next time.</li>
+          <li>Chain hits quickly to raise your <b>combo multiplier</b>.</li>
+          <li>Make the top 20 and type a nickname to go on the <a href="../../leaderboard/#astro-blaster">public leaderboard</a> — no account needed. Boards reset daily and weekly.</li>
+          <li>One game a day is the <b>Daily Challenge</b>: the same layout for everyone, with its own board. <a href="./?daily=1">Play today's Astro Blaster challenge</a>.</li>
+        </ul>
+        <p>Looking for this zone's Golden Egg? It is hidden in <a href="../../games/the-vault-job/">The Vault Job</a>, the zone's Legends game.</p>
+      </div>
+    </div>
+    <h2>Badges in Astro Blaster</h2>
+    <ul class="badge-list"><li><span class="ico" aria-hidden="true">⚡</span> <b>Shock Wave</b> — Set off a shock asteroid</li><li><span class="ico" aria-hidden="true">💥</span> <b>Chain Reaction</b> — Destroy 5 rocks with one shockwave</li><li><span class="ico" aria-hidden="true">🛸</span> <b>Close Encounter</b> — Shoot down a UFO</li><li><span class="ico" aria-hidden="true">🔥</span> <b>On Fire</b> — Reach a x4 combo</li><li><span class="ico" aria-hidden="true">🚀</span> <b>Deep Space</b> — Reach level 10</li><li><span class="ico" aria-hidden="true">🏅</span> <b>Ten Grand</b> — Score 10,000 in one run</li></ul>
+    <p>Win the zone's Golden Egg and Astro Blaster unlocks a golden character: the <b>Golden Ship</b>.</p>
+    <h2>More games like this</h2>
+    <div class="game-grid mini">
+      <a class="game-card" href="../../games/galactic-alien-shooter/" style="--c:#22d3ee" data-game="galactic-alien-shooter" data-zone="2">
+        <div class="thumb"><span class="num">#11</span><img src="../../games/galactic-alien-shooter/thumb.svg" alt="" width="120" height="120" loading="lazy"></div>
+        <span class="play-cta">PLAY ▶</span>
+        <div class="body">
+          <h3>Galactic Alien Shooter</h3>
+          <p class="genres">Shooter · Space</p>
+          <p>Five alien warships, five different weapons. Grab lasers, rockets and blasters, rescue your abducted ship, then face four different bosses!</p>
+          <div class="meta">
+            <span class="tier" style="--t:#c084fc" title="Difficulty 11 of 30"><i><u style="width:37%"></u></i><b>Extreme</b></span>
+            <span>Free · no sign-up</span>
+          </div>
+        </div>
+      </a>
+      <a class="game-card" href="../../games/star-strike/" style="--c:#38bdf8" data-game="star-strike" data-zone="3">
+        <div class="thumb"><span class="num">#16</span><img src="../../games/star-strike/thumb.svg" alt="" width="120" height="120" loading="lazy"><span class="chip3d" title="Built with a 3D engine">3D</span></div>
+        <span class="play-cta">PLAY ▶</span>
+        <div class="body">
+          <h3>Star Strike 3D <span class="pill new">NEW</span></h3>
+          <p class="genres">Shooter · Space</p>
+          <p>Fly a starfighter down a 3D space corridor. Grab spread, plasma, homing missiles and a wingman drone, blast 12 kinds of enemy and take down three different bosses.</p>
+          <div class="meta">
+            <span class="tier" style="--t:#38bdf8" title="Difficulty 16 of 30"><i><u style="width:53%"></u></i><b>Master</b></span>
+            <span>Free · no sign-up</span>
+          </div>
+        </div>
+      </a>
+      <a class="game-card" href="../../games/void-breaker/" style="--c:#a78bfa" data-game="void-breaker" data-zone="4">
+        <div class="thumb"><span class="num">#23</span><img src="../../games/void-breaker/thumb.svg" alt="" width="120" height="120" loading="lazy"><span class="chip3d" title="Built with a 3D engine">3D</span></div>
+        <span class="play-cta">PLAY ▶</span>
+        <div class="body">
+          <h3>Void Breaker 3D <span class="pill new">NEW</span></h3>
+          <p class="genres">Shooter · Space · Action</p>
+          <p>Stand at the heart of a glowing arena over the void as geometric invaders pour in from every side. Light-trail shots, shattering enemies, a NOVA shockwave — and a giant boss every 5th wave.</p>
+          <div class="meta">
+            <span class="tier" style="--t:#f472b6" title="Difficulty 23 of 30"><i><u style="width:77%"></u></i><b>Ultra</b></span>
+            <span>Free · no sign-up</span>
+          </div>
+        </div>
+      </a>
+      <a class="game-card" href="../../games/crystal-cascade/" style="--c:#22d3ee" data-game="crystal-cascade" data-zone="4">
+        <div class="thumb"><span class="num">#22</span><img src="../../games/crystal-cascade/thumb.svg" alt="" width="120" height="120" loading="lazy"><span class="chip3d" title="Built with a 3D engine">3D</span></div>
+        <span class="play-cta">PLAY ▶</span>
+        <div class="body">
+          <h3>Crystal Cascade 3D <span class="pill new">NEW</span></h3>
+          <p class="genres">Puzzle · Shooter</p>
+          <p>Fire crystals down a mine shaft onto a turning platform. Match 3 to shatter, set off cascades, bombs and drills — dig down to the gold geodes and crack them open before the stack breaks the laser ring.</p>
+          <div class="meta">
+            <span class="tier" style="--t:#f472b6" title="Difficulty 22 of 30"><i><u style="width:73%"></u></i><b>Ultra</b></span>
+            <span>Free · no sign-up</span>
+          </div>
+        </div>
+      </a>
+    </div>
+    <p class="more-links">Browse: <a href="../../games/shooter/">Shooter games</a> · <a href="../../games/space/">Space games</a> · <a href="../../games/">all 26 games</a></p>
+  </section>
+
+  <footer class="site-footer">
+    <!-- build:footer -->
+    <div class="wrap footer-map">
+      <div class="footer-cols">
+        <div><b>Zone 1 · Arcade Classics</b><ul><li><a href="../../games/neon-snake/">Neon Snake</a></li><li><a href="../../games/feather-dash/">Feather Dash</a></li><li><a href="../../games/prism-breaker/">Prism Breaker</a></li><li><a href="../../games/astro-blaster/">Astro Blaster</a></li><li><a href="../../games/crazy-putt/">Crazy Putt</a></li><li><a href="../../games/the-vault-job/">The Vault Job</a></li></ul></div>
+        <div><b>Zone 2 · Hard Mode</b><ul><li><a href="../../games/snake-escape-puzzle/">Snake Escape Puzzle</a></li><li><a href="../../games/neon-beat/">Neon Beat</a></li><li><a href="../../games/tower-topple/">Tower Topple</a></li><li><a href="../../games/hyper-hex/">Hyper Hex</a></li><li><a href="../../games/galactic-alien-shooter/">Galactic Alien Shooter</a></li><li><a href="../../games/heist-planner/">Heist Planner</a></li></ul></div>
+        <div><b>Zone 3 · Master Class</b><ul><li><a href="../../games/turbo-rush/">Turbo Rush 3D</a></li><li><a href="../../games/bubble-blitz/">Bubble Blitz 3D</a></li><li><a href="../../games/pinball-blast/">Pinball Blast 3D</a></li><li><a href="../../games/star-strike/">Star Strike 3D</a></li><li><a href="../../games/eggspress/">Eggspress 3D</a></li><li><a href="../../games/crypt-of-crowns/">Crypt of Crowns 3D</a></li></ul></div>
+        <div><b>Zone 4 · Ultra</b><ul><li><a href="../../games/tc-pixel-craft/">TC Pixel Craft 3D</a></li><li><a href="../../games/dungeon-escape/">Dungeon Escape 3D</a></li><li><a href="../../games/neon-drift/">Neon Drift 3D</a></li><li><a href="../../games/crystal-cascade/">Crystal Cascade 3D</a></li><li><a href="../../games/void-breaker/">Void Breaker 3D</a></li><li><a href="../../games/crown-heist/">Crown Heist 3D</a></li></ul></div>
+        <div><b>Zone 5 · Beyond</b><ul><li><a href="../../games/lunar-delivery/">Lunar Delivery 3D</a></li><li><a href="../../games/vault-of-stars/">Vault of Stars</a></li></ul></div>
+        <div><b>By genre</b><ul><li><a href="../../games/arcade/">Arcade</a></li><li><a href="../../games/action/">Action</a></li><li><a href="../../games/puzzle/">Puzzle</a></li><li><a href="../../games/shooter/">Shooter</a></li><li><a href="../../games/racing/">Racing &amp; driving</a></li><li><a href="../../games/space/">Space</a></li><li><a href="../../games/stealth/">Stealth</a></li><li><a href="../../games/adventure/">3D adventure</a></li><li><a href="../../games/snake/">Snake</a></li><li><a href="../../games/3d/">3D games</a></li><li><a href="../../games/legends/">Legends games</a></li><li><a href="../../games/">All games</a></li></ul></div>
+        <div><b>Site</b><ul>
+          <li><a href="../../">Home</a></li>
+          <li><a href="../../leaderboard/">Leaderboard</a></li>
+          <li><a href="../../hall-of-legends/">Hall of Legends</a></li>
+          <li><a href="../../retro-vault/">Retro Vault</a></li>
+          <li><a href="../../about/">About &amp; privacy</a></li>
+        </ul></div>
+      </div>
+      <div class="footer-base">
+        <span>© <span data-year>2026</span> <span data-site-name>Quick Play Arcade</span> by TC Game Hub · 26 free browser games, no sign-up, no downloads</span>
+      </div>
+    </div>
+    <!-- /build:footer -->
+  </footer>
   <script type="module" src="game.js"></script>
 </body>
 </html>

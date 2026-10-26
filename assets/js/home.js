@@ -1,5 +1,5 @@
 import { CONFIG } from './config.js';
-import { GAMES, GLOBAL_ACHIEVEMENTS, ZONES, SLOTS, gameById, dailyGame, legendZones, crownZones, jewelZones } from './games.js';
+import { GAMES, GLOBAL_ACHIEVEMENTS, ZONES, gameById, dailyGame, legendZones, crownZones, jewelZones } from './games.js';
 import { Store } from './storage.js';
 import { Scores } from './scores.js';
 import { Legends } from './legends.js';
@@ -66,61 +66,46 @@ if (lastGame) {
 }
 
 // ── Game cards, grouped by zone ─────────────────────────────
-const tierBar = (sl) => `<span class="tier" style="--t:${sl.tier.color}" title="Difficulty ${sl.n} of ${SLOTS.length}">
-  <i><u style="width:${Math.round(sl.n / SLOTS.length * 100)}%"></u></i><b>${esc(sl.tier.label)}</b></span>`;
-const card = (sl) => {
-  const g = sl.game;
-  if (!g) return `
-    <div class="game-card soon${sl.legendSlot ? ' legend-slot' : ''}" style="--c:${sl.tier.color}">
-      <div class="thumb"><span class="num">#${sl.n}</span><span style="font-size:3em">${sl.legendSlot ? '👑' : '🔒'}</span></div>
-      <div class="body"><h3>${sl.legendSlot ? 'Legends game' : `Game ${sl.n}`}</h3>
-        <p>${sl.legendSlot ? `Zone ${sl.zone.n}'s Legends game is on its way. Win it perfectly to earn the ${eggName(sl.zone.n)}.` : 'A new game is being built for this slot — check back soon!'}</p>
-        <div class="meta">${tierBar(sl)}<span>Coming soon</span></div></div>
-    </div>`;
-  const locked = !ZoneLock.isOpen(sl.zone.n);
-  const played = !locked && Store.plays(g.id) > 0;
-  return `
-    <a class="game-card${sl.legendSlot ? ' legend-slot' : ''}${locked ? ' zone-locked' : ''}" href="games/${g.id}/" style="--c:${g.color}">
-      ${locked ? '<span class="lock-badge">🔒 Locked</span>' : ''}
-      ${played ? '<span class="played-badge">✓ Played</span>' : ''}
-      <div class="thumb"><span class="num">#${sl.n}</span><img src="games/${g.id}/thumb.svg" alt="" width="120" height="120" loading="lazy">${g.is3d ? '<span class="chip3d" title="Built with a 3D engine">3D</span>' : ''}</div>
-      <span class="play-cta">PLAY ▶</span>
-      <div class="body">
-        <h3>${esc(g.title)} ${g.isNew ? '<span class="pill new">NEW</span>' : ''}${sl.legendSlot ? '<span class="pill legend-pill">👑 LEGENDS</span>' : ''}</h3>
-        <p>${esc(g.tagline)}</p>
-        <div class="meta">
-          ${tierBar(sl)}
-          <span>Your best: <b>${fmt(Store.best(g.id))}</b></span>
-          <span data-top="${g.id}">Today's top: …</span>
-        </div>
-      </div>
-    </a>`;
-};
+// The zones and cards are static HTML (written by tools/build-pages.mjs from
+// games.js, so search engines and no-JS visitors see every game). Here we only
+// add what depends on this player: zone locks, played ticks, best scores,
+// egg status and today's top score.
 Legends.syncCrowns();
 const grid = document.getElementById('grid');
-grid.className = 'zones';
-grid.innerHTML = ZONES.map((z) => {
+for (const z of ZONES) {
+  const zoneEl = grid.querySelector(`.zone[data-zone="${z.n}"]`);
+  if (!zoneEl) continue;
   const crown = Legends.hasCrown(z.n);
   const lock = ZoneLock.progress(z.n), open = lock.played >= lock.need;
   const lg = z.legendGame && gameById(z.legendGame);
-  return `
-  <div class="zone zone-${z.n}">
-    <div class="zone-head">
-      <h3>${esc(z.name)}</h3>
-      <span class="muted small">${esc(z.blurb)}</span>
-      ${z.legendGame ? `<span class="crown ${crown ? 'won' : ''}" title="${crown ? `You won the ${eggName(z.n)}!` : `${lg?.legendHow || `Finish ${lg ? lg.title : 'the Legends game'} without losing a life.`} Wins the ${eggName(z.n)}.`}">${crown ? `${eggSVG(z.n, { size: 16 })} Egg won` : '🥚 Egg: not yet'}</span>` : ''}
-    </div>
-    ${open ? '' : `<div class="zone-lock">🔒 <b>Zone ${z.n} is locked.</b> Play every Zone ${z.n - 1} game at least once to open it <span class="lock-meter"><i style="width:${Math.round(lock.played / lock.need * 100)}%"></i></span> <b>${lock.played} / ${lock.need}</b></div>`}
-    <div class="game-grid">${SLOTS.filter((sl) => sl.zone === z).map(card).join('')}</div>
-  </div>`;
-}).join('');
+  const egg = zoneEl.querySelector('[data-egg]');
+  if (egg && z.legendGame) {
+    egg.className = `crown ${crown ? 'won' : ''}`;
+    egg.title = crown ? `You won the ${eggName(z.n)}!` : `${lg?.legendHow || `Finish ${lg ? lg.title : 'the Legends game'} without losing a life.`} Wins the ${eggName(z.n)}.`;
+    egg.innerHTML = crown ? `${eggSVG(z.n, { size: 16 })} Egg won` : '🥚 Egg: not yet';
+  }
+  const lockEl = zoneEl.querySelector('[data-lock]');
+  if (lockEl && !open) lockEl.innerHTML = `<div class="zone-lock">🔒 <b>Zone ${z.n} is locked.</b> Play every Zone ${z.n - 1} game at least once to open it <span class="lock-meter"><i style="width:${Math.round(lock.played / lock.need * 100)}%"></i></span> <b>${lock.played} / ${lock.need}</b></div>`;
+  for (const cardEl of zoneEl.querySelectorAll('.game-card[data-game]')) {
+    const id = cardEl.dataset.game;
+    const played = open && Store.plays(id) > 0;
+    cardEl.classList.toggle('zone-locked', !open);
+    if (!open) cardEl.insertAdjacentHTML('afterbegin', '<span class="lock-badge">🔒 Locked</span>');
+    else if (played) cardEl.insertAdjacentHTML('afterbegin', '<span class="played-badge">✓ Played</span>');
+    const best = cardEl.querySelector('[data-best]');
+    if (best) { best.querySelector('b').textContent = fmt(Store.best(id)); best.hidden = false; }
+    const top = cardEl.querySelector('[data-top]');
+    if (top) top.textContent = 'Today\'s top: …';
+  }
+}
 
 const crowns = Legends.crownNames().catch(() => null);
 for (const g of GAMES) {
+  const el = grid.querySelector(`[data-top="${g.id}"]`);
+  if (!el) continue;
   Promise.all([Scores.top(g.id, 'today', 'normal', 1), crowns]).then(([r]) => {
-    const el = grid.querySelector(`[data-top="${g.id}"]`);
     el.innerHTML = r[0] ? `Today's top: <b>${esc(r[0].name)}</b>${Legends.crownMark(r[0].name)} ${fmt(r[0].score)}` : 'Today\'s top: <b>up for grabs</b>';
-  }).catch(() => { grid.querySelector(`[data-top="${g.id}"]`).textContent = ''; });
+  }).catch(() => { el.textContent = ''; });
 }
 
 // ── Latest scores ticker ────────────────────────────────────

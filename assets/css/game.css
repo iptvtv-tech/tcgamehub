@@ -120,3 +120,26 @@ canvas { display: block; width: 100%; height: 100%; touch-action: none; user-sel
 .crown-won p { margin: 0; }
 .crown-won .crown-svg { filter: drop-shadow(0 0 20px rgba(251,191,36,.6)); max-width: 60%; height: auto; }
 @media (prefers-reduced-motion: reduce) { .legend-prize .egg-svg { animation: none; } }
+
+/* ── "About this game" section under the stage (written by tools/build-pages.mjs) ── */
+/* The game fills the first screen; the page scrolls to the info below, except while a round is in play. */
+html { height: 100%; }
+body.game-page { height: auto; min-height: 100%; overflow: auto; }
+body.game-page.in-play { overflow: hidden; height: 100%; }
+#app { height: 100vh; height: 100dvh; flex: none; }
+.game-info { padding: 28px 16px 0; color: #d6d5f0; }
+.game-info h1 { font-size: 2.2em; margin: 0 0 .2em; }
+.game-info h2 { font-size: 1.35em; margin: 1.4em 0 .5em; color: var(--text); }
+.game-info .lead { font-size: 1.08em; }
+.game-info ol, .game-info ul { padding-left: 1.3em; }
+.game-info li { margin: .35em 0; }
+.game-info .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 40px; }
+@media (max-width: 760px) { .game-info .info-grid { grid-template-columns: 1fr; } }
+.game-info .tip { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
+.game-info .lore { color: var(--gold); font-style: italic; }
+.game-info .badge-list { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 6px 18px; }
+.game-info .badge-list .ico { display: inline-block; width: 1.6em; text-align: center; }
+.game-info .more-links { margin: 18px 0 0; color: var(--muted); }
+.game-info .pills { margin: 6px 0 10px; }
+body.game-page .site-footer { margin-top: 32px; }
+.overlay .about-link { color: var(--muted); }

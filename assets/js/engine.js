@@ -556,6 +556,9 @@ class Shell {
   }
 
   draw() {
+    // While a round is in play the page must not scroll (the "about" section sits under the stage).
+    const inPlay = this.state === 'playing' || this.state === 'banner' || this.state === 'dying';
+    if (inPlay !== this._inPlay) { this._inPlay = inPlay; document.body.classList.toggle('in-play', inPlay); if (inPlay) window.scrollTo(0, 0); }
     const ctx = this.ctx, s = this.scale;
     ctx.setTransform(s, 0, 0, s, 0, 0);
     ctx.clearRect(0, 0, this.W, this.H);
@@ -574,7 +577,8 @@ class Shell {
   // ── DOM: HUD, overlays ───────────────────────────────────────
   buildDom() {
     const m = this.meta;
-    document.title = `${m.title} · ${CONFIG.siteName}`;
+    // The page's <title> is written by tools/build-pages.mjs (search-friendly); only the Daily Challenge changes it.
+    if (this.daily) document.title = `Daily Challenge · ${m.title} · ${CONFIG.siteName}`;
     document.documentElement.style.setProperty('--game-color', m.color || '#22d3ee');
     const app = document.getElementById('app');
     app.innerHTML = `
@@ -689,7 +693,8 @@ class Shell {
         <p class="legend-hint">🔒 ${esc(zone.name)} is locked</p>
         <p class="muted">Play every game in Zone ${zone.n - 1} at least once to open it — <b>${p.played} / ${p.need}</b> so far.</p>
         <div class="checkpoints"><small>Still to play</small>${todo.map((g) => `<a class="chip" href="../${g.id}/">${esc(g.title)}</a>`).join('')}</div>
-        <p><a class="btn primary" href="../../">⌂ Back to the arcade</a></p>`);
+        <p><a class="btn primary" href="../../">⌂ Back to the arcade</a></p>
+        ${document.getElementById('about') ? '<p class="small"><a href="#about" class="about-link">ⓘ How to play ' + esc(m.title) + '</a></p>' : ''}`);
       return;
     }
     const best = Store.best(this.id);
@@ -710,7 +715,7 @@ class Shell {
         ${best ? `<span>Your best: <b>${fmt(best)}</b></span>` : '<span>No best score yet — go!</span>'}
         <span data-top>…</span>
       </div>
-      <p class="small">${this.daily ? `<a href="./">Play normal mode instead</a>` : `<a href="./?daily=1">Try today's Daily Challenge seed →</a>`}</p>
+      <p class="small">${this.daily ? `<a href="./">Play normal mode instead</a>` : `<a href="./?daily=1">Try today's Daily Challenge seed →</a>`}${document.getElementById('about') ? ' · <a href="#about" class="about-link">ⓘ How to play</a>' : ''}</p>
     `);
     o.querySelector('[data-act="play"]').onclick = () => this.startRun(this.chosenStart);
     const gb = o.querySelector('[data-gold]');

@@ -60,7 +60,9 @@ Badges named `level10`, `score5k`, `score10k` or `combo3` unlock **automatically
 },
 ```
 
-The home page card, leaderboard tab, daily-challenge rotation, "Try another game" links and badge list all update from this entry.
+Add `genres: ['puzzle', 'space']` too (ids from `GENRES` at the top of games.js; the first one is the main genre). The genre pages, the pills on the cards and the "More games like this" list use it.
+
+The leaderboard tab, daily-challenge rotation, "Try another game" links and badge list all update from this entry. The home page grid, the game's own page and the genre pages are **written by a script** — see step 5b.
 
 ### 4b. Give it a golden character (every game must have one)
 Legends unlock a golden version of the main character in **every** game. Add a `gold` name to the entry, e.g. `gold: 'Golden Rocket'`, and in your `render()` use the gold colours when `this.s.gold` is true:
@@ -120,6 +122,15 @@ wonText: (level) => 'You won!',      // win-screen line instead of "All N levels
 ### 5. Add a thumbnail
 Put a square `thumb.svg` in the game folder. A small animated SVG looks great on the cards. You can copy one of the existing ones.
 
+### 5b. Write the search copy and build the pages
+Add an entry for the game in `assets/js/game-copy.js` — `kind` (what to call it in the page title, e.g. `'snake game'`), `blurb` (one or two sentences, under 155 characters), `how` (3–5 short steps) and an optional `tip`. Then run:
+
+```sh
+node tools/build-pages.mjs --images
+```
+
+This writes `games/<id>/index.html` (title, description, share card, the "How to play" section, related games and structured data), `games/<id>/og.jpg`, the home page grid, the genre pages, the site-map footer on every page and `sitemap.xml`. Commit what it writes. Never hand-edit a generated game page — change games.js / game-copy.js and run the script again. `node tools/build-pages.mjs --check` tells you if anything is out of date.
+
 ### 6. Allow it on the online leaderboard
 In Supabase → SQL Editor, run:
 
@@ -129,7 +140,7 @@ insert into public.games (id, title, max_points_per_second) values ('space-dodge
 
 `max_points_per_second` is the anti-cheat limit: the most points per second, averaged over a whole game, that a very good player could score. Set it generously. Scores above it are rejected.
 
-Also add the page to `sitemap.xml`.
+`sitemap.xml` is written by `tools/build-pages.mjs` (step 5b).
 
 ### 7. Test, then push
 - Play levels 1–6 so you see a bonus round and a checkpoint.
