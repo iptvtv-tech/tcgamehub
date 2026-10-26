@@ -304,15 +304,21 @@ export const Legends = {
   async loadCrownNames() {
     try {
       const c = JSON.parse(sessionStorage.getItem('arcade:crowns') || 'null');
-      if (c && Date.now() - c.t < 600000) { crownSet = new Set(c.n); return crownSet; }
+      if (c && Date.now() - c.t < 600000 && Array.isArray(c.n) && (!c.n.length || Array.isArray(c.n[0]))) { crownSet = new Map(c.n); return crownSet; }
     } catch { /* ignore */ }
     const rows = await this.hall();
-    crownSet = new Set(crownHolders(rows).map((p) => p.name.toLowerCase()));
+    crownSet = new Map(crownHolders(rows).map((p) => [p.name.toLowerCase(), p.jewels]));
     try { sessionStorage.setItem('arcade:crowns', JSON.stringify({ t: Date.now(), n: [...crownSet] })); } catch { /* ignore */ }
     return crownSet;
   },
-  /** A little 👑 after a name on a leaderboard (call crownNames() first). */
-  crownMark(name) { return crownSet?.has(String(name).toLowerCase()) ? ' <span class="crown-mark" title="Holder of the Golden Crown">👑</span>' : ''; },
+  /** A little 👑 after a name on a leaderboard, with the jewel count once they have any (call crownNames() first). */
+  crownMark(name) {
+    const k = String(name).toLowerCase();
+    if (!crownSet?.has(k)) return '';
+    const j = crownSet.get(k) || 0;
+    const title = j ? `Golden Crown holder · ${j} jewel${j > 1 ? 's' : ''}` : 'Holder of the Golden Crown';
+    return ` <span class="crown-mark" title="${title}">👑${j ? `<sup>${j}</sup>` : ''}</span>`;
+  },
 
   /** Everyone in the Hall (oldest first — the first finders are the most legendary). */
   async hall() {

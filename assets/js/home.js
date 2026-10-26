@@ -80,17 +80,28 @@ if (lastGame) {
 // egg status and today's top score.
 Legends.syncCrowns();
 const grid = document.getElementById('grid');
+// Which zone bar opens: the first zone this player hasn't finished (or the last zone
+// once everything is done). A zone the player opened or closed by hand this visit
+// is left alone on later renders.
+const yourZone = ZONES.find((z) => { const p = ZoneLock.progress(z.n); return p.played < p.need; })?.n || ZONES[ZONES.length - 1].n;
 for (const z of ZONES) {
   const zoneEl = grid.querySelector(`.zone[data-zone="${z.n}"]`);
   if (!zoneEl) continue;
   const crown = Legends.hasCrown(z.n);
   const lock = ZoneLock.progress(z.n), open = lock.played >= lock.need;
   const lg = z.legendGame && gameById(z.legendGame);
+  if (zoneEl.tagName === 'DETAILS') zoneEl.open = z.n === yourZone;
+  const count = zoneEl.querySelector('[data-progress]');
+  if (count) {
+    count.textContent = open ? `✅ ${lock.need}/${lock.need}` : lock.played ? `${lock.played}/${lock.need}` : '';
+    count.title = open ? 'Zone complete' : `${lock.played} of ${lock.need} games played`;
+    count.classList.toggle('done', open);
+  }
   const egg = zoneEl.querySelector('[data-egg]');
   if (egg && z.legendGame) {
     egg.className = `crown ${crown ? 'won' : ''}`;
     egg.title = crown ? `You won the ${eggName(z.n)}!` : `${lg?.legendHow || `Finish ${lg ? lg.title : 'the Legends game'} without losing a life.`} Wins the ${eggName(z.n)}.`;
-    egg.innerHTML = crown ? `${eggSVG(z.n, { size: 16 })} Egg won` : '🥚 Egg: not yet';
+    egg.innerHTML = crown ? `${eggSVG(z.n, { size: 16 })}<span class="crown-txt"> Egg won</span>` : '🥚<span class="crown-txt"> Egg: not yet</span>';
   }
   const lockEl = zoneEl.querySelector('[data-lock]');
   if (lockEl && lock.played > 0) lockEl.innerHTML = open
@@ -105,6 +116,14 @@ for (const z of ZONES) {
     if (top) top.textContent = 'Today\'s top: …';
   }
 }
+
+// A link to /#zone-3 (breadcrumbs on game pages) opens that zone.
+function openHashZone() {
+  const m = /^#zone-(\d+)$/.exec(location.hash);
+  const el = m && grid.querySelector(`.zone[data-zone="${m[1]}"]`);
+  if (el) { el.open = true; el.scrollIntoView({ block: 'start' }); }
+}
+openHashZone(); addEventListener('hashchange', openHashZone);
 
 const crowns = Legends.crownNames().catch(() => null);
 for (const g of GAMES) {

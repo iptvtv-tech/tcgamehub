@@ -9,7 +9,7 @@
 //  A game only has to describe itself and draw — see games/_template/game.js
 // ─────────────────────────────────────────────────────────────
 import { CONFIG } from './config.js';
-import { GAMES, GLOBAL_ACHIEVEMENTS, gameById, zoneOf, legendZones, crownZones, CROWN_EGGS } from './games.js';
+import { GAMES, GLOBAL_ACHIEVEMENTS, gameById, zoneOf, legendZones, crownZones, CROWN_EGGS, jewelZones } from './games.js';
 import { eggSVG, eggName, crownSVG } from './eggs.js';
 import { Store } from './storage.js';
 import { Sound } from './audio.js';
@@ -774,7 +774,8 @@ class Shell {
         <p class="muted small">The Crown Room is open, the whole arcade can turn gold, and a 👑 now follows your name on the leaderboards.</p>
         <a class="btn gold-btn" href="../../crown-room/">👑 Enter the Crown Room</a></div>`
         : zone && zone.n > CROWN_EGGS && Legends.hasGoldenCrown()
-          ? `<div class="crown-won">${crownSVG({ size: 150, cls: 'spin', jewels: Legends.jewels() })}<b>A new jewel for your Golden Crown!</b>
+          ? `<div class="crown-won">${crownSVG({ size: 150, cls: 'spin', jewels: Legends.jewels() })}<b>Crown upgraded — jewel ${Legends.jewels().length} of ${jewelZones().length}!</b>
+            <p class="muted small">The ${esc(eggName(zone.n))} is now set in your Golden Crown and your 👑 on the leaderboards shows ${Legends.jewels().length}.</p>
             <a class="btn gold-btn" href="../../crown-room/">👑 See it in the Crown Room</a></div>`
           : `<p class="muted small">Golden Eggs: <b>${Legends.eggs().length} / ${legendZones().length}</b>${Legends.hasGoldenCrown() ? ' · 👑 Golden Crown holder' : zone && zone.n > CROWN_EGGS ? ` — it becomes a jewel in the Golden Crown once you win the eggs of Zones 1–${CROWN_EGGS}.` : ` — the eggs of Zones 1–${CROWN_EGGS} win the Golden Crown.`}</p>`}
       ${this.def.legendLore ? `<p class="legend-hint">${esc(this.def.legendLore)}</p>` : ''}

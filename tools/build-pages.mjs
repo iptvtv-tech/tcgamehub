@@ -104,7 +104,7 @@ function card(sl, rel, { home = false } = {}) {
           <div class="meta">${tierBar(sl)}<span>Coming soon</span></div></div>
       </div>`;
   return `
-      <a class="game-card${sl.legendSlot ? ' legend-slot' : ''}" href="${rel}games/${g.id}/" style="--c:${g.color}" data-game="${g.id}" data-zone="${sl.zone.n}">
+      <a class="game-card${sl.legendSlot ? ' legend-slot' : ''}" href="${rel}games/${g.id}/" style="--c:${g.color}" data-game="${g.id}" data-zone="${sl.zone.n}" data-tier="${sl.tier.id}" data-genres="${genresOf(g).map((x) => x.id).join(' ')}" data-q="${esc((g.title + ' ' + g.tagline).toLowerCase())}">
         <div class="thumb"><span class="num">#${sl.n}</span><img src="${rel}games/${g.id}/thumb.svg" alt="" width="120" height="120" loading="lazy">${g.is3d ? '<span class="chip3d" title="Built with a 3D engine">3D</span>' : ''}</div>
         <span class="play-cta">PLAY ▶</span>
         <div class="body">
@@ -199,18 +199,31 @@ const breadcrumb = (items) => ({
 });
 
 // ── home page ────────────────────────────────────────────────
+// Each zone is a <details> block: closed zones stay in the HTML (search engines and
+// no-JS visitors still see every card), Zone 1 is open by default, and home.js
+// opens the zone the player is currently working on instead.
 function homeGrid() {
-  return ZONES.map((z) => `
-  <section class="zone zone-${z.n}" data-zone="${z.n}" id="zone-${z.n}">
-    <div class="zone-head">
-      <h3>${esc(z.name)}</h3>
-      <span class="muted small">${esc(z.blurb)}</span>
-      <span data-egg></span>
+  return ZONES.map((z) => {
+    const slots = SLOTS.filter((sl) => sl.zone === z);
+    const tiers = [...new Set(slots.map((sl) => sl.tier.label))];
+    const range = tiers.length > 1 ? `${tiers[0]} to ${tiers[tiers.length - 1]}` : tiers[0];
+    const built = slots.filter((sl) => sl.game).length;
+    return `
+  <details class="zone zone-${z.n}" data-zone="${z.n}" id="zone-${z.n}"${z.n === 1 ? ' open' : ''}>
+    <summary class="zone-head">
+      <span class="zone-num">${z.n}</span>
+      <span class="zone-title"><h3>${esc(z.name.replace(/^Zone \d+ · /, ''))}</h3><span class="zone-sub muted small">${esc(range)} · ${built} game${built === 1 ? '' : 's'}</span></span>
+      <span class="zone-meta"><span data-progress class="zone-count muted small"></span><span data-egg></span></span>
+      <span class="zone-chev" aria-hidden="true">▾</span>
+    </summary>
+    <div class="zone-body">
+      <p class="muted small zone-blurb">${esc(z.blurb)}</p>
+      <div data-lock></div>
+      <div class="game-grid">${slots.map((sl) => card(sl, '', { home: true })).join('')}
+      </div>
     </div>
-    <div data-lock></div>
-    <div class="game-grid">${SLOTS.filter((sl) => sl.zone === z).map((sl) => card(sl, '', { home: true })).join('')}
-    </div>
-  </section>`).join('\n');
+  </details>`;
+  }).join('\n');
 }
 function homeSchema() {
   const site = {
@@ -360,29 +373,40 @@ function gamesIndex() {
       mainEntity: { '@type': 'ItemList', numberOfItems: GAMES.length, itemListElement: GAMES.map((g, i) => ({ '@type': 'ListItem', position: i + 1, url: `${SITE}games/${g.id}/`, name: g.title })) } },
     breadcrumb([[SITE_NAME, SITE], ['Games', url]]),
   ];
-  const sections = genrePages().map((ge) => {
-    const games = GAMES.filter((g) => genresOf(g).some((x) => x.id === ge.id));
-    return `
-    <section class="section" id="${ge.id}">
-      <div class="section-head"><h2><a href="${rel}games/${ge.id}/">${esc(ge.label)}</a></h2><span class="muted small">${games.length} games</span></div>
-      <p class="muted">${esc(ge.blurb)}</p>
-      <div class="game-grid">${games.map((g) => card(slotOf(g), rel)).join('')}
-      </div>
-    </section>`;
-  }).join('');
+  const tiers = [...new Set(SLOTS.filter((sl) => sl.game).map((sl) => sl.tier))];
+  const chip = (href, label, data, extra = '') => `<a class="chip${extra}" href="${href}"${data}>${esc(label)}</a>`;
   const body = `
 <body>${siteHeader(rel, 'games')}
-  <main class="wrap genre-page">
+  <main class="wrap genre-page browse-page">
     <h1>All ${GAMES.length} games</h1>
-    <p class="lead">Free browser games with rising levels, bonus rounds and a public high-score board. No sign-up, no downloads — pick a genre or <a href="${rel}">go to the arcade</a> to play in zone order.</p>
-    <p class="pills">${genrePages().map((o) => `<a class="pill genre" href="#${o.id}">${esc(o.label)}</a>`).join(' ')}</p>
-    ${sections}
+    <p class="lead">Free browser games with rising levels, bonus rounds and a public high-score board. No sign-up, no downloads — filter by genre or difficulty, search, or <a href="${rel}">go to the arcade</a> to play in zone order.</p>
+    <div class="browse-bar" id="browse">
+      <label class="browse-search"><span aria-hidden="true">🔍</span><input type="search" id="q" placeholder="Search games…" autocomplete="off" aria-label="Search games"></label>
+      <div class="chips" role="group" aria-label="Genre">
+        ${chip(`${rel}games/`, 'All', ' data-f="all"', ' on')}
+        ${genrePages().filter((ge) => ge.id !== '3d' && ge.id !== 'legends').map((ge) => chip(`${rel}games/${ge.id}/`, ge.label, ` data-f="genre:${ge.id}"`)).join('\n        ')}
+      </div>
+      <div class="chips" role="group" aria-label="Difficulty and type">
+        ${tiers.map((t) => chip(`#tier-${t.id}`, t.label, ` data-f="tier:${t.id}" style="--t:${t.color}"`, ' tier-chip')).join('\n        ')}
+        ${chip(`${rel}games/3d/`, '3D', ' data-f="genre:3d"', ' chip-3d')}
+        ${chip(`${rel}games/legends/`, '👑 Legends', ' data-f="genre:legends"', ' chip-gold')}
+      </div>
+      <p class="muted small" id="browse-count" aria-live="polite"></p>
+    </div>
+    <div class="game-grid" id="all-games">${SLOTS.filter((sl) => sl.game).map((sl) => card(sl, rel)).join('')}
+    </div>
+    <p class="muted" id="browse-empty" hidden>No games match. <a href="#" data-clear>Clear the filters</a> or <a href="${rel}">go to the arcade</a>.</p>
+    <section class="section" id="genres">
+      <h2>Browse by genre</h2>
+      <div class="genre-links">${genrePages().map((ge) => `<a href="${rel}games/${ge.id}/"><b>${esc(ge.label)}</b> <span class="muted small">${GAMES.filter((g) => genresOf(g).some((x) => x.id === ge.id)).length} games</span><br><span class="muted small">${esc(ge.blurb)}</span></a>`).join('\n      ')}
+      </div>
+    </section>
   </main>
   <footer class="site-footer">
     <!-- build:footer -->${footer(rel)}
     <!-- /build:footer -->
   </footer>
-  <script type="module" src="${rel}assets/js/site-page.js"></script>
+  <script type="module" src="${rel}assets/js/browse.js"></script>
 </body>
 </html>
 `;
