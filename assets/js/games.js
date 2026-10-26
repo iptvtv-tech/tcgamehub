@@ -551,6 +551,27 @@ export const GAMES = [
     ],
   },
   {
+    id: 'orbit-hopper',
+    genres: ['space', 'arcade', 'action'],
+    gold: 'Golden Comet',           // golden character unlocked by the Zone 5 egg (gold suit, gold trail)
+    title: 'Orbit Hopper',
+    tagline: 'One button, endless sky. Circle a planet, let go at just the right moment and ride gravity from world to world, up to the golden beacon. The void is always waiting.',
+    controls: 'Space, click or tap: let go of the planet',
+    color: '#67e8f9',
+    isNew: true,
+    achievements: [
+      { id: 'first',    icon: '🚀', title: 'First Hop',      desc: 'Reach another planet' },
+      { id: 'beacon',   icon: '⭐', title: 'Beacon Keeper',  desc: 'Reach the beacon and clear a level' },
+      { id: 'chain5',   icon: '🔗', title: 'Chain Reaction', desc: 'Visit 5 planets without missing' },
+      { id: 'allstars', icon: '✨', title: 'Star Sweeper',   desc: 'Collect every star in a level' },
+      { id: 'flawless', icon: '🧑‍🚀', title: 'Clean Climb',   desc: 'Clear level 3 or later without losing a life' },
+      { id: 'slingshot', icon: '🌀', title: 'Slingshot',     desc: 'Fly past a planet without landing and still make it' },
+      { id: 'grazed',   icon: '🕳️', title: 'Event Horizon',  desc: 'Skim past the black hole and live' },
+      { id: 'level10',  icon: '🌌', title: 'Deep Space',     desc: 'Reach level 10' },
+      { id: 'score10k', icon: '🏅', title: 'Ten Grand',      desc: 'Score 10,000 in one game' },
+    ],
+  },
+  {
     id: 'vault-of-stars',
     genres: ['puzzle', 'space'],
     gold: 'Golden Astronaut',       // golden character unlocked by the Zone 5 egg (gold suit and visor)
@@ -629,7 +650,7 @@ export const ZONES = [
     slots: ['tc-pixel-craft', 'dungeon-escape', 'neon-drift', 'crystal-cascade', 'void-breaker', 'crown-heist'] },
   { n: 5, name: 'Zone 5 · Beyond', blurb: 'Ultra difficulty, out past the Earth. Vault of Stars is this zone\'s Legends game.',
     legendGame: 'vault-of-stars',
-    slots: ['lunar-delivery', null, null, null, null, 'vault-of-stars'] },
+    slots: ['lunar-delivery', 'orbit-hopper', null, null, null, 'vault-of-stars'] },
 ];
 
 /** Icon for each zone's prize (a Golden Egg — see eggs.js for the full artwork). */

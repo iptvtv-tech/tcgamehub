@@ -4,6 +4,7 @@ import { Store } from './storage.js';
 import { Scores } from './scores.js';
 import { siteChrome, esc, fmt, ago } from './site.js';
 import { Legends } from './legends.js';
+import { Tokens } from './tokens.js';
 
 siteChrome();
 
@@ -49,7 +50,7 @@ async function render() {
     const shown = Math.min(rows.length, showAll ? MAX_ROWS : CONFIG.boardSize);
     const row = (r, i, extra = '') => `
           <tr class="${i === myIdx ? 'me' : ''}${extra}">
-            <th scope="row">${medal(i)}</th><td>${esc(r.name)}${Legends.crownMark(r.name)}</td>
+            <th scope="row">${medal(i)}</th><td>${esc(r.name)}${Tokens.flairHTML(r.flair)}${Legends.crownMark(r.name)}</td>
             <td class="num score">${fmt(r.score)}</td>
             <td class="num hide-sm">${r.level ?? ''}</td>
             <td class="num hide-sm muted">${ago(r.at)}</td>

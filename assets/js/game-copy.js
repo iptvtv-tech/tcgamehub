@@ -152,6 +152,12 @@ export const COPY = {
     how: ['Hold Space to thrust; tilt with ↑ and ↓, turn with ← and →, sidestep with Q and E. On a phone use the stick and hold THRUST.', 'Hover low over the waiting crate to hook it.', 'Set it down gently inside the green ring at the next base.', 'Land on any pad to refuel.'],
     tip: 'Touch down at under 1 m/s for the Feather Touch bonus.',
   },
+  'orbit-hopper': {
+    kind: 'one-button space game',
+    blurb: 'Circle a planet, let go at the right moment and slingshot through gravity to the next one. Climb to the golden beacon, grab stars on the way, and don\u2019t drift into the void. Free.',
+    how: ['Your hopper circles the planet on its own \u2014 watch the direction it is facing.', 'Press Space, click or tap to let go. You fly straight, bent by every planet\u2019s gravity.', 'Touch a planet to swing into its orbit. Each new planet pays points and grows your combo.', 'Reach the golden \u2605 beacon at the top to finish the level. From level 4 planets drift, and from level 7 a black hole lurks between them.'],
+    tip: 'A near miss is a free slingshot: grazing a planet\u2019s gravity bends you around it and flings you out faster.',
+  },
   'vault-of-stars': {
     kind: 'speedrun puzzle game',
     blurb: 'Fifteen sealed vaults on an alien moon. Time the laser grids, slip past sentry drones, drift across zero-g fields and reach the airlock before your oxygen runs out. Zone 5’s Legends game.',

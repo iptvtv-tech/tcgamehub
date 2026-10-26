@@ -71,6 +71,9 @@ class OrbitHopper {
     this.trail = [];
     this.visited = new Set([0]);
     this.deaths = 0;
+    this.chain = 0;            // planets reached since the last lost life (chain5 badge)
+    this.nearMiss = false;     // grazed a planet's gravity this flight (slingshot badge)
+    this.holeGraze = false;    // skimmed the black hole this flight (grazed badge)
     this.hintT = level === 1 ? 6 : 0;
     this.beaconPulse = 0;
   }
@@ -88,11 +91,19 @@ class OrbitHopper {
       this.visited.add(p.i);
       s.award(25 * this.level, this.hx(), this.hy() - 20, { chain: true, color: '#86efac' });
       s.sound.play('coin', s.comboCount);
+      s.unlock('first');
+      if (++this.chain >= 5) s.unlock('chain5');
+      if (this.nearMiss) s.unlock('slingshot');
+      if (this.holeGraze) s.unlock('grazed');
     }
+    this.nearMiss = false; this.holeGraze = false;
   }
 
   reachBeacon() {
     const s = this.s;
+    s.unlock('beacon');
+    if (!this.bonus && this.lootStars.length && this.lootStars.every((x) => x.got)) s.unlock('allstars');
+    if (!this.bonus && this.level >= 3 && this.deaths === 0) s.unlock('flawless');
     s.award(150 * this.level, this.hx(), this.hy() - 24, { chain: true, color: '#fde047', size: 22 });
     s.sound.play('powerup');
     s.fx.burst(this.hx(), this.hy(), { color: '#fde047', count: 40, speed: 260 });
@@ -122,7 +133,7 @@ class OrbitHopper {
   onLifeLost() {
     // back into orbit around the last planet, chain broken
     this.fly = null; this.trail = [];
-    this.deaths++;
+    this.deaths++; this.chain = 0; this.nearMiss = false; this.holeGraze = false;
     this.s.resetCombo();
     this.enter(this.lastPlanet || this.planets[0], null);
   }
@@ -148,6 +159,13 @@ class OrbitHopper {
     if (this.trail.length > 26) this.trail.shift();
 
     const hit = stepFlight(f, this.planets, dt);
+    // badge trackers: grazing a planet's gravity well / the black hole mid-flight
+    if (f.t > 0.25) for (const p of this.planets) {
+      if (p === f.from || p.goal) continue;
+      const d = Math.hypot(p.x - f.x, p.y - f.y);
+      if (d < p.r + 46 && d > p.r + HOPPER_R + 2) this.nearMiss = true;
+    }
+    if (this.hole && Math.hypot(this.hole.x - f.x, this.hole.y - f.y) < this.hole.r * 3) this.holeGraze = true;
     // stars
     for (const st of this.lootStars) {
       if (!st.got && Math.hypot(st.x - f.x, st.y - f.y) < STAR_R + HOPPER_R + 4) {

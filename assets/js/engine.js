@@ -35,10 +35,16 @@ class FX {
   constructor() { this.clear(); }
   clear() { this.parts = []; this.texts = []; this.rings = []; this.shakeT = 0; this.shakeMag = 0; this.flashA = 0; this.flashColor = '#fff'; }
   burst(x, y, { count = 16, color = '#fff', colors = null, speed = 180, life = 0.6, size = 3, gravity = 0, angle = 0, spread = Math.PI * 2 } = {}) {
+    // The equipped effect pack (Token Shop) re-dresses every burst, in every game.
+    const pk = Tokens.fxPack();
+    if (pk === 'fx-embers') gravity -= 80;
+    if (pk === 'fx-bubbles') { gravity = -55; speed *= 0.65; }
+    const party = ['#f472b6', '#22d3ee', '#fbbf24', '#a3e635', '#c084fc'];
     for (let i = 0; i < count; i++) {
       const a = angle + (Math.random() - 0.5) * spread;
       const v = speed * (0.35 + Math.random() * 0.65);
-      this.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: life * (0.6 + Math.random() * 0.4), max: life, size: size * (0.6 + Math.random() * 0.7), color: colors ? colors[i % colors.length] : color, gravity });
+      const col = pk === 'fx-confetti' && i % 2 ? party[i % party.length] : colors ? colors[i % colors.length] : color;
+      this.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: life * (0.6 + Math.random() * 0.4), max: life, size: size * (0.6 + Math.random() * 0.7), color: col, gravity, pk, sd: Math.random() * 360 });
     }
     if (this.parts.length > 700) this.parts.splice(0, this.parts.length - 700);
   }
@@ -82,9 +88,32 @@ class FX {
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     for (const p of this.parts) {
-      ctx.globalAlpha = Math.max(0, p.life / p.max);
-      ctx.fillStyle = p.color;
-      ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+      const k = Math.max(0, p.life / p.max);
+      ctx.globalAlpha = k;
+      switch (p.pk) {
+        case 'fx-confetti': {
+          ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.sd + (1 - k) * 7);
+          ctx.fillStyle = p.color; ctx.fillRect(-p.size, -p.size * 0.55, p.size * 2, p.size * 1.1);
+          ctx.restore(); break;
+        }
+        case 'fx-pixel': {
+          ctx.globalAlpha = k > 0.66 ? 1 : k > 0.33 ? 0.6 : 0.3;
+          const s4 = Math.max(3, Math.round(p.size * 1.5)), gx = Math.round(p.x / 3) * 3, gy = Math.round(p.y / 3) * 3;
+          ctx.fillStyle = p.color; ctx.fillRect(gx - s4 / 2, gy - s4 / 2, s4, s4); break;
+        }
+        case 'fx-rainbow':
+          ctx.fillStyle = `hsl(${(p.sd + (1 - k) * 320) % 360}, 95%, 65%)`;
+          ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size); break;
+        case 'fx-embers':
+          ctx.fillStyle = `hsl(${Math.round(45 * k)}, 95%, ${Math.round(45 + 25 * k)}%)`;
+          ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (0.4 + 0.6 * k), 0, Math.PI * 2); ctx.fill(); break;
+        case 'fx-bubbles':
+          ctx.strokeStyle = p.color; ctx.lineWidth = 1.2;
+          ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (1.5 - 0.7 * k), 0, Math.PI * 2); ctx.stroke(); break;
+        default:
+          ctx.fillStyle = p.color;
+          ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+      }
     }
     for (const r of this.rings) {
       const k = 1 - r.life / r.max;
@@ -775,7 +804,7 @@ class Shell {
     o.querySelector('[data-act="play"]').focus({ preventScroll: true });
     Promise.all([Scores.top(this.id, 'today', this.mode, 1), Legends.crownNames().catch(() => null)]).then(([rows]) => {
       const el = o.querySelector('[data-top]'); if (!el) return;
-      el.innerHTML = rows[0] ? `Today's top: <b>${esc(rows[0].name)}</b>${Legends.crownMark(rows[0].name)} ${fmt(rows[0].score)}` : 'Be first on today\'s board!';
+      el.innerHTML = rows[0] ? `Today's top: <b>${esc(rows[0].name)}</b>${Tokens.flairHTML(rows[0].flair)}${Legends.crownMark(rows[0].name)} ${fmt(rows[0].score)}` : 'Be first on today\'s board!';
     }).catch(() => { const el = o.querySelector('[data-top]'); if (el) el.textContent = ''; });
   }
 
@@ -842,7 +871,7 @@ class Shell {
       form.querySelector('button').disabled = true; msg.textContent = 'Signing…'; msg.className = 'form-msg';
       try {
         const { code } = await Legends.claim(this.id, name, this.playTime * 1000);
-        Scores.submit({ game: this.id, name, score, level: this.level, mode: this.mode, session: this.session }).catch(() => {});
+        Scores.submit({ game: this.id, name, score, level: this.level, mode: this.mode, session: this.session, flair: Tokens.flair() }).catch(() => {});
         this.unlock('famous', true);
         this.sound.play('achieve');
         box.innerHTML = `<p class="rank-msg saved">✅ <b>${esc(name)}</b> is in the Hall of Legends.</p>
@@ -945,7 +974,7 @@ class Shell {
       if (problem) { msg.textContent = problem; msg.className = 'form-msg err'; return; }
       form.querySelector('button').disabled = true; msg.textContent = 'Saving…'; msg.className = 'form-msg';
       try {
-        const r = await Scores.submit({ game: this.id, name, score, level: this.level, mode: this.mode, session: this.session });
+        const r = await Scores.submit({ game: this.id, name, score, level: this.level, mode: this.mode, session: this.session, flair: Tokens.flair() });
         Store.setName(name);
         this.unlock('famous', true);
         box.innerHTML = `<p class="rank-msg saved">✅ Saved! <b>${esc(name)}</b> is <b>#${r.rank}</b> today. <a href="${boardUrl}">See the board →</a></p>`;

@@ -39,8 +39,23 @@ function out(c, node, bus, pan) {
   else node.connect(bus);
 }
 
+/** The equipped sound pack re-voices SFX (never music — music always passes its own bus).
+ *  Set by tokens.js via Sound.setPack; 'sfx-classic' is a no-op. */
+let sfxPack = 'sfx-classic';
+const PACK_TYPE = {
+  'sfx-8bit':  { sine: 'square', triangle: 'square', sawtooth: 'square', square: 'square' },
+  'sfx-soft':  { square: 'sine', sawtooth: 'triangle', triangle: 'sine', sine: 'sine' },
+  'sfx-laser': { square: 'sawtooth', triangle: 'sawtooth', sine: 'triangle', sawtooth: 'sawtooth' },
+};
+const PACK_VOL = { 'sfx-8bit': 0.9, 'sfx-soft': 0.85, 'sfx-laser': 0.8 };
+function sfxVoice(type, vol) {
+  const m = PACK_TYPE[sfxPack];
+  return m ? [m[type] || type, vol * (PACK_VOL[sfxPack] || 1)] : [type, vol];
+}
+
 function tone({ freq = 440, to = null, dur = 0.1, type = 'square', vol = 0.2, delay = 0, bus = null, attack = 0.005, pan = 0 }) {
   const c = ac(); if (!c) return;
+  if (!bus) [type, vol] = sfxVoice(type, vol);
   const t = c.currentTime + delay;
   const o = c.createOscillator(), g = c.createGain();
   o.type = type;
@@ -95,6 +110,7 @@ function voice({ type = 'sawtooth', noise: withNoise = false, filter = 'bandpass
 }
 
 function noise({ dur = 0.2, vol = 0.3, freq = 1200, to = null, type = 'lowpass', delay = 0, pan = 0 }) {
+  vol *= PACK_VOL[sfxPack] || 1;
   const c = ac(); if (!c) return;
   const t = c.currentTime + delay;
   const s = c.createBufferSource(); s.buffer = noiseBuf;
@@ -232,6 +248,8 @@ function noise_hat(delay, vol) {
 
 export const Sound = {
   unlock() { ac(); },
+  /** tokens.js equips a sound pack here ('sfx-classic' | 'sfx-8bit' | 'sfx-soft' | 'sfx-laser') */
+  setPack(id) { sfxPack = id || 'sfx-classic'; },
   play(name, p) { if (Store.setting('muted')) return; try { PRESETS[name]?.(p); } catch { /* ignore */ } },
   tone, noise, note, synth, voice,
   /** is background music running right now? */

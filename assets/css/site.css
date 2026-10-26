@@ -438,3 +438,8 @@ a.legend-banner.hall-door:hover { border-color: #fbbf24; transform: translateY(-
 .badges-page .section-head .done { color: #86efac; }
 .badge-summary { display: flex; gap: 14px; align-items: center; margin: 0 0 10px; }
 body.unearned-only .badge.got { display: none; }
+
+/* ── Shop: effect/sound packs and flair ─────────────────────── */
+.shop-card .pack-ico { font-size: 2em; line-height: 1; }
+.shop-card .btn.small { font-size: .85em; padding: .35em .8em; }
+.flair { font-size: .9em; margin-left: .15em; }

@@ -49,7 +49,7 @@ tickCountdown(); setInterval(tickCountdown, 1000);
   dEl.querySelector('[data-daily-top]').after(el);
 }
 Promise.all([Scores.top(daily.id, 'today', 'daily', 1), Legends.crownNames().catch(() => null)]).then(([r]) => {
-  dEl.querySelector('[data-daily-top]').innerHTML = r[0] ? `Leader: <b>${esc(r[0].name)}</b>${Legends.crownMark(r[0].name)} — ${fmt(r[0].score)}` : 'No one has set a score yet — claim the top spot!';
+  dEl.querySelector('[data-daily-top]').innerHTML = r[0] ? `Leader: <b>${esc(r[0].name)}</b>${Tokens.flairHTML(r[0].flair)}${Legends.crownMark(r[0].name)} — ${fmt(r[0].score)}` : 'No one has set a score yet — claim the top spot!';
 }).catch(() => {});
 
 // ── Your arcade: avatar, tokens, shop ───────────────────────
@@ -130,7 +130,7 @@ for (const g of GAMES) {
   const el = grid.querySelector(`[data-top="${g.id}"]`);
   if (!el) continue;
   Promise.all([Scores.top(g.id, 'today', 'normal', 1), crowns]).then(([r]) => {
-    el.innerHTML = r[0] ? `Today's top: <b>${esc(r[0].name)}</b>${Legends.crownMark(r[0].name)} ${fmt(r[0].score)}` : 'Today\'s top: <b>up for grabs</b>';
+    el.innerHTML = r[0] ? `Today's top: <b>${esc(r[0].name)}</b>${Tokens.flairHTML(r[0].flair)}${Legends.crownMark(r[0].name)} ${fmt(r[0].score)}` : 'Today\'s top: <b>up for grabs</b>';
   }).catch(() => { el.textContent = ''; });
 }
 
@@ -141,7 +141,7 @@ async function loadTicker() {
     const rows = await Scores.recent(15);
     await crowns;
     if (!rows.length) { ticker.innerHTML = '<span>No scores yet — be the first name on the board!</span>'; return; }
-    ticker.innerHTML = rows.map((r) => `<span>🏆 <b>${esc(r.name)}</b>${Legends.crownMark(r.name)} scored <b>${fmt(r.score)}</b> on ${esc(gameById(r.game)?.title || r.game)} · ${ago(r.at)}</span>`).join('');
+    ticker.innerHTML = rows.map((r) => `<span>🏆 <b>${esc(r.name)}</b>${Tokens.flairHTML(r.flair)}${Legends.crownMark(r.name)} scored <b>${fmt(r.score)}</b> on ${esc(gameById(r.game)?.title || r.game)} · ${ago(r.at)}</span>`).join('');
   } catch { ticker.innerHTML = '<span>Leaderboard is offline right now.</span>'; }
 }
 loadTicker(); setInterval(loadTicker, 60000);

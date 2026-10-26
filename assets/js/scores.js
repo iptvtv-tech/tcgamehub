@@ -71,7 +71,7 @@ export const Scores = {
   async top(game, period = 'today', mode = 'normal', limit = CONFIG.boardSize) {
     if (ONLINE) {
       const rows = await rpc('top_scores', { p_game: game, p_period: period, p_mode: mode, p_limit: limit });
-      return rows.map((r) => ({ name: r.name, score: r.score, level: r.level, at: new Date(r.created_at).getTime() }));
+      return rows.map((r) => ({ name: r.name, score: r.score, level: r.level, flair: r.flair || null, at: new Date(r.created_at).getTime() }));
     }
     return localBest(game, period, mode).slice(0, limit);
   },
@@ -90,17 +90,25 @@ export const Scores = {
   },
 
   /** Save a score. Returns { rank } or throws an Error with a friendly message. */
-  async submit({ game, name, score, level, mode = 'normal', session }) {
+  async submit({ game, name, score, level, mode = 'normal', session, flair = null }) {
     const problem = nameProblem(name);
     if (problem) throw new Error(problem);
     if (ONLINE) {
       const ticket = await session;
       if (!ticket) throw new Error('The leaderboard couldn\'t be reached when this game started — play again to save a score.');
-      const r = await rpc('submit_score_v2', { p_session: ticket, p_name: name, p_score: Math.floor(score), p_level: level });
+      // flair (Token Shop) rides along when equipped. If the server hasn't been updated with
+      // supabase/flair.sql yet, the 5-argument call doesn't match — retry the plain one.
+      const base = { p_session: ticket, p_name: name, p_score: Math.floor(score), p_level: level };
+      let r;
+      if (flair) {
+        try { r = await rpc('submit_score_v2', { ...base, p_flair: flair }); }
+        catch (e) { if (!/function|parameter|argument|404/i.test(String(e?.message || e))) throw e; }
+      }
+      r ||= await rpc('submit_score_v2', base);
       return { rank: r.rank };
     }
     const d = Store.data;
-    d.local.push({ game, name, score, level, mode, at: Date.now() });
+    d.local.push({ game, name, score, level, mode, flair, at: Date.now() });
     if (d.local.length > 600) d.local.splice(0, d.local.length - 600);
     Store.save();
     return { rank: await this.rank(game, score, 'today', mode) };
@@ -110,7 +118,7 @@ export const Scores = {
   async recent(limit = 15) {
     if (ONLINE) {
       const rows = await rpc('recent_scores', { p_limit: limit });
-      return rows.map((r) => ({ game: r.game, name: r.name, score: r.score, at: new Date(r.created_at).getTime() }));
+      return rows.map((r) => ({ game: r.game, name: r.name, score: r.score, flair: r.flair || null, at: new Date(r.created_at).getTime() }));
     }
     return [...Store.data.local].sort((a, b) => b.at - a.at).slice(0, limit);
   },

@@ -24,3 +24,12 @@ on conflict (id) do update set title = excluded.title, max_points_per_second = e
 
 -- Check: two rows should come back.
 select id, title, max_points_per_second, has_legend, legend_min_ms from public.games where id in ('lunar-delivery', 'vault-of-stars');
+
+-- Orbit Hopper (Zone 5, slot 26). Hop + star scoring scales with level and the
+-- x8 multiplier, so allow a high points-per-second ceiling like Lunar Delivery's.
+insert into public.games (id, title, max_points_per_second)
+values ('orbit-hopper', 'Orbit Hopper', 6000)
+on conflict (id) do update set title = excluded.title, max_points_per_second = excluded.max_points_per_second;
+
+-- Check: three rows should come back.
+select id, title, max_points_per_second from public.games where id in ('lunar-delivery', 'vault-of-stars', 'orbit-hopper');
