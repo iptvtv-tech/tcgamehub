@@ -78,7 +78,8 @@ function replaceBlock(file, name, html) {
   const open = `<!-- build:${name} -->`, close = `<!-- /build:${name} -->`;
   const a = src.indexOf(open), b = src.indexOf(close);
   if (a < 0 || b < 0) throw new Error(`${file}: missing ${open} … ${close}`);
-  const next = src.slice(0, a + open.length) + '\n' + html.trim() + '\n' + src.slice(b);
+  const inline = !html.includes('\n') && html.length < 40;
+  const next = src.slice(0, a + open.length) + (inline ? html.trim() : '\n' + html.trim() + '\n') + src.slice(b);
   out(file, next);
 }
 const lastmod = (file) => {
@@ -137,6 +138,7 @@ function footer(rel) {
           <li><a href="${rel}hall-of-legends/">Hall of Legends</a></li>
           <li><a href="${rel}retro-vault/">Retro Vault</a></li>
           <li><a href="${rel}shop/">Token Shop</a></li>
+          <li><a href="${rel}badges/">All badges</a></li>
           <li><a href="${rel}about/">About &amp; privacy</a></li>
         </ul></div>
       </div>
@@ -378,6 +380,7 @@ function gamesIndex() {
   const body = `
 <body>${siteHeader(rel, 'games')}
   <main class="wrap genre-page browse-page">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="${rel}">${SITE_NAME}</a> › <span>Games</span></nav>
     <h1>All ${GAMES.length} games</h1>
     <p class="lead">Free browser games with rising levels, bonus rounds and a public high-score board. No sign-up, no downloads — filter by genre or difficulty, search, or <a href="${rel}">go to the arcade</a> to play in zone order.</p>
     <div class="browse-bar" id="browse">
@@ -413,6 +416,51 @@ function gamesIndex() {
   return head({ rel, title, description, canonical: url, ogImage: `${SITE}assets/img/og.png`, schema }) + body;
 }
 
+// ── /badges/ — every badge, static (secret ones shown as ???); badges.js adds the
+//    earned state and the count for this player.
+function badgesPage() {
+  const rel = '../';
+  const url = `${SITE}badges/`;
+  const all = [
+    ...GLOBAL_ACHIEVEMENTS.map((a) => ({ a, key: `g:${a.id}`, group: 'Arcade' })),
+    ...GAMES.flatMap((g) => (g.achievements || []).map((a) => ({ a, key: `${g.id}:${a.id}`, group: g.title, game: g }))),
+  ];
+  const legendary = all.filter((x) => x.a.legendary);
+  const groups = [{ title: '👑 Legendary', cls: 'legendary', items: legendary, blurb: 'One per Legends game: the Golden Egg itself.' },
+    { title: 'Arcade', items: all.filter((x) => !x.a.legendary && x.group === 'Arcade'), blurb: 'Earned across the whole arcade.' },
+    ...GAMES.map((g) => ({ title: g.title, game: g, items: all.filter((x) => x.game === g && !x.a.legendary) }))].filter((grp) => grp.items.length);
+  const title = `All ${all.length} badges | ${SITE_NAME}`;
+  const description = `Every badge on ${SITE_NAME}: ${all.length} to collect across ${GAMES.length} games, from your first play to the secret Golden Egg badges. Each badge pays arcade tokens.`;
+  const schema = [
+    { '@context': 'https://schema.org', '@type': 'CollectionPage', name: 'All badges', url, description, isPartOf: { '@id': SITE + '#website' } },
+    breadcrumb([[SITE_NAME, SITE], ['Badges', url]]),
+  ];
+  const badge = ({ a, key, game }) => `<div class="badge${a.legendary ? ' legendary' : ''}${a.secret ? ' secret' : ''}" data-key="${key}" data-title="${esc(a.title)}" data-desc="${esc(a.desc)}" data-icon="${esc(a.icon)}"><span class="ico">${a.secret ? '🔒' : a.icon}</span><span><b>${a.secret ? '???' : esc(a.title)}</b><small>${a.secret ? 'A secret. Keep playing…' : esc(a.desc)}</small></span></div>`;
+  const body = `
+<body>${siteHeader(rel, 'badges')}
+  <main class="wrap genre-page badges-page">
+    <nav class="crumbs" aria-label="Breadcrumb"><a href="${rel}">${SITE_NAME}</a> › <span>Badges</span></nav>
+    <h1>All ${all.length} badges</h1>
+    <p class="lead">Badges are earned as you play and live in your browser (a Legend code carries them to any device). Every badge pays <b>+10 🪙 tokens</b> for the <a href="${rel}shop/">Token Shop</a>. Secret badges stay hidden until you find them.</p>
+    <p class="badge-summary" id="badge-summary"><span class="progress-count" id="badge-count"></span> <a class="muted small" href="#" id="badge-filter" hidden>Show only unearned</a></p>
+    <p class="pills badge-jump">${groups.map((grp) => `<a class="pill genre" href="#${grp.game ? grp.game.id : grp.cls || 'arcade'}">${esc(grp.title)}</a>`).join(' ')}</p>
+    ${groups.map((grp) => `
+    <section class="badge-group ${grp.cls || ''}" id="${grp.game ? grp.game.id : grp.cls || 'arcade'}">
+      <div class="section-head"><h2>${grp.game ? `<a href="${rel}games/${grp.game.id}/">${esc(grp.title)}</a>` : esc(grp.title)}</h2><span class="muted small">${grp.items.length} badge${grp.items.length > 1 ? 's' : ''}${grp.blurb ? ` · ${esc(grp.blurb)}` : ''}</span></div>
+      <div class="badge-grid">${grp.items.map(badge).join('')}</div>
+    </section>`).join('')}
+  </main>
+  <footer class="site-footer">
+    <!-- build:footer -->${footer(rel)}
+    <!-- /build:footer -->
+  </footer>
+  <script type="module" src="${rel}assets/js/badges.js"></script>
+</body>
+</html>
+`;
+  return head({ rel, title, description, canonical: url, ogImage: `${SITE}assets/img/og.png`, schema }) + body;
+}
+
 // ── sitemap ──────────────────────────────────────────────────
 function sitemap() {
   const urls = [
@@ -422,6 +470,7 @@ function sitemap() {
     ...SLOTS.filter((sl) => sl.game).map((sl) => [`games/${sl.game.id}/`, `games/${sl.game.id}/game.js`, sl.legendSlot ? '0.9' : '0.8', 'monthly']),
     ['retro-vault/', 'retro-vault/index.html', '0.7', 'monthly'],
     ['shop/', 'shop/index.html', '0.5', 'monthly'],
+    ['badges/', 'badges/index.html', '0.5', 'monthly'],
     ['leaderboard/', 'leaderboard/index.html', '0.6', 'daily'],
     ['about/', 'about/index.html', '0.4', 'yearly'],
   ];
@@ -479,6 +528,8 @@ async function shareCards() {
 if (IMAGES) await shareCards();
 replaceBlock('index.html', 'grid', homeGrid());
 replaceBlock('index.html', 'schema', homeSchema());
+replaceBlock('index.html', 'count', String(GAMES.length));
+out('badges/index.html', badgesPage());
 for (const g of GAMES) out(`games/${g.id}/index.html`, gamePage(g));
 out('games/index.html', gamesIndex());
 for (const ge of genrePages()) out(`games/${ge.id}/index.html`, genrePage(ge));

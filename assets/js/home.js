@@ -1,5 +1,5 @@
 import { CONFIG } from './config.js';
-import { GAMES, GLOBAL_ACHIEVEMENTS, ZONES, gameById, dailyGame, legendZones, crownZones, jewelZones } from './games.js';
+import { GAMES, GLOBAL_ACHIEVEMENTS, ZONES, SLOTS, gameById, dailyGame, legendZones, crownZones, jewelZones } from './games.js';
 import { Store } from './storage.js';
 import { Scores } from './scores.js';
 import { Legends } from './legends.js';
@@ -16,14 +16,14 @@ wa.href = whatsappLink(`🎮 Free quick games with levels, bonus rounds and high
 wa.innerHTML = `${WA_ICON} Share on WhatsApp`;
 
 // ── Play now (random game) ──────────────────────────────────
-document.getElementById('play-random').onclick = () => {
-  // Prefer a game they haven't tried yet
-  const open = GAMES.filter((g) => ZoneLock.gameOpen(g.id));
-  const fresh = open.filter((g) => !Store.plays(g.id));
-  const pool = fresh.length ? fresh : open;
-  const g = pool[Math.floor(Math.random() * pool.length)];
-  location.href = `games/${g.id}/`;
-};
+// "Play now" goes to the next game in zone order the player hasn't tried (the first
+// game for a new visitor). Once everything has been played, the game they played last.
+{
+  const next = SLOTS.find((sl) => sl.game && !Store.plays(sl.game.id))?.game || gameById(Store.last()?.game) || GAMES[0];
+  const a = document.getElementById('play-next');
+  a.href = `games/${next.id}/`;
+  a.textContent = Store.plays(next.id) ? `▶ Play ${next.title}` : `▶ Play now: ${next.title}`;
+}
 
 // ── Daily challenge ─────────────────────────────────────────
 const daily = dailyGame();
@@ -174,26 +174,21 @@ loadTicker(); setInterval(loadTicker, 60000);
   document.getElementById('prize-grid').innerHTML = eggCards + crownCard + goldCard;
 }
 
-// ── Badges ──────────────────────────────────────────────────
-// Legendary badges get their own gold group at the top; secret ones stay hidden until earned.
-const legendary = [
-  ...GLOBAL_ACHIEVEMENTS.filter((a) => a.legendary).map((a) => ({ a, key: `g:${a.id}` })),
-  ...GAMES.flatMap((g) => (g.achievements || []).filter((a) => a.legendary).map((a) => ({ a, key: `${g.id}:${a.id}` }))),
-];
-const groups = [{ title: '👑 Legendary', cls: 'legendary', items: legendary }]
-  .concat([{ title: 'Arcade', items: GLOBAL_ACHIEVEMENTS.filter((a) => !a.legendary).map((a) => ({ a, key: `g:${a.id}` })) }])
-  .concat(GAMES.map((g) => ({ title: g.title, items: (g.achievements || []).filter((a) => !a.legendary).map((a) => ({ a, key: `${g.id}:${a.id}` })) })));
-let got = 0, total = 0;
-document.getElementById('badge-list').innerHTML = groups.filter((grp) => grp.items.length).map((grp) => `
-  <div class="badge-group ${grp.cls || ''}"><h3>${esc(grp.title)}</h3><div class="badge-grid">
-    ${grp.items.map(({ a, key }) => {
-      const has = Store.hasAch(key); got += has; total++;
-      const hidden = a.secret && !has;
-      const title = hidden ? '???' : a.title, desc = hidden ? 'A secret. Keep playing…' : a.desc;
-      return `<div class="badge${has ? ' got' : ''}${a.legendary ? ' legendary' : ''}${hidden ? ' secret' : ''}" title="${esc(desc)}"><span class="ico">${hidden ? '🔒' : a.icon}</span><span><b>${esc(title)}</b><small>${esc(desc)}</small></span></div>`;
-    }).join('')}
-  </div></div>`).join('');
-document.getElementById('badge-count').textContent = `${got} / ${total} unlocked`;
+// ── Badges: a short strip (the full list is /badges/) ─────────────
+{
+  const all = [
+    ...GLOBAL_ACHIEVEMENTS.map((a) => ({ a, key: `g:${a.id}` })),
+    ...GAMES.flatMap((g) => (g.achievements || []).map((a) => ({ a, key: `${g.id}:${a.id}`, game: g }))),
+  ];
+  const got = all.filter((x) => Store.hasAch(x.key));
+  const recent = got.slice(-8).reverse();
+  const next = all.filter((x) => !Store.hasAch(x.key) && !x.a.secret && !x.a.legendary).slice(0, recent.length ? 4 : 6);
+  const badge = ({ a, game }, has) => `<div class="badge${has ? ' got' : ''}${a.legendary ? ' legendary' : ''}" title="${esc(a.desc)}${game ? ` — ${esc(game.title)}` : ''}"><span class="ico">${a.icon}</span><span><b>${esc(a.title)}</b><small>${esc(game ? game.title : a.desc)}</small></span></div>`;
+  document.getElementById('badge-list').innerHTML =
+    (recent.length ? `<div class="badge-grid">${recent.map((x) => badge(x, true)).join('')}</div>` : '') +
+    (next.length ? `<p class="muted small" style="margin:${recent.length ? 12 : 0}px 0 6px">${recent.length ? 'Up next' : 'Easy ones to start with'}</p><div class="badge-grid">${next.map((x) => badge(x, false)).join('')}</div>` : '');
+  document.getElementById('badge-count').textContent = `${got.length} / ${all.length} unlocked`;
+}
 
 // ── Legend banner ───────────────────────────────────────────
 if (Legends.isLegend()) {

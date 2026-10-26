@@ -234,13 +234,16 @@
   <main class="wrap">
     <section class="hero">
       <div class="hero-main">
+        <p class="hero-kicker"><!-- build:count -->26<!-- /build:count --> free browser games · no sign-up · no downloads</p>
         <h1>Quick games.<br><span class="glow">Rising levels.</span><br>Your name in lights.</h1>
-        <p>Jump straight in — no sign-up, no downloads. Every level gets a little faster, every fifth level is a bonus round, and the best scores go on the public board.</p>
+        <p>Pick a game and play in seconds. Every level gets faster, every fifth is a bonus round, and the best scores go on the public board under your name. Finish a zone's games to earn tokens; find its Golden Egg to become a Legend.</p>
         <div class="hero-actions">
-          <button class="btn primary big" id="play-random">▶ Play now</button>
+          <a class="btn primary big" id="play-next" href="games/neon-snake/">▶ Play now</a>
+          <a class="btn big" href="games/">🎮 All games</a>
           <a class="btn big" href="leaderboard/">🏆 High scores</a>
           <a class="btn wa" id="wa-share" href="#" target="_blank" rel="noopener">Share on WhatsApp</a>
         </div>
+        <p class="hero-trust muted small">Works on phones and desktop · Daily Challenge · badges, tokens and a Hall of Legends</p>
       </div>
       <aside class="daily-card" id="daily">
         <span class="pill daily">📅 Daily Challenge</span>
@@ -756,7 +759,8 @@
 
     <section class="section" id="badges">
       <div class="section-head"><h2>Your badges</h2><span class="progress-count" id="badge-count"></span></div>
-      <div id="badge-list"></div>
+      <div class="badge-strip" id="badge-list"></div>
+      <p><a class="btn" href="badges/">🏅 See all badges →</a></p>
     </section>
   </main>
 
@@ -776,6 +780,7 @@
           <li><a href="hall-of-legends/">Hall of Legends</a></li>
           <li><a href="retro-vault/">Retro Vault</a></li>
           <li><a href="shop/">Token Shop</a></li>
+          <li><a href="badges/">All badges</a></li>
           <li><a href="about/">About &amp; privacy</a></li>
         </ul></div>
       </div>

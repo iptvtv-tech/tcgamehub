@@ -56,7 +56,7 @@ export function siteChrome() {
     t.title = 'Arcade tokens — spend them in the shop';
     t.innerHTML = `${Tokens.avatarHTML()} ${Tokens.fmt(Tokens.balance())}`;
     if (location.pathname.includes('/shop/')) t.setAttribute('aria-current', 'page');
-    nav.appendChild(t);
+    nav.after(t);   // sits beside the nav so it stays in the top bar on phones (the nav folds into the ☰ menu)
     Store.onProgress(() => { t.innerHTML = `${Tokens.avatarHTML()} ${Tokens.fmt(Tokens.balance())}`; });
   }
   // Site-wide sound switch (audit P2): the same setting every game's 🔊 button uses.
@@ -73,6 +73,25 @@ export function siteChrome() {
     b.addEventListener('click', () => { Store.setSetting('muted', Store.setting('muted') !== true); show(); });
     show();
     nav.appendChild(b);
+  }
+  // Phone header: a ☰ button folds the nav into a sheet under the bar (CSS ≤ 600px).
+  if (nav && !document.querySelector('.menu-btn')) {
+    const root = new URL('../../', import.meta.url);
+    if (!nav.querySelector('a[href$="shop/"]')) {
+      const s = document.createElement('a'); s.className = 'shop-link menu-only'; s.href = new URL('shop/', root).href; s.innerHTML = '🪙<span class="nav-label"> Token Shop</span>';
+      if (location.pathname.includes('/shop/')) s.setAttribute('aria-current', 'page');
+      nav.appendChild(s);
+    }
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'menu-btn'; b.setAttribute('aria-label', 'Menu'); b.setAttribute('aria-expanded', 'false'); b.setAttribute('aria-controls', 'site-menu');
+    b.innerHTML = '<span></span><span></span><span></span>';
+    nav.id = nav.id || 'site-menu';
+    const set = (open) => { nav.classList.toggle('open', open); b.setAttribute('aria-expanded', String(open)); document.body.classList.toggle('menu-open', open); };
+    b.addEventListener('click', () => set(!nav.classList.contains('open')));
+    document.addEventListener('click', (e) => { if (nav.classList.contains('open') && !nav.contains(e.target) && e.target !== b && !b.contains(e.target)) set(false); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') set(false); });
+    nav.addEventListener('click', (e) => { if (e.target.closest('a')) set(false); });
+    nav.parentElement.appendChild(b);
   }
   if ('serviceWorker' in navigator && location.protocol === 'https:') {
     const root = new URL('../../', import.meta.url); // assets/js/ → site root
