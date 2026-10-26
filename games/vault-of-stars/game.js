@@ -394,7 +394,8 @@ class VaultOfStars {
     this.drawGoal(ctx);
 
     // trail
-    for (const p of this.trail) { p.a *= 0.92; ctx.globalAlpha = p.a * 0.18; ctx.fillStyle = s.gold ? '#fbbf24' : th.edge; ctx.fillRect(this.px(p.x) + 9, this.py(p.y) + 9, T - 18, T - 18); }
+    const now = performance.now(), rdt = s.state === 'playing' ? Math.min(0.05, (now - (this.rtPrev || now)) / 1000) : 0; this.rtPrev = now;
+    for (const p of this.trail) { p.a *= Math.pow(0.92, rdt * 60); ctx.globalAlpha = p.a * 0.18; ctx.fillStyle = s.gold ? '#fbbf24' : th.edge; ctx.fillRect(this.px(p.x) + 9, this.py(p.y) + 9, T - 18, T - 18); }
     ctx.globalAlpha = 1;
 
     for (const d of v.drones) this.drawDrone(ctx, d, f);

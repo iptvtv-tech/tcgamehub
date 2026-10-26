@@ -160,7 +160,13 @@ class NeonBeat {
     }
   }
 
-  laneHeld(lane) { return this.s.input.isDown(DIRS[lane]) || (this.s.input.pointer.down && this.pointerLane === lane); }
+  laneHeld(lane) {
+    const inp = this.s.input;
+    if (inp.isDown(DIRS[lane])) return true;
+    // every finger down counts, so two lanes can be held at once (chords and double holds on a phone)
+    for (const q of inp.pointers.values()) if (Math.floor((q.x - LX) / LW) === lane) return true;
+    return inp.pointer.down && this.pointerLane === lane;
+  }
 
   press(lane) {
     this.flash[lane] = 1;

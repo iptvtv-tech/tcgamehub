@@ -130,14 +130,20 @@ class CrazyPutt {
         if (p) { this.decoy = { x: p[0], y: p[1], revealed: false }; if (rng.chance(0.5)) [this.decoy.x, this.decoy.y, this.cup.x, this.cup.y] = [this.cup.x, this.cup.y, this.decoy.x, this.decoy.y]; }
       }
       // Hidden traps — right where you'd naturally putt
+      // Trapdoors (lose the ball) are capped: 1 per hole from L3, 2 from L8 — more felt random
+      // rather than fair. Sand and speed pads fill the rest of the slots.
       const kinds = ['sand'];
-      if (level >= 3) kinds.push('trapdoor', 'trapdoor');
+      if (level >= 3) kinds.push('trapdoor');
       if (level >= 5) kinds.push('speed');
+      const maxDoors = level >= 8 ? 2 : level >= 3 ? 1 : 0;
+      let doors = 0;
       const n = Math.min(7, 1 + Math.floor(level / 2));
       for (let i = 0; i < n; i++) {
         const p = this.trapSpot(0.18, 0.85, 45);
         if (!p) continue;
-        const kind = rng.pick(kinds);
+        let kind = rng.pick(kinds);
+        if (kind === 'trapdoor' && doors >= maxDoors) kind = level >= 5 ? 'speed' : 'sand';
+        if (kind === 'trapdoor') doors++;
         if (kind === 'sand') this.sand.push({ x: p[0] - 26, y: p[1] - 18, w: 52, h: 36, hidden: true, revealed: false });
         else this.traps.push({ kind, x: p[0] - 14, y: p[1] - 14, w: 28, h: 28, revealed: false, used: 0 });
       }
@@ -378,7 +384,7 @@ class CrazyPutt {
       if (d < c.r) {
         if (sp < 430) return this.sink(c);
         // too fast: lip out
-        const a = Math.atan2(b.vy, b.vx) + (Math.random() - 0.5) * 0.9;
+        const a = Math.atan2(b.vy, b.vx) + this.s.rng.range(-0.45, 0.45);
         b.vx = Math.cos(a) * sp * 0.75; b.vy = Math.sin(a) * sp * 0.75;
         s.sound.play('metal');
         s.fx.text(c.x, c.y - 20, 'Lipped out!', { color: '#fff', size: 16 });
@@ -430,6 +436,7 @@ class CrazyPutt {
   onLifeLost() {
     this.strokes = 0; this.charging = null; this.power = 0; this.sinking = null;
     this.placeBall(this.tee[0], this.tee[1]);
+    if (this.cup) this.aim = Math.atan2(this.cup.y - this.tee[1], this.cup.x - this.tee[0]);   // point back at the cup, not where the last putt went
   }
 
   sink(c) {
@@ -501,8 +508,8 @@ class CrazyPutt {
     for (let y = TOP; y < H; y += 56) ctx.fillRect(0, y, W, 28);
 
     // Hidden traps: almost invisible until found (sharp eyes can just about spot them!)
-    for (const z of this.sand) if (z.hidden && !z.revealed) { ctx.fillStyle = 'rgba(0,0,0,.02)'; roundRect(ctx, z.x, z.y, z.w, z.h, 16); ctx.fill(); }
-    for (const tr of this.traps) if (!tr.revealed) { ctx.fillStyle = 'rgba(0,0,0,.02)'; roundRect(ctx, tr.x, tr.y, tr.w, tr.h, 4); ctx.fill(); }
+    for (const z of this.sand) if (z.hidden && !z.revealed) { ctx.fillStyle = 'rgba(0,0,0,.06)'; roundRect(ctx, z.x, z.y, z.w, z.h, 16); ctx.fill(); }
+    for (const tr of this.traps) if (!tr.revealed) { ctx.fillStyle = 'rgba(0,0,0,.06)'; roundRect(ctx, tr.x, tr.y, tr.w, tr.h, 4); ctx.fill(); }
 
     // Water
     for (const w of this.water) {
@@ -671,7 +678,7 @@ class CrazyPutt {
     } else if (this.s.state === 'playing' && this.strokes === 0 && this.level === 1 && !this.bonus) {
       ctx.save(); ctx.globalAlpha = 0.65 + Math.sin(this.t * 5) * 0.3;
       ctx.font = '800 17px system-ui'; ctx.textAlign = 'center'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,.45)'; ctx.fillStyle = '#fff';
-      const msg = matchMedia('(pointer: coarse)').matches ? 'Touch where to aim · hold · release' : 'Point to aim · HOLD click or Space · release';
+      const msg = this.s.coarse ? 'Touch where to aim · hold · release' : 'Point to aim · HOLD click or Space · release';
       ctx.strokeText(msg, W / 2, b.y + 44); ctx.fillText(msg, W / 2, b.y + 44);
       ctx.restore();
     }

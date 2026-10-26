@@ -141,7 +141,7 @@ class CrownHeist {
     });
     const up = (e) => { if (this.stick?.id === e.pointerId) this.stick = null; if (this.look?.id === e.pointerId) this.look = null; };
     addEventListener('pointerup', up); addEventListener('pointercancel', up);
-    this.coarse = matchMedia('(pointer: coarse)').matches;
+    this.coarse = this.s.coarse;
   }
   moveStick(x, y) {
     let dx = (x - STICK.x) / STICK.r, dy = (y - STICK.y) / STICK.r;
@@ -877,6 +877,9 @@ class CrownHeist {
 
   render(ctx) {
     const s = this.s, t = this.t, f = this.f, lo = s.lowDetail, spr = this.spr;
+    // real time since the last frame for the render-side decays below (was a fixed 1/60; stops while paused)
+    const now = performance.now(), rdt = this.s.state === 'playing' ? Math.min(0.05, (now - (this.rtPrev || now)) / 1000) : 0; this.rtPrev = now;
+    this.rdt = rdt;
     ctx.fillStyle = '#050505'; ctx.fillRect(0, 0, W, H);
     const cam = this.camera();
     // moving lights: guards' torch beams, the crown's glow, the Wraith's cold light
@@ -983,7 +986,7 @@ class CrownHeist {
 
   /** Dust falling slowly through the torchlight. */
   drawDust(ctx, flick) {
-    const dt = 1 / 60, heavy = this.collapseT >= 0 ? 3 : 1;
+    const dt = this.rdt ?? 1 / 60, heavy = this.collapseT >= 0 ? 3 : 1;
     ctx.save();
     for (const d of this.dust) {
       d.y += d.v * dt * 0.35 * heavy; d.x += Math.sin(this.t * 0.6 + d.p) * 0.12;
@@ -1151,7 +1154,7 @@ class CrownHeist {
     if (!this.bonus && !this.secret) { ctx.fillStyle = '#fde68a'; ctx.fillText(`🪙${this.ammo.coin}  💨${this.ammo.smoke}`, 468, 15); }
     if (this.wraith?.on && !this.done) { ctx.fillStyle = '#67e8f9'; ctx.font = '800 12px system-ui'; ctx.fillText('👁 The Wraith follows', 468, 34); }
     if (this.msg) {
-      this.msg.t -= 1 / 60;
+      this.msg.t -= this.rdt ?? 1 / 60;
       if (this.msg.t <= 0) this.msg = null;
       else {
         ctx.save(); ctx.globalAlpha = Math.min(1, this.msg.t * 2);

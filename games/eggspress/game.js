@@ -905,7 +905,7 @@ class Eggspress {
         if (broken) { ctx.strokeStyle = '#fca5a5'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx - 5, 18); ctx.lineTo(cx, 23); ctx.lineTo(cx - 2, 26); ctx.lineTo(cx + 4, 30); ctx.stroke(); }
       }
     }
-    const hint = matchMedia('(pointer: coarse)').matches ? 'Hold right side: drive · left side: brake' : '→ drive · ← brake · in the air → tips back, ← tips forward';
+    const hint = this.s.coarse ? 'Hold right side: drive · left side: brake' : '→ drive · ← brake · in the air → tips back, ← tips forward';
     if (this.time < 6) { ctx.font = '700 13px system-ui'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.fillText(hint, W / 2, H - 16); }
     if (s.gold) { ctx.fillStyle = '#fbbf24'; ctx.font = '800 12px system-ui'; ctx.textAlign = 'right'; ctx.fillText('★ GOLDEN EGG TRUCK', W - 14, 50); }
     ctx.restore();

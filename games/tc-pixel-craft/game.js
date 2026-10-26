@@ -87,7 +87,7 @@ class PixelCraft {
     this.s = s; this.t = 0;
     this.tex = makeTextures();
     this.icons = makeIcons(this.tex);
-    this.touchUI = matchMedia('(pointer: coarse)').matches;
+    this.touchUI = this.s.coarse;
     this.clouds = new Uint8Array(64 * 64);
     { let q = 12345; const rnd = () => ((q = (q * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff); for (let k = 0; k < 30; k++) { const cx = rnd() * 64, cz = rnd() * 64, rx = 2 + rnd() * 5, rz = 1.5 + rnd() * 3; for (let z = -8; z <= 8; z++) for (let x = -10; x <= 10; x++) if ((x / rx) ** 2 + (z / rz) ** 2 < 1) this.clouds[(((Math.floor(cz) + z) & 63) * 64) + ((Math.floor(cx) + x) & 63)] = 255; } }
     this.gl = null;

@@ -464,7 +464,7 @@ class BubbleBlitz {
       // no way to lose in the bonus round: the bottom rows just melt away
       while (this.grid.length && this.xy(this.grid.length - 1, 0)[1] + R > DANGER - ROWH) {
         const row = this.grid.length - 1;
-        for (const b of this.grid[row]) if (b) this.popping.push({ x: this.xy(row, 0)[0], y: this.xy(row, 0)[1], col: COLORS[b.c], t: 0 });
+        this.grid[row].forEach((b, col) => { if (b) { const [x, y] = this.xy(row, col); this.popping.push({ x, y, col: COLORS[b.c], t: 0 }); } });
         this.grid.pop();
       }
     }
@@ -740,7 +740,7 @@ class BubbleBlitz {
     ctx.textAlign = 'right'; ctx.font = '700 13px system-ui'; ctx.fillStyle = '#e2e8f0';
     ctx.fillText(tags.join('   '), W - 16, H - 40);
     ctx.textAlign = 'center'; ctx.font = '600 11px system-ui'; ctx.fillStyle = 'rgba(226,232,240,.45)';
-    ctx.fillText(matchMedia('(pointer: coarse)').matches ? 'Drag to aim · let go to fire · tap NEXT to swap' : 'Aim with the mouse · click to fire · ← → + Space · ↑ swap', W / 2, H - 12);
+    ctx.fillText(this.s.coarse ? 'Drag to aim · let go to fire · tap NEXT to swap' : 'Aim with the mouse · click to fire · ← → + Space · ↑ swap', W / 2, H - 12);
     ctx.restore();
   }
 }

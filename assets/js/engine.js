@@ -118,6 +118,10 @@ class Input {
     this.shell = shell;
     this.down = new Set();
     this.pointer = { x: shell.W / 2, y: shell.H / 2, down: false, used: false };
+    /** Every finger / button currently down, by pointerId: Map<id, {x, y, t}> in logical px.
+     *  `pointer` above keeps the one-finger behaviour every game was written for; games that
+     *  need two thumbs (Pinball Blast flippers, Neon Beat holds) read this instead. */
+    this.pointers = new Map();
     this.swipe = null;
 
     addEventListener('keydown', (e) => this.onKey(e));
@@ -128,7 +132,8 @@ class Input {
     el.addEventListener('pointerdown', (e) => this.onPointer(e, 'down'));
     addEventListener('pointermove', (e) => this.onPointer(e, 'move'));
     addEventListener('pointerup', (e) => this.onPointer(e, 'up'));
-    addEventListener('pointercancel', () => { this.pointer.down = false; this.swipe = null; });
+    addEventListener('pointercancel', (e) => { this.pointer.down = false; this.swipe = null; this.pointers.delete(e.pointerId); });
+    addEventListener('blur', () => this.pointers.clear());
     el.addEventListener('contextmenu', (e) => e.preventDefault());
   }
   isDown(action) { return this.down.has(action); }
@@ -163,6 +168,12 @@ class Input {
 
   onPointer(e, type) {
     const s = this.shell, p = this.pointer;
+    if (type === 'up') this.pointers.delete(e.pointerId);
+    else if (type === 'down' || this.pointers.has(e.pointerId)) {
+      const [px, py] = this.toLogical(e);
+      const q = this.pointers.get(e.pointerId) || { t: performance.now() };
+      q.x = px; q.y = py; this.pointers.set(e.pointerId, q);
+    }
     if (type !== 'down' && !p.down && e.pointerType !== 'mouse') return;
     const [x, y] = this.toLogical(e);
     p.x = x; p.y = y;
@@ -227,6 +238,9 @@ class Shell {
 
     this.buildDom();
     this.input = new Input(this);
+    /** true on touch-first devices (checked once; games read s.coarse instead of matchMedia every frame) */
+    this.coarse = matchMedia('(pointer: coarse)').matches;
+    this.measureRafCap();
     this.ctx = this.canvas.getContext('2d');
     this.fit();
     new ResizeObserver(() => this.fit()).observe(this.stageEl);
@@ -486,10 +500,30 @@ class Shell {
       focus?.focus({ preventScroll: true });
     };
   }
+  /** Before play, measure the raw rAF rate on the title screen (nothing heavy is drawn). If the
+   *  browser itself delivers ~30 fps (iOS Low Power Mode, some 30 Hz displays) the fps rules below
+   *  would wrongly switch every capable phone to LOW for good, so they stand down. */
+  measureRafCap() {
+    const d = []; let prev = 0, t0 = 0;
+    const tick = (t) => {
+      if (!t0) t0 = t;
+      if (prev) d.push(t - prev);
+      prev = t;
+      if (t - t0 < 1500) { requestAnimationFrame(tick); return; }
+      if (d.length < 10) return;
+      // A capped display delivers very regular ~33 ms frames; a device that is merely slow delivers
+      // irregular ones — only the regular case is a cap.
+      const sorted = [...d].sort((a, b) => a - b), med = sorted[sorted.length >> 1];
+      const regular = d.filter((x) => Math.abs(x - med) < 4).length / d.length;
+      this.rafCapped = med > 27 && med < 37 && regular > 0.8;
+    };
+    requestAnimationFrame(tick);
+  }
   /** Watch the frame rate for a few seconds of play; if this device struggles, switch to LOW once (the player can switch back). */
   checkFrameRate(dt) {
     if (!this.def.detail) return;
     this.watchFrameRate(dt);
+    if (this.rafCapped) return;                                    // the display itself runs at ~30 fps (iOS Low Power Mode): not a slow device
     if (this.perfDone || Store.setting('lowDetail') !== undefined) return;
     this.perfT = (this.perfT || 0) + dt;
     if (this.perfT < 2) return;                                    // let the level settle first
@@ -505,7 +539,7 @@ class Shell {
   /** Frame-rate watchdog (audit P2): on HIGH, if play drops below 25 fps for 3 seconds in a row,
    *  switch to LOW — unless the player chose HIGH themselves. */
   watchFrameRate(dt) {
-    if (this.lowDetail || Store.setting('detailChosen') || this.state !== 'playing') { this.wdT = this.wdN = this.wdBad = 0; return; }
+    if (this.rafCapped || this.lowDetail || Store.setting('detailChosen') || this.state !== 'playing') { this.wdT = this.wdN = this.wdBad = 0; return; }
     if (dt > 0.5) return;                                          // a tab switch or a hitch, not a slow device
     this.wdT = (this.wdT || 0) + dt; this.wdN = (this.wdN || 0) + 1;
     if (this.wdT < 1) return;

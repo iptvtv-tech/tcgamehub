@@ -424,7 +424,7 @@ class AstroBlaster {
       ctx.save(); ctx.globalAlpha = 0.65 + Math.sin(t * 6) * 0.3;
       ctx.font = '800 20px system-ui'; ctx.textAlign = 'center';
       ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.fillStyle = '#fde047';
-      const msg = matchMedia('(pointer: coarse)').matches ? 'Touch & hold to fire' : 'Hold SPACE or mouse button to fire';
+      const msg = this.s.coarse ? 'Touch & hold to fire' : 'Hold SPACE or mouse button to fire';
       ctx.strokeText(msg, W / 2, H * 0.62); ctx.fillText(msg, W / 2, H * 0.62);
       ctx.restore();
     }

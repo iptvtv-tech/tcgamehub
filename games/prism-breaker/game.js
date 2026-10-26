@@ -234,7 +234,7 @@ class PrismBreaker {
 
   wallBounce(b) {
     // A tiny random nudge stops endless loops between walls and steel bricks
-    const a = (Math.random() - 0.5) * 0.06, c = Math.cos(a), sn = Math.sin(a);
+    const a = this.s.rng.range(-0.03, 0.03), c = Math.cos(a), sn = Math.sin(a);
     const vx = b.vx * c - b.vy * sn, vy = b.vx * sn + b.vy * c;
     b.vx = vx; b.vy = vy;
     this.s.sound.play('bounce', -5);

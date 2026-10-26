@@ -428,6 +428,9 @@ class CryptOfCrowns {
 
   render(ctx) {
     const s = this.s, t = this.t, W = this.W, st = this.st, lo = s.lowDetail, spr = this.spr;
+    // real time since the last frame for the render-side decays below (was a fixed 1/60; stops while paused)
+    const now = performance.now(), rdt = this.s.state === 'playing' ? Math.min(0.05, (now - (this.rtPrev || now)) / 1000) : 0; this.rtPrev = now;
+    this.rdt = rdt;
     ctx.fillStyle = '#050505'; ctx.fillRect(0, 0, 480, H);
     const cam = this.camera(), tt = this.T + this.acc / TICK;
     const sprites = [];
@@ -450,7 +453,9 @@ class CryptOfCrowns {
       : { fl: this.floors.crypt, light: 7.5, amb: [0.045, 0.05, 0.08], fog: [4, 6, 13], fogDist: 9, sconce: 30 };
     const wallBase = this.secret ? 2 : this.bonus ? 1 : 10;
     const flick = 0.9 + 0.06 * Math.sin(t * 11.3) + 0.05 * Math.sin(t * 17.9 + 2) + 0.03 * Math.sin(t * 31.7);
-    const ids = this.ids ??= new Int16Array(W.w * W.h);
+    // sized per crypt: later crypts are bigger than the first, and a stale small buffer made the
+    // raycaster read the last rows as open floor (bottom wall drawn one cell too far, wrong texture)
+    const ids = this.ids && this.ids.length === W.w * W.h ? this.ids : (this.ids = new Int16Array(W.w * W.h));
     for (let y = 0; y < W.h; y++) for (let x = 0; x < W.w; x++) ids[y * W.w + x] = this.cellTex(x, y);
     this.rc.setRes(lo ? 240 : 360);
     this.rc.render(ctx, cam, {
@@ -479,7 +484,7 @@ class CryptOfCrowns {
 
   /** Dust drifting through the torchlight. */
   drawDust(ctx, flick) {
-    const dt = 1 / 60;
+    const dt = this.rdt ?? 1 / 60;
     ctx.save();
     for (const d of this.dust) {
       d.y -= d.v * dt * 0.4; d.x += Math.sin(this.t * 0.7 + d.p) * 0.15;
@@ -569,7 +574,7 @@ class CryptOfCrowns {
     if (st.gold > 0) { ctx.fillStyle = '#fcd34d'; ctx.fillText(`🔑×${st.gold}`, kx, 16); }
     // message
     if (this.msg) {
-      this.msg.t -= 1 / 60;
+      this.msg.t -= rdt;
       if (this.msg.t <= 0) this.msg = null;
       else {
         ctx.save(); ctx.globalAlpha = Math.min(1, this.msg.t * 2);
@@ -609,7 +614,7 @@ class CryptOfCrowns {
     // the stick (same roller ball as Crown Heist)
     this.stick.draw(ctx);
     // search
-    if (this.searchPress > 0) this.searchPress -= 1 / 60;
+    if (this.searchPress > 0) this.searchPress -= this.rdt ?? 1 / 60;
     const SB = SEARCH_BTN;
     ctx.fillStyle = this.searchPress > 0 ? '#4c1d95' : '#2e1065'; ctx.strokeStyle = '#a78bfa'; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.arc(SB.x, SB.y, SB.r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();

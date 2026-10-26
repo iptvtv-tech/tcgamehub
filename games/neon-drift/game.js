@@ -793,7 +793,7 @@ class NeonDrift {
         if (seg1 > seg0 && seg1 < 10 && !s.sound.muted) s.sound.tone({ freq: s.sound.note(76 + seg1 * 2), dur: 0.07, type: 'triangle', vol: 0.06 });
         if (p.charge >= 1 && !p.fullShown) {
           p.fullShown = true;
-          const mob = matchMedia('(pointer: coarse)').matches;
+          const mob = this.s.coarse;
           s.fx.text(W / 2, H * 0.2, mob ? 'BOOST FULL — TAP ⚡ BOOST' : 'BOOST FULL — PRESS ↑', { color: '#22d3ee', size: 20, life: 1.2 });
           s.sound.play('golden');
         }
@@ -1962,7 +1962,7 @@ class NeonDrift {
     }
     // fire-boost button
     if (this.tuneT <= 0 && !this.bonus) {
-      const b = this.boostButton(), mob = matchMedia('(pointer: coarse)').matches;
+      const b = this.boostButton(), mob = this.s.coarse;
       const burning = p.boostT > 0, ready = !burning && p.charge >= BOOST_MIN, full = p.charge >= 1;
       const col = burning ? '#67e8f9' : this.chargeCol(p.charge);
       ctx.fillStyle = ready ? hexA('#22d3ee', full ? 0.28 + 0.12 * Math.sin(this.t * 8) : 0.16) : 'rgba(5,3,15,0.7)';
@@ -1978,7 +1978,7 @@ class NeonDrift {
     }
     // camera switch
     if (this.tuneT <= 0) {
-      const b = this.viewButton(), mob = matchMedia('(pointer: coarse)').matches;
+      const b = this.viewButton(), mob = this.s.coarse;
       ctx.fillStyle = 'rgba(5,3,15,0.7)'; roundRect(ctx, b.x, b.y, b.w, b.h, 10); ctx.fill();
       ctx.strokeStyle = hexA(th.edge, 0.7); ctx.lineWidth = 1.5; ctx.stroke();
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '800 12px system-ui'; ctx.fillStyle = '#e2e8f0';
@@ -1992,7 +1992,7 @@ class NeonDrift {
       ctx.textBaseline = 'alphabetic';
     }
     // phone controls: hint for the first few seconds, and a tilt meter while tilt is steering
-    const mobile = matchMedia('(pointer: coarse)').matches;
+    const mobile = this.s.coarse;
     if (mobile && this.tuneT <= 0 && this.raceT < 6) {
       ctx.textAlign = 'center'; ctx.font = '600 12px system-ui'; ctx.fillStyle = 'rgba(226,232,240,.6)';
       ctx.fillText(this.wheelMode ? 'Drag the wheel to steer · full lock to drift' : this.tiltOn ? 'Tilt to steer · hold the middle to drift' : this.needTiltPermission ? 'Tap to enable tilt steering · or hold a side to steer' : 'Hold the left or right side to steer', W / 2, H - 52);

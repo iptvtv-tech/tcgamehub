@@ -1074,7 +1074,7 @@ class TurboRush {
     rv.z += rv.speed * dt;
     const ox = rv.x;
     rv.x = lerp(rv.x, LANES[rv.lane], Math.min(1, dt * 3));
-    rv.yawV = clamp((rv.x - ox) / dt * 0.35, -0.3, 0.3);
+    rv.yawV = dt > 0 ? clamp((rv.x - ox) / dt * 0.35, -0.3, 0.3) : 0;
     // trading paint: bumping VIPER shoves you both apart
     const dzp = rv.z - pz, gx = this.playerX - rv.x;
     if (dzp > -HIT_BACK && dzp < HIT_FRONT && Math.abs(gx) < 0.33 * CW && !this.done) {
@@ -1985,7 +1985,7 @@ class TurboRush {
     ctx.textAlign = 'center'; ctx.font = '600 12px system-ui'; ctx.fillStyle = this.cockpit ? 'rgba(248,250,252,.85)' : 'rgba(226,232,240,.4)';
     const hy = this.cockpit ? 380 : H - 10;
     if (s.state === 'playing' && this.position < SEG * 60) {
-      const mobile = matchMedia('(pointer: coarse)').matches;
+      const mobile = this.s.coarse;
       if (this.wheelMode) ctx.fillText('Drag the wheel to steer · hold NITRO to boost', W / 2, hy);
       else if (mobile && this.tiltEnabled) ctx.fillText('Tilt to steer · tap middle to boost', W / 2, hy);
       else if (mobile && this._needsTiltPermission) ctx.fillText('Tap to enable tilt steering · or hold sides to steer', W / 2, hy);
@@ -2009,7 +2009,7 @@ class TurboRush {
     if (s.gold) { ctx.fillStyle = '#fbbf24'; ctx.font = '700 12px system-ui'; ctx.textAlign = 'center'; ctx.fillText('★ GOLDEN RACER', W / 2, this.cockpit ? 120 : 78); }
     // camera switch
     if (s.state === 'playing') {
-      const b = this.viewButton(), mob = matchMedia('(pointer: coarse)').matches;
+      const b = this.viewButton(), mob = this.s.coarse;
       ctx.fillStyle = 'rgba(3,5,20,.7)'; roundRect(ctx, b.x, b.y, b.w, b.h, 10); ctx.fill();
       ctx.strokeStyle = 'rgba(248,250,252,.45)'; ctx.lineWidth = 1.5; ctx.stroke();
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '800 12px system-ui'; ctx.fillStyle = '#e2e8f0';

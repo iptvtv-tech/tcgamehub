@@ -231,6 +231,7 @@ class AlienShooter {
     }
 
     const slots = formationFor(level);
+    this.formationSize = slots.length;
     // one carrier per 5-level block (from level 2) carries the rare LASER
     const block = Math.floor((level - 1) / 5);
     const laserHere = level >= 2 && !this.laserBlocks[block];
@@ -1373,7 +1374,7 @@ class AlienShooter {
       ctx.save(); ctx.globalAlpha = 0.65 + Math.sin(t * 6) * 0.3;
       ctx.font = '800 20px system-ui'; ctx.textAlign = 'center';
       ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.fillStyle = '#fde047';
-      const msg = matchMedia('(pointer: coarse)').matches ? 'Touch & hold to fire' : 'Hold SPACE or mouse button to fire';
+      const msg = this.s.coarse ? 'Touch & hold to fire' : 'Hold SPACE or mouse button to fire';
       ctx.strokeText(msg, W / 2, H * 0.6); ctx.fillText(msg, W / 2, H * 0.6);
       ctx.restore();
     }
@@ -1386,7 +1387,7 @@ class AlienShooter {
       const b = this.boss;
       progressBar(ctx, 14, 12, W - 28, 20, b.hp / b.maxHp, b.hp < b.maxHp * 0.5 ? '#f43f5e' : b.color, `☠ ${b.name}${b.round ? ` Mk ${b.round + 1}` : ''}`);
     } else {
-      const total = formationFor(this.level).length;
+      const total = this.formationSize || formationFor(this.level).length;
       const left = this.aliens.filter((a) => !a.dead && a.type !== 'shard').length + this.waveQ.filter((w) => !w.done).reduce((n, w) => n + w.members.length, 0);
       progressBar(ctx, 14, 12, W - 28, 20, (total - left) / total, '#22d3ee', `Alien fleet ${total - left} / ${total}`);
     }

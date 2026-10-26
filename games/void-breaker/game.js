@@ -112,7 +112,7 @@ class VoidBreaker {
     this.s = s; this.t = 0;
     try { if (VoidGL.supported()) this.gl = new VoidGL(); } catch (e) { console.warn('Void Breaker: WebGL failed', e); this.gl = null; }
     this.yaw = 0; this.pitch = 0.06; this.turnV = 0;
-    this.coarse = matchMedia('(pointer: coarse)').matches;
+    this.coarse = this.s.coarse;
     this.setupMouse();
     this.reset();
     this.startLevel(1, false);

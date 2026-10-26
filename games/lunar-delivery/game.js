@@ -70,7 +70,7 @@ class LunarDelivery {
   constructor(s) {
     this.s = s; this.t = 0;
     try { if (MoonGL.supported()) this.gl = new MoonGL(); } catch (e) { console.warn('Lunar Delivery: WebGL failed', e); this.gl = null; }
-    this.coarse = matchMedia('(pointer: coarse)').matches;
+    this.coarse = this.s.coarse;
     this.keys = new Set();
     this.parts = [];
     this.setupInput();

@@ -207,8 +207,10 @@ class StarStrike {
     if (vx || vy) { sh.x += vx * 7 * dt; sh.y += vy * 5.5 * dt; this.aim = null; }
     else if (this.aim) { sh.x += clamp(this.aim.x - sh.x, -9 * dt, 9 * dt); sh.y += clamp(this.aim.y - sh.y, -7 * dt, 7 * dt); }
     sh.x = clamp(sh.x, -XMAX, XMAX); sh.y = clamp(sh.y, -YMAX, YMAX);
-    sh.bank += (clamp(-(sh.x - px) / dt * 0.12, -0.7, 0.7) - sh.bank) * Math.min(1, dt * 8);
-    sh.pitch += (clamp((sh.y - py) / dt * 0.08, -0.4, 0.4) - sh.pitch) * Math.min(1, dt * 8);
+    if (dt > 0) {
+      sh.bank += (clamp(-(sh.x - px) / dt * 0.12, -0.7, 0.7) - sh.bank) * Math.min(1, dt * 8);
+      sh.pitch += (clamp((sh.y - py) / dt * 0.08, -0.4, 0.4) - sh.pitch) * Math.min(1, dt * 8);
+    }
 
     // firing
     this.fireT -= dt; this.homeT -= dt; this.droneT -= dt;
@@ -1035,7 +1037,7 @@ class StarStrike {
     ctx.fillText(`💣${this.bombs}`, W - 44, H - 60);
     ctx.restore();
     ctx.textAlign = 'center'; ctx.font = '600 11px system-ui'; ctx.fillStyle = 'rgba(226,232,240,.45)';
-    if (s.state === 'playing' && this.sectorT < 6) ctx.fillText(matchMedia('(pointer: coarse)').matches ? 'Drag to fly · you fire automatically · 💣 button' : 'Arrows / mouse to fly · Space / click to fire · B bomb', W / 2, H - 14);
+    if (s.state === 'playing' && this.sectorT < 6) ctx.fillText(this.s.coarse ? 'Drag to fly · you fire automatically · 💣 button' : 'Arrows / mouse to fly · Space / click to fire · B bomb', W / 2, H - 14);
     if (s.gold) { ctx.fillStyle = '#fbbf24'; ctx.font = '700 12px system-ui'; ctx.fillText('★ GOLDEN FIGHTER', W / 2, 60); }
   }
 }

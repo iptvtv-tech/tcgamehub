@@ -479,9 +479,9 @@ class HeistPlanner {
     btn(12 + 2 * (bw + 8), ay, bw, 44, '✖ CLEAR', () => this.clear(), { color: '#64748b' });
     btn(12 + 3 * (bw + 8), ay, bw, 44, '▶ GO!', () => this.go(), { on: true, color: '#22c55e', text: '#052e16' });
     ctx.fillStyle = '#64748b'; ctx.font = '600 11px system-ui'; ctx.textAlign = 'center';
-    ctx.fillText(matchMedia('(pointer: coarse)').matches ? 'Tap next to a crew member (or swipe) to plan a step'
+    ctx.fillText(this.s.coarse ? 'Tap next to a crew member (or swipe) to plan a step'
       : 'Arrows plan · Space wait · Z undo · Tab switch crew · Enter GO', W / 2, ay + 62);
-    ctx.fillText(matchMedia('(pointer: coarse)').matches ? 'Tap a crew member to switch · ◀ ▶ to see the guards at any step'
+    ctx.fillText(this.s.coarse ? 'Tap a crew member to switch · ◀ ▶ to see the guards at any step'
       : '◀ ▶ (or , .) shows where the guards will be at any step', W / 2, ay + 78);
   }
 

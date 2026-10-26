@@ -157,6 +157,12 @@ const music = { on: false, timer: null, step: 0, nextTime: 0, bpm: 110, prog: PR
 function scheduleMusic() {
   const c = ctx; if (!c || !music.on) return;
   const stepDur = 60 / music.bpm / 2; // eighth notes
+  // After a throttled background tab, nextTime can sit well behind currentTime; without this
+  // every missed step would play at once as a burst. Skip ahead to the next step boundary instead.
+  if (music.nextTime < c.currentTime - stepDur) {
+    const missed = Math.ceil((c.currentTime - music.nextTime) / stepDur);
+    music.nextTime += missed * stepDur; music.step += missed;
+  }
   while (music.nextTime < c.currentTime + 0.15) {
     const bar = Math.floor(music.step / 8) % music.prog.length;
     const chord = music.prog[bar];

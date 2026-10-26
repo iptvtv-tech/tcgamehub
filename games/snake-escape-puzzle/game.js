@@ -436,7 +436,7 @@ class SnakeEscape {
 
     // HUD
     ctx.fillStyle = 'rgba(3,5,20,.7)'; ctx.fillRect(0, 0, W, 44);
-    const coarse = matchMedia('(pointer: coarse)').matches;
+    const coarse = this.s.coarse;
     ctx.save(); ctx.font = '700 13px system-ui'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(165,243,252,.65)';
     if (this.bonus) {
       progressBar(ctx, 14, 12, W - 28, 20, s.bonusLeft / 15, '#e879f9', `★ STAMPEDE · ${this.bonusCount} freed · ${Math.ceil(s.bonusLeft)}s`);

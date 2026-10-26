@@ -137,6 +137,7 @@ class Pinball {
   reset() { this.extraGiven = false; }
 
   startLevel(level, bonus) {
+    this.clearLater();
     const s = this.s;
     this.level = level; this.bonus = bonus;
     this.grav = 860 * Math.min(1.5, s.speed(0.035));
@@ -204,7 +205,11 @@ class Pinball {
     const rev = this.chaos?.kind === 'reverse';
     const key = rev ? (f.key === 'left' ? 'right' : 'left') : f.key;
     if (inp.isDown(key)) return true;
-    if (inp.pointer.down && !this.plungerBall) { const leftHalf = this.pointerX < W / 2; return (f.side > 0) !== rev ? leftHalf : !leftHalf; }
+    if (this.plungerBall) return false;
+    // every finger down counts, so both flippers can be held at once on a phone
+    const wantLeft = (f.side > 0) !== rev;
+    if (inp.pointers.size) { for (const q of inp.pointers.values()) if ((q.x < W / 2) === wantLeft) return true; return false; }
+    if (inp.pointer.down) return (this.pointerX < W / 2) === wantLeft;
     return false;
   }
 
@@ -214,7 +219,7 @@ class Pinball {
     this.nudges = (this.nudges || 0) + 1;
     this.nudgeT = 2;
     if (this.nudges > 3) { s.fx.text(...this.sp(W / 2, H * 0.45), 'TILT!', { color: '#f87171', size: 44, life: 1.2 }); this.tilted = 2; this.nudges = 0; return; }
-    for (const b of this.balls) if (b.inPlay) { b.vy -= 160; b.vx += (Math.random() - 0.5) * 120; }
+    for (const b of this.balls) if (b.inPlay) { b.vy -= 160; b.vx += this.s.rng.range(-60, 60); }
     s.fx.shake(4, 0.15);
   }
 
@@ -316,7 +321,7 @@ class Pinball {
       if (b.y > H + 30) { b.inPlay = false; b.drained = true; }
       const sp = Math.hypot(b.vx, b.vy);
       b.stuck = sp < 12 && !b.held && !this.flippers.some((f) => f.wasUp) ? b.stuck + dt : 0;
-      if (b.stuck > 3) { b.vy = -250; b.vx = (Math.random() - 0.5) * 300; b.stuck = 0; }
+      if (b.stuck > 3) { b.vy = -250; b.vx = this.s.rng.range(-150, 150); b.stuck = 0; }
       if (b.held) {
         b.held -= dt; b.x = SAUCER.x; b.y = SAUCER.y; b.vx = b.vy = 0;
         if (b.held <= 0) { b.held = 0; b.vx = 330; b.vy = 200; s.sound.noise({ dur: 0.15, vol: 0.2, freq: 400, to: 80 }); s.sound.tone({ freq: 70, dur: 0.12, type: 'square', vol: 0.1 }); }
@@ -414,7 +419,7 @@ class Pinball {
       if (m.caught === b) {
         b.x = m.x; b.y = m.y; b.vx = b.vy = 0;
         if ((m.hold -= h) <= 0) {
-          const a = -Math.PI / 2 + (Math.random() - 0.5) * 2.6, v = 900 + Math.random() * 500;
+          const a = -Math.PI / 2 + this.s.rng.range(-1.3, 1.3), v = this.s.rng.range(900, 1400);
           b.vx = Math.cos(a) * v; b.vy = Math.sin(a) * v;
           this.s.sound.tone({ freq: 200, to: 900, dur: 0.12, type: 'sawtooth', vol: 0.07 });
           this.magnet = null;
@@ -433,7 +438,7 @@ class Pinball {
     if (this.post) {
       const dx = b.x - POST.x, dy = b.y - POST.y, d = Math.hypot(dx, dy);
       if (d < POST.r + R && d > 0) {
-        const nx = dx / d || (Math.random() - 0.5), ny = dy / d;
+        const nx = dx / d || this.s.rng.range(-0.5, 0.5), ny = dy / d;
         b.x = POST.x + nx * (POST.r + R); b.y = POST.y + ny * (POST.r + R);
         const vn = b.vx * nx + b.vy * ny; if (vn < 0) { b.vx -= 1.4 * vn * nx; b.vy -= 1.4 * vn * ny; }
         b.vx += (b.x < POST.x ? -60 : 60);
@@ -738,9 +743,13 @@ class Pinball {
     }
   }
 
-  later(t, fn) { setTimeout(() => { if (this.s.state === 'playing' || this.s.state === 'banner') fn(); }, t * 1000); }
+  later(t, fn) {
+    const id = setTimeout(() => { this.timers.delete(id); if (this.s.state === 'playing' || this.s.state === 'banner') fn(); }, t * 1000);
+    (this.timers ??= new Set()).add(id);
+  }
+  clearLater() { for (const id of this.timers || []) clearTimeout(id); this.timers?.clear(); }
 
-  onLifeLost() { this.balls = []; this.multiball = false; this.hole = null; this.endChaos(); this.magnet = null; if (this.mTime <= 0) this.mTime = Math.min(this.mTimeMax, 40); this.newBall(); }
+  onLifeLost() { this.clearLater(); this.balls = []; this.multiball = false; this.hole = null; this.endChaos(); this.magnet = null; if (this.mTime <= 0) this.mTime = Math.min(this.mTimeMax, 40); this.newBall(); }
   onLevelClear() {}
 
   // ── Draw (3D) ─────────────────────────────────────────────
@@ -1055,7 +1064,7 @@ class Pinball {
     }
     if (this.plungerBall && s.state === 'playing') {
       ctx.save(); ctx.globalAlpha = 0.6 + 0.3 * Math.sin(t * 5); ctx.fillStyle = '#fde047'; ctx.font = '800 14px system-ui'; ctx.textAlign = 'center';
-      ctx.fillText(matchMedia('(pointer: coarse)').matches ? 'Touch & hold, then let go to launch' : 'Hold SPACE, then let go to launch', 220, 690);
+      ctx.fillText(this.s.coarse ? 'Touch & hold, then let go to launch' : 'Hold SPACE, then let go to launch', 220, 690);
       ctx.restore();
       if (this.charging) { ctx.fillStyle = '#fde047'; ctx.fillRect(430, 700 - this.charge * 80, 6, this.charge * 80); }
     }

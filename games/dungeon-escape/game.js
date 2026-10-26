@@ -227,15 +227,23 @@ class DungeonEscape {
   flash() {
     const s = this.s, p = this.p;
     if (this.bonus || this.flashes <= 0 || this.flashT > 0) return;
-    this.flashes--; this.flashT = 0.35; this.flashUsed = true;
-    s.sound.tone({ freq: 2000, to: 300, dur: 0.3, type: 'sawtooth', vol: 0.07 }); s.sound.noise({ dur: 0.2, vol: 0.12, freq: 6000, type: 'highpass' });
-    for (const g of this.ghouls) {
+    // only ghouls in the beam count — a stray press with nothing in range keeps the charge
+    const hits = this.ghouls.filter((g) => {
       const dx = g.x - p.x, dy = g.y - p.y, d = Math.hypot(dx, dy);
       let da = Math.atan2(dy, dx) - p.a; da = Math.atan2(Math.sin(da), Math.cos(da));
-      if (d < 6.5 && Math.abs(da) < 0.8 && canSee(this.solid, p.x, p.y, g.x, g.y)) {
-        g.stun = 3.5; g.hunting = false;
-        s.award(100 * this.level, W / 2, VIEW.y + 120, { chain: true, color: '#e0f2fe', size: 18 });
-      }
+      return d < 6.5 && Math.abs(da) < 0.8 && canSee(this.solid, p.x, p.y, g.x, g.y);
+    });
+    if (!hits.length) {
+      this.flashT = 0.15;
+      s.sound.tone({ freq: 500, to: 350, dur: 0.12, type: 'square', vol: 0.04 });
+      s.fx.text(W / 2, VIEW.y + 120, 'No ghoul in the beam', { color: '#94a3b8', size: 13, life: 0.8 });
+      return;
+    }
+    this.flashes--; this.flashT = 0.35; this.flashUsed = true;
+    s.sound.tone({ freq: 2000, to: 300, dur: 0.3, type: 'sawtooth', vol: 0.07 }); s.sound.noise({ dur: 0.2, vol: 0.12, freq: 6000, type: 'highpass' });
+    for (const g of hits) {
+      g.stun = 3.5; g.hunting = false;
+      s.award(100 * this.level, W / 2, VIEW.y + 120, { chain: true, color: '#e0f2fe', size: 18 });
     }
   }
 
@@ -356,6 +364,9 @@ class DungeonEscape {
   // ── Draw ───────────────────────────────────────────────────
   render(ctx) {
     const s = this.s, p = this.p, t = this.t, lo = s.lowDetail, spr = this.spr;
+    // real time since the last frame for the render-side decays below (was a fixed 1/60; stops while paused)
+    const now = performance.now(), rdt = this.s.state === 'playing' ? Math.min(0.05, (now - (this.rtPrev || now)) / 1000) : 0; this.rtPrev = now;
+    this.rdt = rdt;
     ctx.fillStyle = '#050505'; ctx.fillRect(0, 0, W, H);
     const fuelK = this.bonus ? 1 : Math.min(1, this.fuel / 30);
     const flick = 0.9 + 0.06 * Math.sin(t * 11.3) + 0.05 * Math.sin(t * 17.9 + 2) + 0.03 * Math.sin(t * 31.7);
@@ -439,7 +450,7 @@ class DungeonEscape {
     // the stick (same roller ball as Crown Heist)
     this.stick.draw(ctx);
     // flash button
-    if (this.flashPress > 0) this.flashPress -= 1 / 60;
+    if (this.flashPress > 0) this.flashPress -= this.rdt ?? 1 / 60;
     const F = FLASH_BTN;
     ctx.save();
     ctx.globalAlpha = this.flashes ? 1 : 0.35;
