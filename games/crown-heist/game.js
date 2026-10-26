@@ -1044,8 +1044,8 @@ class CrownHeist {
       ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,.7)'; ctx.strokeText(mark, pr[0], pr[1]);
       ctx.fillStyle = mark === '!' ? '#ef4444' : mark === '✦' ? '#e5e7eb' : '#facc15'; ctx.fillText(mark, pr[0], pr[1]);
       if (mark === '?' && g.state !== 'look') {                       // suspicion meter
-        ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(pr[0] - 14, pr[1] + sz * 0.55, 28, 4);
-        ctx.fillStyle = '#facc15'; ctx.fillRect(pr[0] - 14, pr[1] + sz * 0.55, 28 * g.sus, 4);
+        ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(pr[0] - 17, pr[1] + sz * 0.55, 34, 7);
+        ctx.fillStyle = '#facc15'; ctx.fillRect(pr[0] - 16, pr[1] + sz * 0.55 + 1, 32 * g.sus, 5);
       }
     }
     ctx.restore();
@@ -1242,7 +1242,7 @@ class CrownHeist {
       btn(BTN.smoke, '💨', 'SMOKE', ['#27272a', '#a1a1aa'], 'smoke', this.ammo.smoke);
     }
     ctx.font = '600 10.5px system-ui'; ctx.fillStyle = 'rgba(214,211,209,.5)';
-    ctx.fillText(this.coarse ? 'Drag the view to look around' : 'WASD/↑↓←→ · Q/E sidestep · Space grab · C coin · X smoke', MAP.x + MAP.s / 2, H - 12);
+    ctx.fillText(this.coarse ? 'Drag the view to look around' : 'WASD/↑↓←→ · Q/E sidestep · Space grab · C coin · X smoke', MAP.x + MAP.s / 2, H - 18);
     if (s.gold) { ctx.fillStyle = '#fbbf24'; ctx.font = '700 10px system-ui'; ctx.fillText('★ GOLDEN THIEF', MAP.x + MAP.s / 2, PANEL_Y + MAP.s + 22); }
   }
 }

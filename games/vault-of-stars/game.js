@@ -611,23 +611,23 @@ class VaultOfStars {
     const v = this.v, s = this.s, th = this.th;
     ctx.fillStyle = 'rgba(4,6,15,.82)'; ctx.fillRect(0, 0, W, MAP.y - 2);
     ctx.textBaseline = 'alphabetic';
-    ctx.font = '700 15px system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.fillStyle = th.edge;
+    ctx.font = '700 17px system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.fillStyle = th.edge;
     ctx.fillText(v.secret ? 'THE SIGNAL ROOM' : `VAULT ${this.level} · ${v.name.toUpperCase()}`, 12, 22);
     if (!this.bonus) {
       const tm = this.done && this.lastTime ? this.lastTime : this.st.t;
-      ctx.textAlign = 'right'; ctx.font = '600 13px ui-monospace, Menlo, monospace';
+      ctx.textAlign = 'right'; ctx.font = '600 15px ui-monospace, Menlo, monospace';
       ctx.fillStyle = tm <= v.par + PAR_SLACK ? '#fde047' : '#cbd5e1';
       ctx.fillText(`⏱ ${fmtS(tm)}s`, W - 86, 22);
       ctx.fillStyle = '#94a3b8'; ctx.fillText(`PAR ${fmtS(v.par)}s`, W - 12, 22);
       // oxygen
       const pct = clamp(this.o2 / v.o2Ticks, 0, 1), low = this.o2 * TICK < 8;
-      ctx.fillStyle = '#94a3b8'; ctx.font = '700 11px system-ui'; ctx.textAlign = 'left'; ctx.fillText('O₂', 12, 44);
+      ctx.fillStyle = '#94a3b8'; ctx.font = '700 13px system-ui'; ctx.textAlign = 'left'; ctx.fillText('O₂', 12, 44);
       roundRect(ctx, 34, 35, W - 100, 10, 5); ctx.fillStyle = 'rgba(255,255,255,.08)'; ctx.fill();
       if (pct > 0) {
         roundRect(ctx, 34, 35, Math.max(10, (W - 100) * pct), 10, 5);
         ctx.fillStyle = low ? (Math.sin(this.t * 14) > 0 ? '#ef4444' : '#7f1d1d') : pct < 0.35 ? '#f59e0b' : '#4ade80'; ctx.fill();
       }
-      ctx.fillStyle = low ? '#fca5a5' : '#cbd5e1'; ctx.textAlign = 'right'; ctx.font = '600 11px ui-monospace, monospace';
+      ctx.fillStyle = low ? '#fca5a5' : '#cbd5e1'; ctx.textAlign = 'right'; ctx.font = '600 13px ui-monospace, monospace';
       ctx.fillText(`${Math.max(0, Math.ceil(this.o2 * TICK))} s`, W - 12, 45);
     } else {
       ctx.textAlign = 'right'; ctx.font = '600 13px system-ui'; ctx.fillStyle = '#fde047';
@@ -659,13 +659,13 @@ class VaultOfStars {
     // key cards held
     ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
     if (v.keyNames.length) {
-      ctx.fillStyle = '#94a3b8'; ctx.font = '700 10px system-ui'; ctx.fillText('KEY CARDS', W / 2 + 22, PANEL_Y + 36);
+      ctx.fillStyle = '#94a3b8'; ctx.font = '700 12px system-ui'; ctx.fillText('KEY CARDS', W / 2 + 22, PANEL_Y + 36);
       v.keyNames.forEach((k, i) => {
         const has = this.st.keys & (1 << i), x = W / 2 + 22 + (i - (v.keyNames.length - 1) / 2) * 34, y = PANEL_Y + 48;
         roundRect(ctx, x - 13, y, 26, 18, 4);
         ctx.fillStyle = has ? KEY_COL[k] : 'rgba(255,255,255,.06)'; ctx.fill();
         ctx.strokeStyle = KEY_COL[k]; ctx.lineWidth = 1.2; ctx.stroke();
-        ctx.fillStyle = has ? '#0f172a' : KEY_COL[k]; ctx.font = 'bold 11px system-ui'; ctx.fillText(k, x, y + 13);
+        ctx.fillStyle = has ? '#0f172a' : KEY_COL[k]; ctx.font = 'bold 13px system-ui'; ctx.fillText(k, x, y + 13);
       });
     }
     // relics in this vault
@@ -674,7 +674,7 @@ class VaultOfStars {
       ctx.fillStyle = got === v.relics.length ? '#fde047' : '#94a3b8'; ctx.font = '600 12px system-ui';
       ctx.fillText(`✦ ${got} / ${v.relics.length} crystals`, W / 2 + 22, PANEL_Y + 96);
     }
-    ctx.fillStyle = '#64748b'; ctx.font = '11px system-ui';
+    ctx.fillStyle = '#7d8aa0'; ctx.font = '13px system-ui';
     ctx.fillText(this.restartAsk > 0 ? '' : 'Arrows, WASD or swipe', W / 2 + 22, PANEL_Y + 122);
     if (!this.bonus) {
       // restart button
@@ -683,7 +683,7 @@ class VaultOfStars {
       ctx.beginPath(); ctx.arc(RESTART.x, restartY, RESTART.r, 0, 7); ctx.fill();
       ctx.strokeStyle = ask ? '#f87171' : 'rgba(255,255,255,.25)'; ctx.lineWidth = 1.5; ctx.stroke();
       ctx.fillStyle = ask ? '#fff' : '#cbd5e1'; ctx.font = '22px system-ui'; ctx.textBaseline = 'middle'; ctx.fillText('⟲', RESTART.x, restartY + 1);
-      ctx.textBaseline = 'alphabetic'; ctx.font = '10px system-ui'; ctx.fillStyle = '#94a3b8';
+      ctx.textBaseline = 'alphabetic'; ctx.font = '12px system-ui'; ctx.fillStyle = '#94a3b8';
       ctx.fillText('RESTART', RESTART.x, restartY + RESTART.r + 14);
       if (ask) {
         ctx.fillStyle = '#fca5a5'; ctx.font = '600 12px system-ui';

@@ -449,10 +449,10 @@ class HeistPlanner {
       ctx.font = `${sel ? '800' : '700'} 13px system-ui`; ctx.fillStyle = sel ? info.color : '#e2e8f0';
       ctx.fillText(`${i + 1}. ${info.name}`, cx0 + 34, cy0 + 19);
       // role description
-      ctx.font = '500 10px system-ui'; ctx.fillStyle = sel ? info.color + 'cc' : '#64748b';
+      ctx.font = '500 12px system-ui'; ctx.fillStyle = sel ? info.color + 'cc' : '#7d8aa0';
       ctx.fillText(ROLE_DESC[c.id], cx0 + 34, cy0 + 35);
       // steps count
-      ctx.font = '700 11px system-ui'; ctx.fillStyle = steps > 0 ? (sel ? info.color : '#94a3b8') : '#475569';
+      ctx.font = '700 13px system-ui'; ctx.fillStyle = steps > 0 ? (sel ? info.color : '#94a3b8') : '#475569';
       ctx.fillText(`${steps} step${steps !== 1 ? 's' : ''}`, cx0 + 12, cy0 + 52);
       // mini plan progress dots (up to 8 dots showing plan density)
       const dotSlots = 8, dotW = (tw - 60) / dotSlots;
@@ -478,7 +478,7 @@ class HeistPlanner {
     btn(12 + (bw + 8), ay, bw, 44, '↶ UNDO', () => this.undo(), { color: '#64748b' });
     btn(12 + 2 * (bw + 8), ay, bw, 44, '✖ CLEAR', () => this.clear(), { color: '#64748b' });
     btn(12 + 3 * (bw + 8), ay, bw, 44, '▶ GO!', () => this.go(), { on: true, color: '#22c55e', text: '#052e16' });
-    ctx.fillStyle = '#64748b'; ctx.font = '600 11px system-ui'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#7d8aa0'; ctx.font = '600 13px system-ui'; ctx.textAlign = 'center';
     ctx.fillText(this.s.coarse ? 'Tap next to a crew member (or swipe) to plan a step'
       : 'Arrows plan · Space wait · Z undo · Tab switch crew · Enter GO', W / 2, ay + 62);
     ctx.fillText(this.s.coarse ? 'Tap a crew member to switch · ◀ ▶ to see the guards at any step'

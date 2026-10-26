@@ -470,7 +470,7 @@ class DungeonEscape {
     // help
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.font = '600 10.5px system-ui'; ctx.fillStyle = 'rgba(214,211,209,.5)';
-    ctx.fillText(this.stick.coarse ? 'Drag the view to look around' : '↑↓ walk · ← → turn · Space flash', MAP.x + MAP.s / 2, H - 10);
+    ctx.fillText(this.stick.coarse ? 'Drag the view to look around' : '↑↓ walk · ← → turn · Space flash', MAP.x + MAP.s / 2, H - 18);
     if (s.gold) { ctx.fillStyle = '#fbbf24'; ctx.font = '700 12px system-ui'; ctx.fillText('★ GOLDEN TORCH', F.x, PANEL_Y + 150); }
   }
 }

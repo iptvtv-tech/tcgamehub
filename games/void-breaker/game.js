@@ -938,7 +938,7 @@ class VoidBreaker {
       }
       ctx.globalAlpha = 1;
     }
-    ctx.textBaseline = 'alphabetic'; ctx.font = '600 11px system-ui'; ctx.fillStyle = 'rgba(226,232,240,.5)';
+    ctx.textBaseline = 'alphabetic'; ctx.font = '600 13px system-ui'; ctx.fillStyle = 'rgba(226,232,240,.5)';
     ctx.fillText(this.coarse ? 'Drag to turn · hold to fire' : document.pointerLockElement ? 'Mouse to aim · hold click / Space to fire · ↑ nova · ↓ turn round' : 'Click the view to lock the mouse · ← → turn · Space fire', cx, H - 8);
     // low-shield heartbeat
     if (this.hp < 30 && !this.bonus) {
@@ -992,7 +992,7 @@ class VoidBreaker {
       ctx.fillText(opt.name, cx0 + cw / 2, cy0 + 78);
       ctx.shadowBlur = 0;
       // desc (word-wrap to 2 lines)
-      ctx.font = '500 11px system-ui'; ctx.fillStyle = 'rgba(226,232,240,.75)';
+      ctx.font = '500 13px system-ui'; ctx.fillStyle = 'rgba(226,232,240,.75)';
       const words = opt.desc.split(' '), lines = [];
       let line = '';
       for (const w of words) {

@@ -60,6 +60,7 @@ runGame({
   id: ID,
   width: W, height: H,
   lives: 3,
+  detail: true,                      // the shared HIGH/LOW chip drives the GL render scale
   comboWindow: 4,
   comboStep: 3,
   maxMultiplier: 5,
@@ -93,6 +94,7 @@ class PixelCraft {
     this.gl = null;
     const forceSoft = /[?&]soft=1/.test(location.search);
     if (!forceSoft && GLRenderer.supported()) { try { this.gl = new GLRenderer(this.tex, SPRITES, this.clouds); } catch (e) { console.warn('WebGL renderer unavailable, using software 3D', e); this.gl = null; } }
+    if (this.gl && this.s.lowDetail) this.gl.quality = 0.6;
     if (!this.gl) this.renderer = new Renderer(this.tex, SPRITES, this.touchUI ? 2 : 0);
     this.world = new World();
     this.ui = new UI(this);
@@ -1061,6 +1063,8 @@ class PixelCraft {
     if (st === 'title' || st === 'over' || st === 'legend') this.unlock();
     this.ui.update(dt);
   }
+
+  onDetailChange(low) { if (this.gl) this.gl.quality = low ? 0.6 : 1; }
 
   /** How lit your hand is (0.25 … 1) */
   handLight() {

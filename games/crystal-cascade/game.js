@@ -1055,7 +1055,7 @@ class CrystalCascade {
       drawPart(ctx, cam, stand.v, stand.faces, stand.c, colour(dark), { edge: 0.15 });
       this.drawCrystal(ctx, np, -this.t, { c: this.next, kind: 'n' }, lo, 0.36, 1);
       const q = this.nextScreen();
-      ctx.fillStyle = 'rgba(255,255,255,.75)'; ctx.font = '700 10px system-ui'; ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(255,255,255,.75)'; ctx.font = '700 13px system-ui'; ctx.textAlign = 'center';
       ctx.fillText('NEXT ⇄', q[0], q[1] - 24);
     }
     if (gold) { ctx.fillStyle = '#fbbf24'; ctx.font = '700 11px system-ui'; ctx.textAlign = 'center'; ctx.fillText('★ GOLDEN CRYSTAL CANNON', W / 2, H - 30); }
@@ -1092,9 +1092,9 @@ class CrystalCascade {
     const k = clamp(this.pushT / this.pushEvery, 0, 1);
     ctx.fillStyle = 'rgba(255,255,255,.08)'; ctx.fillRect(0, 46, W, 4);
     ctx.fillStyle = this.freezeT > 0 ? '#7dd3fc' : k > 0.85 ? '#f87171' : this.theme.rim; ctx.fillRect(0, 46, W * k, 4);
-    ctx.textAlign = 'center'; ctx.font = '600 11px system-ui'; ctx.fillStyle = 'rgba(226,232,240,.5)'; ctx.textBaseline = 'alphabetic';
+    ctx.textAlign = 'center'; ctx.font = '600 13px system-ui'; ctx.fillStyle = 'rgba(226,232,240,.5)'; ctx.textBaseline = 'alphabetic';
     const coarse = this.s.coarse;
-    ctx.fillText(this.rapid() ? (coarse ? 'Hold to rapid-fire!' : 'Hold click or Space to rapid-fire!') : coarse ? 'Drag to aim · let go to fire · tap NEXT to swap' : 'Aim with the mouse · click to fire · ← → + Space · ↑ swap', W / 2, H - 12);
+    ctx.fillText(this.rapid() ? (coarse ? 'Hold to rapid-fire!' : 'Hold click or Space to rapid-fire!') : coarse ? 'Drag to aim · let go to fire · tap NEXT to swap' : 'Aim with the mouse · click to fire · ← → + Space · ↑ swap', W / 2, H - 18);
     ctx.restore();
   }
 }

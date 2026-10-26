@@ -615,8 +615,9 @@ class Eggspress {
     ctx.fillStyle = sg; ctx.fillRect(0, 0, W, H);
     if (T.stars) for (const st of this.stars) { ctx.globalAlpha = 0.3 + st.z * 0.6 * (0.6 + 0.4 * Math.sin(t * 2 + st.x)); ctx.fillStyle = '#fff'; ctx.fillRect(((st.x - this.cam.x * 0.01 * st.z) % W + W) % W, st.y, 1.5, 1.5); }
     ctx.globalAlpha = 1;
-    ctx.save(); ctx.shadowColor = T.sun; ctx.shadowBlur = this.s.lowDetail ? 0 : 50; ctx.fillStyle = T.sun;
-    ctx.beginPath(); ctx.arc(W * 0.8, 70, T.stars ? 24 : 32, 0, TAU); ctx.fill(); ctx.restore();
+    const sunR = T.stars ? 24 : 32;
+    if (!this.s.lowDetail) { ctx.globalAlpha = 0.55; ctx.drawImage(this.s.glowSprite(T.sun, 64), W * 0.8 - sunR * 2.4, 70 - sunR * 2.4, sunR * 4.8, sunR * 4.8); ctx.globalAlpha = 1; }
+    ctx.fillStyle = T.sun; ctx.beginPath(); ctx.arc(W * 0.8, 70, sunR, 0, TAU); ctx.fill();
     if (!T.stars) {
       ctx.fillStyle = 'rgba(255,255,255,.85)';
       for (const cl of this.clouds) {
@@ -773,6 +774,7 @@ class Eggspress {
   drawFront(ctx, x0, x1) {
     const cam = this.cam3, T = this.T, g = S.rgb(T.grass), d0 = S.rgb(T.dirt[0]), d1 = S.rgb(T.dirt[1]);
     const zf = -S.RW - 90;
+    let cliffGrad = null;   // one gradient per frame — it was rebuilt for every 16 px strip
     for (let x = Math.floor(x0 / STEP) * STEP; x < x1; x += STEP) {
       const ya = this.ground(x), yb = this.ground(x + STEP);
       if (ya > 1500 || yb > 1500) continue;
@@ -783,9 +785,8 @@ class Eggspress {
       ctx.beginPath(); ctx.moveTo(pa[0], pa[1]); ctx.lineTo(pb[0], pb[1]); ctx.lineTo(pc[0], pc[1]); ctx.lineTo(pd[0], pd[1]); ctx.closePath(); ctx.fill(); ctx.stroke();
       // cliff face with strata
       const pe = cam.p(x, ya + 420, zf), pf = cam.p(x + STEP, yb + 420, zf);
-      const gr = ctx.createLinearGradient(0, pd[1], 0, pd[1] + 220);
-      gr.addColorStop(0, S.css(d0)); gr.addColorStop(1, S.css(d1));
-      ctx.fillStyle = gr; ctx.beginPath(); ctx.moveTo(pd[0], pd[1]); ctx.lineTo(pc[0], pc[1]); ctx.lineTo(pf[0], pf[1]); ctx.lineTo(pe[0], pe[1]); ctx.closePath(); ctx.fill();
+      if (!cliffGrad) { cliffGrad = ctx.createLinearGradient(0, pd[1], 0, pd[1] + 220); cliffGrad.addColorStop(0, S.css(d0)); cliffGrad.addColorStop(1, S.css(d1)); }
+      ctx.fillStyle = cliffGrad; ctx.beginPath(); ctx.moveTo(pd[0], pd[1]); ctx.lineTo(pc[0], pc[1]); ctx.lineTo(pf[0], pf[1]); ctx.lineTo(pe[0], pe[1]); ctx.closePath(); ctx.fill();
       if ((Math.floor(x / STEP) % 7) === 0) { ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.fillRect(pd[0], pd[1] + 30 + (x % 23), pc[0] - pd[0] + 1, 5); }
     }
   }
@@ -888,26 +889,32 @@ class Eggspress {
   drawHud(ctx) {
     const s = this.s, e = this.egg;
     ctx.save();
-    if (this.bonus) progressBar(ctx, 14, 12, W - 28, 20, s.bonusLeft / 20, '#fbbf24', `★ GOLDEN EGG RUN · ${Math.ceil(s.bonusLeft)}s`);
+    // the 800-wide landscape stage shrinks to ~49% on a phone, which left the HUD at ~7 css px —
+    // draw the whole HUD in a narrower, scaled-up space so its text stays readable
+    const cssW = s.canvas.clientWidth || W;
+    const K = clamp(W / Math.max(1, cssW) * 0.55, 1, 1.9);
+    ctx.scale(K, K);
+    const Wk = W / K;
+    if (this.bonus) progressBar(ctx, 14, 12, Wk - 28, 20, s.bonusLeft / 20, '#fbbf24', `★ GOLDEN EGG RUN · ${Math.ceil(s.bonusLeft)}s`);
     else {
       const frac = clamp(this.maxX / this.goalX, 0, 1), m = Math.max(0, Math.round((this.goalX - this.car.x) / PX_PER_M));
-      progressBar(ctx, 14, 12, W - 200, 20, frac, '#4ade80', this.delivered ? 'Delivered!' : `🚚 ${m} m to the farm`);
+      progressBar(ctx, 14, 12, Wk - 200, 20, frac, '#4ade80', this.delivered ? 'Delivered!' : `🚚 ${m} m to the farm`);
       // checkpoint tick on the bar
-      ctx.fillStyle = this.flagged ? '#22c55e' : '#fff'; ctx.fillRect(14 + (W - 200) * 0.5 - 1, 9, 3, 26);
+      ctx.fillStyle = this.flagged ? '#22c55e' : '#fff'; ctx.fillRect(14 + (Wk - 200) * 0.5 - 1, 9, 3, 26);
       // the egg's condition
-      ctx.fillStyle = 'rgba(0,0,0,.35)'; roundRect(ctx, W - 176, 8, 162, 28, 14); ctx.fill();
+      ctx.fillStyle = 'rgba(0,0,0,.35)'; roundRect(ctx, Wk - 176, 8, 162, 28, 14); ctx.fill();
       ctx.font = '800 14px system-ui'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fff';
-      ctx.fillText('Egg', W - 164, 22);
+      ctx.fillText('Egg', Wk - 164, 22);
       for (let i = 0; i < 3; i++) {
-        const cx = W - 116 + i * 30, broken = i < (e.alive ? e.cracks : 3);
+        const cx = Wk - 116 + i * 30, broken = i < (e.alive ? e.cracks : 3);
         ctx.fillStyle = broken ? '#7f1d1d' : s.gold ? '#facc15' : '#fff7ed';
         ctx.beginPath(); ctx.ellipse(cx, 22, 8, 10, 0, 0, TAU); ctx.fill();
         if (broken) { ctx.strokeStyle = '#fca5a5'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx - 5, 18); ctx.lineTo(cx, 23); ctx.lineTo(cx - 2, 26); ctx.lineTo(cx + 4, 30); ctx.stroke(); }
       }
     }
     const hint = this.s.coarse ? 'Hold right side: drive · left side: brake' : '→ drive · ← brake · in the air → tips back, ← tips forward';
-    if (this.time < 6) { ctx.font = '700 13px system-ui'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.fillText(hint, W / 2, H - 16); }
-    if (s.gold) { ctx.fillStyle = '#fbbf24'; ctx.font = '800 12px system-ui'; ctx.textAlign = 'right'; ctx.fillText('★ GOLDEN EGG TRUCK', W - 14, 50); }
+    if (this.time < 6) { ctx.font = '700 13px system-ui'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.fillText(hint, Wk / 2, H / K - 10); }
+    if (s.gold) { ctx.fillStyle = '#fbbf24'; ctx.font = '800 12px system-ui'; ctx.textAlign = 'right'; ctx.fillText('★ GOLDEN EGG TRUCK', Wk - 14, 50); }
     ctx.restore();
   }
 }

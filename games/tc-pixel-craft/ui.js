@@ -312,6 +312,8 @@ export class UI {
     if (s.gold) { ctx.globalAlpha = 0.5 + 0.5 * Math.sin(g.t * 5); ctx.fillStyle = '#fff'; ctx.fillRect(-14, -120, 5, 5); ctx.fillRect(8, -70, 4, 4); ctx.globalAlpha = 1; }
     if (it) {
       ctx.imageSmoothingEnabled = false;
+      // a Legend's tools are golden like the arm (the icon is tinted on the fly)
+      if (s.gold) ctx.filter = `${L < 0.97 ? `brightness(${L.toFixed(2)}) ` : ''}sepia(1) saturate(2.6) hue-rotate(-12deg) brightness(1.2)`;
       const ic = g.icons[it.id];
       if (isBlock(it.id) && it.id !== B.TORCH) ctx.drawImage(ic, -56, -230, 104, 104);
       else { ctx.save(); ctx.translate(-4, -138); ctx.rotate(-0.15); ctx.drawImage(ic, -28, -118, 140, 140); ctx.restore(); }

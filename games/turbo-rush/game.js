@@ -106,6 +106,7 @@ runGame({
   width: W, height: H,
   detail: true,                      // offers the 🖥 Graphics HIGH / LOW switch
   lives: 3,
+  extend: { maxH: 900, topShare: 0 },
   comboWindow: 3,
   comboStep: 3,
   maxMultiplier: 6,
@@ -271,7 +272,7 @@ class TurboRush {
     // ── Touch wheel: on a phone in the cockpit, drag the steering wheel; hold NITRO with the other thumb.
     //    Tilt then only leans the camera (chase cam keeps side zones + tilt steering).
     this.wheelTouch = new TouchWheel(s, {
-      zone: () => ({ x: 96, y: 536, w: W - 192, h: H - 536 }),
+      zone: () => ({ x: 96, y: 536, w: W - 192, h: H - 536 + this.drop() }),
       enabled: () => this.cockpit && this.s.state === 'playing',
       holds: { nitro: () => this.nitroButton() },
     });
@@ -288,10 +289,12 @@ class TurboRush {
     this.cam.init = false;
     this.wheelTouch?.release();
   }
+  /** portrait bands: on a tall phone the wheel and buttons hang below the box, at thumb height */
+  drop() { const b = this.s.bands?.bottom || 0; return b >= 120 ? Math.min(b - 20, 160) : 0; }
   /** in touch-wheel mode NITRO takes the bottom-right corner (the boosting thumb) and VIEW moves bottom-left */
-  viewButton() { return this.wheelMode ? { x: 8, y: H - 44, w: 84, h: 34 } : { x: W - 92, y: H - 44, w: 84, h: 34 }; }
+  viewButton() { const d = this.drop(); return this.wheelMode ? { x: 8, y: H - 44 + d, w: 84, h: 34 } : { x: W - 92, y: H - 44 + d, w: 84, h: 34 }; }
   /** NITRO (hold) — only in touch-wheel mode */
-  nitroButton() { return { x: W - 96, y: H - 92, w: 88, h: 82 }; }
+  nitroButton() { const d = this.drop(); return { x: W - 96, y: H - 92 + d, w: 88, h: 82 }; }
   get wheelMode() { return this.wheelTouch.active; }
   onAction(a, x, y) {
     if (a === 'press') {
@@ -1526,7 +1529,7 @@ class TurboRush {
 
   /** the wheel: flat-bottomed GT rim, three spokes, a red top marker — and your gloved hands on it */
   drawWheel(ctx, paint) {
-    const c = this.cam, cx = W / 2, cy = 690, R = 128, lo = this.lo;
+    const c = this.cam, cx = W / 2, cy = 690 + this.drop(), R = 128, lo = this.lo;
     const ang = clamp(c.wheel, -1.4, 1.4) * 1.5;
     // forearms in a red race suit, reaching up from the bottom corners to the hands
     const hand = (sd) => { const a = -Math.PI / 2 + sd * 1.08 + ang; return [cx + Math.cos(a) * R, cy + Math.sin(a) * R, a]; };

@@ -110,6 +110,7 @@ runGame({
   id: ID,
   width: W, height: H,
   lives: 3,
+  extend: { maxH: 900, topShare: 0 },
   comboWindow: 3.2,
   comboStep: 1,
   maxMultiplier: 6,
@@ -336,7 +337,7 @@ class NeonDrift {
     // Tilt then only leans the camera (chase cam keeps side zones + tilt steering).
     this.lean = 0;
     this.wheelTouch = new TouchWheel(s, {
-      zone: () => ({ x: 104, y: 520, w: W - 208, h: H - 520 }),
+      zone: () => ({ x: 104, y: 520, w: W - 208, h: H - 520 + this.drop() }),
       enabled: () => this.view === 'cockpit' && this.s.state === 'playing' && this.tuneT <= 0,
       holds: { hand: () => this.handButton() },
     });
@@ -534,8 +535,10 @@ class NeonDrift {
     this.updateCamera(0);
     this.wheelTouch?.release();
   }
+  /** portrait bands: on a tall phone the wheel and buttons hang below the box, at thumb height */
+  drop() { const b = this.s.bands?.bottom || 0; return b >= 120 ? Math.min(b - 20, 160) : 0; }
   /** in touch-wheel mode BOOST sits above HANDBRAKE on the right (one thumb for both), VIEW goes bottom-left */
-  boostButton() { return this.wheelMode ? { x: W - 100, y: H - 86, w: 90, h: 32 } : { x: 10, y: H - 46, w: 100, h: 34 }; }
+  boostButton() { const d = this.drop(); return this.wheelMode ? { x: W - 100, y: H - 86 + d, w: 90, h: 32 } : { x: 10, y: H - 46 + d, w: 100, h: 34 }; }
   /** fire the drift-charged boost: the whole meter goes in one burst (longer the fuller it was) */
   fireBoost() {
     const p = this.p, s = this.s;
@@ -601,7 +604,7 @@ class NeonDrift {
     if (this.s.gold) return mixHex('#f59e0b', '#fef08a', c);
     return c < 0.5 ? mixHex('#ff4fa3', '#a78bfa', c * 2) : mixHex('#a78bfa', '#22d3ee', (c - 0.5) * 2);
   }
-  viewButton() { return this.wheelMode ? { x: 10, y: H - 46, w: 90, h: 34 } : { x: W - 100, y: H - 46, w: 90, h: 34 }; }
+  viewButton() { const d = this.drop(); return this.wheelMode ? { x: 10, y: H - 46 + d, w: 90, h: 34 } : { x: W - 100, y: H - 46 + d, w: 90, h: 34 }; }
   handButton() { return { x: W - 100, y: H - 46, w: 90, h: 34 }; }
   get wheelMode() { return this.wheelTouch.active; }
   tuneButtons() { return STATIONS.map((_, i) => ({ x: 52 + i * 128, y: 352, w: 120, h: 74 })); }
@@ -1774,7 +1777,7 @@ class NeonDrift {
     }
     // the body around the glass
     ctx.fillStyle = body;
-    ctx.beginPath(); ctx.rect(-30, -30, W + 60, H + 60); glass(); ctx.fill('evenodd');
+    ctx.beginPath(); ctx.rect(-30, -30, W + 60, H + 260); glass(); ctx.fill('evenodd');
     ctx.beginPath(); glass(); glowLine(neonA, 2.2, 14);
     // rear-view mirror shell, hanging from the roof
     this.drawMirrorStatic(ctx, neonA);
@@ -1883,7 +1886,7 @@ class NeonDrift {
   }
 
   drawWheel(ctx, neonA, neonB) {
-    const p = this.p, cx = W / 2, cy = 660, R = 116, lo = this.s.lowDetail;
+    const p = this.p, cx = W / 2, cy = 660 + this.drop(), R = 116, lo = this.s.lowDetail;
     const ang = p.steer * 1.7 + (p.spinT > 0 ? Math.sin(this.t * 30) * 0.3 : 0);
     ctx.save(); ctx.translate(cx, cy); ctx.rotate(ang);
     // spokes (left, right, bottom) and hub

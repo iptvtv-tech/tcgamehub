@@ -722,9 +722,9 @@ class LunarDelivery {
       ctx.textAlign = 'center'; ctx.font = '900 13px system-ui'; ctx.fillStyle = '#e2e8f0';
       ctx.fillText(`DELIVERY ${Math.min(this.leg + 1, this.legs)} / ${this.legs}`, W / 2 + 10, 16);
       const tip = c?.hooked ? Math.max(0, Math.ceil(this.tipTime - this.legT)) : null;
-      ctx.font = '700 11px system-ui'; ctx.fillStyle = tip === 0 ? '#94a3b8' : '#fde047';
+      ctx.font = '700 13px system-ui'; ctx.fillStyle = tip === 0 ? '#94a3b8' : '#fde047';
       ctx.fillText(c?.hooked ? (tip > 0 ? `⏱ TIP ${tip}s` : 'NO TIP') : 'HOOK THE CRATE', W / 2 + 10, 35);
-      ctx.textAlign = 'right'; ctx.font = '700 11px system-ui'; ctx.fillStyle = '#67e8f9';
+      ctx.textAlign = 'right'; ctx.font = '700 13px system-ui'; ctx.fillStyle = '#67e8f9';
       ctx.fillText(`✦ ${this.dustGot} / ${this.dustTotal}`, W - 108, 16);
     }
     this.drawMap(ctx);
@@ -747,7 +747,7 @@ class LunarDelivery {
       if (inView) {
         const [x, y] = pr, r = 9 + Math.sin(t * 5) * 1.5;
         ctx.beginPath(); ctx.moveTo(x, y - r); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y); ctx.closePath(); ctx.stroke();
-        ctx.font = '800 11px system-ui'; ctx.textAlign = 'center'; ctx.fillText(label, x, y - r - 9);
+        ctx.font = '800 13px system-ui'; ctx.textAlign = 'center'; ctx.fillText(label, x, y - r - 9);
       } else {
         // an arrow round the edge pointing the way
         const B = { f: [Math.sin(this.camYaw), 0, Math.cos(this.camYaw)] }, rgt = [-B.f[2], 0, B.f[0]];
@@ -757,7 +757,7 @@ class LunarDelivery {
         ctx.save(); ctx.translate(cx, cy); ctx.rotate(a);
         ctx.beginPath(); ctx.moveTo(0, -16); ctx.lineTo(11, 6); ctx.lineTo(0, 1); ctx.lineTo(-11, 6); ctx.closePath(); ctx.fill();
         ctx.restore();
-        ctx.font = '800 11px system-ui'; ctx.textAlign = 'center'; ctx.fillText(label, cx, cy + 22);
+        ctx.font = '800 13px system-ui'; ctx.textAlign = 'center'; ctx.fillText(label, cx, cy + 22);
       }
     }
     // flight instruments
@@ -783,14 +783,14 @@ class LunarDelivery {
       ctx.strokeStyle = 'rgba(226,232,240,.5)'; ctx.lineWidth = 2; ctx.stroke();
       const kx = U.stick.x + (this.stick?.dx || 0) * U.stick.r * 0.6, ky = U.stick.y + (this.stick?.dy || 0) * U.stick.r * 0.6;
       ctx.fillStyle = 'rgba(226,232,240,.75)'; ctx.beginPath(); ctx.arc(kx, ky, 22, 0, TAU); ctx.fill();
-      ctx.fillStyle = 'rgba(226,232,240,.6)'; ctx.font = '700 10px system-ui'; ctx.fillText('TILT / TURN', U.stick.x, U.stick.y + U.stick.r + 12);
+      ctx.fillStyle = 'rgba(226,232,240,.6)'; ctx.font = '700 12px system-ui'; ctx.fillText('TILT / TURN', U.stick.x, U.stick.y + U.stick.r + 12);
       const on = this.thrustTouch != null;
       ctx.fillStyle = on ? 'rgba(251,146,60,.6)' : 'rgba(10,12,30,.45)'; ctx.beginPath(); ctx.arc(U.thrust.x, U.thrust.y, U.thrust.r, 0, TAU); ctx.fill();
       ctx.strokeStyle = '#fb923c'; ctx.stroke();
       ctx.fillStyle = '#fff'; ctx.font = '900 15px system-ui'; ctx.fillText('THRUST', U.thrust.x, U.thrust.y);
       ctx.globalAlpha = 1;
     } else {
-      ctx.font = '600 11px system-ui'; ctx.fillStyle = 'rgba(226,232,240,.55)'; ctx.textAlign = 'center';
+      ctx.font = '600 13px system-ui'; ctx.fillStyle = 'rgba(226,232,240,.55)'; ctx.textAlign = 'center';
       ctx.fillText('Space thrust · ↑ ↓ tilt · ← → turn · Q E sidestep', W / 2, H - 12);
     }
     ctx.restore();
