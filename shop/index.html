@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.goatcounter.com; font-src 'self'; connect-src 'self' https://*.supabase.co; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Token Shop – arcade themes and avatars · Quick Play Arcade</title>
+  <meta name="description" content="Earn arcade tokens by playing any game on Quick Play Arcade and spend them on site themes and avatars. No account, no real money — just play.">
+  <link rel="canonical" href="https://tcgamehub.win/shop/">
+  <meta property="og:title" content="Token Shop · Quick Play Arcade">
+  <meta property="og:description" content="Earn tokens by playing; spend them on themes and avatars.">
+  <meta property="og:image" content="https://tcgamehub.win/assets/img/og.png">
+  <meta name="theme-color" content="#0b0b1a">
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="../manifest.webmanifest">
+  <script src="../assets/js/theme-boot.js"></script>
+  <link rel="stylesheet" href="../assets/css/site.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="logo" href="../"><img src="../favicon.svg" alt=""><span data-site-name>Quick Play Arcade</span></a>
+      <nav class="site-nav">
+        <a href="../games/">Games</a>
+        <a href="../leaderboard/">Leaderboard</a>
+        <a href="../about/">About</a>
+        <a class="retro-link" href="../retro-vault/" title="Retro Vault">🕹️<span class="nav-label"> Retro</span></a>
+      </nav>
+    </div>
+  </header>
+  <main class="wrap shop">
+    <section class="shop-hero">
+      <div>
+        <h1>🪙 Token Shop</h1>
+        <p class="lead">Every game pays out <b>arcade tokens</b>. Spend them on a look for the whole site and an avatar by your name. No account, no real money — the tokens live in your browser (and travel with a Legend code).</p>
+      </div>
+      <aside class="wallet" id="wallet">
+        <span class="muted small">Your balance</span>
+        <b class="balance" data-balance>🪙 0</b>
+        <span class="muted small" data-today></span>
+      </aside>
+    </section>
+
+    <section class="section" id="earn">
+      <div class="section-head"><h2>How to earn</h2><span class="muted small">Up to <span data-cap>150</span> a day</span></div>
+      <div class="earn-grid" id="earn-grid"></div>
+    </section>
+
+    <section class="section" id="themes">
+      <div class="section-head"><h2>Arcade themes</h2><span class="muted small">Changes every page and every game's HUD</span></div>
+      <div class="shop-grid" id="theme-grid"></div>
+    </section>
+
+    <section class="section" id="avatars">
+      <div class="section-head"><h2>Avatars</h2><span class="muted small">Shown by your name on the home page and in every game</span></div>
+      <div class="avatar-grid" id="avatar-grid"></div>
+    </section>
+
+    <p class="muted small">Golden characters and the Golden Crown can't be bought — they're won in the <a href="../hall-of-legends/">Legends games</a>.</p>
+  </main>
+  <footer class="site-footer">
+    <!-- build:footer -->
+<div class="wrap footer-map">
+      <div class="footer-cols">
+        <div><b>Zone 1 · Arcade Classics</b><ul><li><a href="../games/neon-snake/">Neon Snake</a></li><li><a href="../games/feather-dash/">Feather Dash</a></li><li><a href="../games/prism-breaker/">Prism Breaker</a></li><li><a href="../games/astro-blaster/">Astro Blaster</a></li><li><a href="../games/crazy-putt/">Crazy Putt</a></li><li><a href="../games/the-vault-job/">The Vault Job</a></li></ul></div>
+        <div><b>Zone 2 · Hard Mode</b><ul><li><a href="../games/snake-escape-puzzle/">Snake Escape Puzzle</a></li><li><a href="../games/neon-beat/">Neon Beat</a></li><li><a href="../games/tower-topple/">Tower Topple</a></li><li><a href="../games/hyper-hex/">Hyper Hex</a></li><li><a href="../games/galactic-alien-shooter/">Galactic Alien Shooter</a></li><li><a href="../games/heist-planner/">Heist Planner</a></li></ul></div>
+        <div><b>Zone 3 · Master Class</b><ul><li><a href="../games/turbo-rush/">Turbo Rush 3D</a></li><li><a href="../games/bubble-blitz/">Bubble Blitz 3D</a></li><li><a href="../games/pinball-blast/">Pinball Blast 3D</a></li><li><a href="../games/star-strike/">Star Strike 3D</a></li><li><a href="../games/eggspress/">Eggspress 3D</a></li><li><a href="../games/crypt-of-crowns/">Crypt of Crowns 3D</a></li></ul></div>
+        <div><b>Zone 4 · Ultra</b><ul><li><a href="../games/tc-pixel-craft/">TC Pixel Craft 3D</a></li><li><a href="../games/dungeon-escape/">Dungeon Escape 3D</a></li><li><a href="../games/neon-drift/">Neon Drift 3D</a></li><li><a href="../games/crystal-cascade/">Crystal Cascade 3D</a></li><li><a href="../games/void-breaker/">Void Breaker 3D</a></li><li><a href="../games/crown-heist/">Crown Heist 3D</a></li></ul></div>
+        <div><b>Zone 5 · Beyond</b><ul><li><a href="../games/lunar-delivery/">Lunar Delivery 3D</a></li><li><a href="../games/vault-of-stars/">Vault of Stars</a></li></ul></div>
+        <div><b>By genre</b><ul><li><a href="../games/arcade/">Arcade</a></li><li><a href="../games/action/">Action</a></li><li><a href="../games/puzzle/">Puzzle</a></li><li><a href="../games/shooter/">Shooter</a></li><li><a href="../games/racing/">Racing &amp; driving</a></li><li><a href="../games/space/">Space</a></li><li><a href="../games/stealth/">Stealth</a></li><li><a href="../games/adventure/">3D adventure</a></li><li><a href="../games/snake/">Snake</a></li><li><a href="../games/3d/">3D games</a></li><li><a href="../games/legends/">Legends games</a></li><li><a href="../games/">All games</a></li></ul></div>
+        <div><b>Site</b><ul>
+          <li><a href="../">Home</a></li>
+          <li><a href="../leaderboard/">Leaderboard</a></li>
+          <li><a href="../hall-of-legends/">Hall of Legends</a></li>
+          <li><a href="../retro-vault/">Retro Vault</a></li>
+          <li><a href="../shop/">Token Shop</a></li>
+          <li><a href="../about/">About &amp; privacy</a></li>
+        </ul></div>
+      </div>
+      <div class="footer-base">
+        <span>© <span data-year>2026</span> <span data-site-name>Quick Play Arcade</span> by TC Game Hub · 26 free browser games, no sign-up, no downloads</span>
+      </div>
+    </div>
+<!-- /build:footer -->
+  </footer>
+  <script type="module" src="../assets/js/shop.js"></script>
+</body>
+</html>

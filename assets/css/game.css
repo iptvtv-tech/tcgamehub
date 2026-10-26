@@ -143,3 +143,9 @@ body.game-page.in-play { overflow: hidden; height: 100%; }
 .game-info .pills { margin: 6px 0 10px; }
 body.game-page .site-footer { margin-top: 32px; }
 .overlay .about-link { color: var(--muted); }
+/* token counter in the HUD (links to the shop) */
+.stat.tokens { text-decoration: none; color: var(--text); background: #2a1e09; border: 1px solid #6b4e1466; }
+.stat.tokens b { color: var(--gold); }
+.stat.tokens.hot { animation: tokenPop .9s ease-out; }
+@keyframes tokenPop { 0% { transform: scale(1.25); background: #6b4e14; } 100% { transform: none; } }
+@media (max-width: 720px) { .stat.tokens small { font-size: .6em; } }

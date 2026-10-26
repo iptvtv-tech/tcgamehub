@@ -3,6 +3,7 @@ import { CONFIG } from './config.js';
 import { Legends } from './legends.js';
 import { Store } from './storage.js';
 import './stats.js';   // privacy-friendly visitor stats (off unless CONFIG.goatcounter is set)
+import { Tokens } from './tokens.js';
 
 export const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export const fmt = (n) => Math.floor(n || 0).toLocaleString('en-GB');
@@ -45,6 +46,18 @@ export function siteChrome() {
       a.setAttribute('aria-current', 'page');
     }
     nav.appendChild(a);
+  }
+  // Arcade tokens: balance pill → the shop
+  if (nav && !nav.querySelector('.token-pill')) {
+    const root = new URL('../../', import.meta.url);
+    const t = document.createElement('a');
+    t.className = 'token-pill';
+    t.href = new URL('shop/', root).href;
+    t.title = 'Arcade tokens — spend them in the shop';
+    t.innerHTML = `${Tokens.avatarHTML()} ${Tokens.fmt(Tokens.balance())}`;
+    if (location.pathname.includes('/shop/')) t.setAttribute('aria-current', 'page');
+    nav.appendChild(t);
+    Store.onProgress(() => { t.innerHTML = `${Tokens.avatarHTML()} ${Tokens.fmt(Tokens.balance())}`; });
   }
   // Site-wide sound switch (audit P2): the same setting every game's 🔊 button uses.
   if (nav && !nav.querySelector('.mute-link')) {

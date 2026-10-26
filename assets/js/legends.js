@@ -82,7 +82,7 @@ const myCode = () => { const d = data(); return d.legend?.code || d.progressCode
 // badges are saved online against the Legend code whenever they change, and come back when the
 // code is entered on another browser. Merging only ever raises numbers — nothing is lost.
 // Needs supabase/zone4-completion.sql (sync_progress); until it's run this quietly does nothing.
-const SYNC = ['plays', 'maxLevel', 'best', 'ach'];
+const SYNC = ['plays', 'maxLevel', 'best', 'ach', 'tokens', 'owned'];   // tokens/owned need supabase/rewards.sql
 function payload() { const d = Store.data, out = { resets: Store.resets() || {} }; for (const k of SYNC) out[k] = d[k] || {}; return out; }
 /** fold progress from the cloud into this browser; returns how many things it added */
 function mergeIn(p) {

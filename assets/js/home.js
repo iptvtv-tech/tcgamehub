@@ -6,6 +6,7 @@ import { Legends } from './legends.js';
 import { eggSVG, eggName } from './eggs.js';
 import { ZoneLock } from './zones.js';
 import { siteChrome, esc, fmt, ago, whatsappLink, WA_ICON } from './site.js';
+import { Tokens } from './tokens.js';
 
 siteChrome();
 
@@ -51,6 +52,13 @@ Promise.all([Scores.top(daily.id, 'today', 'daily', 1), Legends.crownNames().cat
   dEl.querySelector('[data-daily-top]').innerHTML = r[0] ? `Leader: <b>${esc(r[0].name)}</b>${Legends.crownMark(r[0].name)} — ${fmt(r[0].score)}` : 'No one has set a score yet — claim the top spot!';
 }).catch(() => {});
 
+// ── Your arcade: avatar, tokens, shop ───────────────────────
+{
+  const you = document.getElementById('you');
+  const bal = Tokens.balance(), left = Tokens.leftToday();
+  you.innerHTML = `${Tokens.avatarHTML('big')}<div><b>${Store.name() ? esc(Store.name()) : 'Your arcade'}</b><br><span class="muted small">${Tokens.fmt(bal)} · ${left ? `earn up to ${left} more today` : 'daily cap reached'} · every level, badge and best score pays tokens</span></div><a class="btn" href="shop/">🪙 Token Shop</a>`;
+}
+
 // ── Continue where you left off ─────────────────────────────
 const last = Store.last();
 const lastGame = last && gameById(last.game);
@@ -85,13 +93,12 @@ for (const z of ZONES) {
     egg.innerHTML = crown ? `${eggSVG(z.n, { size: 16 })} Egg won` : '🥚 Egg: not yet';
   }
   const lockEl = zoneEl.querySelector('[data-lock]');
-  if (lockEl && !open) lockEl.innerHTML = `<div class="zone-lock">🔒 <b>Zone ${z.n} is locked.</b> Play every Zone ${z.n - 1} game at least once to open it <span class="lock-meter"><i style="width:${Math.round(lock.played / lock.need * 100)}%"></i></span> <b>${lock.played} / ${lock.need}</b></div>`;
+  if (lockEl && lock.played > 0) lockEl.innerHTML = open
+    ? `<div class="zone-progress done">✅ <b>Zone ${z.n} complete</b> — you've played all ${lock.need} games.</div>`
+    : `<div class="zone-progress">🎯 <b>${lock.played} / ${lock.need}</b> games played in this zone <span class="lock-meter"><i style="width:${Math.round(lock.played / lock.need * 100)}%"></i></span> <span class="muted small">play them all to complete the zone</span></div>`;
   for (const cardEl of zoneEl.querySelectorAll('.game-card[data-game]')) {
     const id = cardEl.dataset.game;
-    const played = open && Store.plays(id) > 0;
-    cardEl.classList.toggle('zone-locked', !open);
-    if (!open) cardEl.insertAdjacentHTML('afterbegin', '<span class="lock-badge">🔒 Locked</span>');
-    else if (played) cardEl.insertAdjacentHTML('afterbegin', '<span class="played-badge">✓ Played</span>');
+    if (Store.plays(id) > 0) cardEl.insertAdjacentHTML('afterbegin', '<span class="played-badge">✓ Played</span>');
     const best = cardEl.querySelector('[data-best]');
     if (best) { best.querySelector('b').textContent = fmt(Store.best(id)); best.hidden = false; }
     const top = cardEl.querySelector('[data-top]');
@@ -119,6 +126,34 @@ async function loadTicker() {
   } catch { ticker.innerHTML = '<span>Leaderboard is offline right now.</span>'; }
 }
 loadTicker(); setInterval(loadTicker, 60000);
+
+// ── Prizes strip ────────────────────────────────────────────
+{
+  const goldCount = GAMES.filter((g) => g.gold && Legends.goldUnlocked(g.id)).length;
+  const crowned = Legends.hasGoldenCrown();
+  const eggCards = legendZones().map((z) => {
+    const g = gameById(z.legendGame), won = Legends.hasEgg(z.n);
+    return `<a class="prize${won ? ' won' : ''}" href="games/${g.id}/" style="--c:${g.color}">
+      <span class="prize-art">${eggSVG(z.n, { size: 52, won })}</span>
+      <b>${esc(eggName(z.n))}</b>
+      <span class="muted small">${won ? 'Won ✓' : `Hidden in ${esc(g.title)}`}</span>
+      <span class="prize-how">${won ? `Golden characters on in Zone ${z.n}` : esc(g.legendHow || 'Finish it without losing a life.')}</span>
+    </a>`;
+  }).join('');
+  const crownCard = `<a class="prize crown-prize${crowned ? ' won' : ''}" href="${crowned ? 'crown-room/' : 'hall-of-legends/'}">
+      <span class="prize-art">👑</span>
+      <b>The Golden Crown</b>
+      <span class="muted small">${crowned ? 'Yours ✓' : `${Legends.eggs().filter((n) => n <= crownZones().length).length} of ${crownZones().length} eggs`}</span>
+      <span class="prize-how">${crowned ? 'Golden theme, 👑 on the boards, the Crown Room' : 'Win the eggs of Zones 1–' + crownZones().length + ' for the golden theme, a 👑 by your name and the Crown Room'}</span>
+    </a>`;
+  const goldCard = `<a class="prize gold-prize${goldCount ? ' won' : ''}" href="hall-of-legends/">
+      <span class="prize-art">✨</span>
+      <b>Golden characters</b>
+      <span class="muted small">${goldCount} of ${GAMES.filter((g) => g.gold).length} unlocked</span>
+      <span class="prize-how">Every game has one — a golden snake, car, ship, thief… switched on from the game's menu once you hold its zone's egg</span>
+    </a>`;
+  document.getElementById('prize-grid').innerHTML = eggCards + crownCard + goldCard;
+}
 
 // ── Badges ──────────────────────────────────────────────────
 // Legendary badges get their own gold group at the top; secret ones stay hidden until earned.
@@ -158,16 +193,15 @@ if (Legends.isLegend()) {
   document.getElementById('games').before(el);
 }
 
-// ── Zone unlock celebration ─────────────────────────────────
-// On first home-page load after a zone is newly unlocked, fire confetti.
+// ── Zone complete celebration ───────────────────────────────
+// On first home-page load after every game of a zone has been played, fire confetti.
 (function checkZoneUnlocks() {
-  const KEY = 'arcade:zone-seen';
+  const KEY = 'arcade:zone-done';
   let seen;
   try { seen = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { seen = {}; }
   const newly = [];
   for (const z of ZONES) {
-    if (z.n === 1) continue; // Zone 1 always open
-    if (ZoneLock.isOpen(z.n) && !seen[z.n]) newly.push(z);
+    if (ZoneLock.complete(z.n) && !seen[z.n]) newly.push(z);
   }
   if (!newly.length) return;
   // Mark them all seen before firing so a refresh doesn't repeat
@@ -180,11 +214,11 @@ if (Legends.isLegend()) {
   ov.innerHTML = `
     <div class="zone-unlock-panel">
       <div class="zone-unlock-burst" aria-hidden="true"></div>
-      <p class="zone-unlock-emoji">🔓</p>
-      <h2>Zone ${zone.n} Unlocked!</h2>
+      <p class="zone-unlock-emoji">🏁</p>
+      <h2>Zone ${zone.n} Complete!</h2>
       <p class="zone-unlock-name">${esc(zone.name)}</p>
-      <p class="zone-unlock-sub">You played every Zone ${zone.n - 1} game. ${zone.n <= 2 ? '2D arcade' : '3D worlds'} await.</p>
-      <button class="btn primary zone-unlock-btn">Let's go ▶</button>
+      <p class="zone-unlock-sub">You've played every game in it.${ZONES.find((x) => x.n === zone.n + 1) ? ` Zone ${zone.n + 1} is up next.` : ''}</p>
+      <button class="btn primary zone-unlock-btn">Nice ▶</button>
     </div>`;
   document.body.appendChild(ov);
   // Canvas confetti

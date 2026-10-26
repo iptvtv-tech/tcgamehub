@@ -215,6 +215,7 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="assets/img/icon-192.png">
+  <script src="assets/js/theme-boot.js"></script>
   <link rel="stylesheet" href="assets/css/site.css">
 </head>
 <body>
@@ -257,6 +258,7 @@
       <div class="ticker-track"><div class="ticker-items" id="ticker"><span>Loading…</span></div></div>
     </div>
 
+    <div class="you-strip" id="you"></div>
     <div id="continue"></div>
 
     <section class="section" id="games">
@@ -456,7 +458,7 @@
   <section class="zone zone-3" data-zone="3" id="zone-3">
     <div class="zone-head">
       <h3>Zone 3 · Master Class</h3>
-      <span class="muted small">Master difficulty — for players who have beaten Zone 2. Crypt of Crowns 3D is this zone&#39;s Legends game.</span>
+      <span class="muted small">Master difficulty, all in 3D. Crypt of Crowns 3D is this zone&#39;s Legends game.</span>
       <span data-egg></span>
     </div>
     <div data-lock></div>
@@ -551,7 +553,7 @@
   <section class="zone zone-4" data-zone="4" id="zone-4">
     <div class="zone-head">
       <h3>Zone 4 · Ultra</h3>
-      <span class="muted small">Ultra difficulty — for players who have played every Zone 3 game. Crown Heist 3D is this zone&#39;s Legends game.</span>
+      <span class="muted small">Ultra difficulty: big 3D worlds. Crown Heist 3D is this zone&#39;s Legends game.</span>
       <span data-egg></span>
     </div>
     <div data-lock></div>
@@ -646,7 +648,7 @@
   <section class="zone zone-5" data-zone="5" id="zone-5">
     <div class="zone-head">
       <h3>Zone 5 · Beyond</h3>
-      <span class="muted small">Ultra difficulty, out past the Earth — for players who have played every Zone 4 game. Vault of Stars is this zone&#39;s Legends game.</span>
+      <span class="muted small">Ultra difficulty, out past the Earth. Vault of Stars is this zone&#39;s Legends game.</span>
       <span data-egg></span>
     </div>
     <div data-lock></div>
@@ -726,6 +728,12 @@
       </div>
     </section>
 
+    <section class="section" id="prizes">
+      <div class="section-head"><h2>Prizes to win</h2><span class="muted small">No account needed — they live in your browser, and a Legend code carries them to any device</span></div>
+      <p class="muted">Every zone's 6th game, marked 👑 LEGENDS, hides a <b>Golden Egg</b>. Each egg unlocks the <b>golden characters</b> of its zone's six games. The eggs of Zones 1–4 win the <b>Golden Crown</b> — a golden site theme, a 👑 by your name on every leaderboard, and the hidden Crown Room. Every egg after that adds a jewel to the crown.</p>
+      <div class="prize-grid" id="prize-grid"></div>
+    </section>
+
     <section class="section" id="badges">
       <div class="section-head"><h2>Your badges</h2><span class="progress-count" id="badge-count"></span></div>
       <div id="badge-list"></div>
@@ -747,6 +755,7 @@
           <li><a href="leaderboard/">Leaderboard</a></li>
           <li><a href="hall-of-legends/">Hall of Legends</a></li>
           <li><a href="retro-vault/">Retro Vault</a></li>
+          <li><a href="shop/">Token Shop</a></li>
           <li><a href="about/">About &amp; privacy</a></li>
         </ul></div>
       </div>

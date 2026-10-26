@@ -17,8 +17,9 @@ import { Scores, cleanName, nameProblem } from './scores.js';
 import { makeRng, hashString, todayKey } from './rng.js';
 import { whatsappLink, WA_ICON } from './site.js';
 import { Legends, applyTheme } from './legends.js';
-import { ZoneLock } from './zones.js';
 import { event as statEvent } from './stats.js';
+import { Tokens } from './tokens.js';
+import { ZoneLock } from './zones.js';
 
 const STEP = 1 / 120; // physics runs at a fixed 120 updates per second
 const REDUCED_MOTION = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -298,6 +299,7 @@ class Shell {
     this.addScore(pts);
     this.sound.play('levelup');
     this.fx.confetti(this.W, this.H);
+    this.after(0.5, () => this.reward(this.bonus ? 'bonus' : 'level'));
     this.fx.text(this.W / 2, this.H * 0.42, this.bonus ? 'BONUS COMPLETE!' : (this.def.clearText || 'LEVEL CLEAR!'), { color: '#a3e635', size: 38, life: 1.3, rise: 20 });
     this.fx.text(this.W / 2, this.H * 0.52, `+${fmt(pts)}`, { color: '#fff', size: 28, life: 1.3, rise: 20 });
     this.game.onLevelClear?.();
@@ -337,7 +339,16 @@ class Shell {
     const list = global ? GLOBAL_ACHIEVEMENTS : this.meta.achievements || [];
     const a = list.find((x) => x.id === id);
     if (!a) return;
-    if (Store.unlockAch(global ? `g:${id}` : `${this.id}:${id}`)) this.toast(a);
+    if (Store.unlockAch(global ? `g:${id}` : `${this.id}:${id}`)) { this.toast(a); this.reward('badge'); }
+  }
+
+  /** Arcade tokens for an event (see tokens.js); shows "+n 🪙" and updates the HUD. */
+  reward(what) {
+    const n = Tokens.earn(what);
+    if (!n) return 0;
+    this.fx.text(this.W / 2, this.H * 0.16, `+${n} 🪙`, { color: '#fbbf24', size: 24, life: 1.4, rise: 24 });
+    if (this.hud?.tokens) { this.hud.tokens.textContent = Tokens.balance().toLocaleString('en-GB'); this.hud.tokens.parentElement.classList.add('hot'); setTimeout(() => this.hud.tokens?.parentElement.classList.remove('hot'), 900); }
+    return n;
   }
 
   after(sec, fn) { this.timers.push({ t: sec, fn }); }
@@ -368,12 +379,18 @@ class Shell {
     statEvent(this.daily ? 'daily' : 'start', this.id);     // one-time ticket; the server times the game
     Store.addPlay(this.id);
     this.unlock('first', true);
+    { // playing the last unplayed game of a zone completes it: +50 tokens, once
+      const z = zoneOf(this.id);
+      if (z && ZoneLock.complete(z.n) && Store.unlockAch(`zone:${z.n}`)) this.after(1.6, () => { this.reward('zone'); this.fx.text(this.W / 2, this.H * 0.5, `ZONE ${z.n} COMPLETE!`, { color: '#a3e635', size: 30, life: 2, rise: 20 }); });
+    }
     if (GAMES.every((g) => Store.plays(g.id) > 0)) this.unlock('all', true);
     if (Store.totalPlays() >= 10) this.unlock('plays10', true);
     if (Store.totalPlays() >= 50) this.unlock('plays50', true);
     if (this.daily) {
       this.unlock('daily', true);
+      const firstToday = !Store.dailyStreak().today;
       const streak = Store.markDaily();
+      if (firstToday) this.after(1.4, () => this.reward('daily'));
       if (streak >= 3) this.unlock('streak3', true);
       if (streak >= 7) this.unlock('streak7', true);
       if (streak >= 30) this.unlock('streak30', true);
@@ -422,6 +439,7 @@ class Shell {
     this.state = 'legend';
     this.won = true;
     this.unlock('legend', true);
+    this.reward('egg');
     const hadCrown = Legends.hasGoldenCrown();
     Legends.grant(this.id);
     for (const n of Legends.eggs()) this.unlock(`crown${n}`, true);   // the zone's Golden Egg
@@ -592,6 +610,7 @@ class Shell {
           <div class="stat" data-hud="lives-wrap" hidden><small>Lives</small><b data-hud="lives"></b></div>
           <div class="stat timer" data-hud="timer-wrap" hidden><small>Bonus</small><b data-hud="timer">15</b></div>
           <div class="stat best"><small>Best</small><b data-hud="best">0</b></div>
+          <a class="stat tokens" href="../../shop/" title="Arcade tokens — spend them in the shop"><small>🪙 Tokens</small><b data-hud="tokens">0</b></a>
         </div>
         <div class="hud-buttons">
           <button class="icon-btn" data-btn="pause" title="Pause (P)" aria-label="Pause">⏸</button>
@@ -637,6 +656,7 @@ class Shell {
     h.level.textContent = this.isSecretLevel() ? '???' : this.def.levelLabel ? this.def.levelLabel(this.level, this.bonus) : this.bonus ? `${this.level}★` : this.level;
     h.score.textContent = fmt(this.score);
     h.best.textContent = fmt(Math.max(Store.best(this.id), this.state === 'title' ? 0 : this.score));
+    if (h.tokens) h.tokens.textContent = Tokens.balance().toLocaleString('en-GB');
     h.combo.textContent = `x${this.multiplier}`;
     h['combo-wrap'].classList.toggle('hot', this.multiplier > 1);
     const lives = this.def.lives || 1;
@@ -682,21 +702,7 @@ class Shell {
     this.state = 'title';
     this.updateHud();
     const m = this.meta;
-    // Zone locks (Daily Challenge links skip them)
-    const zone = zoneOf(this.id);
-    this.locked = !this.daily && zone && !ZoneLock.isOpen(zone.n);
-    if (this.locked) {
-      const p = ZoneLock.progress(zone.n);
-      const todo = p.games.filter((id) => !Store.plays(id)).map(gameById).filter(Boolean);
-      this.showOverlay(`
-        <div class="title-art" style="--c:${m.color}">${esc(m.title)}</div>
-        <p class="legend-hint">🔒 ${esc(zone.name)} is locked</p>
-        <p class="muted">Play every game in Zone ${zone.n - 1} at least once to open it — <b>${p.played} / ${p.need}</b> so far.</p>
-        <div class="checkpoints"><small>Still to play</small>${todo.map((g) => `<a class="chip" href="../${g.id}/">${esc(g.title)}</a>`).join('')}</div>
-        <p><a class="btn primary" href="../../">⌂ Back to the arcade</a></p>
-        ${document.getElementById('about') ? '<p class="small"><a href="#about" class="about-link">ⓘ How to play ' + esc(m.title) + '</a></p>' : ''}`);
-      return;
-    }
+    this.locked = false;   // every game is open; zones are the recommended order
     const best = Store.best(this.id);
     const cps = this.checkpoints;
     const o = this.showOverlay(`
@@ -712,7 +718,7 @@ class Shell {
       <button class="btn primary big" data-act="play">▶ Play</button>
       <p class="muted small">Press <kbd>Enter</kbd> or <kbd>Space</kbd> · <kbd>P</kbd> pause · <kbd>M</kbd> mute</p>
       <div class="title-foot">
-        ${best ? `<span>Your best: <b>${fmt(best)}</b></span>` : '<span>No best score yet — go!</span>'}
+        <span>${Tokens.avatarHTML()} ${best ? `Your best: <b>${fmt(best)}</b>` : 'No best score yet — go!'}</span>
         <span data-top>…</span>
       </div>
       <p class="small">${this.daily ? `<a href="./">Play normal mode instead</a>` : `<a href="./?daily=1">Try today's Daily Challenge seed →</a>`}${document.getElementById('about') ? ' · <a href="#about" class="about-link">ⓘ How to play</a>' : ''}</p>
@@ -822,7 +828,7 @@ class Shell {
     const score = Math.floor(this.score);
     const prevBest = Store.best(this.id);
     const isPB = Store.submitBest(this.id, score);
-    if (isPB && prevBest > 0) this.unlock('pb', true);
+    if (isPB && prevBest > 0) { this.unlock('pb', true); this.reward('best'); }
     let pbLine;
     if (isPB && score > 0) pbLine = `<p class="pb">🎉 New personal best!</p>`;
     else if (prevBest - score > 0 && prevBest - score <= Math.max(50, prevBest * 0.25)) pbLine = `<p class="near">So close! Only <b>${fmt(prevBest - score)}</b> off your best (${fmt(prevBest)})</p>`;

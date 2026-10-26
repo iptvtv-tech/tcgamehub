@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://tcgamehub.win/</loc><lastmod>2026-10-14</lastmod><changefreq>daily</changefreq><priority>1.0</priority></url>
+  <url><loc>https://tcgamehub.win/</loc><lastmod>2026-10-26</lastmod><changefreq>daily</changefreq><priority>1.0</priority></url>
   <url><loc>https://tcgamehub.win/games/</loc><lastmod>2026-10-26</lastmod><changefreq>weekly</changefreq><priority>0.9</priority></url>
   <url><loc>https://tcgamehub.win/games/arcade/</loc><lastmod>2026-10-26</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
   <url><loc>https://tcgamehub.win/games/action/</loc><lastmod>2026-10-26</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>
@@ -39,7 +39,8 @@
   <url><loc>https://tcgamehub.win/games/crown-heist/</loc><lastmod>2026-10-14</lastmod><changefreq>monthly</changefreq><priority>0.9</priority></url>
   <url><loc>https://tcgamehub.win/games/lunar-delivery/</loc><lastmod>2026-10-14</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://tcgamehub.win/games/vault-of-stars/</loc><lastmod>2026-10-14</lastmod><changefreq>monthly</changefreq><priority>0.9</priority></url>
-  <url><loc>https://tcgamehub.win/retro-vault/</loc><lastmod>2026-10-14</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
-  <url><loc>https://tcgamehub.win/leaderboard/</loc><lastmod>2026-10-14</lastmod><changefreq>daily</changefreq><priority>0.6</priority></url>
-  <url><loc>https://tcgamehub.win/about/</loc><lastmod>2026-10-14</lastmod><changefreq>yearly</changefreq><priority>0.4</priority></url>
+  <url><loc>https://tcgamehub.win/retro-vault/</loc><lastmod>2026-10-26</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://tcgamehub.win/shop/</loc><lastmod>2026-10-26</lastmod><changefreq>monthly</changefreq><priority>0.5</priority></url>
+  <url><loc>https://tcgamehub.win/leaderboard/</loc><lastmod>2026-10-26</lastmod><changefreq>daily</changefreq><priority>0.6</priority></url>
+  <url><loc>https://tcgamehub.win/about/</loc><lastmod>2026-10-26</lastmod><changefreq>yearly</changefreq><priority>0.4</priority></url>
 </urlset>

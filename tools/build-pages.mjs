@@ -136,6 +136,7 @@ function footer(rel) {
           <li><a href="${rel}leaderboard/">Leaderboard</a></li>
           <li><a href="${rel}hall-of-legends/">Hall of Legends</a></li>
           <li><a href="${rel}retro-vault/">Retro Vault</a></li>
+          <li><a href="${rel}shop/">Token Shop</a></li>
           <li><a href="${rel}about/">About &amp; privacy</a></li>
         </ul></div>
       </div>
@@ -173,6 +174,7 @@ function head({ rel, title, description, canonical, ogTitle, ogImage, extraCss =
   <link rel="icon" href="${rel}favicon.svg" type="image/svg+xml">
   <link rel="manifest" href="${rel}manifest.webmanifest">
   <link rel="apple-touch-icon" href="${rel}assets/img/icon-192.png">
+  <script src="${rel}assets/js/theme-boot.js"></script>
   <link rel="stylesheet" href="${rel}assets/css/site.css">
 ${extraCss.map((c) => `  <link rel="stylesheet" href="${rel}${c}">`).join('\n')}
 ${schema.map((s) => `  <script type="application/ld+json">\n${JSON.stringify(s, null, 2).replace(/</g, '\\u003c')}\n  </script>`).join('\n')}
@@ -278,7 +280,7 @@ function gamePage(g) {
       </div>
       <div>
         <h2>Levels, bonus rounds and scoring</h2>
-        <p>${esc(g.title)} is game ${sl.n} of ${SLOTS.length} on ${SITE_NAME}, in <a href="${rel}#zone-${z.n}">${esc(z.name)}</a> (${esc(sl.tier.label)} difficulty). ${z.n > 1 ? `The zone opens once you have played every game in Zone ${z.n - 1}.` : 'Zone 1 is open to everyone.'}</p>
+        <p>${esc(g.title)} is game ${sl.n} of ${SLOTS.length} on ${SITE_NAME}, in <a href="${rel}#zone-${z.n}">${esc(z.name)}</a> (${esc(sl.tier.label)} difficulty). Every game is open to everyone; the zones are the recommended order, and playing all six games of a zone completes it.</p>
         <ul>
           <li>Every level is a little faster than the last, with something new every few levels.</li>
           <li>Every 5th level is a <b>bonus round</b>: no way to lose, a timer and lots of points. Clear it to unlock a checkpoint you can start from next time.</li>
@@ -335,7 +337,7 @@ function genrePage(ge) {
     </div>
     <section class="section">
       <h2>How the arcade works</h2>
-      <p>Games are grouped into zones of six, from Easy up to Ultra. A zone opens once you have played every game in the one before it. Every 5th level is a bonus round, the best scores go on a public board under a nickname, and the sixth game of each zone hides a Golden Egg for a flawless run. <a href="${rel}about/">More about the arcade →</a></p>
+      <p>Games are grouped into zones of six, from Easy up to Ultra — the recommended order, though every game is open from the start. Every 5th level is a bonus round, the best scores go on a public board under a nickname, and the sixth game of each zone hides a Golden Egg for a flawless run. <a href="${rel}about/">More about the arcade →</a></p>
     </section>
   </main>
   <footer class="site-footer">
@@ -395,6 +397,7 @@ function sitemap() {
     ...genrePages().map((ge) => [`games/${ge.id}/`, `games/${ge.id}/index.html`, '0.8', 'weekly']),
     ...SLOTS.filter((sl) => sl.game).map((sl) => [`games/${sl.game.id}/`, `games/${sl.game.id}/game.js`, sl.legendSlot ? '0.9' : '0.8', 'monthly']),
     ['retro-vault/', 'retro-vault/index.html', '0.7', 'monthly'],
+    ['shop/', 'shop/index.html', '0.5', 'monthly'],
     ['leaderboard/', 'leaderboard/index.html', '0.6', 'daily'],
     ['about/', 'about/index.html', '0.4', 'yearly'],
   ];
@@ -456,7 +459,7 @@ for (const g of GAMES) out(`games/${g.id}/index.html`, gamePage(g));
 out('games/index.html', gamesIndex());
 for (const ge of genrePages()) out(`games/${ge.id}/index.html`, genrePage(ge));
 // footers on hand-written pages (depth → rel)
-for (const [file, rel] of [['index.html', ''], ['about/index.html', '../'], ['leaderboard/index.html', '../'], ['retro-vault/index.html', '../'], ['hall-of-legends/index.html', '../'], ['crown-room/index.html', '../']]) {
+for (const [file, rel] of [['index.html', ''], ['about/index.html', '../'], ['leaderboard/index.html', '../'], ['retro-vault/index.html', '../'], ['hall-of-legends/index.html', '../'], ['crown-room/index.html', '../'], ['shop/index.html', '../']]) {
   replaceBlock(file, 'footer', footer(rel));
 }
 out('sitemap.xml', sitemap());

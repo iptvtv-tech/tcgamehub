@@ -1,16 +1,21 @@
-// Zone locks: a zone opens once every game in the zone before it has been played at least once.
-// (Daily Challenge links skip the lock so everyone can try the game of the day.)
+// Zone progress. Every game is open to everyone; zones are the recommended order
+// (difficulty rises with the game number). Playing all six games of a zone completes it,
+// which the home page shows as a stamp and the token system rewards.
 import { ZONES, zoneOf } from './games.js';
 import { Store } from './storage.js';
 
 export const ZoneLock = {
-  /** { played, need, games } for what's needed to open zone n. */
+  /** { played, need, games } for zone n itself (how many of its games have been played). */
   progress(n) {
-    const prev = ZONES.find((z) => z.n === n - 1);
-    if (!prev) return { played: 0, need: 0, games: [] };
-    const games = prev.slots.filter(Boolean);
+    const z = ZONES.find((x) => x.n === n);
+    if (!z) return { played: 0, need: 0, games: [] };
+    const games = z.slots.filter(Boolean);
     return { played: games.filter((id) => Store.plays(id) > 0).length, need: games.length, games };
   },
-  isOpen(n) { const p = this.progress(n); return p.played >= p.need; },
-  gameOpen(id) { const z = zoneOf(id); return !z || this.isOpen(z.n); },
+  /** true when every built game in zone n has been played at least once */
+  complete(n) { const p = this.progress(n); return p.need > 0 && p.played >= p.need; },
+  // Kept for older code paths: nothing is locked any more.
+  isOpen() { return true; },
+  gameOpen() { return true; },
+  zoneOf,
 };

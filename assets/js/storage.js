@@ -25,6 +25,9 @@ function validate(raw) {
   d.plays = numMap(d.plays);       // { gameId: rounds played }
   d.ach = numMap(d.ach);           // { 'gameId:achId' | 'g:achId': timestamp }
   d.resets = numMap(d.resets);
+  d.tokens = numMap(d.tokens);     // { earned: total tokens ever earned }  (synced with a Legend code)
+  d.owned = numMap(d.owned);       // { itemId: timestamp bought }           (synced)
+  if (d.tokenDay !== undefined && !(isObj(d.tokenDay) && typeof d.tokenDay.date === 'string' && Number.isFinite(d.tokenDay.n))) delete d.tokenDay;
   // offline leaderboard entries
   d.local = Array.isArray(d.local) ? d.local.filter((e) => isObj(e) && typeof e.game === 'string' && Number.isFinite(e.score)).slice(-600) : [];
   d.settings = isObj(d.settings) ? d.settings : { muted: false, music: true };
@@ -118,6 +121,16 @@ export const Store = {
     save();
     return streak;
   },
+
+  // ── Arcade tokens (see tokens.js) ──
+  tokensEarned() { return load().tokens.earned || 0; },
+  /** add n to the lifetime total (never decreases, so it merges across devices) */
+  addTokens(n) { const d = load(); d.tokens.earned = (d.tokens.earned || 0) + n; save(); progressed(); },
+  /** tokens earned so far today (daily cap; kept only in this browser) */
+  tokensToday() { const d = load(), t = todayKey(); return d.tokenDay && d.tokenDay.date === t ? d.tokenDay.n : 0; },
+  addTokensToday(n) { const d = load(), t = todayKey(); d.tokenDay = { date: t, n: this.tokensToday() + n }; save(); },
+  owned() { return load().owned; },
+  own(id) { const d = load(); if (!d.owned[id]) { d.owned[id] = Date.now(); save(); progressed(); } },
 
   /** call fn whenever synced progress changes */
   onProgress(fn) { listeners.push(fn); },

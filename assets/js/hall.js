@@ -16,11 +16,10 @@ const UNIT = { 'heist-planner': 'job', 'crypt-of-crowns': 'crypt', 'crown-heist'
 function legendCards() {
   return legendZones().map((z) => {
     const g = gameById(z.legendGame), won = Legends.hasEgg(z.n);
-    const lock = ZoneLock.progress(z.n), open = lock.played >= lock.need;
+    const open = true;
     const far = Store.maxLevel(g.id), played = Store.plays(g.id) > 0;
     const status = won ? `🥚 <b>${esc(eggName(z.n))} won!</b>`
-      : !open ? `🔒 Opens when you've played every Zone ${z.n - 1} game (<b>${lock.played} of ${lock.need}</b> so far)`
-      : played ? `Your furthest: <b>${UNIT[g.id] || 'level'} ${far}</b> of 15` : 'Unlocked — not played yet';
+      : played ? `Your furthest: <b>${UNIT[g.id] || 'level'} ${far}</b> of 15` : 'Not played yet';
     return `
       <a class="lg-card${won ? ' won' : ''}${open ? '' : ' locked'}" href="../games/${g.id}/" style="--c:${g.color}">
         <div class="lg-art"><img src="../games/${g.id}/thumb.svg" alt="" width="96" height="96" loading="lazy"><span class="lg-egg">${eggSVG(z.n, { size: 34, won })}</span></div>

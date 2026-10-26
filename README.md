@@ -156,7 +156,7 @@ See **[docs/ADDING_A_GAME.md](docs/ADDING_A_GAME.md)**. In short: copy `games/_t
 
 ## Zones & difficulty
 
-Zone 5 (*Beyond*, games 25–30) opens once every Zone 4 game has been played. Its first game is Lunar Delivery 3D; the other slots show as "coming soon". Run `supabase/zone5.sql` (one combined file that grows as Zone 5 games are added).
+Zone 5 (*Beyond*, games 25–30) continues the ladder (every game is open; zones are the recommended order). Its first game is Lunar Delivery 3D; the other slots show as "coming soon". Run `supabase/zone5.sql` (one combined file that grows as Zone 5 games are added).
 
 Zone 3 (*Master Class*, games 13–18) opens once every Zone 2 game has been played. All six are live: Turbo Rush 3D, Bubble Blitz 3D, Pinball Blast 3D, Star Strike 3D, Eggspress 3D and the Legends game Crypt of Crowns 3D.
 
