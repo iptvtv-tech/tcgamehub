@@ -74,12 +74,13 @@ class PrismBreaker {
     const s = this.s, r = s.rng;
     this.level = level; this.bonus = bonus;
     this.rev = (this.rev || 0) + 1;      // any change to the brick wall repaints the cached layer
+    this.cleared = false;
     this.baseSpeed = 330 * s.speed(0.06, 1.9, level);
     this.bricks = [];
     this.caps = [];
     this.wideT = 0; this.slowT = 0; this.fireT = 0;
     this.lostThisLevel = false;
-    this.idleLaunch = 4;
+    this.idleLaunch = 6;
 
     if (bonus) {
       const rows = 6;
@@ -171,7 +172,7 @@ class PrismBreaker {
     p.x = clamp(p.x, half, W - half);
 
     // Auto-launch if the player waits
-    if (this.balls.some((b) => b.stuck)) { this.idleLaunch -= dt; if (this.idleLaunch <= 0) { this.launch(); this.idleLaunch = 4; } }
+    if (this.balls.some((b) => b.stuck)) { this.idleLaunch -= dt; if (this.idleLaunch <= 0) { this.launch(); this.idleLaunch = 6; } }
 
     // Balls
     for (const b of this.balls) {
@@ -290,7 +291,8 @@ class PrismBreaker {
       if (L >= 3 && s.rng.chance(0.3)) pool.push('life');
       this.caps.push({ x: cx, y: cy, type: s.rng.pick(pool) });
     }
-    if (this.breakable() === 0) {
+    if (this.breakable() === 0 && !this.cleared) {
+      this.cleared = true;      // completeLevel can fire only once per level (destroy chains re-enter here)
       if (this.bonus) s.award(500 * L, W / 2, H * 0.6, { color: '#fbbf24', size: 30 });
       s.completeLevel();
     }
@@ -316,7 +318,7 @@ class PrismBreaker {
   onLifeLost() {
     this.balls = [this.newBall()];
     this.caps = []; this.wideT = this.slowT = this.fireT = 0;
-    this.idleLaunch = 4;
+    this.idleLaunch = 6;
   }
 
   // ── Draw ───────────────────────────────────────────────────

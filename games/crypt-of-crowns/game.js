@@ -24,12 +24,19 @@ const VIEW = { x: 0, y: 46, w: 480, h: 430 };
 const PANEL_Y = VIEW.y + VIEW.h;
 const STICK = { x: 82, y: PANEL_Y + 128, r: 58 };          // the Crown Heist roller-ball stick, same spot
 const SEARCH_BTN = { x: 404, y: PANEL_Y + 112, r: 42 };
+const BASE_Y = { stick: STICK.y, search: SEARCH_BTN.y };
+/** portrait bands: the stick and SEARCH drop below the box on tall phones */
+function dropControls(bands) {
+  const y = (bands?.bottom || 0) >= 150 ? H + bands.bottom * 0.52 : 0;
+  STICK.y = y || BASE_Y.stick; SEARCH_BTN.y = y || BASE_Y.search;
+}
 const MAP = { x: 160, y: PANEL_Y + 14, s: 150 };
 
 runGame({
   id: ID,
   width: W, height: H,
   lives: 3,
+  extend: { maxH: 900, topShare: 0 },
   detail: true,                 // 🖥 Graphics HIGH / LOW (LOW = a smaller picture, no dust)
   finalLevel: 15,
   secretLevel: 16,
@@ -428,6 +435,7 @@ class CryptOfCrowns {
 
   render(ctx) {
     const s = this.s, t = this.t, W = this.W, st = this.st, lo = s.lowDetail, spr = this.spr;
+    dropControls(s.bands);
     // real time since the last frame for the render-side decays below (was a fixed 1/60; stops while paused)
     const now = performance.now(), rdt = this.s.state === 'playing' ? Math.min(0.05, (now - (this.rtPrev || now)) / 1000) : 0; this.rtPrev = now;
     this.rdt = rdt;

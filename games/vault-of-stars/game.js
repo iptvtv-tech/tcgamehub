@@ -19,8 +19,11 @@ const W = 480, H = 720;
 const T = 32;                                   // px per tile
 const MAP = { x: 0, y: 56, w: COLS * T, h: ROWS * T };
 const PANEL_Y = MAP.y + MAP.h + 6;             // 542
+// Touch controls sit in the in-box panel on desktop; on a tall phone screen the engine's
+// portrait bands add space below the box and both drop into it (thumb-height, nothing covered).
 const PAD = { x: 92, y: PANEL_Y + 88, r: 30, gap: 56 };
 const RESTART = { x: W - 58, y: PANEL_Y + 88, r: 30 };
+let padY = PAD.y, restartY = RESTART.y;
 const CALM = { bpm: 96, style: 'cosmic', lead: 'triangle', bass: 'half' };
 const BREACH = { bpm: 150, style: 'chase', lead: 'sawtooth', arp: [0, 1, 2, 3, 2, 1, 0, 1], oct: [12, 24, 12, 24, 12, 24, 12, 24], bass: 'drive' };
 const KEY_COL = { A: '#f59e0b', B: '#22d3ee', C: '#f472b6' };
@@ -41,6 +44,7 @@ runGame({
   id: ID,
   width: W, height: H,
   lives: 3,
+  extend: { maxH: 900, topShare: 0 },
   levelName: 'Vault',
   finalLevel: FINAL,
   secretLevel: SECRET,
@@ -129,13 +133,13 @@ class VaultOfStars {
     if (a === 'press') {
       const d = this.padHit(x, y);
       if (d) { this.padDir = d; this.queue = d; return; }
-      if (Math.hypot(x - RESTART.x, y - RESTART.y) < RESTART.r + 8) this.askRestart();
+      if (Math.hypot(x - RESTART.x, y - restartY) < RESTART.r + 8) this.askRestart();
     }
     if (a === 'release') this.padDir = null;
   }
   onPointerMove(x, y, down) { if (down && this.padDir) { const d = this.padHit(x, y); if (d) this.padDir = d; } }
   padHit(x, y) {
-    const dx = x - PAD.x, dy = y - PAD.y;
+    const dx = x - PAD.x, dy = y - padY;
     if (Math.hypot(dx, dy) > PAD.gap + PAD.r + 10 || Math.hypot(dx, dy) < 10) return null;
     return Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
   }
@@ -633,12 +637,15 @@ class VaultOfStars {
 
   drawPanel(ctx) {
     const s = this.s, v = this.v, th = this.th;
+    const band = s.bands?.bottom || 0;
+    padY = band >= 150 ? H + band * 0.52 : PAD.y;
+    restartY = band >= 150 ? H + band * 0.52 : RESTART.y;
     ctx.fillStyle = 'rgba(4,6,15,.72)'; ctx.fillRect(0, PANEL_Y - 4, W, H - PANEL_Y + 4);
     ctx.strokeStyle = th.glow + '0.3)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, PANEL_Y - 4); ctx.lineTo(W, PANEL_Y - 4); ctx.stroke();
     // D-pad
     const held = this.padDir || this.heldDir();
     for (const [d, [dx, dy]] of Object.entries(DIR_VEC)) {
-      const cx = PAD.x + dx * PAD.gap * 0.78, cy = PAD.y + dy * PAD.gap * 0.78, on = held === d;
+      const cx = PAD.x + dx * PAD.gap * 0.78, cy = padY + dy * PAD.gap * 0.78, on = held === d;
       ctx.fillStyle = on ? th.glow + '0.45)' : 'rgba(255,255,255,.07)';
       roundRect(ctx, cx - 22, cy - 22, 44, 44, 12); ctx.fill();
       ctx.strokeStyle = th.glow + (on ? '0.9)' : '0.35)'); ctx.lineWidth = 1.5; ctx.stroke();
@@ -673,11 +680,11 @@ class VaultOfStars {
       // restart button
       const ask = this.restartAsk > 0;
       ctx.fillStyle = ask ? 'rgba(239,68,68,.35)' : 'rgba(255,255,255,.07)';
-      ctx.beginPath(); ctx.arc(RESTART.x, RESTART.y, RESTART.r, 0, 7); ctx.fill();
+      ctx.beginPath(); ctx.arc(RESTART.x, restartY, RESTART.r, 0, 7); ctx.fill();
       ctx.strokeStyle = ask ? '#f87171' : 'rgba(255,255,255,.25)'; ctx.lineWidth = 1.5; ctx.stroke();
-      ctx.fillStyle = ask ? '#fff' : '#cbd5e1'; ctx.font = '22px system-ui'; ctx.textBaseline = 'middle'; ctx.fillText('⟲', RESTART.x, RESTART.y + 1);
+      ctx.fillStyle = ask ? '#fff' : '#cbd5e1'; ctx.font = '22px system-ui'; ctx.textBaseline = 'middle'; ctx.fillText('⟲', RESTART.x, restartY + 1);
       ctx.textBaseline = 'alphabetic'; ctx.font = '10px system-ui'; ctx.fillStyle = '#94a3b8';
-      ctx.fillText('RESTART', RESTART.x, RESTART.y + RESTART.r + 14);
+      ctx.fillText('RESTART', RESTART.x, restartY + RESTART.r + 14);
       if (ask) {
         ctx.fillStyle = '#fca5a5'; ctx.font = '600 12px system-ui';
         ctx.fillText('Again to restart the vault (costs a life)', W / 2 + 22, PANEL_Y + 122);

@@ -212,7 +212,7 @@ class NeonBeat {
     s.resetCombo();
     this.judge = { label: '✗ NO NOTE', color: '#fb7185', t: 0, early: '' };
     s.sound.tone({ freq: 180, to: 110, dur: 0.06, type: 'square', vol: 0.03 });
-    this.hp -= Math.min(10, 4 + this.level * 0.3);
+    this.hp -= this.level <= 2 ? 2 : Math.min(10, 4 + this.level * 0.3);   // L1–2 forgive mashing while you learn
     if (this.hp <= 0) { this.hp = 0; s.sound.play('boom'); s.fx.shake(8, 0.3); s.hurt(); }
   }
 
@@ -224,7 +224,7 @@ class NeonBeat {
     this.judge = { label: 'MISS', color: '#f87171', t: 0, early: '' };
     s.sound.tone({ freq: 120, to: 70, dur: 0.12, type: 'sawtooth', vol: 0.05 });
     if (this.bonus) return false;
-    this.hp -= Math.min(22, 12 + this.level * 0.6);
+    this.hp -= this.level <= 2 ? 8 : Math.min(22, 12 + this.level * 0.6);  // L1–2: a miss stings but five won't kill you
     if (this.hp <= 0) { this.hp = 0; s.sound.play('boom'); s.fx.shake(8, 0.3); s.hurt(); return true; }
     return false;
   }

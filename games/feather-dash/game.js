@@ -159,7 +159,7 @@ class FeatherDash {
         if (sd.taken) continue;
         const sx = p.x + PILLAR_W / 2 + sd.dx, sy = p.gapY;
         if (Math.hypot(sx - BIRD_X, sy - b.y) < R + 12) { sd.taken = true; this.takeSeed(sx, sy); }
-        else if (sx < BIRD_X - 30) { sd.taken = true; s.resetCombo(); }
+        else if (sx < BIRD_X - 30) sd.taken = true;
       }
       if (!p.passed && p.x + PILLAR_W < BIRD_X - R) {
         p.passed = true; this.passed++;
@@ -181,7 +181,7 @@ class FeatherDash {
       sd.x -= sp * dt;
       if (sd.taken) continue;
       if (Math.hypot(sd.x - BIRD_X, sd.y - b.y) < R + 12) { sd.taken = true; this.takeSeed(sd.x, sd.y); }
-      else if (sd.x < BIRD_X - 30) { sd.taken = true; s.resetCombo(); }
+      else if (sd.x < BIRD_X - 30) sd.taken = true;
     }
     this.seeds = this.seeds.filter((sd) => sd.x > -20);
 

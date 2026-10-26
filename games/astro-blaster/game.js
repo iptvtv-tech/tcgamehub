@@ -71,7 +71,7 @@ class AstroBlaster {
     this.speedK = this.s.speed(0.065, 2.2, level);
     this.shockChance = level >= 2 ? Math.min(0.2, 0.08 + (level - 2) * 0.02) : 0;
     this.gemsGot = 0;
-    this.hasFired = false;
+    if (level === 1) this.hasFired = false;   // the fire hint shows once per run, not every level
   }
 
   // ── Input ──────────────────────────────────────────────────

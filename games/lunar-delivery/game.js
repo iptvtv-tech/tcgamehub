@@ -35,6 +35,7 @@ runGame({
   id: ID,
   width: W, height: H,
   lives: 3,
+  extend: { maxH: 900, topShare: 0 },
   detail: true,               // 🖥 Graphics HIGH / LOW
   comboWindow: 2.6,
   comboStep: 4,
@@ -97,7 +98,12 @@ class LunarDelivery {
     const up = (e) => { if (this.stick?.id === e.pointerId) this.stick = null; if (this.thrustTouch === e.pointerId) this.thrustTouch = null; };
     addEventListener('pointerup', up); addEventListener('pointercancel', up);
   }
-  ui() { return { stick: { x: 86, y: H - 104, r: 58 }, thrust: { x: W - 92, y: H - 104, r: 58 } }; }
+  ui() {
+    // on a tall phone the engine's portrait bands add space under the box: the stick and
+    // THRUST drop into it, so thumbs no longer cover the landing view
+    const b = this.s.bands?.bottom || 0, y = b >= 150 ? H + b * 0.52 : H - 104;
+    return { stick: { x: 86, y, r: 58 }, thrust: { x: W - 92, y, r: 58 } };
+  }
   moveStick(x, y) {
     const U = this.ui().stick, dx = (x - U.x) / U.r, dy = (y - U.y) / U.r, l = Math.hypot(dx, dy), k = l > 1 ? 1 / l : 1;
     this.stick.dx = dx * k; this.stick.dy = dy * k;
@@ -245,6 +251,8 @@ class LunarDelivery {
     if (!c.hooked) {
       // hover over the waiting crate to hook it
       const dx = hook[0] - c.c[0], dz = hook[2] - c.c[2], dy = hook[1] - (c.c[1] + 0.92);
+      // first-timers hovered and saw nothing: the target marker turns green while the hook can bite
+      this.hookable = Math.hypot(dx, dz) < 3.2 && dy > 0 && dy < PHYS.CABLE + 1.2;
       if (c.hookCool <= 0 && !this.landed && Math.hypot(dx, dz) < 2.4 && dy > 0.2 && dy < PHYS.CABLE + 0.6 && V3.len(this.v) < 7) {
         c.hooked = true; c.v = [0, 0, 0]; c.lastHit = 0; this.legT = 0;
         s.sound.play('metal'); s.sound.tone({ freq: 300, to: 900, dur: 0.18, type: 'square', vol: 0.06 });
@@ -732,8 +740,8 @@ class LunarDelivery {
     if (tg && !this.bonus) {
       const y0 = (tg.y ?? this.W.ground(tg.x, tg.z)) + (tg.crate ? 2.5 : 3);
       const pr = project(this.cam, [tg.x, y0, tg.z], W, H), dist = Math.hypot(tg.x - this.p[0], tg.z - this.p[2]);
-      const col = tg.crate ? '#67e8f9' : this.bonus ? '#fbbf24' : '#4ade80';
-      const label = tg.crate ? `CRATE ${Math.round(dist)} m` : `${(tg.name || '').toUpperCase()} ${Math.round(dist)} m`;
+      const col = tg.crate ? (this.hookable ? '#4ade80' : '#67e8f9') : this.bonus ? '#fbbf24' : '#4ade80';
+      const label = tg.crate ? (this.hookable ? 'HOOK IN REACH — EASE DOWN' : `CRATE ${Math.round(dist)} m`) : `${(tg.name || '').toUpperCase()} ${Math.round(dist)} m`;
       const inView = pr && pr[0] > 20 && pr[0] < W - 20 && pr[1] > 60 && pr[1] < H - 150;
       ctx.fillStyle = col; ctx.strokeStyle = col; ctx.lineWidth = 2;
       if (inView) {

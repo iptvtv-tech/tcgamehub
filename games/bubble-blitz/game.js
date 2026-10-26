@@ -81,7 +81,7 @@ class BubbleBlitz {
     this.found ??= 0;
     this.nColors = bonus ? 3 : Math.min(6, 5 + Math.floor(level / 6));
     this.dropEvery = bonus ? 99 : Math.max(3, 6 - Math.floor(level / 3));
-    this.clockMax = bonus ? 99 : Math.max(2.5, 5 - level * 0.15);
+    this.clockMax = bonus ? 99 : level === 1 ? 7 : Math.max(2.5, 5.2 - level * 0.15);   // L1: time to learn the launcher
     this.guideLen = level >= 8 ? 150 : level >= 4 ? 240 : 9999;
     this.pushEvery = bonus || level < 4 ? 0 : Math.max(8, 20 - level * 0.8);   // a new row pushes in on a timer
     this.livesAtStart = this.s.lives;
@@ -194,7 +194,12 @@ class BubbleBlitz {
     s.sound.noise({ dur: 0.06, vol: 0.05, freq: 3000, type: 'highpass' });
   }
 
-  onLifeLost() { this.buildBoard(); }
+  onLifeLost() {
+    // keep your progress: the two lowest rows melt away instead of the whole board rebuilding
+    let cut = 0;
+    while (cut < 2 && this.grid.length > 2) { this.grid.pop(); this.touch(); cut++; }
+    if (!this.countColoured()) this.buildBoard();
+  }
 
   idle(dt) { this.t += dt; this.animate(dt); }
 

@@ -21,12 +21,19 @@ const VIEW = { x: 0, y: 44, w: 480, h: 500 };
 const PANEL_Y = VIEW.y + VIEW.h;
 const STICK = { x: 82, y: PANEL_Y + 88, r: 58 };          // the Crown Heist roller-ball stick
 const FLASH_BTN = { x: W - 58, y: PANEL_Y + 88, r: 38 };
+const BASE_Y = { stick: STICK.y, flash: FLASH_BTN.y };
+/** portrait bands: on a tall phone the stick and flash button drop below the box, at thumb height */
+function dropControls(bands) {
+  const y = (bands?.bottom || 0) >= 150 ? H + bands.bottom * 0.52 : 0;
+  STICK.y = y || BASE_Y.stick; FLASH_BTN.y = y || BASE_Y.flash;
+}
 const MAP = { x: 166, y: PANEL_Y + 12, s: 140 };
 
 runGame({
   id: ID,
   width: W, height: H,
   lives: 3,
+  extend: { maxH: 900, topShare: 0 },
   detail: true,                 // 🖥 Graphics HIGH / LOW (LOW = a smaller picture)
   comboWindow: 4,
   comboStep: 3,
@@ -364,6 +371,7 @@ class DungeonEscape {
   // ── Draw ───────────────────────────────────────────────────
   render(ctx) {
     const s = this.s, p = this.p, t = this.t, lo = s.lowDetail, spr = this.spr;
+    dropControls(s.bands);
     // real time since the last frame for the render-side decays below (was a fixed 1/60; stops while paused)
     const now = performance.now(), rdt = this.s.state === 'playing' ? Math.min(0.05, (now - (this.rtPrev || now)) / 1000) : 0; this.rtPrev = now;
     this.rdt = rdt;

@@ -192,7 +192,7 @@ class Input {
 
   toLogical(e) {
     const r = this.shell.canvas.getBoundingClientRect();
-    return [(e.clientX - r.left) / r.width * this.shell.W, (e.clientY - r.top) / r.height * this.shell.H];
+    return [(e.clientX - r.left) / r.width * this.shell.W, (e.clientY - r.top) / r.height * this.shell.H - this.shell.bands.top];
   }
 
   onPointer(e, type) {
@@ -245,6 +245,14 @@ class Shell {
     this.id = def.id;
     this.meta = gameById(def.id) || { title: def.title || def.id, tagline: '', controls: '', color: '#22d3ee', achievements: [] };
     this.W = def.width; this.H = def.height;
+    /** Portrait bands (opt-in def.extend = { maxH }): on a tall screen the logical height grows
+     *  up to maxH, the game's own def.width × def.height box stays centred, and the extra space
+     *  becomes top/bottom bands (shell.bands = { top, bottom }, 0 on desktop). The game keeps
+     *  drawing in box coordinates; a game may draw into the bands (y < 0 or y > boxH), or set
+     *  def.drawBands(ctx, bands) for its own band chrome — handy for moving touch controls off
+     *  the playfield. Pointer events in the bands reach the game in the same coordinates. */
+    this.boxW = def.width; this.boxH = def.height;
+    this.bands = { top: 0, bottom: 0 };
     this.gold = false; // set after meta is known (below)
     const params = new URLSearchParams(location.search);
     this.daily = params.get('daily') === '1';
@@ -319,7 +327,7 @@ class Shell {
     if (m > this.multiplier) {
       this.multiplier = m;
       this.sound.play('combo', m);
-      this.fx.text(this.W / 2, this.H * 0.28, `x${m} COMBO!`, { color: '#fbbf24', size: 34, life: 1.1, rise: 30 });
+      this.fx.text(this.W / 2, this.boxH * 0.28, `x${m} COMBO!`, { color: '#fbbf24', size: 34, life: 1.1, rise: 30 });
       this.def.onCombo?.(m);
       for (const a of this.meta.achievements || []) {
         const mm = /^combo(\d+)$/.exec(a.id);
@@ -341,10 +349,10 @@ class Shell {
     const pts = this.def.levelClearPoints ? this.def.levelClearPoints(this.level, this.bonus) : this.level * 100;
     this.addScore(pts);
     this.sound.play('levelup');
-    this.fx.confetti(this.W, this.H);
+    this.fx.confetti(this.W, this.boxH);
     this.after(0.5, () => this.reward(this.bonus ? 'bonus' : 'level'));
-    this.fx.text(this.W / 2, this.H * 0.42, this.bonus ? 'BONUS COMPLETE!' : (this.def.clearText || 'LEVEL CLEAR!'), { color: '#a3e635', size: 38, life: 1.3, rise: 20 });
-    this.fx.text(this.W / 2, this.H * 0.52, `+${fmt(pts)}`, { color: '#fff', size: 28, life: 1.3, rise: 20 });
+    this.fx.text(this.W / 2, this.boxH * 0.42, this.bonus ? 'BONUS COMPLETE!' : (this.def.clearText || 'LEVEL CLEAR!'), { color: '#a3e635', size: 38, life: 1.3, rise: 20 });
+    this.fx.text(this.W / 2, this.boxH * 0.52, `+${fmt(pts)}`, { color: '#fff', size: 28, life: 1.3, rise: 20 });
     this.game.onLevelClear?.();
     const fin = this.def.finalLevel;
     if (fin && this.level >= fin) {
@@ -389,7 +397,7 @@ class Shell {
   //    canvas and blits it each frame, instead of rebuilding gradients and shadowBlur passes.
   /** Blit a cached full-stage layer. `key` must change whenever the drawing would (level, theme,
    *  LOW/HIGH, a brick breaking…): a new key paints once via `paint(c2)` in logical coordinates. */
-  layer(ctx, key, paint) {
+  layer(ctx, key, paint) {   // NOTE: layers span the whole canvas; in a def.extend game call it outside the band translate (or don't combine the two)
     this._layers ??= new Map();
     const cw = ctx.canvas.width, ch = ctx.canvas.height, k = `${key}|${cw}x${ch}`;
     if (!this._layers.has(k)) {
@@ -423,7 +431,7 @@ class Shell {
   reward(what) {
     const n = Tokens.earn(what);
     if (!n) return 0;
-    this.fx.text(this.W / 2, this.H * 0.16, `+${n} 🪙`, { color: '#fbbf24', size: 24, life: 1.4, rise: 24 });
+    this.fx.text(this.W / 2, this.boxH * 0.16, `+${n} 🪙`, { color: '#fbbf24', size: 24, life: 1.4, rise: 24 });
     if (this.hud?.tokens) { this.hud.tokens.textContent = Tokens.balance().toLocaleString('en-GB'); this.hud.tokens.parentElement.classList.add('hot'); setTimeout(() => this.hud.tokens?.parentElement.classList.remove('hot'), 900); }
     return n;
   }
@@ -458,7 +466,7 @@ class Shell {
     this.unlock('first', true);
     { // playing the last unplayed game of a zone completes it: +50 tokens, once
       const z = zoneOf(this.id);
-      if (z && ZoneLock.complete(z.n) && Store.unlockAch(`zone:${z.n}`)) this.after(1.6, () => { this.reward('zone'); this.fx.text(this.W / 2, this.H * 0.5, `ZONE ${z.n} COMPLETE!`, { color: '#a3e635', size: 30, life: 2, rise: 20 }); });
+      if (z && ZoneLock.complete(z.n) && Store.unlockAch(`zone:${z.n}`)) this.after(1.6, () => { this.reward('zone'); this.fx.text(this.W / 2, this.boxH * 0.5, `ZONE ${z.n} COMPLETE!`, { color: '#a3e635', size: 30, life: 2, rise: 20 }); });
     }
     if (GAMES.every((g) => Store.plays(g.id) > 0)) this.unlock('all', true);
     if (Store.totalPlays() >= 10) this.unlock('plays10', true);
@@ -506,7 +514,7 @@ class Shell {
     this.state = 'dying';
     this.won = true;
     this.sound.play('highscore');
-    this.fx.confetti(this.W, this.H);
+    this.fx.confetti(this.W, this.boxH);
     this.after(1.2, () => this.showGameOver());
   }
 
@@ -596,7 +604,7 @@ class Shell {
     if (this.perfN / this.perfS < 40) {
       Store.setSetting('lowDetail', true);
       this.game.onDetailChange?.(true);
-      this.fx.text(this.W / 2, this.H * 0.3, '🖥 Low graphics on for smoother play', { color: '#e2e8f0', size: 16, life: 2.6 });
+      this.fx.text(this.W / 2, this.boxH * 0.3, '🖥 Low graphics on for smoother play', { color: '#e2e8f0', size: 16, life: 2.6 });
     }
   }
   /** Frame-rate watchdog (audit P2): on HIGH, if play drops below 25 fps for 3 seconds in a row,
@@ -612,7 +620,7 @@ class Shell {
       this.wdBad = 0; this.perfDone = true;
       Store.setSetting('lowDetail', true);
       this.game.onDetailChange?.(true);
-      this.fx.text(this.W / 2, this.H * 0.3, '🖥 Low graphics on for smoother play', { color: '#e2e8f0', size: 16, life: 2.6 });
+      this.fx.text(this.W / 2, this.boxH * 0.3, '🖥 Low graphics on for smoother play', { color: '#e2e8f0', size: 16, life: 2.6 });
     }
   }
   resume() {
@@ -678,14 +686,35 @@ class Shell {
     ctx.setTransform(s, 0, 0, s, 0, 0);
     ctx.clearRect(0, 0, this.W, this.H);
     const [ox, oy] = this.fx.offset();
+    if (this.bands.top || this.bands.bottom) this.drawBands(ctx);
     ctx.save();
-    ctx.translate(ox, oy);
+    ctx.translate(ox, oy + this.bands.top);
     this.game.render(ctx);
     this.fx.render(ctx);
     ctx.restore();
     if (this.fx.flashA > 0) {
       ctx.globalAlpha = this.fx.flashA; ctx.fillStyle = this.fx.flashColor;
       ctx.fillRect(0, 0, this.W, this.H); ctx.globalAlpha = 1;
+    }
+  }
+
+  /** The space above and below the game box on tall screens: a quiet frame in the game's accent
+   *  colour. A game takes the bands over by defining def.drawBands(ctx, bands) — it draws in box
+   *  coordinates (top band: y in [-bands.top, 0]; bottom band: y in [boxH, boxH + bands.bottom]). */
+  drawBands(ctx) {
+    const b = this.bands, col = this.meta.color || '#22d3ee';
+    ctx.save();
+    ctx.fillStyle = '#05050f';
+    if (b.top) ctx.fillRect(0, 0, this.W, b.top);
+    if (b.bottom) ctx.fillRect(0, b.top + this.boxH, this.W, b.bottom);
+    ctx.fillStyle = col; ctx.globalAlpha = 0.35;
+    if (b.top) ctx.fillRect(0, b.top - 1, this.W, 1);
+    if (b.bottom) ctx.fillRect(0, b.top + this.boxH, this.W, 1);
+    ctx.restore();
+    if (this.def.drawBands) {
+      ctx.save(); ctx.translate(0, b.top);
+      this.def.drawBands.call(this.game, ctx, b, this);
+      ctx.restore();
     }
   }
 
@@ -739,6 +768,16 @@ class Shell {
 
   fit() {
     const r = this.stageEl.getBoundingClientRect();
+    if (this.def.extend && r.width > 0) {
+      // how tall (in logical px) the stage is at full width; grow into it, up to maxH
+      const ideal = Math.round(this.boxH * (r.height / Math.max(1, r.width)) * (this.boxW / this.boxH));
+      const H = Math.max(this.boxH, Math.min(this.def.extend.maxH || Math.round(this.boxH * 1.2), ideal));
+      const extra = H - this.boxH;
+      const topShare = this.def.extend.topShare ?? 0.3;
+      this.H = H;
+      this.bands = { top: Math.round(extra * topShare), bottom: extra - Math.round(extra * topShare) };
+      this.game?.onBandsChange?.(this.bands);
+    }
     const k = Math.min(r.width / this.W, r.height / this.H);
     const w = Math.max(1, Math.floor(this.W * k)), h = Math.max(1, Math.floor(this.H * k));
     this.wrap.style.width = w + 'px'; this.wrap.style.height = h + 'px';

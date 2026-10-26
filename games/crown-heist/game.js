@@ -32,6 +32,16 @@ const VIEW = { x: 0, y: 46, w: 480, h: 430 };
 const PANEL_Y = VIEW.y + VIEW.h;
 const STICK = { x: 82, y: PANEL_Y + 128, r: 58 };
 const BTN = { use: { x: 404, y: PANEL_Y + 66, r: 40 }, coin: { x: 364, y: PANEL_Y + 170, r: 31 }, smoke: { x: 442, y: PANEL_Y + 170, r: 31 } };
+const BASE_Y = { stick: STICK.y, use: BTN.use.y, coin: BTN.coin.y, smoke: BTN.smoke.y };
+/** portrait bands: the stick and the three buttons drop below the box on tall phones,
+ *  keeping their layout (USE above, COIN/SMOKE below) */
+function dropControls(bands) {
+  const band = bands?.bottom || 0;
+  if (band >= 170) {
+    const mid = H + band * 0.5;
+    STICK.y = mid; BTN.use.y = mid - 34; BTN.coin.y = mid + 44; BTN.smoke.y = mid + 44;
+  } else { STICK.y = BASE_Y.stick; BTN.use.y = BASE_Y.use; BTN.coin.y = BASE_Y.coin; BTN.smoke.y = BASE_Y.smoke; }
+}
 const MAP = { x: 160, y: PANEL_Y + 12, s: 150 };
 const esc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const CALM = { bpm: 84, style: 'crypt', lead: 'triangle', arp: [0, 2, 1, 2, 0, 3, 2, 1], oct: [12, 12, 12, 24, 12, 12, 0, 12], bass: 'half' };
@@ -47,6 +57,7 @@ runGame({
   id: ID,
   width: W, height: H,
   lives: 3,
+  extend: { maxH: 900, topShare: 0 },
   detail: true,
   levelName: 'Floor',
   finalLevel: FINAL,
@@ -877,6 +888,7 @@ class CrownHeist {
 
   render(ctx) {
     const s = this.s, t = this.t, f = this.f, lo = s.lowDetail, spr = this.spr;
+    dropControls(s.bands);
     // real time since the last frame for the render-side decays below (was a fixed 1/60; stops while paused)
     const now = performance.now(), rdt = this.s.state === 'playing' ? Math.min(0.05, (now - (this.rtPrev || now)) / 1000) : 0; this.rtPrev = now;
     this.rdt = rdt;

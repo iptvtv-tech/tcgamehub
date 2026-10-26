@@ -149,3 +149,9 @@ body.game-page .site-footer { margin-top: 32px; }
 .stat.tokens.hot { animation: tokenPop .9s ease-out; }
 @keyframes tokenPop { 0% { transform: scale(1.25); background: #6b4e14; } 100% { transform: none; } }
 @media (max-width: 720px) { .stat.tokens small { font-size: .6em; } }
+
+/* ── Phone HUD: one tight row (E8) ────────────────────────── */
+@media (max-width: 560px) {
+  .hud-stats .stat.best { display: none; }
+  .hud-stats .stat.combo:not(.hot) { display: none; }
+}

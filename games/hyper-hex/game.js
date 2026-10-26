@@ -127,12 +127,12 @@ class HyperHex {
   spawnPattern() {
     const r = this.s.rng, L = this.level;
     // rings are spaced in TIME so every pattern stays possible at any speed
-    const spacing = this.wallSpeed * Math.max(0.47, 0.85 - L * 0.025);
+    const spacing = this.wallSpeed * Math.max(0.47, 0.85 - L * 0.025) * (L <= 2 ? 1.2 : 1);   // wider gaps while you learn
     const th = 22 + Math.min(10, L);
     const off = r.int(0, SIDES - 1);
     const mir = r.chance(0.5) ? 1 : -1;
     const side = (k) => ((off + mir * k) % SIDES + SIDES) % SIDES;
-    const start = 560;
+    const start = 560 + (L <= 2 ? this.wallSpeed * 0.9 : 0);   // L1–2: ~1 s more before the first wall
     const add = (sides, ring, thick = th) => { for (const k of sides) this.walls.push({ side: side(k), d: start + ring * spacing, th: thick, passed: false, ring: this.ringId }); this.ringId++; };
     this.ringId = this.ringId || 0;
     const pool = ['solo', 'solo', 'alt'];
