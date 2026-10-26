@@ -36,6 +36,7 @@ runGame({
   width: W,
   height: H,
   lives: 3,
+  detail: true,
   comboWindow: 0,            // rhythm combos only break on a miss
   comboStep: 10,
   maxMultiplier: 4,
@@ -310,11 +311,13 @@ class NeonBeat {
 
   // ── Draw ───────────────────────────────────────────────────
   render(ctx) {
-    const s = this.s, t = this.t, gold = s.gold;
-    const g = ctx.createLinearGradient(0, 0, 0, H);
-    if (this.bonus) { g.addColorStop(0, '#2a1403'); g.addColorStop(1, '#3b0a3a'); }
-    else { g.addColorStop(0, '#0a0620'); g.addColorStop(1, '#140a2e'); }
-    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    const s = this.s, t = this.t, gold = s.gold, lo = s.lowDetail || s.coarse;
+    s.layer(ctx, `sky|${this.bonus}`, (c) => {
+      const g = c.createLinearGradient(0, 0, 0, H);
+      if (this.bonus) { g.addColorStop(0, '#2a1403'); g.addColorStop(1, '#3b0a3a'); }
+      else { g.addColorStop(0, '#0a0620'); g.addColorStop(1, '#140a2e'); }
+      c.fillStyle = g; c.fillRect(0, 0, W, H);
+    });
 
     // pulsing stars + beat glow
     for (const st of this.stars) {
@@ -324,21 +327,28 @@ class NeonBeat {
       ctx.fillRect(st.x, y, 1 + st.z * 1.5, 1 + st.z * 1.5);
     }
     ctx.globalAlpha = 1;
-    const glow = ctx.createRadialGradient(W / 2, HIT_Y, 10, W / 2, HIT_Y, 360);
-    glow.addColorStop(0, `rgba(236,72,153,${0.12 + this.pulse * 0.18})`); glow.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
+    // the beat glow: one cached sprite, breathed with globalAlpha (was a new 360px radial every frame)
+    ctx.globalAlpha = 0.12 + this.pulse * 0.18;
+    ctx.drawImage(s.glowSprite('rgb(236,72,153)', 128), W / 2 - 360, HIT_Y - 360, 720, 720);
+    ctx.globalAlpha = 1;
 
-    // lanes
+    // lanes: the resting gradient is cached; a flashing or missed lane is drawn live (brief)
+    s.layer(ctx, 'lanes', (c) => {
+      for (let i = 0; i < LANES; i++) {
+        const x = LX + i * LW;
+        const lg = c.createLinearGradient(0, TOP, 0, HIT_Y + 60);
+        lg.addColorStop(0, 'rgba(255,255,255,0)'); lg.addColorStop(1, 'rgba(255,255,255,.05)');
+        c.fillStyle = lg; c.fillRect(x + 3, TOP, LW - 6, HIT_Y + 60 - TOP);
+        c.strokeStyle = 'rgba(167,139,250,.18)'; c.lineWidth = 1;
+        c.beginPath(); c.moveTo(x, TOP); c.lineTo(x, H - 40); c.stroke();
+      }
+      c.beginPath(); c.moveTo(LX + LANES * LW, TOP); c.lineTo(LX + LANES * LW, H - 40); c.stroke();
+    });
     for (let i = 0; i < LANES; i++) {
       const x = LX + i * LW;
-      const lg = ctx.createLinearGradient(0, TOP, 0, HIT_Y + 60);
-      lg.addColorStop(0, 'rgba(255,255,255,0)'); lg.addColorStop(1, `rgba(255,255,255,${0.05 + this.flash[i] * 0.15})`);
-      if (this.bad[i] > 0) lg.addColorStop(1, `rgba(251,113,133,${this.bad[i] * 0.35})`);
-      ctx.fillStyle = lg; ctx.fillRect(x + 3, TOP, LW - 6, HIT_Y + 60 - TOP);
-      ctx.strokeStyle = 'rgba(167,139,250,.18)'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(x, TOP); ctx.lineTo(x, H - 40); ctx.stroke();
+      if (this.flash[i] > 0.02) { ctx.fillStyle = `rgba(255,255,255,${this.flash[i] * 0.15})`; ctx.fillRect(x + 3, HIT_Y - 140, LW - 6, 200); }
+      if (this.bad[i] > 0.02) { ctx.fillStyle = `rgba(251,113,133,${this.bad[i] * 0.3})`; ctx.fillRect(x + 3, HIT_Y - 60, LW - 6, 120); }
     }
-    ctx.beginPath(); ctx.moveTo(LX + LANES * LW, TOP); ctx.lineTo(LX + LANES * LW, H - 40); ctx.stroke();
     // beat lines scrolling down
     ctx.strokeStyle = 'rgba(167,139,250,.14)';
     const firstBeat = Math.ceil((this.songT - 0.2) / this.beat);
@@ -358,7 +368,7 @@ class NeonBeat {
 
     // hit line + receptors
     ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.fillRect(LX, HIT_Y - 2, LANES * LW, 4);
-    for (let i = 0; i < LANES; i++) this.drawArrow(ctx, LX + (i + 0.5) * LW, HIT_Y, i, 1 + this.flash[i] * 0.15, true, gold);
+    for (let i = 0; i < LANES; i++) this.blitArrow(ctx, LX + (i + 0.5) * LW, HIT_Y, i, 1 + this.flash[i] * 0.15, 'receptor', gold, false, lo, this.flash[i]);
 
     // notes
     const colFor = (i) => (gold || this.bonus ? '#fbbf24' : LANE_COL[i]);
@@ -373,13 +383,13 @@ class NeonBeat {
         if (n.state === 'holding') y = HIT_Y;
         ctx.save();
         ctx.globalAlpha = n.state === 'miss' ? 0.25 : 0.85;
-        ctx.fillStyle = colFor(n.lane); ctx.shadowColor = colFor(n.lane); ctx.shadowBlur = n.state === 'holding' ? 20 : 8;
+        ctx.fillStyle = colFor(n.lane); if (!lo) { ctx.shadowColor = colFor(n.lane); ctx.shadowBlur = n.state === 'holding' ? 20 : 8; }
         roundRect(ctx, x - 13, Math.max(TOP, yEnd), 26, Math.max(0, y - Math.max(TOP, yEnd)), 13); ctx.fill();
         ctx.restore();
         if (n.state === 'miss' || n.state === 'holding') continue;
       }
       if (y < TOP - 40) continue;
-      this.drawArrow(ctx, x, y, n.lane, 1, false, gold || this.bonus, n.chord);
+      this.blitArrow(ctx, x, y, n.lane, 1, 'note', gold || this.bonus, n.chord, lo);
     }
     if (this.stealth && this._fog) { ctx.fillStyle = this._fog; ctx.fillRect(LX, HIT_Y - 230, LANES * LW, 140); ctx.fillStyle = 'rgba(10,6,32,.96)'; ctx.fillRect(LX, HIT_Y - 90, LANES * LW, 60); }
 
@@ -435,20 +445,40 @@ class NeonBeat {
     }
   }
 
-  drawArrow(ctx, x, y, lane, scale, receptor, gold, chord) {
+  /** Arrows pre-rendered once per (lane, kind, gold, chord, lo) — the shadowBlur pass per note was
+   *  the main phone cost. Receptor flash still animates via alpha + scale on the sprite. */
+  blitArrow(ctx, x, y, lane, scale, kind, gold, chord, lo, flash = 0) {
+    const key = `${lane}|${kind}|${gold}|${chord ? 1 : 0}|${lo ? 1 : 0}`;
+    this.arrowCache ??= new Map();
+    let cv = this.arrowCache.get(key);
+    if (!cv) {
+      cv = document.createElement('canvas'); cv.width = cv.height = 128;
+      const c = cv.getContext('2d'); c.translate(64, 64); c.scale(2, 2);
+      this.drawArrow(c, 0, 0, lane, 1, kind === 'receptor', gold, chord, lo);
+      this.arrowCache.set(key, cv);
+    }
+    ctx.save(); ctx.translate(x, y);
+    if (kind === 'receptor') ctx.globalAlpha = 0.55 + flash * 0.45;
+    const d = 64 * scale;
+    ctx.drawImage(cv, -d / 2, -d / 2, d, d);
+    if (kind === 'receptor' && flash > 0.02) { ctx.globalAlpha = flash * 0.3; ctx.drawImage(cv, -d / 2, -d / 2, d, d); }
+    ctx.restore();
+  }
+
+  drawArrow(ctx, x, y, lane, scale, receptor, gold, chord, lo = false) {
     const rot = [Math.PI / 2, 0, Math.PI, -Math.PI / 2][lane];     // arrow drawn pointing down; rotate per lane
     const col = gold ? '#fbbf24' : LANE_COL[lane];
     ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.scale(scale, scale);
     ctx.beginPath();
     ctx.moveTo(0, 22); ctx.lineTo(24, -2); ctx.lineTo(10, -2); ctx.lineTo(10, -22); ctx.lineTo(-10, -22); ctx.lineTo(-10, -2); ctx.lineTo(-24, -2); ctx.closePath();
     if (receptor) {
-      ctx.lineWidth = 3; ctx.strokeStyle = col; ctx.globalAlpha = 0.55 + this.flash[lane] * 0.45;
-      ctx.shadowColor = col; ctx.shadowBlur = 8 + this.flash[lane] * 20; ctx.stroke();
-      ctx.fillStyle = `rgba(255,255,255,${this.flash[lane] * 0.3})`; ctx.fill();
+      ctx.lineWidth = 3; ctx.strokeStyle = col;
+      if (!lo) { ctx.shadowColor = col; ctx.shadowBlur = 12; }
+      ctx.stroke();
     } else {
       const g = ctx.createLinearGradient(0, -22, 0, 22);
       g.addColorStop(0, '#fff'); g.addColorStop(0.35, col); g.addColorStop(1, col);
-      ctx.fillStyle = g; ctx.shadowColor = col; ctx.shadowBlur = 16; ctx.fill();
+      ctx.fillStyle = g; if (!lo) { ctx.shadowColor = col; ctx.shadowBlur = 16; } ctx.fill();
       ctx.lineWidth = chord ? 3 : 1.5; ctx.strokeStyle = chord ? '#fff' : 'rgba(255,255,255,.6)'; ctx.stroke();
     }
     ctx.restore();

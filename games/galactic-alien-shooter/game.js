@@ -86,6 +86,7 @@ runGame({
   width: W,
   height: H,
   lives: 3,
+  detail: true,
   comboWindow: 1.6,
   comboStep: 4,
   maxMultiplier: 6,
@@ -1289,22 +1290,25 @@ class AlienShooter {
 
   // ── Draw ───────────────────────────────────────────────────
   render(ctx) {
-    const t = this.t, s = this.s;
-    const g = ctx.createLinearGradient(0, 0, 0, H);
-    if (this.bonus) { g.addColorStop(0, '#1e0b3a'); g.addColorStop(1, '#3b0a3a'); }
-    else if (this.boss) { g.addColorStop(0, '#12020a'); g.addColorStop(0.6, '#1a0616'); g.addColorStop(1, '#150a2e'); }
-    else { g.addColorStop(0, '#02030d'); g.addColorStop(0.6, '#07092a'); g.addColorStop(1, '#120a2e'); }
-    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    const t = this.t, s = this.s, lo = s.lowDetail;
+    s.layer(ctx, `sky|${this.bonus}|${!!this.boss}`, (c) => {
+      const g = c.createLinearGradient(0, 0, 0, H);
+      if (this.bonus) { g.addColorStop(0, '#1e0b3a'); g.addColorStop(1, '#3b0a3a'); }
+      else if (this.boss) { g.addColorStop(0, '#12020a'); g.addColorStop(0.6, '#1a0616'); g.addColorStop(1, '#150a2e'); }
+      else { g.addColorStop(0, '#02030d'); g.addColorStop(0.6, '#07092a'); g.addColorStop(1, '#120a2e'); }
+      c.fillStyle = g; c.fillRect(0, 0, W, H);
+    });
 
-    ctx.save(); ctx.globalCompositeOperation = 'lighter';
-    for (const n of this.nebulas) {
-      const y = ((n.y + t * 6) % (H + 400)) - 200;
-      const ng = ctx.createRadialGradient(n.x, y, 0, n.x, y, n.r);
-      const hue = this.bonus ? (n.hue + t * 50) % 360 : this.boss ? this.boss.hue : n.hue;
-      ng.addColorStop(0, `hsla(${hue}, 90%, 50%, .13)`); ng.addColorStop(1, 'hsla(0,0%,0%,0)');
-      ctx.fillStyle = ng; ctx.fillRect(n.x - n.r, y - n.r, n.r * 2, n.r * 2);
+    if (!lo) {
+      // nebulas: a cached glow sprite per hue bucket (was a fresh radial gradient each, every frame)
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.13;
+      for (const n of this.nebulas) {
+        const y = ((n.y + t * 6) % (H + 400)) - 200;
+        const hue = Math.round(((this.bonus ? (n.hue + t * 50) % 360 : this.boss ? this.boss.hue : n.hue) % 360) / 20) * 20;
+        ctx.drawImage(s.glowSprite(`hsl(${hue}, 90%, 50%)`, 96), n.x - n.r, y - n.r, n.r * 2, n.r * 2);
+      }
+      ctx.restore();
     }
-    ctx.restore();
 
     // Twinkling multicolour starfield
     const moving = s.state === 'playing' ? 1 : 0.35;
@@ -1525,8 +1529,18 @@ class AlienShooter {
   }
 
   // Enemy ships — all drawn nose-down (+y) in local space, then turned to face where they fly.
+  /** Gradients in drawAlien/drawBoss are in local alien coordinates, so one object per key
+   *  serves every alien of that kind on every frame (they were re-created per alien per frame). */
+  grad(ctx, key, make) {
+    this.grads ??= new Map();
+    let g = this.grads.get(key);
+    if (!g) { g = make(); this.grads.set(key, g); }
+    return g;
+  }
+
   drawAlien(ctx, a, t) {
     const T = TYPES[a.type];
+    const lo = this.s.lowDetail;
     const white = a.flash > 0;
     const pulse = 0.5 + 0.5 * Math.sin(t * 8 + a.id);
     ctx.save(); ctx.translate(a.x, a.y);
@@ -1536,22 +1550,20 @@ class AlienShooter {
       if (a.laserCarrier) {
         // carries the rare LASER: red halo + tag
         ctx.save(); ctx.globalCompositeOperation = 'lighter';
-        const rg = ctx.createRadialGradient(0, 0, 8, 0, 0, 34 + pulse * 6);
-        rg.addColorStop(0, 'rgba(244,63,94,.55)'); rg.addColorStop(1, 'rgba(244,63,94,0)');
-        ctx.fillStyle = rg; ctx.beginPath(); ctx.arc(0, 0, 40, 0, TAU); ctx.fill(); ctx.restore();
+        ctx.globalAlpha = 0.55;
+        ctx.drawImage(this.s.glowSprite('rgb(244,63,94)', 64), -(34 + pulse * 6), -(34 + pulse * 6), (34 + pulse * 6) * 2, (34 + pulse * 6) * 2);
+        ctx.globalAlpha = 1; ctx.restore();
         ctx.fillStyle = '#fff'; ctx.font = '900 11px system-ui'; ctx.textAlign = 'center'; ctx.fillText('L', 0, 20);
       }
       const hurt = a.hp < a.maxHp;
       const c1 = hurt ? (a.hp === 1 ? '#f87171' : '#fbbf24') : a.laserCarrier ? '#fb7185' : '#2dd4bf', c2 = hurt ? '#7f1d1d' : a.laserCarrier ? '#881337' : '#115e59';
-      ctx.shadowColor = c1; ctx.shadowBlur = 16;
+      if (!lo) { ctx.shadowColor = c1; ctx.shadowBlur = 16; }
       // dome
-      const dg = ctx.createRadialGradient(-3, -9, 1, 0, -5, 11);
-      dg.addColorStop(0, '#ecfeff'); dg.addColorStop(1, 'rgba(103,232,249,.35)');
+      const dg = this.grad(ctx, 'c-dome', () => { const g = ctx.createRadialGradient(-3, -9, 1, 0, -5, 11); g.addColorStop(0, '#ecfeff'); g.addColorStop(1, 'rgba(103,232,249,.35)'); return g; });
       ctx.fillStyle = white ? '#fff' : dg;
       ctx.beginPath(); ctx.ellipse(0, -4, 9, 8, 0, Math.PI, TAU); ctx.fill();
       // hull
-      const hg = ctx.createLinearGradient(0, -6, 0, 8);
-      hg.addColorStop(0, c1); hg.addColorStop(1, c2);
+      const hg = this.grad(ctx, `c-hull|${c1}`, () => { const g = ctx.createLinearGradient(0, -6, 0, 8); g.addColorStop(0, c1); g.addColorStop(1, c2); return g; });
       ctx.fillStyle = white ? '#fff' : hg;
       ctx.beginPath(); ctx.ellipse(0, 0, 21, 7, 0, 0, TAU); ctx.fill();
       ctx.shadowBlur = 0;
@@ -1568,14 +1580,13 @@ class AlienShooter {
     ctx.rotate(a.heading - Math.PI / 2);
     if (a.type === 'shard') ctx.rotate(t * 8);
     const glow = a.split ? '#bef264' : T.color;
-    ctx.shadowColor = glow; ctx.shadowBlur = a.split ? 14 + pulse * 10 : 10;
+    if (!lo) { ctx.shadowColor = glow; ctx.shadowBlur = a.split ? 14 + pulse * 10 : 10; }
     const fill = (c) => { ctx.fillStyle = white ? '#fff' : c; };
 
     if (a.type === 'scout') {
       // engine glow (rear = -y)
       ctx.fillStyle = `rgba(190,242,100,${0.4 + pulse * 0.4})`; ctx.beginPath(); ctx.ellipse(0, -10, 3, 4 + pulse * 3, 0, 0, TAU); ctx.fill();
-      const g = ctx.createLinearGradient(0, -10, 0, 14);
-      g.addColorStop(0, a.split ? '#ecfccb' : '#d9f99d'); g.addColorStop(1, a.split ? '#65a30d' : '#4d7c0f');
+      const g = this.grad(ctx, `scout|${a.split ? 1 : 0}`, () => { const gg = ctx.createLinearGradient(0, -10, 0, 14); gg.addColorStop(0, a.split ? '#ecfccb' : '#d9f99d'); gg.addColorStop(1, a.split ? '#65a30d' : '#4d7c0f'); return gg; });
       fill(g);
       ctx.beginPath(); ctx.moveTo(0, 14); ctx.lineTo(12, -8); ctx.lineTo(4, -4); ctx.lineTo(0, -9); ctx.lineTo(-4, -4); ctx.lineTo(-12, -8); ctx.closePath(); ctx.fill();
       ctx.shadowBlur = 0;
@@ -1584,8 +1595,7 @@ class AlienShooter {
     } else if (a.type === 'gunship') {
       ctx.fillStyle = `rgba(253,186,116,${0.4 + pulse * 0.4})`;
       for (const x of [-7, 7]) { ctx.beginPath(); ctx.ellipse(x, -9, 2.5, 3 + pulse * 3, 0, 0, TAU); ctx.fill(); }
-      const g = ctx.createLinearGradient(-18, 0, 18, 0);
-      g.addColorStop(0, '#9a3412'); g.addColorStop(0.5, '#fdba74'); g.addColorStop(1, '#9a3412');
+      const g = this.grad(ctx, 'gunship', () => { const gg = ctx.createLinearGradient(-18, 0, 18, 0); gg.addColorStop(0, '#9a3412'); gg.addColorStop(0.5, '#fdba74'); gg.addColorStop(1, '#9a3412'); return gg; });
       fill(g);
       ctx.beginPath(); ctx.moveTo(0, 10); ctx.lineTo(8, 4); ctx.lineTo(18, 8); ctx.lineTo(16, -2); ctx.lineTo(8, -8); ctx.lineTo(-8, -8); ctx.lineTo(-16, -2); ctx.lineTo(-18, 8); ctx.lineTo(-8, 4); ctx.closePath(); ctx.fill();
       ctx.shadowBlur = 0;
@@ -1597,8 +1607,7 @@ class AlienShooter {
       const hurt = a.hp < a.maxHp;
       ctx.fillStyle = `rgba(216,180,254,${0.4 + pulse * 0.4})`;
       for (const x of [-11, 11]) { ctx.beginPath(); ctx.ellipse(x, -12, 3, 3 + pulse * 3, 0, 0, TAU); ctx.fill(); }
-      const g = ctx.createLinearGradient(0, -12, 0, 12);
-      g.addColorStop(0, hurt ? '#fca5a5' : '#e9d5ff'); g.addColorStop(1, hurt ? '#7f1d1d' : '#6b21a8');
+      const g = this.grad(ctx, `bomber|${hurt ? 1 : 0}`, () => { const gg = ctx.createLinearGradient(0, -12, 0, 12); gg.addColorStop(0, hurt ? '#fca5a5' : '#e9d5ff'); gg.addColorStop(1, hurt ? '#7f1d1d' : '#6b21a8'); return gg; });
       fill(g);
       ctx.beginPath();
       for (let i = 0; i < 6; i++) { const an = Math.PI / 6 + i * TAU / 6; ctx.lineTo(Math.cos(an) * 14, Math.sin(an) * 12); }
@@ -1613,8 +1622,7 @@ class AlienShooter {
     } else if (a.type === 'lancer') {
       const charging = a.state === 'lance';
       ctx.fillStyle = `rgba(249,168,212,${0.4 + pulse * 0.4})`; ctx.beginPath(); ctx.ellipse(0, -15, 2.5, 3 + pulse * 3, 0, 0, TAU); ctx.fill();
-      const g = ctx.createLinearGradient(-6, 0, 6, 0);
-      g.addColorStop(0, '#9d174d'); g.addColorStop(0.5, '#fbcfe8'); g.addColorStop(1, '#9d174d');
+      const g = this.grad(ctx, 'lancer', () => { const gg = ctx.createLinearGradient(-6, 0, 6, 0); gg.addColorStop(0, '#9d174d'); gg.addColorStop(0.5, '#fbcfe8'); gg.addColorStop(1, '#9d174d'); return gg; });
       // fins
       fill('#db2777');
       ctx.beginPath(); ctx.moveTo(-3, -6); ctx.lineTo(-13, -12); ctx.lineTo(-4, 2); ctx.closePath(); ctx.fill();

@@ -221,8 +221,31 @@ function elev(T, d) {
 }
 
 // ── Colour helpers ─────────────────────────────────────────────
+/** the windscreen outline (same numbers as paintCockpitStatic's glass closure) */
+function c2GlassPath(ctx) {
+  const lt = 10, lb = 5, rt = W - 10, rb = W - 5, top = 150, topC = 108, bot = 462, botC = 520, r = 30;
+  ctx.beginPath();
+  ctx.moveTo(lt + r, top);
+  ctx.quadraticCurveTo(W / 2, 2 * topC - top, rt - r, top);
+  ctx.quadraticCurveTo(rt, top, rt + (rb - rt) * 0.06, top + r);
+  ctx.lineTo(rb, bot - r);
+  ctx.quadraticCurveTo(rb, bot, rb - r, bot + 4);
+  ctx.quadraticCurveTo(W / 2, 2 * botC - bot, lb + r, bot + 4);
+  ctx.quadraticCurveTo(lb, bot, lb, bot - r);
+  ctx.lineTo(lt + (lb - lt) * 0.06, top + r);
+  ctx.quadraticCurveTo(lt, top, lt + r, top);
+  ctx.closePath();
+}
+
+let glowShell = null;   // the game registers its shell so every glowDot uses one cached sprite per colour
 function glowDot(ctx, x, y, r, col, a) {
   if (r <= 0.5) return;
+  if (glowShell) {
+    ctx.globalAlpha = a;
+    ctx.drawImage(glowShell.glowSprite(col, 64), x - r, y - r, r * 2, r * 2);
+    ctx.globalAlpha = 1;
+    return;
+  }
   const g = ctx.createRadialGradient(x, y, 0, x, y, r);
   g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.globalAlpha = a; ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2); ctx.globalAlpha = 1;
@@ -291,6 +314,7 @@ function skyArt(th) {
 class NeonDrift {
   constructor(s) {
     this.s = s; this.t = 0; this.touch = 0;
+    glowShell = s;            // glowDot draws from the shared sprite cache
     this.station = 0;
     try { const v = +localStorage.getItem('nd-station'); if (v >= 0 && v < STATIONS.length) this.station = v | 0; } catch (e) { /* storage blocked */ }
     Object.assign(MUSIC, STATIONS[this.station].music);
@@ -1239,7 +1263,15 @@ class NeonDrift {
     }
     // sort everything that stands on the road into its segment
     for (let k = 0; k <= n; k++) { v.bk[k].length = 0; v.sk[k].length = 0; }
-    const add = (d, z, fn) => { const k = this.kOf(d); if (k >= 0) v.bk[k].push({ z, fn }); };
+    // pooled cells: the same objects are re-filled every frame (this built ~150 fresh
+    // closures + objects per frame, the biggest allocation source in the game)
+    const pool = this._bkPool ??= []; let pi = 0;
+    const add = (d, z, fn) => {
+      const k = this.kOf(d); if (k < 0) return;
+      const cell = pool[pi] ??= { z: 0, fn: null };
+      cell.z = z; cell.fn = fn; pi++;
+      v.bk[k].push(cell);
+    };
     const p = this.p, st = this.s.state, gold = this.s.gold;
     for (const rv of this.rivals) add(rv.d - CAR_HALF - 14, rv.d, () => this.drawRacer(ctx, { d: rv.d, off: rv.off, h: rv.h, pal: palette(rv.paint, { stripe: rv.stripe, glass: '#0b1222' }), glow: rv.glow, lights: { brake: rv.spinT > 0 }, roll: -rv.slip * 0.12,
       name: rv.boss ? `◆ ${rv.name} ◆` : rv.name, boost: rv.boostT > 0, boss: rv.boss, ghost: rv.phaseT > 0, ghostT: rv.phaseT }));
@@ -1690,13 +1722,32 @@ class NeonDrift {
   drawCockpit(ctx) {
     const p = this.p, th = this.theme, s = this.s, lo = this.s.lowDetail, c = this.cam;
     const neonA = s.gold ? '#fde047' : th.edge, neonB = s.gold ? '#fbbf24' : th.kerb[0];
+    ctx.save();
+    ctx.translate(c.bobX * 0.3, c.bobY * 0.35);      // the cabin shakes a little less than your head
+    // everything that doesn't move — body, glass sheen and outline, mirror shell, dash, pods,
+    // ticks, labels — painted once per theme into a cached layer (it was ~15 shadowBlur strokes
+    // and several gradients every frame)
+    s.layer(ctx, `cockpit|${th.edge}|${th.sky[0]}|${s.gold}|${lo}|${this.voidCol}`, (c2) => this.paintCockpitStatic(c2, neonA, neonB, lo));
+    // ghost mode: the glass outline flickers white — redrawn live only then
+    if (p.ghostT > 0) {
+      c2GlassPath(ctx);
+      ctx.save(); ctx.strokeStyle = (p.ghostT > 0.5 || Math.sin(this.t * 30) > 0) ? '#f8fafc' : neonA; ctx.lineWidth = 2.2;
+      if (!lo) { ctx.shadowColor = ctx.strokeStyle; ctx.shadowBlur = 14; }
+      ctx.stroke(); ctx.restore();
+    }
+    this.drawMirrorTraffic(ctx);
+    this.drawGauges(ctx, neonA, neonB);
+    this.drawWheel(ctx, neonA, neonB);
+    ctx.restore();
+  }
+
+  /** The cockpit chrome, painted once per theme (see drawCockpit). */
+  paintCockpitStatic(ctx, neonA, neonB, lo) {
     const body = '#07040f', body2 = '#120a22';
     const glowLine = (col, w, blur) => {
       if (!lo) { ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = blur; ctx.strokeStyle = col; ctx.lineWidth = w; ctx.stroke(); ctx.restore(); }
       else { ctx.strokeStyle = col; ctx.lineWidth = w; ctx.stroke(); }
     };
-    ctx.save();
-    ctx.translate(c.bobX * 0.3, c.bobY * 0.35);      // the cabin shakes a little less than your head
     // the windscreen: one wide curved pane, edge to edge — the roof bows up in the middle, the dash dips
     // below it, the corners are rounded and the side pillars are just a slim rim
     const glass = () => {
@@ -1724,9 +1775,9 @@ class NeonDrift {
     // the body around the glass
     ctx.fillStyle = body;
     ctx.beginPath(); ctx.rect(-30, -30, W + 60, H + 60); glass(); ctx.fill('evenodd');
-    ctx.beginPath(); glass(); glowLine(p.ghostT > 0 && (p.ghostT > 0.5 || Math.sin(this.t * 30) > 0) ? '#f8fafc' : neonA, 2.2, 14);
-    // rear-view mirror, hanging from the roof
-    this.drawMirror(ctx, neonA);
+    ctx.beginPath(); glass(); glowLine(neonA, 2.2, 14);
+    // rear-view mirror shell, hanging from the roof
+    this.drawMirrorStatic(ctx, neonA);
     // dashboard with a raised instrument binnacle in the middle
     const dash = () => {
       ctx.beginPath();
@@ -1738,20 +1789,12 @@ class NeonDrift {
     dg.addColorStop(0, body2); dg.addColorStop(1, body);
     ctx.fillStyle = dg; dash(); ctx.lineTo(W + 10, H + 10); ctx.lineTo(-10, H + 10); ctx.closePath(); ctx.fill();
     dash(); glowLine(neonB, 2.4, 14);
-    this.drawGauges(ctx, neonA, neonB);
-    this.drawWheel(ctx, neonA, neonB);
-    ctx.restore();
+    this.paintGaugeStatics(ctx, neonA, neonB);
   }
 
-  /** the instruments: rev counter + gear (left pod), drift meter + combo (right pod), speed and boost bar (binnacle) */
-  drawGauges(ctx, neonA, neonB) {
-    const p = this.p, s = this.s, lo = s.lowDetail, dt = Math.min(0.05, this.t - (this.gaugeT ?? this.t));
-    this.gaugeT = this.t;
-    const spd = Math.hypot(p.vx, p.vz), kmh = Math.round(spd * 0.4);
-    const pink = s.gold ? '#fde047' : '#ff4fa3', cyan = '#67e8f9';
-    const A0 = Math.PI * 0.75, SW = Math.PI * 1.5;   // dials sweep 270°, from bottom-left round to bottom-right
-    const glowOn = (col, b) => { if (!lo) { ctx.shadowColor = col; ctx.shadowBlur = b; } };
-    const glowOff = () => { ctx.shadowBlur = 0; };
+  /** pod shells, tick rings and fixed labels — part of the cached cockpit layer */
+  paintGaugeStatics(ctx, neonA, neonB) {
+    const A0 = Math.PI * 0.75, SW = Math.PI * 1.5;
     const pod = (cx, cy, r, ring) => {
       ctx.fillStyle = '#05030c'; ctx.beginPath(); ctx.arc(cx, cy, r + 6, 0, TAU); ctx.fill();
       ctx.strokeStyle = hexA(ring, 0.55); ctx.lineWidth = 1.5; ctx.stroke();
@@ -1764,6 +1807,26 @@ class NeonDrift {
         ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0); ctx.lineTo(cx + Math.cos(a) * (r - 2), cy + Math.sin(a) * (r - 2)); ctx.stroke();
       }
     };
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    pod(66, 556, 48, neonA); ticks(66, 556, 48, 16, hexA(neonA, 0.8), 0.82);
+    ctx.font = '800 8px system-ui'; ctx.fillStyle = hexA(neonA, 0.8); ctx.fillText('RPM ×1000', 66, 556 - 16);
+    const pink = this.s.gold ? '#fde047' : '#ff4fa3';
+    pod(W - 66, 556, 48, pink); ticks(W - 66, 556, 48, 12, hexA(pink, 0.75));
+    ctx.textAlign = 'left'; ctx.font = '800 10px system-ui'; ctx.fillStyle = hexA(neonA, 0.85); ctx.fillText('KM/H', W / 2 + 18, 506);
+    const bw = 120, bx = W / 2 - bw / 2 + 6, by = 514;
+    ctx.fillStyle = 'rgba(248,250,252,0.6)'; ctx.fillRect(bx + BOOST_MIN * bw - 0.5, by - 2, 1, 10);
+    ctx.textAlign = 'center';
+  }
+
+  /** the instruments: rev counter + gear (left pod), drift meter + combo (right pod), speed and boost bar (binnacle) */
+  drawGauges(ctx, neonA, neonB) {
+    const p = this.p, s = this.s, lo = s.lowDetail, dt = Math.min(0.05, this.t - (this.gaugeT ?? this.t));
+    this.gaugeT = this.t;
+    const spd = Math.hypot(p.vx, p.vz), kmh = Math.round(spd * 0.4);
+    const pink = s.gold ? '#fde047' : '#ff4fa3', cyan = '#67e8f9';
+    const A0 = Math.PI * 0.75, SW = Math.PI * 1.5;   // dials sweep 270°, from bottom-left round to bottom-right
+    const glowOn = (col, b) => { if (!lo) { ctx.shadowColor = col; ctx.shadowBlur = b; } };
+    const glowOff = () => { ctx.shadowBlur = 0; };
     const needle = (cx, cy, r, a, col) => {
       glowOn(col, 8);
       ctx.strokeStyle = col; ctx.lineWidth = 2.6; ctx.lineCap = 'round';
@@ -1780,20 +1843,15 @@ class NeonDrift {
     if (p.drifting) rpmT = Math.min(0.98, rpmT + 0.12);          // wheelspin as the tail steps out
     this.rpm = this.rpm == null ? rpmT : this.rpm + (rpmT - this.rpm) * Math.min(1, dt * 14);
     const LX = 66, LY = 556, LR = 48;
-    pod(LX, LY, LR, neonA);
-    ticks(LX, LY, LR, 16, hexA(neonA, 0.8), 0.82);
     ctx.strokeStyle = this.rpm > 0.82 ? '#fb7185' : neonA; ctx.lineWidth = 4;
     glowOn(ctx.strokeStyle, 10); ctx.beginPath(); ctx.arc(LX, LY, LR - 4, A0, A0 + SW * this.rpm); ctx.stroke(); glowOff();
     ctx.font = '900 22px system-ui'; ctx.fillStyle = this.rpm > 0.9 ? '#fb7185' : '#f8fafc'; ctx.fillText(gear === 0 ? 'N' : String(gear), LX, LY + 30);
-    ctx.font = '800 8px system-ui'; ctx.fillStyle = hexA(neonA, 0.8); ctx.fillText('RPM ×1000', LX, LY - 16);
     needle(LX, LY, LR, A0 + SW * this.rpm, this.rpm > 0.82 ? '#fb7185' : '#f8fafc');
 
     // ── right pod: drift meter — needle shows the slide angle, the arc fills with the drift you're building ──
     const RX = W - 66, RY = 556, RR = 48, slip = clamp(p.slip || 0, -0.9, 0.9);
     const charge = p.drift > 0 ? clamp(p.drift / 60, 0, 1) : 0;
     this.driftArc = this.driftArc == null ? charge : this.driftArc + (charge - this.driftArc) * Math.min(1, dt * 10);
-    pod(RX, RY, RR, pink);
-    ticks(RX, RY, RR, 12, hexA(pink, 0.75));
     if (this.driftArc > 0.01) {
       ctx.strokeStyle = this.driftArc >= 1 ? '#fde047' : pink; ctx.lineWidth = 4;
       glowOn(ctx.strokeStyle, 12); ctx.beginPath(); ctx.arc(RX, RY, RR - 4, A0, A0 + SW * this.driftArc); ctx.stroke(); glowOff();
@@ -1809,7 +1867,7 @@ class NeonDrift {
     // ── binnacle: digital speed and the boost bar ──
     ctx.font = '900 26px system-ui'; ctx.fillStyle = p.boostT > 0 ? cyan : '#f8fafc';
     glowOn(neonA, 10); ctx.textAlign = 'right'; ctx.fillText(String(kmh), W / 2 + 14, 506); glowOff();
-    ctx.textAlign = 'left'; ctx.font = '800 10px system-ui'; ctx.fillStyle = hexA(neonA, 0.85); ctx.fillText('KM/H', W / 2 + 18, 506);
+    ctx.textAlign = 'left';
     const burning = p.boostT > 0, boostF = burning ? clamp(p.boostT / p.boostMax, 0, 1) : p.charge;
     const segs = 10, bw = 120, bx = W / 2 - bw / 2 + 6, by = 514, sw = bw / segs;
     const ready = !burning && p.charge >= BOOST_MIN, full = !burning && p.charge >= 1;
@@ -1820,8 +1878,6 @@ class NeonDrift {
       if (on) glowOn(col, ready || burning ? 10 : 4);
       ctx.fillRect(bx + i * sw + 1, by, sw - 2, 6); glowOff();
     }
-    // the minimum you need to fire
-    ctx.fillStyle = 'rgba(248,250,252,0.6)'; ctx.fillRect(bx + BOOST_MIN * bw - 0.5, by - 2, 1, 10);
     ctx.textAlign = 'right'; ctx.font = '800 10px system-ui'; ctx.fillStyle = ready || burning ? cyan : hexA(cyan, 0.5);
     ctx.fillText('⚡', bx - 3, by + 7);
   }
@@ -1851,9 +1907,9 @@ class NeonDrift {
     ctx.restore();
   }
 
-  /** rear-view mirror: a dark glimpse of the road behind with the headlights of anyone chasing you */
-  drawMirror(ctx, neonA) {
-    const p = this.p, mw = 150, mh = 32, mx = W / 2 - mw / 2, my = 100, hzY = my + 12;
+  /** the mirror's shell, glass and empty road — part of the cached cockpit layer */
+  drawMirrorStatic(ctx, neonA) {
+    const mw = 150, mh = 32, mx = W / 2 - mw / 2, my = 100, hzY = my + 12;
     ctx.fillStyle = '#0d0818'; ctx.fillRect(W / 2 - 3, 80, 6, 24);
     ctx.save();
     roundRect(ctx, mx, my, mw, mh, 9); ctx.fillStyle = '#05030c'; ctx.fill();
@@ -1863,7 +1919,15 @@ class NeonDrift {
     ctx.fillStyle = this.voidCol; ctx.beginPath(); ctx.moveTo(W / 2 - 6, hzY); ctx.lineTo(W / 2 + 6, hzY); ctx.lineTo(W / 2 + 60, my + mh); ctx.lineTo(W / 2 - 60, my + mh); ctx.closePath(); ctx.fill();
     ctx.strokeStyle = hexA(this.theme.edge, 0.7); ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(W / 2 - 6, hzY); ctx.lineTo(W / 2 - 60, my + mh); ctx.moveTo(W / 2 + 6, hzY); ctx.lineTo(W / 2 + 60, my + mh); ctx.stroke();
-    const T = this.T;
+    ctx.restore();
+    roundRect(ctx, mx, my, mw, mh, 9); ctx.strokeStyle = neonA; ctx.lineWidth = 1.6; ctx.stroke();
+  }
+
+  /** headlights of anyone chasing you — live, clipped to the mirror glass */
+  drawMirrorTraffic(ctx) {
+    const p = this.p, mw = 150, mh = 32, mx = W / 2 - mw / 2, my = 100, hzY = my + 12;
+    ctx.save();
+    roundRect(ctx, mx, my, mw, mh, 9); ctx.clip();
     for (const rv of this.rivals) {
       let gap = p.prog - rv.d;
       if (gap <= 30 || gap > 900) continue;
@@ -1877,7 +1941,6 @@ class NeonDrift {
       ctx.beginPath(); ctx.arc(x - sp / 2, y, r, 0, TAU); ctx.arc(x + sp / 2, y, r, 0, TAU); ctx.fill();
     }
     ctx.restore();
-    roundRect(ctx, mx, my, mw, mh, 9); ctx.strokeStyle = neonA; ctx.lineWidth = 1.6; ctx.stroke();
   }
 
   drawTuner(ctx) {

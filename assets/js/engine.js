@@ -385,6 +385,40 @@ class Shell {
     if (Store.unlockAch(global ? `g:${id}` : `${this.id}:${id}`)) { this.toast(a); this.reward('badge'); }
   }
 
+  // ── Shared render caches (E3). A game draws its static scenery once into an offscreen
+  //    canvas and blits it each frame, instead of rebuilding gradients and shadowBlur passes.
+  /** Blit a cached full-stage layer. `key` must change whenever the drawing would (level, theme,
+   *  LOW/HIGH, a brick breaking…): a new key paints once via `paint(c2)` in logical coordinates. */
+  layer(ctx, key, paint) {
+    this._layers ??= new Map();
+    const cw = ctx.canvas.width, ch = ctx.canvas.height, k = `${key}|${cw}x${ch}`;
+    if (!this._layers.has(k)) {
+      if (this._layers.size > 12) this._layers.clear();
+      const cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
+      const c2 = cv.getContext('2d'); c2.scale(cw / this.W, ch / this.H); paint(c2);
+      this._layers.set(k, cv);
+    }
+    ctx.drawImage(this._layers.get(k), 0, 0, this.W, this.H);
+  }
+  /** A soft radial glow as a cached sprite (replaces per-frame createRadialGradient).
+   *  Draw with: const g = s.glowSprite(col); ctx.drawImage(g, x - r, y - r, r * 2, r * 2). */
+  glowSprite(col, px = 64) {
+    this._glows ??= new Map();
+    let cv = this._glows.get(col);
+    if (!cv) {
+      if (this._glows.size > 24) this._glows.clear();
+      cv = document.createElement('canvas'); cv.width = cv.height = px;
+      const c2 = cv.getContext('2d');
+      const g = c2.createRadialGradient(px / 2, px / 2, 0, px / 2, px / 2, px / 2);
+      g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)');
+      c2.fillStyle = g; c2.fillRect(0, 0, px, px);
+      this._glows.set(col, cv);
+    }
+    return cv;
+  }
+  /** Drop every cached layer (a game calls this when its scenery changes wholesale). */
+  dropLayers() { this._layers?.clear(); }
+
   /** Arcade tokens for an event (see tokens.js); shows "+n 🪙" and updates the HUD. */
   reward(what) {
     const n = Tokens.earn(what);

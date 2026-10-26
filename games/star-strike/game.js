@@ -31,6 +31,8 @@ const norm = (v) => { const n = Math.hypot(...v) || 1; return v.map((c) => c / n
 const LIGHT = norm([-0.5, 0.8, -0.6]);
 const HALF = norm([LIGHT[0], LIGHT[1], LIGHT[2] - 1]);   // light + view direction, for the shine
 const hexCache = new Map();
+const RGB_CACHE = new Map();
+const rgbC = (c) => { let v = RGB_CACHE.get(c); if (!v) { v = rgb(c); RGB_CACHE.set(c, v); } return v; };
 const rgb = (h) => { if (!hexCache.has(h)) hexCache.set(h, [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]); return hexCache.get(h); };
 function rot(v, rx, ry, rz) {
   let [x, y, z] = v, t;
@@ -245,7 +247,7 @@ class StarStrike {
   // ── Your guns ──────────────────────────────────────────────
   fire() {
     const s = this.s, sh = this.ship, { type, lvl } = this.weapon;
-    const shot = (x, vx, o = {}) => this.shots.push({ x: sh.x + x, y: sh.y - 0.05, z: SHIP_Z + 0.6, vx, vy: 0, dmg: 1, col: WEAPONS[type].col, ...o });
+    const shot = (x, vx, o = {}) => this.shots.push({ kind: 'shot', x: sh.x + x, y: sh.y - 0.05, z: SHIP_Z + 0.6, vx, vy: 0, dmg: 1, col: WEAPONS[type].col, ...o });
     if (type === 'laser') {
       this.fireT = lvl >= 2 ? 0.11 : 0.14;
       shot(-0.55, -0.1); shot(0.55, 0.1); if (lvl >= 3) shot(0, 0);
@@ -266,13 +268,13 @@ class StarStrike {
   launchMissiles() {
     const sh = this.ship;
     this.homeT = 0.55;
-    for (const d of [-0.9, 0.9]) this.missiles.push({ x: sh.x + d, y: sh.y - 0.1, z: SHIP_Z + 0.4, vx: d * 4, vy: 2, vz: 30, life: 3, target: null });
+    for (const d of [-0.9, 0.9]) this.missiles.push({ kind: 'missile', x: sh.x + d, y: sh.y - 0.1, z: SHIP_Z + 0.4, vx: d * 4, vy: 2, vz: 30, life: 3, target: null });
     this.s.sound.noise({ dur: 0.15, vol: 0.06, freq: 2500, to: 600, type: 'bandpass' });
   }
   droneFire() {
     const p = this.dronePos();
     this.droneT = 0.2;
-    this.shots.push({ x: p[0], y: p[1], z: SHIP_Z + 0.3, vx: 0, vy: 0, dmg: 1, col: '#a5f3fc' });
+    this.shots.push({ kind: 'shot', x: p[0], y: p[1], z: SHIP_Z + 0.3, vx: 0, vy: 0, dmg: 1, col: '#a5f3fc' });
   }
   dronePos() { const a = this.t * 2.2, sh = this.ship; return [sh.x + Math.cos(a) * 1.25, sh.y + 0.45 + Math.sin(a * 2) * 0.12, SHIP_Z + Math.sin(a) * 0.4]; }
 
@@ -766,7 +768,7 @@ class StarStrike {
 
   /** Draw a model: per-face shading with a specular shine; glow faces are lit up. */
   drawMesh(ctx, mesh, pos, rotv, scale, pal, { flash = false, alpha = 1, glow = true } = {}) {
-    const [cx, cy] = this.cam(), fogC = rgb(this.theme);
+    const [cx, cy] = this.cam(), fogC = rgbC(this.theme);
     const pts = mesh.v.map((v) => {
       const r = rot(v, rotv[0], rotv[1], rotv[2]);
       return { w: [pos[0] + r[0] * scale, pos[1] + r[1] * scale, pos[2] + r[2] * scale], r };
@@ -782,8 +784,9 @@ class StarStrike {
       return { f, z: (pts[f[0]].w[2] + pts[f[1]].w[2] + pts[f[2]].w[2]) / 3, dif, spec };
     }).sort((p, q) => q.z - p.z);
     ctx.save(); ctx.globalAlpha = alpha; ctx.lineJoin = 'round';
+    let shadowOn = false;
     for (const fc of faces) {
-      const mat = fc.f[3] || 0, base = rgb(pal[mat]);
+      const mat = fc.f[3] || 0, base = rgbC(pal[mat]);
       const fog = clamp((fc.z - 30) / 75, 0, 0.8);
       let col;
       if (flash) col = [255, 255, 255];
@@ -794,7 +797,8 @@ class StarStrike {
       }
       col = col.map((c, i) => Math.round(c * (1 - fog) + (fogC[i] * 0.12 + 6) * fog));
       ctx.fillStyle = `rgb(${col[0]},${col[1]},${col[2]})`; ctx.strokeStyle = ctx.fillStyle;
-      if (mat === 3 && glow && !flash && !this.s.lowDetail) { ctx.shadowColor = pal[3]; ctx.shadowBlur = 10; } else ctx.shadowBlur = 0;
+      const wantShadow = mat === 3 && glow && !flash && !this.s.lowDetail;
+      if (wantShadow !== shadowOn) { ctx.shadowBlur = wantShadow ? 10 : 0; if (wantShadow) ctx.shadowColor = pal[3]; shadowOn = wantShadow; }
       ctx.beginPath();
       const [p0, p1, p2] = [scr[fc.f[0]], scr[fc.f[1]], scr[fc.f[2]]];
       ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.lineTo(p2[0], p2[1]); ctx.closePath();
@@ -807,14 +811,20 @@ class StarStrike {
     const t = this.t, sh = this.ship;
     // backdrop: painted sky with a little parallax, then a nebula tint for the sector
     ctx.drawImage(this.sky, -60 - sh.x * 6, -40 + sh.y * 4);
-    const nx = W / 2 + Math.sin(t * 0.1) * 60, ng = ctx.createRadialGradient(nx, HORIZ - 40, 5, nx, HORIZ - 40, 260);
-    ng.addColorStop(0, this.theme + '30'); ng.addColorStop(1, this.theme + '00');
-    ctx.fillStyle = ng; ctx.fillRect(0, 0, W, H);
-    const vg = ctx.createRadialGradient(W / 2, HORIZ, 2, W / 2, HORIZ, 60);
-    vg.addColorStop(0, this.bonus ? 'rgba(253,230,138,.45)' : 'rgba(224,242,254,.3)'); vg.addColorStop(1, 'rgba(224,242,254,0)');
-    ctx.fillStyle = vg; ctx.fillRect(W / 2 - 60, HORIZ - 60, 120, 120);
-    // star streaks
-    for (const st of this.stars) {
+    const lo = this.s.lowDetail;
+    if (!lo) {
+      // sector nebula + horizon vignette: cached glow sprites (were two fresh radials per frame)
+      const nx = W / 2 + Math.sin(t * 0.1) * 60;
+      ctx.globalAlpha = 0.19;
+      ctx.drawImage(this.s.glowSprite(this.theme, 96), nx - 260, HORIZ - 40 - 260, 520, 520);
+      ctx.globalAlpha = this.bonus ? 0.45 : 0.3;
+      ctx.drawImage(this.s.glowSprite(this.bonus ? 'rgb(253,230,138)' : 'rgb(224,242,254)', 64), W / 2 - 60, HORIZ - 60, 120, 120);
+      ctx.globalAlpha = 1;
+    }
+    // star streaks (half of them on LOW)
+    const starStep = lo ? 2 : 1;
+    for (let si = 0; si < this.stars.length; si += starStep) {
+      const st = this.stars[si];
       const a = this.proj(st.x, st.y, st.z), b = this.proj(st.x, st.y, st.z + 1.5 + this.speed * 0.05);
       if (a[2] < 0) continue;
       ctx.strokeStyle = `rgba(226,232,240,${clamp(1 - st.z / 90, 0.1, 0.9)})`; ctx.lineWidth = clamp(a[2] / 60, 0.5, 2.5);
@@ -823,9 +833,16 @@ class StarStrike {
     this.drawTunnel(ctx);
 
     // everything in the world, far to near
-    const items = [...this.ents.filter((e) => !e.dead), ...this.bolts.map((b) => ({ kind: 'bolt', ...b })), ...this.shots.map((x) => ({ kind: 'shot', ...x })), ...this.missiles.map((x) => ({ kind: 'missile', ...x })), ...this.debris.map((x) => ({ kind: 'debris', ...x }))];
-    items.push({ kind: 'player', z: SHIP_Z });
-    if (this.drone > 0) { const p = this.dronePos(); items.push({ kind: 'drone', x: p[0], y: p[1], z: p[2] }); }
+    // entities carry their kind from birth — this list used to copy every object every frame
+    const items = [];
+    for (const e of this.ents) if (!e.dead) items.push(e);
+    for (const b of this.bolts) { b.kind = 'bolt'; items.push(b); }
+    for (const x of this.shots) items.push(x);
+    for (const x of this.missiles) items.push(x);
+    for (const x of this.debris) { x.kind = 'debris'; items.push(x); }
+    this._player ??= { kind: 'player', z: SHIP_Z };
+    items.push(this._player);
+    if (this.drone > 0) { const p = this.dronePos(); this._droneEnt ??= { kind: 'drone' }; Object.assign(this._droneEnt, { x: p[0], y: p[1], z: p[2] }); items.push(this._droneEnt); }
     items.sort((a, b) => b.z - a.z);
     for (const e of items) this.drawEnt(ctx, e);
     this.drawTrail(ctx);
@@ -844,6 +861,7 @@ class StarStrike {
   }
 
   drawTunnel(ctx) {
+    const lo = this.s.lowDetail;
     const off = this.travel % TUN.step, col = this.theme;
     ctx.save(); ctx.lineWidth = 1.2;
     const P = (x, y, z) => this.proj(x, y, z);
@@ -854,10 +872,12 @@ class StarStrike {
     }
     // frames rushing towards you, with corner lights; every other frame is a solid "rib"
     let i = 0;
-    for (let z = 100 - off; z > 1; z -= TUN.step, i++) {
+    const step = lo ? TUN.step * 2 : TUN.step;    // LOW: half the ribs, no corner lights
+    for (let z = 100 - off; z > 1; z -= step, i++) {
       const a = P(-TUN.x, TUN.y, z), b = P(TUN.x, -TUN.y, z), near = clamp(0.55 - z / 180, 0.04, 0.55);
-      ctx.globalAlpha = near; ctx.lineWidth = (i + Math.floor(this.travel / TUN.step)) % 2 ? 1 : 2.4;
+      ctx.globalAlpha = near; ctx.lineWidth = (i + Math.floor(this.travel / step)) % 2 ? 1 : 2.4;
       ctx.strokeRect(a[0], a[1], b[0] - a[0], b[1] - a[1]);
+      if (lo) continue;
       ctx.globalAlpha = near * 1.6; ctx.fillStyle = '#fff';
       const lr = Math.max(1, F / z * 0.07);
       for (const [x, y] of [[a[0], a[1]], [b[0], a[1]], [a[0], b[1]], [b[0], b[1]]]) { ctx.beginPath(); ctx.arc(x, y, lr, 0, Math.PI * 2); ctx.fill(); }

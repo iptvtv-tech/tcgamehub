@@ -91,6 +91,7 @@ class BubbleBlitz {
   buildBoard() {
     const r = this.s.rng, L = this.level;
     this.par = 0; this.drops = 0;
+    this.touch();
     this.grid = [];
     this.shot = null; this.popping = []; this.falling = []; this.clearing = 0; this.failing = 0;
     this.shotsLeft = this.dropEvery; this.clock = this.clockMax; this.pushT = 0;
@@ -117,7 +118,7 @@ class BubbleBlitz {
       const n = Math.min(9, 1 + Math.floor(L / 2));
       for (let i = 0; i < n; i++) {
         const row = r.int(1, rows - 1), c = r.int(0, this.ncols(row) - 1);
-        const cell = this.grid[row][c]; if (cell) { cell.stone = true; cell.secret = null; }
+        const cell = this.grid[row][c]; if (cell) { cell.stone = true; cell.secret = null; this.touch(); }
       }
     }
     this.total = this.countColoured();
@@ -137,9 +138,14 @@ class BubbleBlitz {
       : [[row, c - 1], [row, c + 1], [row - 1, c - 1], [row - 1, c], [row + 1, c - 1], [row + 1, c]];
     return list.filter(([rr, cc]) => rr >= 0 && cc >= 0 && cc < this.ncols(rr));
   }
+  /** Grid revision: every mutation bumps it, so cells() (and the cached table layer) can be reused
+   *  between changes instead of rebuilt per call (render alone used to call this 3× a frame). */
+  touch() { this.rev = (this.rev || 0) + 1; this._cells = null; }
   cells() {
+    if (this._cells && this._cellsRev === this.rev) return this._cells;
     const out = [];
     this.grid.forEach((line, row) => line.forEach((cell, c) => { if (cell) out.push([row, c, cell]); }));
+    this._cells = out; this._cellsRev = this.rev;
     return out;
   }
   countColoured() { return this.cells().filter(([, , b]) => !b.stone).length; }
@@ -275,7 +281,7 @@ class BubbleBlitz {
     while (this.grid.length <= row) this.grid.push([]);
     let colour = sh.c;
     if (sh.rainbow) colour = this.bestColourAt(row, c) ?? sh.c;
-    this.grid[row][c] = { c: colour, stone: false, secret: null };
+    this.grid[row][c] = { c: colour, stone: false, secret: null }; this.touch();
     s.sound.tone({ freq: 240, to: 170, dur: 0.06, type: 'sine', vol: 0.08 });
     this.resolve(row, c, sh);
   }
@@ -285,7 +291,7 @@ class BubbleBlitz {
     for (const [rr, cc] of this.neighbours(row, c)) {
       const b = this.at(rr, cc);
       if (!b || b.stone) continue;
-      this.grid[row][c] = { c: b.c, stone: false, secret: null };
+      this.grid[row][c] = { c: b.c, stone: false, secret: null }; this.touch();
       const n = this.group(row, c).length;
       if (n > size) { size = n; best = b.c; }
     }
@@ -352,7 +358,7 @@ class BubbleBlitz {
       this.popping.push({ x, y, col: pcol, t: 0, drops: dropsArr });
       this.s.fx.burst(...this.sp(x, y), { colors: [pcol, '#fff'], count: 7, speed: 160, life: 0.35, size: 2.5 });
       if (b.secret) effects.push({ kind: b.secret, row, c });
-      this.grid[row][c] = null;
+      this.grid[row][c] = null; this.touch();
       n++;
     }
     this.popSound(n);
@@ -398,7 +404,7 @@ class BubbleBlitz {
       }
       case 'drop': this.dropCeiling(); break;
       case 'shuffle':
-        for (const [rr, cc, b] of this.cells()) { const [bx, by] = this.xy(rr, cc); if (!b.stone && Math.hypot(bx - x, by - y) < D * 3) b.c = s.rng.int(0, this.nColors - 1); }
+        for (const [rr, cc, b] of this.cells()) { const [bx, by] = this.xy(rr, cc); if (!b.stone && Math.hypot(bx - x, by - y) < D * 3) { b.c = s.rng.int(0, this.nColors - 1); this.touch(); } }
         break;
       case 'skull': this.pushRow(); break;
       case 'fog': this.fog = 4; break;
@@ -434,7 +440,7 @@ class BubbleBlitz {
           else s.award(100 * L, px, py - 20, { color: '#fde047' });          // bomb / lightning: cashed in for points
         } else s.fx.text(clamp(px, 80, W - 80), py, `${ICON[b.secret]} DEFUSED`, { color: '#a7f3d0', size: 14 });
       }
-      this.grid[row][c] = null;
+      this.grid[row][c] = null; this.touch();
       n++;
     }
     if (n) {
@@ -442,7 +448,7 @@ class BubbleBlitz {
       [0, 3, 7, 12].forEach((st, i) => s.sound.tone({ freq: s.sound.note(76 - st), dur: 0.08, type: 'triangle', vol: 0.07, delay: i * 0.05 }));
       if (n >= 5) s.fx.text(W / 2, this.sp(W / 2, this.top + 90)[1], `${n} DROPPED!`, { color: '#a5f3fc', size: 24 });
     }
-    while (this.grid.length && this.grid[this.grid.length - 1].every((b) => !b)) this.grid.pop();
+    while (this.grid.length && this.grid[this.grid.length - 1].every((b) => !b)) { this.grid.pop(); this.touch(); }
     return n;
   }
 
@@ -459,13 +465,13 @@ class BubbleBlitz {
     this.par ^= 1;
     const line = [];
     for (let c = 0; c < this.ncols(0); c++) line.push({ c: this.pickColour(), stone: false, secret: null });
-    this.grid.unshift(line);
+    this.grid.unshift(line); this.touch();
     if (this.bonus) {
       // no way to lose in the bonus round: the bottom rows just melt away
       while (this.grid.length && this.xy(this.grid.length - 1, 0)[1] + R > DANGER - ROWH) {
         const row = this.grid.length - 1;
         this.grid[row].forEach((b, col) => { if (b) { const [x, y] = this.xy(row, col); this.popping.push({ x, y, col: COLORS[b.c], t: 0 }); } });
-        this.grid.pop();
+        this.grid.pop(); this.touch();
       }
     }
     this.checkDanger();
@@ -499,10 +505,18 @@ class BubbleBlitz {
     this.drawTable(ctx, lo);
     this.drawWalls(ctx);
 
-    // bubbles: shadows on the table first, then the spheres (top rows are farthest away)
+    // bubbles: static between grid changes, so shadows + sprites live in the same rev-keyed
+    // cache as the table. Animated ones (rainbow swirl, secret sparkle, gold glint) stay live.
     const cells = this.cells();
-    if (!lo) for (const [row, c] of cells) this.drawShadow(ctx, ...this.xy(row, c), R);
-    for (const [row, c, b] of cells) { const [x, y] = this.xy(row, c); this.drawBubble(ctx, x, y, R, b); }
+    this.s.layer(ctx, `bubbles|${this.rev}|${lo}`, (c2) => {
+      if (!lo) for (const [row, c] of cells) this.drawShadow(c2, ...this.xy(row, c), R);
+      for (const [row, c, b] of cells) { if (b.rainbow) continue; const [x, y] = this.xy(row, c); this.drawBubble(c2, x, y, R, b, R, true); }
+    });
+    for (const [row, c, b] of cells) {
+      const [x, y] = this.xy(row, c);
+      if (b.rainbow) this.drawBubble(ctx, x, y, R, b);
+      else if (b.secret || this.s.gold) this.drawBubble(ctx, x, y, R, b, R, false, true);
+    }
     for (const p of this.popping) {
       const k = p.t / 0.25, [px, py, sc] = cam.at(p.x, p.y, R);
       // outer expanding ring
@@ -567,27 +581,29 @@ class BubbleBlitz {
   /** The table top: a sheet of dark glass leaning back, with the bubble grid etched into it. */
   drawTable(ctx, lo) {
     const cam = this.cam, x0 = LEFT - 14, x1 = W - LEFT + 14, y0 = TOP0 - 26, y1 = H + 80;
-    const c = [cam.at(x0, y0), cam.at(x1, y0), cam.at(x1, y1), cam.at(x0, y1)];
-    const g = ctx.createLinearGradient(0, c[0][1], 0, H);
-    if (this.bonus) { g.addColorStop(0, '#2a0b3d'); g.addColorStop(1, '#4a1d1a'); }
-    else { g.addColorStop(0, '#0d1236'); g.addColorStop(0.7, '#1c1550'); g.addColorStop(1, '#2a1252'); }
-    ctx.fillStyle = g; ctx.beginPath(); c.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath(); ctx.fill();
-    if (!lo) {
-      // soft reflection band
-      const r0 = cam.at(x0, 300), r1 = cam.at(x1, 300), r2 = cam.at(x1, 420), r3 = cam.at(x0, 420);
-      const rg = ctx.createLinearGradient(0, r0[1], 0, r2[1]);
-      rg.addColorStop(0, 'rgba(255,255,255,0)'); rg.addColorStop(0.5, 'rgba(165,180,252,.05)'); rg.addColorStop(1, 'rgba(255,255,255,0)');
-      ctx.fillStyle = rg; ctx.beginPath(); ctx.moveTo(r0[0], r0[1]); ctx.lineTo(r1[0], r1[1]); ctx.lineTo(r2[0], r2[1]); ctx.lineTo(r3[0], r3[1]); ctx.closePath(); ctx.fill();
-      // the grid: a dimple where every bubble could sit
-      ctx.fillStyle = 'rgba(165,180,252,.10)';
-      for (let row = 0; this.xy(row, 0)[1] < DANGER; row++) {
-        for (let col = 0; col < this.ncols(row); col++) {
-          if (this.at(row, col)) continue;
-          const [x, y] = this.xy(row, col), [px, py, k] = cam.at(x, y);
-          ctx.beginPath(); ctx.ellipse(px, py, 3 * k, 2.2 * k, 0, 0, Math.PI * 2); ctx.fill();
+    // the glass sheet, reflection band and dimple grid only change when the grid does —
+    // cached as one layer keyed on the grid revision
+    this.s.layer(ctx, `table|${this.rev}|${this.top}|${this.bonus}|${lo}`, (c2) => {
+      const c = [cam.at(x0, y0), cam.at(x1, y0), cam.at(x1, y1), cam.at(x0, y1)];
+      const g = c2.createLinearGradient(0, c[0][1], 0, H);
+      if (this.bonus) { g.addColorStop(0, '#2a0b3d'); g.addColorStop(1, '#4a1d1a'); }
+      else { g.addColorStop(0, '#0d1236'); g.addColorStop(0.7, '#1c1550'); g.addColorStop(1, '#2a1252'); }
+      c2.fillStyle = g; c2.beginPath(); c.forEach(([x, y], i) => (i ? c2.lineTo(x, y) : c2.moveTo(x, y))); c2.closePath(); c2.fill();
+      if (!lo) {
+        const r0 = cam.at(x0, 300), r1 = cam.at(x1, 300), r2 = cam.at(x1, 420), r3 = cam.at(x0, 420);
+        const rg = c2.createLinearGradient(0, r0[1], 0, r2[1]);
+        rg.addColorStop(0, 'rgba(255,255,255,0)'); rg.addColorStop(0.5, 'rgba(165,180,252,.05)'); rg.addColorStop(1, 'rgba(255,255,255,0)');
+        c2.fillStyle = rg; c2.beginPath(); c2.moveTo(r0[0], r0[1]); c2.lineTo(r1[0], r1[1]); c2.lineTo(r2[0], r2[1]); c2.lineTo(r3[0], r3[1]); c2.closePath(); c2.fill();
+        c2.fillStyle = 'rgba(165,180,252,.10)';
+        for (let row = 0; this.xy(row, 0)[1] < DANGER; row++) {
+          for (let col = 0; col < this.ncols(row); col++) {
+            if (this.at(row, col)) continue;
+            const [x, y] = this.xy(row, col), [px, py, k] = cam.at(x, y);
+            c2.beginPath(); c2.ellipse(px, py, 3 * k, 2.2 * k, 0, 0, Math.PI * 2); c2.fill();
+          }
         }
       }
-    }
+    });
     // the danger line, painted on the glass
     const low = this.cells().reduce((m, [row]) => Math.max(m, this.xy(row, 0)[1] + R), 0);
     const warn = !this.bonus && low > DANGER - ROWH * 2;
@@ -683,8 +699,14 @@ class BubbleBlitz {
   }
 
   /** A bubble on the board at (x, y), its centre `h` above the table (default: resting on it). */
-  drawBubble(ctx, x, y, r, b, h = r) {
+  drawBubble(ctx, x, y, r, b, h = r, still = false, overlayOnly = false) {
     const [px, py, k] = this.cam.at(x, y, h), rr = r * k;
+    if (overlayOnly) {
+      // the animated extras over an already-cached sprite
+      if (b.secret) this.drawSparkle(ctx, px, py, rr);
+      if (this.s.gold && b.c >= 0 && !b.rainbow && Math.sin(this.t * 2 + x) > 0.97) { ctx.fillStyle = '#fde047'; ctx.beginPath(); ctx.arc(px + rr * 0.3, py + rr * 0.3, 2 * k, 0, Math.PI * 2); ctx.fill(); }
+      return;
+    }
     if (b.stone) {
       ctx.drawImage(this.stoneSpr, px - rr, py - rr, rr * 2, rr * 2);
       ctx.strokeStyle = 'rgba(15,23,42,.6)'; ctx.lineWidth = 1.5 * k;
@@ -698,17 +720,19 @@ class BubbleBlitz {
       ctx.beginPath(); ctx.arc(px, py, rr * 0.98, 0, Math.PI * 2); ctx.fill();
       ctx.drawImage(this.shadeSpr, px - rr, py - rr, rr * 2, rr * 2);
     } else ctx.drawImage(this.spr[b.c < 0 ? 0 : b.c], px - rr, py - rr, rr * 2, rr * 2);
-    // a hidden surprise: an occasional sparkle
-    if (b.secret) {
-      const ph = (this.t * 1.3 + (x * 7 + y * 3) % 10 / 10) % 2;
-      if (ph < 0.5) {
-        const a = Math.sin(ph / 0.5 * Math.PI), sx = px + rr * 0.35, sy = py - rr * 0.3, sz = rr * 0.5 * a;
-        ctx.fillStyle = `rgba(255,255,255,${a})`;
-        ctx.beginPath(); ctx.moveTo(sx, sy - sz); ctx.lineTo(sx + sz * 0.25, sy - sz * 0.25); ctx.lineTo(sx + sz, sy); ctx.lineTo(sx + sz * 0.25, sy + sz * 0.25);
-        ctx.lineTo(sx, sy + sz); ctx.lineTo(sx - sz * 0.25, sy + sz * 0.25); ctx.lineTo(sx - sz, sy); ctx.lineTo(sx - sz * 0.25, sy - sz * 0.25); ctx.closePath(); ctx.fill();
-      }
+    if (!still) {
+      if (b.secret) this.drawSparkle(ctx, px, py, rr);
+      if (this.s.gold && b.c >= 0 && !b.rainbow && Math.sin(this.t * 2 + x) > 0.97) { ctx.fillStyle = '#fde047'; ctx.beginPath(); ctx.arc(px + rr * 0.3, py + rr * 0.3, 2 * k, 0, Math.PI * 2); ctx.fill(); }
     }
-    if (this.s.gold && b.c >= 0 && !b.rainbow && Math.sin(this.t * 2 + x) > 0.97) { ctx.fillStyle = '#fde047'; ctx.beginPath(); ctx.arc(px + rr * 0.3, py + rr * 0.3, 2 * k, 0, Math.PI * 2); ctx.fill(); }
+  }
+
+  drawSparkle(ctx, px, py, rr) {
+    const ph = (this.t * 1.3 + (px * 7 + py * 3) % 10 / 10) % 2;
+    if (ph >= 0.5) return;
+    const a = Math.sin(ph / 0.5 * Math.PI), sx = px + rr * 0.35, sy = py - rr * 0.3, sz = rr * 0.5 * a;
+    ctx.fillStyle = `rgba(255,255,255,${a})`;
+    ctx.beginPath(); ctx.moveTo(sx, sy - sz); ctx.lineTo(sx + sz * 0.25, sy - sz * 0.25); ctx.lineTo(sx + sz, sy); ctx.lineTo(sx + sz * 0.25, sy + sz * 0.25);
+    ctx.lineTo(sx, sy + sz); ctx.lineTo(sx - sz * 0.25, sy + sz * 0.25); ctx.lineTo(sx - sz, sy); ctx.lineTo(sx - sz * 0.25, sy - sz * 0.25); ctx.closePath(); ctx.fill();
   }
 
   drawHud(ctx) {

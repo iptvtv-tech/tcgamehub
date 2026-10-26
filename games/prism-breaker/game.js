@@ -39,6 +39,7 @@ runGame({
   width: W,
   height: H,
   lives: 3,
+  detail: true,
   comboWindow: 0,   // combo lasts until the ball touches the paddle
   comboStep: 4,
   maxMultiplier: 6,
@@ -72,6 +73,7 @@ class PrismBreaker {
   startLevel(level, bonus) {
     const s = this.s, r = s.rng;
     this.level = level; this.bonus = bonus;
+    this.rev = (this.rev || 0) + 1;      // any change to the brick wall repaints the cached layer
     this.baseSpeed = 330 * s.speed(0.06, 1.9, level);
     this.bricks = [];
     this.caps = [];
@@ -249,6 +251,7 @@ class PrismBreaker {
       return;
     }
     br.hp -= fire ? br.hp : 1;
+    this.rev++;
     if (br.hp > 0) {
       br.flash = 1; s.sound.play('brick', 0);
       s.fx.burst(cx, cy, { color: `hsl(${br.hue} 80% 70%)`, count: 6, speed: 90, life: 0.3 });
@@ -260,6 +263,7 @@ class PrismBreaker {
   destroy(br) {
     const s = this.s, L = this.level;
     if (!br.alive) return;
+    this.rev++;
     br.alive = false;
     const cx = br.x + br.w / 2, cy = br.y + br.h / 2;
     const base = br.type === 'gold' ? 30 : br.type === 'tough' ? 20 : br.type === 'boom' ? 25 : 10;
@@ -308,6 +312,7 @@ class PrismBreaker {
     if (!this.bonus && this.level >= 3 && !this.lostThisLevel) this.s.unlock('flawless');
     for (const b of this.balls) { b.vx *= 0.2; b.vy *= 0.2; }
   }
+  onDetailChange() { this.rev++; }
   onLifeLost() {
     this.balls = [this.newBall()];
     this.caps = []; this.wideT = this.slowT = this.fireT = 0;
@@ -316,26 +321,39 @@ class PrismBreaker {
 
   // ── Draw ───────────────────────────────────────────────────
   render(ctx) {
-    const t = this.t;
-    const g = ctx.createLinearGradient(0, 0, 0, H);
-    if (this.bonus) { g.addColorStop(0, '#451a03'); g.addColorStop(1, '#1c0a00'); }
-    else { g.addColorStop(0, '#1e1b4b'); g.addColorStop(1, '#0b0b1a'); }
-    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    const t = this.t, s = this.s, lo = s.lowDetail;
+    // sky: a cached gradient (was rebuilt every frame)
+    s.layer(ctx, `sky|${this.bonus}`, (c) => {
+      const g = c.createLinearGradient(0, 0, 0, H);
+      if (this.bonus) { g.addColorStop(0, '#451a03'); g.addColorStop(1, '#1c0a00'); }
+      else { g.addColorStop(0, '#1e1b4b'); g.addColorStop(1, '#0b0b1a'); }
+      c.fillStyle = g; c.fillRect(0, 0, W, H);
+    });
     ctx.fillStyle = this.bonus ? '#fbbf24' : '#c7d2fe';
+    ctx.globalAlpha = 0.35;
     for (const st of this.bg) {
       const y = (st.y + t * st.s) % H;
-      ctx.globalAlpha = 0.35; ctx.beginPath(); ctx.arc(st.x, y, st.r, 0, 7); ctx.fill();
+      if (lo) ctx.fillRect(st.x - st.r, y - st.r, st.r * 2, st.r * 2);
+      else { ctx.beginPath(); ctx.arc(st.x, y, st.r, 0, 7); ctx.fill(); }
     }
     ctx.globalAlpha = 1;
 
-    // Bricks
-    for (const br of this.bricks) if (br.alive) this.drawBrick(ctx, br, t);
+    // Bricks: the wall is static between hits, so it lives in a cached layer repainted only
+    // when this.rev changes. Pulsing boom bricks and hit flashes stay live on top.
+    s.layer(ctx, `bricks|${this.rev}|${lo}`, (c) => {
+      for (const br of this.bricks) if (br.alive && br.type !== 'boom') this.drawBrick(c, br, 0, lo);
+    });
+    for (const br of this.bricks) {
+      if (!br.alive) continue;
+      if (br.type === 'boom') this.drawBrick(ctx, br, t, lo);
+      else if (br.flash > 0) { ctx.globalAlpha = br.flash; ctx.fillStyle = '#fff'; roundRect(ctx, br.x, br.y, br.w, br.h, 5); ctx.fill(); ctx.globalAlpha = 1; }
+    }
 
     // Capsules
     for (const c of this.caps) {
       const pw = POWERS[c.type];
       ctx.save(); ctx.translate(c.x, c.y);
-      ctx.shadowColor = pw.color; ctx.shadowBlur = 14;
+      if (!lo) { ctx.shadowColor = pw.color; ctx.shadowBlur = 14; }
       ctx.fillStyle = pw.color; roundRect(ctx, -18, -10, 36, 20, 10); ctx.fill();
       ctx.shadowBlur = 0; ctx.fillStyle = 'rgba(255,255,255,.35)'; roundRect(ctx, -14, -8, 28, 6, 3); ctx.fill();
       ctx.fillStyle = '#0b0b1a'; ctx.font = '800 14px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -355,7 +373,7 @@ class PrismBreaker {
     const pg = ctx.createLinearGradient(p.x - pw / 2, 0, p.x + pw / 2, 0);
     if (this.s.gold) { pg.addColorStop(0, '#b45309'); pg.addColorStop(0.5, '#fde68a'); pg.addColorStop(1, '#f59e0b'); } // ✨ Legend: golden paddle
     else { pg.addColorStop(0, '#f472b6'); pg.addColorStop(0.5, '#a78bfa'); pg.addColorStop(1, '#22d3ee'); }
-    ctx.shadowColor = this.fireT > 0 ? '#fb923c' : '#c084fc'; ctx.shadowBlur = 20;
+    if (!lo) { ctx.shadowColor = this.fireT > 0 ? '#fb923c' : '#c084fc'; ctx.shadowBlur = 20; }
     ctx.fillStyle = pg; roundRect(ctx, p.x - pw / 2, PY, pw, PH, 7); ctx.fill();
     ctx.shadowBlur = 0; ctx.fillStyle = 'rgba(255,255,255,.4)'; roundRect(ctx, p.x - pw / 2 + 6, PY + 2, pw - 12, 4, 2); ctx.fill();
     ctx.restore();
@@ -369,7 +387,7 @@ class PrismBreaker {
         ctx.beginPath(); ctx.arc(x, y, BALL_R * (i / b.trail.length), 0, 7); ctx.fill();
       });
       ctx.globalAlpha = 1;
-      ctx.save(); ctx.shadowColor = fire ? '#fb923c' : '#a5f3fc'; ctx.shadowBlur = 18;
+      ctx.save(); if (!lo) { ctx.shadowColor = fire ? '#fb923c' : '#a5f3fc'; ctx.shadowBlur = 18; }
       ctx.fillStyle = fire ? '#fed7aa' : this.s.gold ? '#fde047' : '#fff'; ctx.beginPath(); ctx.arc(b.x, b.y, BALL_R, 0, 7); ctx.fill(); ctx.restore();
     }
 
@@ -394,7 +412,7 @@ class PrismBreaker {
     else { const left = this.breakable(); progressBar(ctx, 14, 12, W - 28, 20, 1 - left / this.total, '#f472b6', `Bricks left: ${left}`); }
   }
 
-  drawBrick(ctx, br, t) {
+  drawBrick(ctx, br, t, lo = false) {
     const { x, y, w, h } = br;
     ctx.save();
     let top, bot;
@@ -405,7 +423,7 @@ class PrismBreaker {
     else { top = `hsl(${br.hue} 95% 70%)`; bot = `hsl(${br.hue} 85% 48%)`; }
     const g = ctx.createLinearGradient(0, y, 0, y + h);
     g.addColorStop(0, top); g.addColorStop(1, bot);
-    ctx.shadowColor = br.type === 'steel' ? 'transparent' : bot; ctx.shadowBlur = 8;
+    if (!lo) { ctx.shadowColor = br.type === 'steel' ? 'transparent' : bot; ctx.shadowBlur = 8; }
     ctx.fillStyle = g; roundRect(ctx, x, y, w, h, 5); ctx.fill();
     ctx.shadowBlur = 0;
     ctx.fillStyle = 'rgba(255,255,255,.35)'; roundRect(ctx, x + 4, y + 3, w - 8, 4, 2); ctx.fill();
