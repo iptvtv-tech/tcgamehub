@@ -572,6 +572,28 @@ export const GAMES = [
     ],
   },
   {
+    id: 'station-defense',
+    genres: ['space', 'action'],
+    gold: 'Golden Station',         // golden character unlocked by the Zone 5 egg (gold station, cannon and shells)
+    title: 'Station Defense',
+    tagline: 'Hold the lane. Build lasers, missile pods, cryo beams and tesla coils beside a glowing space lane, then fire the station cannon yourself as raiders, tanks and motherships pour out of the warp gates.',
+    controls: 'Tap or click a pad to build, a turret to upgrade or sell · tap anywhere else to fire · Space: next wave · keys: hover a pad, 1–4 build, U upgrade, X sell',
+    color: '#818cf8',
+    isNew: true,
+    achievements: [
+      { id: 'arsenal',  icon: '🧰', title: 'Full Arsenal',    desc: 'Have all four kinds of turret on the map at once' },
+      { id: 'maxed',    icon: '⭐', title: 'Fully Armed',     desc: 'Upgrade a turret to tier 3' },
+      { id: 'early3',   icon: '⏩', title: 'Bring It On',     desc: 'Call three waves early in one level' },
+      { id: 'cannon3',  icon: '💥', title: 'Triple Shot',     desc: 'Destroy three ships with one cannon blast' },
+      { id: 'chain5',   icon: '⚡', title: 'Chain Lightning', desc: 'Hit five ships with one Tesla bolt' },
+      { id: 'spotless', icon: '🛡️', title: 'Spotless',        desc: 'Clear level 3 or later with all ten shields' },
+      { id: 'mother',   icon: '🛸', title: 'Mothership Down', desc: 'Destroy a mothership' },
+      { id: 'storm',    icon: '☄️', title: 'Storm Chaser',    desc: 'Blast 40 rocks in one Meteor Storm' },
+      { id: 'level10',  icon: '🛰️', title: 'Deep Space',      desc: 'Reach level 10' },
+      { id: 'score50k', icon: '🏅', title: 'Fifty Grand',     desc: 'Score 50,000 in one game' },
+    ],
+  },
+  {
     id: 'vault-of-stars',
     genres: ['puzzle', 'space'],
     gold: 'Golden Astronaut',       // golden character unlocked by the Zone 5 egg (gold suit and visor)
@@ -650,7 +672,7 @@ export const ZONES = [
     slots: ['tc-pixel-craft', 'dungeon-escape', 'neon-drift', 'crystal-cascade', 'void-breaker', 'crown-heist'] },
   { n: 5, name: 'Zone 5 · Beyond', blurb: 'Ultra difficulty, out past the Earth. Vault of Stars is this zone\'s Legends game.',
     legendGame: 'vault-of-stars',
-    slots: ['lunar-delivery', 'orbit-hopper', null, null, null, 'vault-of-stars'] },
+    slots: ['lunar-delivery', 'orbit-hopper', 'station-defense', null, null, 'vault-of-stars'] },
 ];
 
 /** Icon for each zone's prize (a Golden Egg — see eggs.js for the full artwork). */

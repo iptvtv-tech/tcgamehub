@@ -33,3 +33,12 @@ on conflict (id) do update set title = excluded.title, max_points_per_second = e
 
 -- Check: three rows should come back.
 select id, title, max_points_per_second from public.games where id in ('lunar-delivery', 'vault-of-stars', 'orbit-hopper');
+
+-- Station Defense (Zone 5, slot 27). Kill points scale with level and the x6 combo;
+-- even a strong run averages under 2,000 points a second, so 8,000 leaves lots of room.
+insert into public.games (id, title, max_points_per_second)
+values ('station-defense', 'Station Defense', 8000)
+on conflict (id) do update set title = excluded.title, max_points_per_second = excluded.max_points_per_second;
+
+-- Check: four rows should come back.
+select id, title, max_points_per_second from public.games where id in ('lunar-delivery', 'vault-of-stars', 'orbit-hopper', 'station-defense');

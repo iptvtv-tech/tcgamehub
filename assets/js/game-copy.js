@@ -158,6 +158,12 @@ export const COPY = {
     how: ['Your hopper circles the planet on its own \u2014 watch the direction it is facing.', 'Press Space, click or tap to let go. You fly straight, bent by every planet\u2019s gravity.', 'Touch a planet to swing into its orbit. Each new planet pays points and grows your combo.', 'Reach the golden \u2605 beacon at the top to finish the level. From level 4 planets drift, and from level 7 a black hole lurks between them.'],
     tip: 'A near miss is a free slingshot: grazing a planet\u2019s gravity bends you around it and flings you out faster.',
   },
+  'station-defense': {
+    kind: 'space tower defense game',
+    blurb: 'A free space tower defense game. Ships pour out of warp gates and fly a glowing lane to your station: build lasers, missile pods, cryo beams and tesla coils on the pads beside it, upgrade them, and fire the station cannon yourself. Short levels, a new lane every time.',
+    how: ['Tap or click a glowing pad to build a turret. Each costs ⚡ credits; every ship you destroy earns more. Missile Pods open at level 3, Cryo Beams at 6, Tesla Coils at 8.', 'Tap a turret to upgrade it (two upgrades each) or sell it back.', 'Tap anywhere else to fire the station cannon. It hits everything in a small blast and reloads in under a second.', 'Ships that reach the station knock out its shields. Lose all ten and you lose a life. Press NEXT (or Space) to call a wave early for bonus points and credits.'],
+    tip: 'Pads between two stretches of the lane cover both, so build there first. Tanks shrug off lasers; lightning and missiles go straight through their armour.',
+  },
   'vault-of-stars': {
     kind: 'speedrun puzzle game',
     blurb: 'Fifteen sealed vaults on an alien moon. Time the laser grids, slip past sentry drones, drift across zero-g fields and reach the airlock before your oxygen runs out. Zone 5’s Legends game.',

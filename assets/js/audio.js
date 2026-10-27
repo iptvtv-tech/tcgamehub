@@ -166,6 +166,7 @@ const PROGRESSIONS = {
   outrun: [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]], // Am F C G — the classic night drive
   neon:   [[53, 56, 60], [49, 53, 56], [56, 60, 63], [51, 55, 58]], // Fm Db Ab Eb — warm and wistful
   toxic:  [[52, 55, 59], [48, 52, 55], [50, 54, 57], [47, 51, 54]], // Em C D B — dark drive
+  station: [[50, 53, 57], [55, 59, 62], [50, 53, 57], [46, 50, 53], [53, 57, 60], [48, 52, 55], [55, 58, 62], [57, 61, 64]], // Dm G Dm Bb F C Gm A — Station Defense: Dorian lift, a long way home
 };
 const ARP = [0, 1, 2, 1, 0, 1, 2, 1], OCT = [12, 12, 12, 12, 24, 24, 24, 24];
 const music = { on: false, timer: null, step: 0, nextTime: 0, bpm: 110, prog: PROGRESSIONS.minor, lead: 'square', arp: ARP, oct: OCT, bass: 'half', kit: 'chip', hook: null };
