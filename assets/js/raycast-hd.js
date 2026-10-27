@@ -77,6 +77,7 @@ export class HDRaycaster {
     }
     this.L = { S, LW, LH, R, G, B, w, h };
     this.L0 = null;
+    this.vis = null; this.lastSig = null;
   }
 
   /**
@@ -84,27 +85,52 @@ export class HDRaycaster {
    * lights = [{x, y, r, g, b, rad, dir?, cone?}] — with dir/cone (radians, half-angle) the light is a
    * torch beam that only shines that way, soft at its edges. solid(x, y) blocks light, as in buildLights.
    */
-  moveLights(lights, solid) {
+  moveLights(lights, solid, solidKey = '') {
     const L = this.L;
     if (!L) return;
+    // nothing moved (to 1/16 of a square) and the walls are the same: last frame's light map still holds
+    let sig = solidKey;
+    for (const l of lights) sig += ';' + ((l.x * 16) | 0) + ',' + ((l.y * 16) | 0) + ',' + ((l.rad * 32) | 0) + ',' + (((l.dir || 0) * 40) | 0) + ',' + ((l.r * 64) | 0);
+    if (sig === this.lastSig) return;
+    this.lastSig = sig;
     if (!this.L0) this.L0 = { R: L.R.slice(), G: L.G.slice(), B: L.B.slice() };
     L.R.set(this.L0.R); L.G.set(this.L0.G); L.B.set(this.L0.B);
-    const S = L.S, LW = L.LW, LH = L.LH, R = L.R, G = L.G, B = L.B;
+    // Which samples a light can reach is the costly part (a short ray per sample), and it depends
+    // only on where the light stands and on the walls — so it's worked out once per spot (snapped
+    // to 1/8 of a square) and kept until the walls change (solidKey) or a level's lights are rebuilt.
+    if (!this.vis || this.visKey !== solidKey) { this.vis = new Map(); this.visKey = solidKey; }
+    const S = L.S, LW = L.LW, LH = L.LH, R = L.R, G = L.G, B = L.B, vis = this.vis;
     for (const Lt of lights) {
-      const x0 = Math.max(0, Math.floor((Lt.x - Lt.rad) * S)), x1 = Math.min(LW - 1, Math.ceil((Lt.x + Lt.rad) * S));
-      const y0 = Math.max(0, Math.floor((Lt.y - Lt.rad) * S)), y1 = Math.min(LH - 1, Math.ceil((Lt.y + Lt.rad) * S));
-      const cone = Lt.cone, cd = Lt.dir || 0, cx = Math.cos(cd), cy = Math.sin(cd), cosC = cone ? Math.cos(cone) : -2, cosC2 = cone ? Math.cos(cone * 0.6) : -2;
-      for (let sy = y0; sy <= y1; sy++) for (let sx = x0; sx <= x1; sx++) {
-        const px = sx / S, py = sy / S, dx = px - Lt.x, dy = py - Lt.y, d = Math.hypot(dx, dy);
-        if (d > Lt.rad) continue;
-        let k = Math.pow(1 - d / Lt.rad, 1.5);
-        if (cone && d > 0.35) {
-          const c = (dx * cx + dy * cy) / d;
-          if (c < cosC) continue;
-          if (c < cosC2) k *= (c - cosC) / (cosC2 - cosC);         // soft edge of the beam
+      const qx = Math.round(Lt.x * 8) / 8, qy = Math.round(Lt.y * 8) / 8, qr = Math.ceil((Lt.rad + 0.1) * 4) / 4;
+      const x0 = Math.max(0, Math.floor((qx - qr) * S)), x1 = Math.min(LW - 1, Math.ceil((qx + qr) * S));
+      const y0 = Math.max(0, Math.floor((qy - qr) * S)), y1 = Math.min(LH - 1, Math.ceil((qy + qr) * S));
+      if (x0 > x1 || y0 > y1) continue;
+      const bw = x1 - x0 + 1, key = qx + ',' + qy + ',' + qr;
+      let m = vis.get(key);
+      if (!m) {
+        if (vis.size > 600) vis.clear();
+        m = new Uint8Array(bw * (y1 - y0 + 1));
+        for (let sy = y0; sy <= y1; sy++) for (let sx = x0; sx <= x1; sx++) {
+          const px = sx / S, py = sy / S;
+          if (Math.hypot(px - qx, py - qy) <= qr && seesLight(solid, qx, qy, px, py)) m[(sy - y0) * bw + sx - x0] = 1;
         }
-        if (!seesLight(solid, Lt.x, Lt.y, px, py)) continue;
-        const i = sy * LW + sx; R[i] += Lt.r * k; G[i] += Lt.g * k; B[i] += Lt.b * k;
+        vis.set(key, m);
+      }
+      const cone = Lt.cone, cd = Lt.dir || 0, cx = Math.cos(cd), cy = Math.sin(cd), cosC = cone ? Math.cos(cone) : -2, cosC2 = cone ? Math.cos(cone * 0.6) : -2;
+      for (let sy = y0; sy <= y1; sy++) {
+        const row = (sy - y0) * bw - x0;
+        for (let sx = x0; sx <= x1; sx++) {
+          if (!m[row + sx]) continue;
+          const px = sx / S, py = sy / S, dx = px - Lt.x, dy = py - Lt.y, d = Math.hypot(dx, dy);
+          if (d > Lt.rad) continue;
+          let k = Math.pow(1 - d / Lt.rad, 1.5);
+          if (cone && d > 0.35) {
+            const c = (dx * cx + dy * cy) / d;
+            if (c < cosC) continue;
+            if (c < cosC2) k *= (c - cosC) / (cosC2 - cosC);         // soft edge of the beam
+          }
+          const i = sy * LW + sx; R[i] += Lt.r * k; G[i] += Lt.g * k; B[i] += Lt.b * k;
+        }
       }
     }
   }
@@ -153,19 +179,19 @@ export class HDRaycaster {
       const sx = rowDist * (r1x - r0x) / rw, sy = rowDist * (r1y - r0y) / rw;
       let wx = cam.x + rowDist * r0x + sx * 0.5, wy = cam.y + rowDist * r0y + sy * 0.5;
       const T = isFloor ? fT : cT;
-      let o32 = y * rw;
+      let o32 = y * rw, lR = 0, lG = 0, lB = 0;
       for (let x = 0; x < rw; x++, wx += sx, wy += sy) {
         const cx = Math.floor(wx), cy = Math.floor(wy), u = wx - cx, v = wy - cy;
         const TT = FM && isFloor && cx >= 0 && cy >= 0 && cx < MW && cy < MH ? FT[FM[cy * MW + cx]].data : T;
         const t = TT[(((v * 64) | 0) & 63) * 64 + (((u * 64) | 0) & 63)];
-        if (!(x & 1)) lightAt(wx + sx * 0.5, wy + sy * 0.5);              // light changes slowly: work it out every other pixel
+        if (!(x & 1)) { lightAt(wx + sx * 0.5, wy + sy * 0.5); lR = tm(amb[0] + tR + lr[0]); lG = tm(amb[1] + tG + lr[1]); lB = tm(amb[2] + tB + lr[2]); }
         // soft shadow along the foot (or top) of each wall
         let ao = 1;
         if (u < 0.22 && isSolid(cx - 1, cy)) ao *= 0.55 + u * 2.05;
         if (u > 0.78 && isSolid(cx + 1, cy)) ao *= 0.55 + (1 - u) * 2.05;
         if (v < 0.22 && isSolid(cx, cy - 1)) ao *= 0.55 + v * 2.05;
         if (v > 0.78 && isSolid(cx, cy + 1)) ao *= 0.55 + (1 - v) * 2.05;
-        const kr = tm(amb[0] + tR + lr[0]) * ao, kg = tm(amb[1] + tG + lr[1]) * ao, kb = tm(amb[2] + tB + lr[2]) * ao;
+        const kr = lR * ao, kg = lG * ao, kb = lB * ao;
         let r = (t & 255) * kr, g = ((t >> 8) & 255) * kg, b = ((t >> 16) & 255) * kb;
         r = r * fk1 + fc[0] * fk; g = g * fk1 + fc[1] * fk; b = b * fk1 + fc[2] * fk;
         buf[o32++] = 0xff000000 | ((b > 255 ? 255 : b) << 16) | ((g > 255 ? 255 : g) << 8) | (r > 255 ? 255 : r);

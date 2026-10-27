@@ -905,7 +905,7 @@ class CrownHeist {
     }
     if (this.wraith?.on) dyn.push({ x: this.wraith.x, y: this.wraith.y, r: 0.25, g: 0.75, b: 0.85, rad: 2.6 });
     for (const sm of this.smokes) dyn.push({ x: sm.x, y: sm.y, r: 0.08, g: 0.08, b: 0.1, rad: 1 });
-    this.rc.moveLights(dyn, (x, y) => this.lightSolid(x, y));
+    this.rc.moveLights(dyn, (x, y) => this.lightSolid(x, y), this.level + ':' + this.mapRev());   // cached per map state
 
     const sprites = [];
     const add = (x, y, sp, o) => sprites.push({ x, y, data: sp.data, glow: sp.glow, ...o });
@@ -933,10 +933,15 @@ class CrownHeist {
       for (let i = 0; i < 4; i++) { const an = i * 1.6 + sm.t * 0.4; add(sm.x + Math.cos(an) * sm.r * 0.45, sm.y + Math.sin(an) * sm.r * 0.45, spr.smoke, { scale: 0.9 + sm.r * 0.25, minLight: 0.5, alpha: 0.5 * a, lift: -0.05 }); }
     }
 
-    const W2 = f.w, H2 = f.h;
-    const ids = this.ids && this.ids.length === W2 * H2 ? this.ids : (this.ids = new Int16Array(W2 * H2));
-    const fm = this.fmap && this.fmap.length === W2 * H2 ? this.fmap : (this.fmap = new Uint8Array(W2 * H2));
-    for (let y = 0; y < H2; y++) for (let x = 0; x < W2; x++) { ids[y * W2 + x] = this.cellTex(x, y); fm[y * W2 + x] = this.floorOf(x, y); }
+    // wall and floor textures per square only change with the map (gate, cracks, pits, collapse) —
+    // rebuilt then, not every frame
+    const W2 = f.w, H2 = f.h, idsKey = this.mapRev() + '|' + this.look3;
+    if (this.idsFor !== this.g || this.idsKey !== idsKey || !this.ids || this.ids.length !== W2 * H2) {
+      if (!this.ids || this.ids.length !== W2 * H2) { this.ids = new Int16Array(W2 * H2); this.fmap = new Uint8Array(W2 * H2); }
+      for (let y = 0; y < H2; y++) for (let x = 0; x < W2; x++) { this.ids[y * W2 + x] = this.cellTex(x, y); this.fmap[y * W2 + x] = this.floorOf(x, y); }
+      this.idsFor = this.g; this.idsKey = idsKey;
+    }
+    const ids = this.ids, fm = this.fmap;
     const look = this.look3;
     const L = {
       sand:   { light: 6.5, amb: [0.07, 0.055, 0.04], fog: [12, 8, 4], fogDist: 9 },
