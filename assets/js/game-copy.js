@@ -164,6 +164,12 @@ export const COPY = {
     how: ['Tap or click a glowing pad to build a turret. Each costs ⚡ credits; every ship you destroy earns more. Missile Pods open at level 3, Cryo Beams at 6, Tesla Coils at 8.', 'Tap a turret to upgrade it (two upgrades each) or sell it back.', 'Tap anywhere else to fire the station cannon. It hits everything in a small blast and reloads in under a second.', 'Ships that reach the station knock out its shields. Lose all ten and you lose a life. Press NEXT (or Space) to call a wave early for bonus points and credits.'],
     tip: 'Pads between two stretches of the lane cover both, so build there first. Tanks shrug off lasers; lightning and missiles go straight through their armour.',
   },
+  'dock-master': {
+    kind: 'space traffic control game',
+    blurb: 'Ships warp in from the void — drag each one a flight path to the docking bay of its colour. Keep the routes from crossing, dock the quota, and never let two hulls touch. Free.',
+    how: ['Press on a ship and drag a line to the bay of the same colour (each colour has its own hull shape, shown on the bay pad too).', 'The route commits the moment your line reaches the right bay — the ship flies it on its own, a little faster than it drifts.', 'Two ships touching is a collision and costs a life. Redraw a route any time by dragging from the ship again.', 'Dock the level’s quota to finish. From level 8 the bays trade colours on a timer — watch for the blink and reroute.'],
+    tip: 'Routed ships fly faster than drifting ones — routing a ship out of danger is often better than routing it home.',
+  },
   'vault-of-stars': {
     kind: 'speedrun puzzle game',
     blurb: 'Fifteen sealed vaults on an alien moon. Time the laser grids, slip past sentry drones, drift across zero-g fields and reach the airlock before your oxygen runs out. Zone 5’s Legends game.',

@@ -42,3 +42,13 @@ on conflict (id) do update set title = excluded.title, max_points_per_second = e
 
 -- Check: four rows should come back.
 select id, title, max_points_per_second from public.games where id in ('lunar-delivery', 'vault-of-stars', 'orbit-hopper', 'station-defense');
+
+-- Dock Master (Zone 5, slot 28). A dock pays 25 x level on the x8 multiplier and
+-- level-clear bonuses land in one tick, but even perfect play stays well under
+-- 2,000 points a second on average; 5,000 leaves lots of room.
+insert into public.games (id, title, max_points_per_second)
+values ('dock-master', 'Dock Master', 5000)
+on conflict (id) do update set title = excluded.title, max_points_per_second = excluded.max_points_per_second;
+
+-- Check: five rows should come back.
+select id, title, max_points_per_second from public.games where id in ('lunar-delivery', 'vault-of-stars', 'orbit-hopper', 'station-defense', 'dock-master');

@@ -594,6 +594,27 @@ export const GAMES = [
     ],
   },
   {
+    id: 'dock-master',
+    genres: ['space', 'arcade', 'puzzle'],
+    gold: 'Golden Fleet',           // golden character unlocked by the Zone 5 egg (gold station and gold hulls)
+    title: 'Dock Master',
+    tagline: 'Space-traffic control. Ships warp in from the void: drag each one a flight path to the docking bay of its colour, keep the lanes crossing-free, and never let two hulls touch.',
+    controls: 'Drag a line from a ship to the bay of the same colour',
+    color: '#fcd34d',
+    isNew: true,
+    achievements: [
+      { id: 'first',    icon: '🛬', title: 'Cleared to Dock', desc: 'Dock your first ship' },
+      { id: 'hat',      icon: '🎩', title: 'Hat-Trick',       desc: 'Dock 3 ships within 4 seconds' },
+      { id: 'graze',    icon: '😅', title: 'Close Call',      desc: 'Two ships pass within a whisker and live' },
+      { id: 'full',     icon: '🛰️', title: 'Full Lanes',      desc: 'Have 5 ships flying your routes at once' },
+      { id: 'clean',    icon: '🧹', title: 'Clean Shift',     desc: 'Clear level 3 or later without a collision' },
+      { id: 'rush',     icon: '⏱️', title: 'Rush Hour Hero',  desc: 'Dock 10 ships in one Rush Hour' },
+      { id: 'shift',    icon: '🔄', title: 'Night Shift',     desc: 'Dock a ship after the bays start trading colours' },
+      { id: 'level10',  icon: '📡', title: 'Chief Controller', desc: 'Reach level 10' },
+      { id: 'score10k', icon: '🏅', title: 'Ten Grand',       desc: 'Score 10,000 in one game' },
+    ],
+  },
+  {
     id: 'vault-of-stars',
     genres: ['puzzle', 'space'],
     gold: 'Golden Astronaut',       // golden character unlocked by the Zone 5 egg (gold suit and visor)
@@ -672,7 +693,7 @@ export const ZONES = [
     slots: ['tc-pixel-craft', 'dungeon-escape', 'neon-drift', 'crystal-cascade', 'void-breaker', 'crown-heist'] },
   { n: 5, name: 'Zone 5 · Beyond', blurb: 'Ultra difficulty, out past the Earth. Vault of Stars is this zone\'s Legends game.',
     legendGame: 'vault-of-stars',
-    slots: ['lunar-delivery', 'orbit-hopper', 'station-defense', null, null, 'vault-of-stars'] },
+    slots: ['lunar-delivery', 'orbit-hopper', 'station-defense', 'dock-master', null, 'vault-of-stars'] },
 ];
 
 /** Icon for each zone's prize (a Golden Egg — see eggs.js for the full artwork). */
