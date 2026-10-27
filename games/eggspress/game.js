@@ -80,6 +80,11 @@ runGame({
   clearText: 'DELIVERED!',
   levelClearPoints: (level, bonus) => (bonus ? 0 : level * 100),
   music: { bpm: 118, style: 'major', lead: 'triangle', arp: [0, 2, 1, 2, 0, 3, 1, 2] },
+  // Portrait phones: the scene keeps its 800×450 shape and the space below
+  // becomes a pedal deck (BRAKE | GAS), so thumbs come off the playfield.
+  // (The deck is painted at the end of render() — the scene's dirt runs past
+  //  the box, so def.drawBands would be buried under it.)
+  extend: { maxH: 860, topShare: 0 },
   levelInfo(level, bonus) {
     if (bonus) return '★ GOLDEN EGG RUN! The egg can\'t break — grab all the gold you can in 20 seconds.';
     const notes = {
@@ -296,7 +301,8 @@ class Eggspress {
     let th = 0;
     if (i.isDown('right') || i.isDown('up') || i.isDown('action')) th += 1;
     if (i.isDown('left') || i.isDown('down')) th -= 1;
-    if (i.pointer.down) th += i.pointer.x > W * 0.45 ? 1 : -1;
+    if (i.pointers?.size) { for (const p of i.pointers.values()) th += p.x > W * 0.45 ? 1 : -1; }
+    else if (i.pointer.down) th += i.pointer.x > W * 0.45 ? 1 : -1;
     return clamp(th, -1, 1);
   }
 
@@ -912,10 +918,44 @@ class Eggspress {
         if (broken) { ctx.strokeStyle = '#fca5a5'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(cx - 5, 18); ctx.lineTo(cx, 23); ctx.lineTo(cx - 2, 26); ctx.lineTo(cx + 4, 30); ctx.stroke(); }
       }
     }
-    const hint = this.s.coarse ? 'Hold right side: drive · left side: brake' : '→ drive · ← brake · in the air → tips back, ← tips forward';
+    const hint = this.s.bands?.bottom >= 150 ? 'Hold GAS to drive · BRAKE to slow' : this.s.coarse ? 'Hold right side: drive · left side: brake' : '→ drive · ← brake · in the air → tips back, ← tips forward';
     if (this.time < 6) { ctx.font = '700 13px system-ui'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.fillText(hint, Wk / 2, H / K - 10); }
     if (s.gold) { ctx.fillStyle = '#fbbf24'; ctx.font = '800 12px system-ui'; ctx.textAlign = 'right'; ctx.fillText('★ GOLDEN EGG TRUCK', Wk - 14, 50); }
     ctx.restore();
+    if (s.bands?.bottom >= 150) this.drawPedals(ctx, s);
+  }
+
+  /** The portrait pedal deck, drawn over the band below the scene (box coords, y > H). */
+  drawPedals(ctx, s) {
+    const y0 = H, bh = s.bands.bottom;
+    const g = ctx.createLinearGradient(0, y0, 0, y0 + bh);
+    g.addColorStop(0, '#1a2032'); g.addColorStop(1, '#0a0e1c');
+    ctx.fillStyle = g; ctx.fillRect(0, y0, W, bh);
+    ctx.fillStyle = 'rgba(252,211,77,.5)'; ctx.fillRect(0, y0, W, 3);
+    // which pedals are held (any finger or key)
+    let gas = false, brake = false;
+    const mark = (x) => { if (x > W * 0.45) gas = true; else brake = true; };
+    const i = s.input;
+    if (i.pointers?.size) for (const p of i.pointers.values()) mark(p.x);
+    else if (i.pointer.down) mark(i.pointer.x);
+    if (i.isDown('right') || i.isDown('up') || i.isDown('action')) gas = true;
+    if (i.isDown('left') || i.isDown('down')) brake = true;
+    const pedal = (x0, x1, label, sub, col, hot) => {
+      const pad = 26, py = y0 + 22, ph = bh - 44;
+      ctx.fillStyle = hot ? col + '44' : 'rgba(255,255,255,.06)';
+      roundRect(ctx, x0 + pad, py, x1 - x0 - pad * 2, ph, 24); ctx.fill();
+      ctx.strokeStyle = hot ? col : col + '88'; ctx.lineWidth = hot ? 5 : 3;
+      roundRect(ctx, x0 + pad, py, x1 - x0 - pad * 2, ph, 24); ctx.stroke();
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = hot ? '#fff' : col;
+      ctx.font = `800 ${Math.round(Math.min(46, ph * 0.26))}px system-ui`;
+      ctx.fillText(label, (x0 + x1) / 2, py + ph * 0.4);
+      ctx.fillStyle = 'rgba(226,232,240,.55)';
+      ctx.font = `600 ${Math.round(Math.min(20, ph * 0.12))}px system-ui`;
+      ctx.fillText(sub, (x0 + x1) / 2, py + ph * 0.72);
+    };
+    pedal(0, W * 0.45, '◀ BRAKE', 'in the air: tips forward', '#f87171', brake);
+    pedal(W * 0.45, W, 'GAS ▶', 'in the air: tips back', '#4ade80', gas);
   }
 }
 void Store;
