@@ -25,6 +25,7 @@ runGame({
   id: ID,
   width: W,
   height: H,
+  extend: { maxH: 1000, topShare: 0 },   // tall phone screens: the sky, street and tower carry on below the box
   lives: 3,
   comboWindow: 0,
   comboStep: 3,
@@ -100,6 +101,7 @@ class TowerTopple {
   }
 
   topY() { return GY - BH * this.floors.length; }          // world y of the top surface
+  viewH() { return H + (this.s.bands?.bottom || 0); }      // screen height incl. the phone band below the box
 
   // ── Input ──────────────────────────────────────────────────
   onAction(a) { if (a === 'action' || a === 'press' || a === 'down') this.drop(); }
@@ -121,7 +123,7 @@ class TowerTopple {
   animate(dt) {
     for (const c of this.clouds) { c.x += c.v * dt; if (c.x > W + 100) c.x = -140; }
     for (const d of this.debris) { d.vy += 900 * dt; d.x += d.vx * dt; d.y += d.vy * dt; d.rot += d.vr * dt; }
-    this.debris = this.debris.filter((d) => d.y < this.camY + H + 200);
+    this.debris = this.debris.filter((d) => d.y < this.camY + this.viewH() + 200);
     // camera follows the top of the tower
     const want = Math.min(0, this.topY() - 380);
     this.camY += (want - this.camY) * Math.min(1, dt * 3);
@@ -225,25 +227,25 @@ class TowerTopple {
 
   // ── Draw ───────────────────────────────────────────────────
   render(ctx) {
-    const s = this.s, t = this.t, cam = this.camY;
+    const s = this.s, t = this.t, cam = this.camY, VH = this.viewH();
     const alt = clamp(-cam / 1400, 0, 1);                      // 0 at the ground → 1 high in the sky
     const mix = (a, b, k) => a.map((v, i) => Math.round(v + (b[i] - v) * k));
     const topC = this.bonus ? [60, 30, 90] : mix([56, 189, 248], [10, 8, 40], alt);
     const botC = this.bonus ? [251, 146, 60] : mix([186, 230, 253], [49, 46, 129], alt);
-    const g = ctx.createLinearGradient(0, 0, 0, H);
+    const g = ctx.createLinearGradient(0, 0, 0, VH);
     g.addColorStop(0, `rgb(${topC})`); g.addColorStop(1, `rgb(${botC})`);
-    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, VH);
 
     // stars appear higher up
     if (alt > 0.3) {
       ctx.fillStyle = '#fff';
-      for (const st of this.stars) { const y = (st.y + cam * 0.2) % 1400; if (y < H) { ctx.globalAlpha = (alt - 0.3) * 1.4; ctx.fillRect(st.x, y, st.r, st.r); } }
+      for (const st of this.stars) { const y = (st.y + cam * 0.2) % 1400; if (y < VH) { ctx.globalAlpha = (alt - 0.3) * 1.4; ctx.fillRect(st.x, y, st.r, st.r); } }
       ctx.globalAlpha = 1;
     }
     // clouds (parallax)
     for (const c of this.clouds) {
       const y = ((c.y - cam * 0.5) % 2000 + 2000) % 2000 - 300;
-      if (y < -60 || y > H) continue;
+      if (y < -60 || y > VH) continue;
       ctx.fillStyle = 'rgba(255,255,255,.55)';
       ctx.beginPath(); ctx.ellipse(c.x, y, c.w / 2, 14, 0, 0, Math.PI * 2); ctx.ellipse(c.x + c.w * 0.2, y - 10, c.w / 3, 14, 0, 0, Math.PI * 2); ctx.fill();
     }
@@ -253,6 +255,15 @@ class TowerTopple {
     for (const b of this.skyline) { ctx.fillStyle = 'rgba(30,41,59,.55)'; ctx.fillRect(b.x, GY - b.h, b.w, b.h); }
     ctx.fillStyle = '#1e293b'; ctx.fillRect(0, GY, W, 400);
     ctx.fillStyle = '#334155'; ctx.fillRect(0, GY, W, 8);
+    // the street out front — below the desktop box, so only tall phone screens see it
+    for (let x = 30; x < W; x += 120) {                      // street lamps along the kerb
+      ctx.fillStyle = '#475569'; ctx.fillRect(x, GY + 86, 4, 38); ctx.fillRect(x, GY + 86, 16, 4);
+      ctx.fillStyle = 'rgba(254,240,138,.85)'; ctx.fillRect(x + 12, GY + 90, 6, 4);
+    }
+    ctx.fillStyle = '#2b3a52'; ctx.fillRect(0, GY + 122, W, 8);
+    ctx.fillStyle = '#111827'; ctx.fillRect(0, GY + 130, W, 64);
+    ctx.fillStyle = 'rgba(250,204,21,.6)'; for (let x = 8; x < W; x += 56) ctx.fillRect(x, GY + 160, 30, 4);
+    ctx.fillStyle = '#2b3a52'; ctx.fillRect(0, GY + 194, W, 8);
     // foundation
     const q = this.quake ? this.quake * 0.6 * Math.sin(t * 5.3) : 0;
     ctx.fillStyle = '#475569'; roundRect(ctx, W / 2 - BASE_W / 2 + q, GY - 6, BASE_W, 16, 4); ctx.fill();
@@ -272,7 +283,7 @@ class TowerTopple {
     // goal line
     if (!this.bonus) {
       const gy = GY - BH * this.goal - cam;
-      if (gy > 50 && gy < H) {
+      if (gy > 50 && gy < VH) {
         ctx.save(); ctx.setLineDash([10, 8]); ctx.strokeStyle = '#4ade80'; ctx.lineWidth = 2;
         ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke(); ctx.restore();
         ctx.fillStyle = '#4ade80'; ctx.font = '800 13px system-ui'; ctx.fillText('🏁 TOP', 8, gy - 6);
@@ -312,7 +323,7 @@ class TowerTopple {
     if (!this.bonus && this.floors.length > 1) {
       // lean meter
       const lean = this.com(0) - W / 2;
-      ctx.save(); ctx.translate(W / 2, H - 22);
+      ctx.save(); ctx.translate(W / 2, VH - 22);
       ctx.fillStyle = 'rgba(3,5,20,.6)'; roundRect(ctx, -90, -10, 180, 20, 10); ctx.fill();
       const k = clamp(lean / (BASE_W / 2), -1, 1);
       ctx.fillStyle = Math.abs(k) > 0.7 ? '#f87171' : Math.abs(k) > 0.4 ? '#fbbf24' : '#4ade80';

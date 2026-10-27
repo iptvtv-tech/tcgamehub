@@ -28,6 +28,7 @@ runGame({
   id: 'the-vault-job',
   width: W,
   height: H,
+  extend: { maxH: 1000, topShare: 0 },   // tall phone screens: a D-pad goes in the space below the board
   lives: 3,
   finalLevel: 15,
   secretLevel: 16,
@@ -63,7 +64,7 @@ class VaultJob {
     this.L = parseLevel(this.def);
     this.grid = this.L.grid.map((r) => r.slice());
     this.theme = this.secret ? VAULT_THEME : bonus ? SHOP_THEME : THEMES[Math.min(2, Math.floor((level - 1) / 5))];
-    this.tick = 0; this.acc = 0; this.cool = 0; this.queue = null;
+    this.tick = 0; this.acc = 0; this.cool = 0; this.queue = null; this.padDir = null;
     const [sx, sy] = this.L.start;
     this.p = { x: sx, y: sy, fx: sx, fy: sy, k: 1, face: 'up' };
     this.taken = 0; this.total = this.L.treasures.length;
@@ -73,7 +74,58 @@ class VaultJob {
   }
 
   // ── Input ──────────────────────────────────────────────────
-  onAction(a) { if (DIRS[a]) this.queue = a; }
+  onAction(a, x, y) {
+    if (a === 'press' && x !== undefined) {
+      const d = this.padAt(x, y);
+      this.padDir = d;                              // null when the press is anywhere else
+      if (d) { this.queue = d; return; }
+    }
+    if (a === 'release') this.padDir = null;
+    if (DIRS[a] && this.padDir) return;            // a thumb sliding over the pad steers with the arrows, not as a swipe
+    if (DIRS[a]) this.queue = a;
+  }
+  onPointerMove(x, y, down) {
+    if (!down || !this.padDir) return;
+    const d = this.padAt(x, y);
+    if (d && d !== this.padDir) { this.padDir = d; this.queue = d; }
+  }
+
+  // ── Touch D-pad (only on tall phone screens, in the band below the board) ──
+  /** Pad geometry in board coordinates, or null when there's no room for it. */
+  pad() {
+    const b = this.s.bands?.bottom || 0;
+    if (b < 150) return null;
+    const cy = H + Math.min(b * 0.46, 190), gap = Math.min(78, b * 0.2), r = Math.min(34, gap * 0.46);
+    return { cx: W / 2, cy, gap, r };
+  }
+  /** Which pad arrow (if any) is under a press at x, y. */
+  padAt(x, y) {
+    const P = this.pad();
+    if (!P) return null;
+    const dx = x - P.cx, dy = y - P.cy;
+    if (Math.hypot(dx, dy) > P.gap + P.r + 14 || Math.hypot(dx, dy) < 12) return null;
+    return Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+  }
+  drawPad(ctx) {
+    const P = this.pad();
+    if (!P) return;
+    const th = this.theme, held = this.padDir;
+    for (const d of ['up', 'down', 'left', 'right']) {
+      const [dx, dy] = DIRS[d], x = P.cx + dx * P.gap, y = P.cy + dy * P.gap, on = held === d;
+      ctx.fillStyle = on ? th.glow : '#fff'; ctx.globalAlpha = on ? 0.3 : 0.07;
+      roundRect(ctx, x - P.r, y - P.r, P.r * 2, P.r * 2, 14); ctx.fill(); ctx.globalAlpha = 1;
+      ctx.strokeStyle = on ? th.glow : 'rgba(255,255,255,.22)'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = on ? '#fff' : '#cbd5e1';
+      const k = P.r * 0.42;
+      ctx.beginPath();
+      ctx.moveTo(x + dx * k, y + dy * k);
+      ctx.lineTo(x - dx * k * 0.6 + dy * k * 0.9, y - dy * k * 0.6 + dx * k * 0.9);
+      ctx.lineTo(x - dx * k * 0.6 - dy * k * 0.9, y - dy * k * 0.6 - dx * k * 0.9);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.font = '600 14px system-ui'; ctx.fillStyle = 'rgba(203,213,225,.55)';
+    ctx.fillText('Hold an arrow to keep walking · swipes work too', W / 2, P.cy + P.gap + P.r + 34);
+  }
 
   // ── Update ─────────────────────────────────────────────────
   idle(dt) {
@@ -103,6 +155,8 @@ class VaultJob {
     if (this.cool > 0) this.cool--;
     let dir = this.queue;
     if (!dir) for (const d of ['up', 'down', 'left', 'right']) if (s.input.isDown(d)) dir = d;
+    if (!dir && this.padDir && s.input.pointer.down) dir = this.padDir;     // a held pad arrow walks like a held key
+    else if (!s.input.pointer.down) this.padDir = null;
     let prev = null;
     if (dir && this.cool === 0) {
       this.queue = null;
@@ -174,7 +228,7 @@ class VaultJob {
   resetToStart() {
     const [sx, sy] = this.L.start;
     Object.assign(this.p, { x: sx, y: sy, fx: sx, fy: sy, k: 1 });
-    this.tick = 0; this.acc = 0; this.cool = 0; this.queue = null; this.alarm = null;
+    this.tick = 0; this.acc = 0; this.cool = 0; this.queue = null; this.padDir = null; this.alarm = null;
     if (this.secret) this.s.fx.text(W / 2, H * 0.45, 'Try again…', { color: '#fde68a', size: 24 });
   }
   onLifeLost() { this.resetToStart(); }
@@ -292,6 +346,7 @@ class VaultJob {
       ctx.textAlign = 'right'; ctx.fillStyle = '#fde047';
       ctx.fillText(`💰 ${this.taken} / ${this.total}`, W - 14, TOP / 2);
     }
+    this.drawPad(ctx);
   }
 
   playerPos() {

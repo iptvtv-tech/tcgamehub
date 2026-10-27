@@ -20,6 +20,7 @@ runGame({
   id: 'neon-snake',
   width: W,
   height: H,
+  extend: { maxH: 1250, topShare: 0 },   // tall phone screens: an arrow pad goes under the board
   lives: 3,
   comboWindow: 3.5,   // eat again within 3.5s to keep the combo going
   comboStep: 3,       // every 3 quick bites raises the multiplier
@@ -124,11 +125,58 @@ class NeonSnake {
   spawnGem() { const c = this.freeCell({ min: 2 }); this.gems.push({ ...c, hue: this.s.rng.int(0, 359), born: this.t }); }
 
   // ── Input ──────────────────────────────────────────────────
-  onAction(a) {
+  onAction(a, x, y) {
+    if (a === 'press' && x !== undefined) { const d = this.padAt(x, y); this.padFinger = d; if (d) this.padTurn(d); return; }
+    if (a === 'release') { this.padFinger = null; return; }
+    if (DIRS[a] && this.padFinger) return;          // a thumb sliding over the pad steers with the arrows, not as a swipe
+    this.turn(a);
+  }
+  onPointerMove(x, y, down) {
+    if (!down || !this.padFinger) return;
+    const d = this.padAt(x, y);
+    if (d && d !== this.padFinger) { this.padFinger = d; this.padTurn(d); }
+  }
+  padTurn(d) { this.padHit = { d, at: this.t }; this.turn(d); }
+  turn(a) {
     if (!DIRS[a]) return;
     const last = this.queue.length ? this.queue[this.queue.length - 1] : this.dir;
     if (a === last || a === OPP[last]) return;
     if (this.queue.length < 3) this.queue.push(a);
+  }
+
+  // ── Touch arrow pad (only on tall phone screens, in the band under the board) ──
+  pad() {
+    const b = this.s.bands?.bottom || 0;
+    if (b < 180) return null;
+    const cy = H + Math.min(b * 0.46, 250), gap = Math.min(104, b * 0.22), r = Math.min(46, gap * 0.46);
+    return { cx: W / 2, cy, gap, r };
+  }
+  padAt(x, y) {
+    const P = this.pad();
+    if (!P) return null;
+    const dx = x - P.cx, dy = y - P.cy;
+    if (Math.hypot(dx, dy) > P.gap + P.r + 18 || Math.hypot(dx, dy) < 14) return null;
+    return Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+  }
+  drawPad(ctx) {
+    const P = this.pad();
+    if (!P) return;
+    const hit = this.padHit && this.t - this.padHit.at < 0.18 ? this.padHit.d : null;
+    for (const d of ['up', 'down', 'left', 'right']) {
+      const [dx, dy] = DIRS[d], x = P.cx + dx * P.gap, y = P.cy + dy * P.gap, on = hit === d;
+      ctx.fillStyle = on ? 'rgba(34,211,238,.32)' : 'rgba(255,255,255,.07)';
+      roundRect(ctx, x - P.r, y - P.r, P.r * 2, P.r * 2, 18); ctx.fill();
+      ctx.strokeStyle = on ? '#22d3ee' : 'rgba(255,255,255,.22)'; ctx.lineWidth = 2.5; ctx.stroke();
+      ctx.fillStyle = on ? '#fff' : '#cbd5e1';
+      const k = P.r * 0.42;
+      ctx.beginPath();
+      ctx.moveTo(x + dx * k, y + dy * k);
+      ctx.lineTo(x - dx * k * 0.6 + dy * k * 0.9, y - dy * k * 0.6 + dx * k * 0.9);
+      ctx.lineTo(x - dx * k * 0.6 - dy * k * 0.9, y - dy * k * 0.6 - dx * k * 0.9);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.font = '600 17px system-ui'; ctx.fillStyle = 'rgba(203,213,225,.55)';
+    ctx.fillText('Tap an arrow to turn · swipes work too', W / 2, P.cy + P.gap + P.r + 42);
   }
 
   // ── Update ─────────────────────────────────────────────────
@@ -424,6 +472,7 @@ class NeonSnake {
     } else {
       progressBar(ctx, 14, 10, W - 28, 20, this.eaten / this.need, '#22d3ee', `Fruit ${this.eaten} / ${this.need}`);
     }
+    this.drawPad(ctx);
   }
 }
 
