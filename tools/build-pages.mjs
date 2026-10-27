@@ -529,6 +529,8 @@ if (IMAGES) await shareCards();
 replaceBlock('index.html', 'grid', homeGrid());
 replaceBlock('index.html', 'schema', homeSchema());
 replaceBlock('index.html', 'count', String(GAMES.length));
+// the hand-written <title>, meta description and og:title carry the count too
+out('index.html', readFileSync(join(ROOT, 'index.html'), 'utf8').replace(/\d+ free browser games/g, `${GAMES.length} free browser games`));
 out('badges/index.html', badgesPage());
 for (const g of GAMES) out(`games/${g.id}/index.html`, gamePage(g));
 out('games/index.html', gamesIndex());
