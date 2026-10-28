@@ -270,10 +270,12 @@ class FeatherDash {
   render(ctx) {
     const th = this.theme, t = this.t, sx = this.scrollX;
 
-    // Sky
-    const g = ctx.createLinearGradient(0, 0, 0, GROUND);
-    g.addColorStop(0, th.sky[0]); g.addColorStop(1, th.sky[1]);
-    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    // Sky — one gradient per theme, painted once into a cached layer
+    this.s.layer(ctx, `fd-sky|${th.name}`, (c) => {
+      const g = c.createLinearGradient(0, 0, 0, GROUND);
+      g.addColorStop(0, th.sky[0]); g.addColorStop(1, th.sky[1]);
+      c.fillStyle = g; c.fillRect(0, 0, W, H);
+    });
 
     if (th.name === 'night' || th.name === 'aurora') {
       for (const st of this.stars) { ctx.globalAlpha = 0.5 + Math.sin(t * 2 + st.p) * 0.4; ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, 7); ctx.fill(); }
@@ -293,14 +295,14 @@ class FeatherDash {
       for (let i = 0; i < 12; i++) { ctx.rotate(Math.PI / 6); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-40, -700); ctx.lineTo(40, -700); ctx.fill(); }
       ctx.restore();
     }
-    // Sun / moon
-    ctx.save();
+    // Sun / moon — the shadowBlur-40 glow was repainted every frame; now cached per theme
     const moon = th.name === 'night' || th.name === 'aurora';
-    ctx.shadowColor = moon ? '#e0e7ff' : '#fde68a'; ctx.shadowBlur = 40;
-    ctx.fillStyle = moon ? '#e0e7ff' : th.name === 'sunset' ? '#fdba74' : '#fef08a';
-    ctx.beginPath(); ctx.arc(W - 100, th.name === 'sunset' ? 330 : 120, moon ? 34 : 46, 0, 7); ctx.fill();
-    if (moon) { ctx.shadowBlur = 0; ctx.fillStyle = th.sky[0]; ctx.beginPath(); ctx.arc(W - 86, 110, 30, 0, 7); ctx.fill(); }
-    ctx.restore();
+    this.s.layer(ctx, `fd-sun|${th.name}`, (c) => {
+      c.shadowColor = moon ? '#e0e7ff' : '#fde68a'; c.shadowBlur = 40;
+      c.fillStyle = moon ? '#e0e7ff' : th.name === 'sunset' ? '#fdba74' : '#fef08a';
+      c.beginPath(); c.arc(W - 100, th.name === 'sunset' ? 330 : 120, moon ? 34 : 46, 0, 7); c.fill();
+      if (moon) { c.shadowBlur = 0; c.fillStyle = th.sky[0]; c.beginPath(); c.arc(W - 86, 110, 30, 0, 7); c.fill(); }
+    });
 
     // Far mountains
     ctx.fillStyle = th.far; ctx.globalAlpha = 0.7;
@@ -344,7 +346,14 @@ class FeatherDash {
     // Hawks + warnings
     for (const hk of this.hawks) {
       if (hk.warn > 0) {
-        if (Math.floor(t * 8) % 2) { ctx.font = '700 30px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#fb7185'; ctx.fillText('⚠', W - 24, hk.y); }
+        // drawn warning triangle (the ⚠ emoji rendered differently on every platform)
+        if (Math.floor(t * 8) % 2) {
+          ctx.save(); ctx.translate(W - 24, hk.y);
+          ctx.fillStyle = '#fb7185'; ctx.strokeStyle = '#fb7185'; ctx.lineWidth = 3; ctx.lineJoin = 'round';
+          ctx.beginPath(); ctx.moveTo(0, -13); ctx.lineTo(13, 10); ctx.lineTo(-13, 10); ctx.closePath(); ctx.stroke();
+          ctx.fillRect(-2, -6, 4, 9); ctx.fillRect(-2, 5, 4, 4);
+          ctx.restore();
+        }
       } else hawk(ctx, hk.x, hk.y, t);
     }
 

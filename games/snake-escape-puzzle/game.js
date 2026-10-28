@@ -235,6 +235,7 @@ class SnakeEscape {
 
   tap(sn) {
     if (!sn || !sn.alive) return;
+    if (this.s.coarse) this.hover = sn;   // touch has no hover: the way-out helper follows the last-tapped snake
     if (this.bonus) return this.tapStampede(sn);
     if (this.busy()) return;
     const s = this.s, i = sn.id;
@@ -389,17 +390,19 @@ class SnakeEscape {
     }
     ctx.globalAlpha = 1;
 
-    // board
-    ctx.save();
-    ctx.shadowColor = this.bonus ? '#e879f9' : '#14b8a6'; ctx.shadowBlur = 30;
-    ctx.fillStyle = '#0c1424'; roundRect(ctx, BX - 8, BY - 8, BOARD + 16, BOARD + 16, 18); ctx.fill();
-    ctx.restore();
-    ctx.strokeStyle = this.bonus ? 'rgba(232,121,249,.5)' : 'rgba(45,212,191,.35)'; ctx.lineWidth = 2;
-    roundRect(ctx, BX - 8, BY - 8, BOARD + 16, BOARD + 16, 18); ctx.stroke();
-    ctx.fillStyle = 'rgba(148,163,184,.18)';
-    for (let y = 0; y < this.n; y++) for (let x = 0; x < this.n; x++) {
-      ctx.beginPath(); ctx.arc(BX + (x + 0.5) * c, BY + (y + 0.5) * c, Math.max(1.5, c * 0.05), 0, Math.PI * 2); ctx.fill();
-    }
+    // board — the glowing frame and the dot grid are static per level: cached layer
+    s.layer(ctx, `sep-board|${this.level}|${this.bonus}|${this.n}`, (lc) => {
+      lc.save();
+      lc.shadowColor = this.bonus ? '#e879f9' : '#14b8a6'; lc.shadowBlur = 30;
+      lc.fillStyle = '#0c1424'; roundRect(lc, BX - 8, BY - 8, BOARD + 16, BOARD + 16, 18); lc.fill();
+      lc.restore();
+      lc.strokeStyle = this.bonus ? 'rgba(232,121,249,.5)' : 'rgba(45,212,191,.35)'; lc.lineWidth = 2;
+      roundRect(lc, BX - 8, BY - 8, BOARD + 16, BOARD + 16, 18); lc.stroke();
+      lc.fillStyle = 'rgba(148,163,184,.18)';
+      for (let y = 0; y < this.n; y++) for (let x = 0; x < this.n; x++) {
+        lc.beginPath(); lc.arc(BX + (x + 0.5) * c, BY + (y + 0.5) * c, Math.max(1.5, c * 0.05), 0, Math.PI * 2); lc.fill();
+      }
+    });
     for (const [x, y] of this.rocks) {
       const cx = BX + (x + 0.5) * c, cy = BY + (y + 0.5) * c, r = c * 0.42;
       const rg = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.4, 1, cx, cy, r);
@@ -526,7 +529,7 @@ class SnakeEscape {
     ctx.save();
     ctx.beginPath(); ctx.rect(BX - 6, BY - 6, BOARD + 12, BOARD + 12); ctx.clip();
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    ctx.shadowColor = col; ctx.shadowBlur = hot ? 22 : 10;
+    ctx.shadowColor = col; ctx.shadowBlur = hot ? 22 : this.s.coarse ? 0 : 10;   // phones skip the per-snake glow
     ctx.strokeStyle = sn.bump ? '#f87171' : col; ctx.lineWidth = c * 0.62;
     ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke();
     ctx.shadowBlur = 0;

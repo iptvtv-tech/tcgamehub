@@ -88,7 +88,7 @@ class TowerTopple {
   /** Sideways sway of the tower at floor i (screen x offset). */
   sway(i) {
     const n = Math.max(1, this.floors.length);
-    const lean = Math.abs(this.com(0) - W / 2);
+    const lean = Math.abs(this.com0() - W / 2);
     const amp = clamp(lean * 0.35 + n * 0.25, 0, 38) + this.quake;
     return amp * Math.sin(this.t * 1.7) * ((i + 1) / (n + 1)) + (this.quake ? this.quake * 0.6 * Math.sin(this.t * 5.3) : 0);
   }
@@ -98,6 +98,12 @@ class TowerTopple {
     let m = 0, mx = 0;
     for (let k = i; k < this.floors.length; k++) { const f = this.floors[k], wt = f.w * (f.heavy ? 2 : 1); m += wt; mx += wt * f.x; }
     return m ? mx / m : W / 2;
+  }
+
+  /** com(0) memoised per frame — sway() asks for it once per floor per frame. */
+  com0() {
+    if (this._com0T !== this.t) { this._com0T = this.t; this._com0 = this.com(0); }
+    return this._com0;
   }
 
   topY() { return GY - BH * this.floors.length; }          // world y of the top surface
@@ -302,6 +308,10 @@ class TowerTopple {
       // drop guide
       ctx.save(); ctx.globalAlpha = 0.18; ctx.fillStyle = '#fff';
       ctx.fillRect(hx - this.hang.w / 2, hy + 14 + BH, this.hang.w, Math.max(0, this.topY() - cam - (hy + 14 + BH)));
+      // safe-landing band: the top floor's span, where this block must land
+      const topF = this.floors[this.floors.length - 1] || { x: W / 2, w: BASE_W };
+      ctx.globalAlpha = 0.3; ctx.fillStyle = '#4ade80';
+      ctx.fillRect(topF.x - topF.w / 2, this.topY() - cam - 3, topF.w, 3);
       ctx.restore();
     }
 
@@ -322,7 +332,7 @@ class TowerTopple {
     else progressBar(ctx, 14, 12, W - 28, 20, this.floors.length / this.goal, '#4ade80', `Floors ${this.floors.length} / ${this.goal}`);
     if (!this.bonus && this.floors.length > 1) {
       // lean meter
-      const lean = this.com(0) - W / 2;
+      const lean = this.com0() - W / 2;
       ctx.save(); ctx.translate(W / 2, VH - 22);
       ctx.fillStyle = 'rgba(3,5,20,.6)'; roundRect(ctx, -90, -10, 180, 20, 10); ctx.fill();
       const k = clamp(lean / (BASE_W / 2), -1, 1);
@@ -333,12 +343,27 @@ class TowerTopple {
     }
   }
 
+  /** One gradient per (colour, width-bucket), built once and reused — floors slide
+   *  every frame, so an absolute-coordinate gradient could never be cached. */
+  floorGrad(ctx, w, color) {
+    this._fg ??= new Map();
+    const wb = Math.max(4, Math.round(w / 4) * 4), k = `${color}|${wb}`;
+    let g = this._fg.get(k);
+    if (!g) {
+      g = ctx.createLinearGradient(-wb / 2, 0, wb / 2, 0);
+      g.addColorStop(0, shade(color, -0.25)); g.addColorStop(0.5, color); g.addColorStop(1, shade(color, -0.35));
+      if (this._fg.size > 48) this._fg.clear();
+      this._fg.set(k, g);
+    }
+    return g;
+  }
+
   drawFloor(ctx, x, y, w, color, heavy, i, lit, debris) {
     ctx.save();
-    const g = ctx.createLinearGradient(x - w / 2, 0, x + w / 2, 0);
-    g.addColorStop(0, shade(color, -0.25)); g.addColorStop(0.5, color); g.addColorStop(1, shade(color, -0.35));
-    ctx.fillStyle = g;
-    roundRect(ctx, x - w / 2, y - BH / 2, w, BH, 4); ctx.fill();
+    ctx.save(); ctx.translate(x, 0);
+    ctx.fillStyle = this.floorGrad(ctx, w, color);
+    roundRect(ctx, -w / 2, y - BH / 2, w, BH, 4); ctx.fill();
+    ctx.restore();
     ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(x - w / 2, y + BH / 2 - 5, w, 5);
     if (heavy) {
       ctx.strokeStyle = '#475569'; ctx.lineWidth = 3;

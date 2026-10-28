@@ -351,7 +351,7 @@ class HeistPlanner {
       const st = watcherAt(w, step);
       const off = w.type === 'camera' && fr.hacked;
       if (!off) {
-        ctx.fillStyle = w.type === 'camera' ? 'rgba(250,204,21,.18)' : 'rgba(239,68,68,.2)';
+        ctx.fillStyle = w.type === 'camera' ? 'rgba(250,204,21,.3)' : 'rgba(239,68,68,.3)';   // cones were too faint to plan around
         for (const [vx, vy] of vision(L, w, st, fr.open)) ctx.fillRect(BX + vx * TS + 1, BY + vy * TS + 1, TS - 2, TS - 2);
       }
       if (w.type === 'camera') {

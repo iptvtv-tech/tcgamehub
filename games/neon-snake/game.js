@@ -364,17 +364,17 @@ class NeonSnake {
     ctx.strokeRect(2, TOP + 2, W - 4, H - TOP - 4);
     ctx.restore();
 
-    // obstacles
-    ctx.save();
-    ctx.shadowColor = '#a78bfa'; ctx.shadowBlur = 10;
-    for (const k of this.obstacles) {
-      const x = (k % COLS) * CELL, y = TOP + Math.floor(k / COLS) * CELL;
-      const g = ctx.createLinearGradient(x, y, x + CELL, y + CELL);
-      g.addColorStop(0, '#7c3aed'); g.addColorStop(1, '#4c1d95');
-      ctx.fillStyle = g; roundRect(ctx, x + 2, y + 2, CELL - 4, CELL - 4, 6); ctx.fill();
-      ctx.strokeStyle = '#c4b5fd'; ctx.lineWidth = 1.5; ctx.stroke();
-    }
-    ctx.restore();
+    // obstacles — fixed for the whole level, so painted once into a cached layer
+    if (this.obstacles.size) this.s.layer(ctx, `obs|${this.level}|${this.bonus}`, (c) => {
+      c.shadowColor = '#a78bfa'; c.shadowBlur = 10;
+      for (const k of this.obstacles) {
+        const x = (k % COLS) * CELL, y = TOP + Math.floor(k / COLS) * CELL;
+        const g = c.createLinearGradient(x, y, x + CELL, y + CELL);
+        g.addColorStop(0, '#7c3aed'); g.addColorStop(1, '#4c1d95');
+        c.fillStyle = g; roundRect(c, x + 2, y + 2, CELL - 4, CELL - 4, 6); c.fill();
+        c.strokeStyle = '#c4b5fd'; c.lineWidth = 1.5; c.stroke();
+      }
+    });
 
     // portals
     if (this.portals) this.portals.forEach((p, i) => {
@@ -469,7 +469,8 @@ class NeonSnake {
         : this.s.gold ? `hsl(${44 + Math.sin(t * 4 - i * 0.5) * 6} 95% ${52 + Math.sin(t * 5 - i * 0.7) * 14}%)` // ✨ Legend: golden snake
         : `hsl(${hue} 95% 60%)`;
       const inset = i === 0 ? 1.5 : 2.5 + Math.min(3, i * 0.15);
-      ctx.shadowColor = color; ctx.shadowBlur = this.dead ? 0 : 12;
+      // glow only near the head — a long snake was one shadowBlur pass per segment per frame
+      ctx.shadowColor = color; ctx.shadowBlur = this.dead || i >= 6 ? 0 : 12;
       ctx.fillStyle = color;
       roundRect(ctx, p.x * CELL + inset, TOP + p.y * CELL + inset, CELL - inset * 2, CELL - inset * 2, i === 0 ? 9 : 7);
       ctx.fill();

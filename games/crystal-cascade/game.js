@@ -732,6 +732,18 @@ class CrystalCascade {
     if (this.failing > 0) this.drawFail(ctx);
     if (this.freezeT > 0) { ctx.fillStyle = `rgba(186,230,253,${0.08 + 0.04 * Math.sin(this.t * 4)})`; ctx.fillRect(0, 46, W, H - 46); }
 
+    // first levels: a bobbing arrow over each column that still hides a geode
+    if (s.state === 'playing' && this.level <= 2 && !this.bonus && this.geodesLeft > 0) {
+      for (let i = 0; i < this.cols.length; i++) {
+        if (!this.cols[i].some((c) => c.kind === 'geode')) continue;
+        const [x, y, z] = this.slot(i, this.cols[i].length + 1);
+        if (z > 0) continue;   // behind the ring: not visible from the cannon side
+        const q = this.cam.p(x, y + LH, z), bob = Math.sin(this.t * 5) * 5;
+        ctx.save(); ctx.globalAlpha = 0.85; ctx.fillStyle = '#fde047';
+        ctx.beginPath(); ctx.moveTo(q[0], q[1] - 6 + bob); ctx.lineTo(q[0] - 8 * q[2], q[1] - 20 + bob); ctx.lineTo(q[0] + 8 * q[2], q[1] - 20 + bob); ctx.closePath(); ctx.fill();
+        ctx.restore();
+      }
+    }
     if (s.state === 'playing' && !this.failing && !this.clearing && this.shots.length < (this.rapid() ? 3 : 1)) this.drawGhost(ctx);
     for (const sh of this.shots) this.drawShot(ctx, sh, lo);
     this.drawCannon(ctx, lo);
@@ -956,8 +968,15 @@ class CrystalCascade {
       const r = CR * 0.42 * q[2] * sc;
       ctx.globalAlpha = alpha; ctx.fillStyle = 'rgba(8,6,20,.7)'; ctx.beginPath(); ctx.arc(q[0], q[1], r * 1.05, 0, TAU); ctx.fill();
       ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 1.5; ctx.stroke();
-      ctx.font = `${Math.round(r * 1.25)}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(PICON[c.p], q[0], q[1] + r * 0.08); ctx.textBaseline = 'alphabetic'; ctx.globalAlpha = 1;
+      // icon glyph cached as a sprite — emoji fillText is slow on some phones
+      this._picons ??= new Map();
+      let pc = this._picons.get(c.p);
+      if (!pc) {
+        pc = document.createElement('canvas'); pc.width = pc.height = 64;
+        const g2 = pc.getContext('2d'); g2.font = '48px system-ui'; g2.textAlign = 'center'; g2.textBaseline = 'middle'; g2.fillText(PICON[c.p], 32, 36);
+        this._picons.set(c.p, pc);
+      }
+      ctx.drawImage(pc, q[0] - r * 0.78, q[1] - r * 0.7, r * 1.56, r * 1.56); ctx.globalAlpha = 1;
     }
     if (c.kind === 'geode') {                                   // sparkles on the gold
       const ph = (this.t * 1.6 + p[0] * 0.01) % 1, r = CR * 0.6 * q[2] * Math.sin(ph * Math.PI);

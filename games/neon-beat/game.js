@@ -37,6 +37,13 @@ runGame({
   height: H,
   lives: 3,
   detail: true,
+  // the pause panel gets −/+ timing-offset buttons (phones have no [ / ] keys)
+  pauseExtra: (s) => `<p><button class="chip" data-off="-">−10ms</button> <span class="muted" data-offval style="margin:0 .5em">OFFSET ${(Store.setting('beatOffset') || 0)}ms</span> <button class="chip" data-off="+">+10ms</button></p>`,
+  wirePause: (o, s) => {
+    const val = o.querySelector('[data-offval]');
+    const upd = () => { val.textContent = `OFFSET ${(Store.setting('beatOffset') || 0)}ms`; };
+    o.querySelectorAll('[data-off]').forEach((b) => { b.onclick = () => { s.game.onAction(b.dataset.off === '+' ? 'offsetUp' : 'offsetDown'); upd(); }; });
+  },
   comboWindow: 0,            // rhythm combos only break on a miss
   comboStep: 10,
   maxMultiplier: 4,

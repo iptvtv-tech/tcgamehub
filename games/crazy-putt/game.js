@@ -492,43 +492,72 @@ class CrazyPutt {
     }
     ctx.globalAlpha = 1;
 
-    // Course border + green
+    // Course — static per hole (border, green, stripes, hints, water base, sand, traps,
+    // blocks), painted once into a cached layer; a reveal changes the key and repaints.
+    const revCount = this.sand.filter((z) => z.revealed).length + this.traps.filter((r) => r.revealed).length;
+    this.s.layer(ctx, `cp|${this.level}|${this.bonus}|${th.name}|${revCount}`, (c) => {
+      c.save();
+      c.lineJoin = 'round';
+      tracePoly(c, this.poly);
+      c.shadowColor = th.name === 'neon' ? th.border : 'rgba(0,0,0,.35)'; c.shadowBlur = th.name === 'neon' ? 18 : 12; c.shadowOffsetY = th.name === 'neon' ? 0 : 5;
+      c.strokeStyle = th.border; c.lineWidth = 16; c.stroke();
+      c.shadowColor = 'transparent';
+      c.strokeStyle = th.borderHi; c.lineWidth = 5; c.stroke();
+      c.clip();
+      const gg = c.createLinearGradient(0, TOP, 0, H);
+      gg.addColorStop(0, th.green[0]); gg.addColorStop(1, th.green[1]);
+      c.fillStyle = gg; c.fillRect(0, 0, W, H);
+      c.fillStyle = 'rgba(255,255,255,.07)'; // mowing stripes
+      for (let y = TOP; y < H; y += 56) c.fillRect(0, y, W, 28);
+
+      // Hidden traps: almost invisible until found (sharp eyes can just about spot them!)
+      for (const z of this.sand) if (z.hidden && !z.revealed) { c.fillStyle = 'rgba(0,0,0,.06)'; roundRect(c, z.x, z.y, z.w, z.h, 16); c.fill(); }
+      for (const tr of this.traps) if (!tr.revealed) { c.fillStyle = 'rgba(0,0,0,.06)'; roundRect(c, tr.x, tr.y, tr.w, tr.h, 4); c.fill(); }
+
+      // Water base (the moving wave lines are drawn live, below)
+      for (const w of this.water) {
+        const wg = c.createLinearGradient(0, w.y, 0, w.y + w.h);
+        wg.addColorStop(0, '#38bdf8'); wg.addColorStop(1, '#0284c7');
+        c.fillStyle = wg; roundRect(c, w.x, w.y, w.w, w.h, 10); c.fill();
+      }
+      // Sand (visible + revealed)
+      for (const z of this.sand) {
+        if (z.hidden && !z.revealed) continue;
+        c.fillStyle = '#fcd34d'; roundRect(c, z.x, z.y, z.w, z.h, 16); c.fill();
+        c.fillStyle = '#d97706';
+        for (let k = 0; k < 10; k++) { c.beginPath(); c.arc(z.x + 8 + ((k * 37) % (z.w - 14)), z.y + 8 + ((k * 23) % (z.h - 14)), 1.4, 0, 7); c.fill(); }
+      }
+      // Revealed traps
+      for (const tr of this.traps) {
+        if (!tr.revealed) continue;
+        if (tr.kind === 'trapdoor') {
+          c.fillStyle = '#1c1917'; roundRect(c, tr.x, tr.y, tr.w, tr.h, 4); c.fill();
+          c.strokeStyle = '#78350f'; c.lineWidth = 3; c.strokeRect(tr.x + 2, tr.y + 2, tr.w - 4, tr.h - 4);
+          c.fillStyle = '#fb7185'; c.font = '800 14px system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('!', tr.x + tr.w / 2, tr.y + tr.h / 2 + 1);
+        } else {
+          c.fillStyle = '#fb923c'; roundRect(c, tr.x, tr.y, tr.w, tr.h, 6); c.fill();
+          c.fillStyle = '#fff'; c.font = '800 16px system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('»', tr.x + tr.w / 2, tr.y + tr.h / 2 + 1);
+        }
+      }
+      // Blocks (inner walls)
+      for (const bl of this.blocks) {
+        c.fillStyle = th.border; roundRect(c, bl.x, bl.y, bl.w, bl.h, 6); c.fill();
+        c.fillStyle = th.borderHi; roundRect(c, bl.x + 3, bl.y + 3, bl.w - 6, Math.min(6, bl.h - 6), 3); c.fill();
+      }
+      c.restore();
+    });
+
+    // Animated hazards, drawn live over the cached course
     ctx.save();
-    ctx.lineJoin = 'round';
-    tracePoly(ctx, this.poly);
-    ctx.shadowColor = th.name === 'neon' ? th.border : 'rgba(0,0,0,.35)'; ctx.shadowBlur = th.name === 'neon' ? 18 : 12; ctx.shadowOffsetY = th.name === 'neon' ? 0 : 5;
-    ctx.strokeStyle = th.border; ctx.lineWidth = 16; ctx.stroke();
-    ctx.shadowColor = 'transparent';
-    ctx.strokeStyle = th.borderHi; ctx.lineWidth = 5; ctx.stroke();
-    ctx.clip();
-    const gg = ctx.createLinearGradient(0, TOP, 0, H);
-    gg.addColorStop(0, th.green[0]); gg.addColorStop(1, th.green[1]);
-    ctx.fillStyle = gg; ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = 'rgba(255,255,255,.07)'; // mowing stripes
-    for (let y = TOP; y < H; y += 56) ctx.fillRect(0, y, W, 28);
-
-    // Hidden traps: almost invisible until found (sharp eyes can just about spot them!)
-    for (const z of this.sand) if (z.hidden && !z.revealed) { ctx.fillStyle = 'rgba(0,0,0,.06)'; roundRect(ctx, z.x, z.y, z.w, z.h, 16); ctx.fill(); }
-    for (const tr of this.traps) if (!tr.revealed) { ctx.fillStyle = 'rgba(0,0,0,.06)'; roundRect(ctx, tr.x, tr.y, tr.w, tr.h, 4); ctx.fill(); }
-
-    // Water
+    tracePoly(ctx, this.poly); ctx.clip();
+    // Water waves
+    ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 2;
     for (const w of this.water) {
-      const wg = ctx.createLinearGradient(0, w.y, 0, w.y + w.h);
-      wg.addColorStop(0, '#38bdf8'); wg.addColorStop(1, '#0284c7');
-      ctx.fillStyle = wg; roundRect(ctx, w.x, w.y, w.w, w.h, 10); ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 2;
       for (let k = 0; k < 3; k++) {
         ctx.beginPath();
         for (let x = w.x + 8; x < w.x + w.w - 8; x += 6) ctx.lineTo(x, w.y + 22 + k * 28 + Math.sin(x * 0.1 + t * 3 + k) * 3);
         ctx.stroke();
       }
-    }
-    // Sand (visible + revealed)
-    for (const z of this.sand) {
-      if (z.hidden && !z.revealed) continue;
-      ctx.fillStyle = '#fcd34d'; roundRect(ctx, z.x, z.y, z.w, z.h, 16); ctx.fill();
-      ctx.fillStyle = '#d97706';
-      for (let k = 0; k < 10; k++) { ctx.beginPath(); ctx.arc(z.x + 8 + ((k * 37) % (z.w - 14)), z.y + 8 + ((k * 23) % (z.h - 14)), 1.4, 0, 7); ctx.fill(); }
     }
     // Conveyors
     for (const c of this.conveyors) {
@@ -540,23 +569,6 @@ class CrazyPutt {
         ctx.beginPath(); ctx.moveTo(x - 6 * c.dx, c.y + 12); ctx.lineTo(x + 6 * c.dx, c.y + c.h / 2); ctx.lineTo(x - 6 * c.dx, c.y + c.h - 12); ctx.stroke();
       }
       ctx.restore();
-    }
-    // Revealed traps
-    for (const tr of this.traps) {
-      if (!tr.revealed) continue;
-      if (tr.kind === 'trapdoor') {
-        ctx.fillStyle = '#1c1917'; roundRect(ctx, tr.x, tr.y, tr.w, tr.h, 4); ctx.fill();
-        ctx.strokeStyle = '#78350f'; ctx.lineWidth = 3; ctx.strokeRect(tr.x + 2, tr.y + 2, tr.w - 4, tr.h - 4);
-        ctx.fillStyle = '#fb7185'; ctx.font = '800 14px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('!', tr.x + tr.w / 2, tr.y + tr.h / 2 + 1);
-      } else {
-        ctx.fillStyle = '#fb923c'; roundRect(ctx, tr.x, tr.y, tr.w, tr.h, 6); ctx.fill();
-        ctx.fillStyle = '#fff'; ctx.font = '800 16px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('»', tr.x + tr.w / 2, tr.y + tr.h / 2 + 1);
-      }
-    }
-    // Blocks (inner walls)
-    for (const bl of this.blocks) {
-      ctx.fillStyle = th.border; roundRect(ctx, bl.x, bl.y, bl.w, bl.h, 6); ctx.fill();
-      ctx.fillStyle = th.borderHi; roundRect(ctx, bl.x + 3, bl.y + 3, bl.w - 6, Math.min(6, bl.h - 6), 3); ctx.fill();
     }
     ctx.restore();
 

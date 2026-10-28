@@ -173,7 +173,12 @@ class StarStrike {
   }
 
   // ── Input ──────────────────────────────────────────────────
-  onPointerMove(x, y) { this.aim = { x: clamp((x - W / 2) / (W / 2) * XMAX * 1.1, -XMAX, XMAX), y: clamp(-(y - 470) / 90 * YMAX, -YMAX, YMAX) }; }
+  onPointerMove(x, y) {
+    // Touch: the ship flies 70px above the finger (so the thumb doesn't cover it), and the
+    // vertical control band is 150px each way instead of 90 — less twitchy on a phone.
+    const lift = this.s.coarse ? 70 : 0, span = this.s.coarse ? 150 : 90;
+    this.aim = { x: clamp((x - W / 2) / (W / 2) * XMAX * 1.1, -XMAX, XMAX), y: clamp(-((y - lift) - 470) / span * YMAX, -YMAX, YMAX) };
+  }
   onAction(a, x, y) {
     if (a === 'press') {
       if (Math.hypot(x - (W - 44), y - (H - 60)) < 30) { this.bomb(); return; }

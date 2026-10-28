@@ -146,6 +146,14 @@ class VoidBreaker {
 
   startUpgrade() {
     this.upgradePhase = { opts: this.pickUpgrades(), hover: 1, chosen: -1, t: 0 };
+    // bake the next level's sky cube map now, behind the upgrade cards, instead of
+    // hitching on the first frame of the new level
+    try {
+      if (this.gl) {
+        const next = THEMES[Math.floor(this.level) % 3];
+        this.gl.skyFor(next, this.s.lowDetail ? 384 : 768);
+      }
+    } catch (e) { /* baking early is only a warm-up */ }
     // a locked mouse can't point at the cards: let it go without pausing the game
     if (document.pointerLockElement) { this.quietUnlock = true; this.releaseMouse(); }
     else this.quietUnlock = false;   // no lock to release: a stale flag here would swallow the next real ESC pause
@@ -184,6 +192,7 @@ class VoidBreaker {
   startLevel(level, bonus) {
     const s = this.s;
     this.level = level; this.bonus = bonus;
+    this.spawnBase = s.rng.range(0, TAU);   // Daily: waves spawn round a seeded angle, not wherever you happen to look
     this.theme = bonus ? GOLD_THEME : THEMES[Math.floor((level - 1) / 1) % 3];
     this.sc = s.speed(0.035, 1.9);
     this.enemies = []; this.orbs = []; this.shots = []; this.parts = []; this.debris = []; this.portals = []; this.booms = []; this.pickups = []; this.stars = [];
@@ -271,7 +280,7 @@ class VoidBreaker {
     let pos = at;
     if (!pos) {
       const spread = this.level === 1 ? 1.0 : this.level === 2 ? 1.7 : Math.PI;
-      const a = this.yaw + r.range(-spread, spread), d = r.range(56, 72);
+      const a = (this.s.daily ? this.spawnBase : this.yaw) + r.range(-spread, spread), d = r.range(56, 72);
       pos = [Math.sin(a) * d, r.range(2.5, 13), Math.cos(a) * d];
     }
     const e = { kind, T, pos, vel: [0, 0, 0], hp: Math.ceil(T.hp * (this.level >= 13 ? 1.4 : 1)), rot: [r.range(0, TAU), r.range(0, TAU), 0], spin: [r.range(-2, 2), r.range(-2, 2)], grow: 0, flash: 0, t: r.range(0, 10), ph: r.range(0, TAU), fireT: r.range(1.5, 3), blinkT: r.range(1.8, 2.6), alpha: 1, orbitDir: r.chance(0.5) ? 1 : -1, last: pos.slice() };
@@ -774,9 +783,11 @@ class VoidBreaker {
       coils: { mesh: 'coils', m: gm, color: coil, edge: [1, 1, 1], emis: 1.15 + this.recoil * 1.4, edgeW: 0.06, rim: 0.3 },
       fx: (R) => { if (this.recoil > 0.55) { const mz = xform(gm, 0, 0, -0.5); R.sprite(mz, 0.022 + this.recoil * 0.02, coil, 0.9, 3, t * 9); R.sprite(mz, 0.03, coil, 0.35, 0); } },
     };
-    const k = s.lowDetail ? 0.55 : 0.85, sc = s.scale || 1;
+    // phones render at a lower internal resolution (≈0.7 of HIGH) — the bloom chain
+    // cost scales with pixels, and a phone can't tell at this pixel density
+    const k = s.lowDetail ? 0.55 : s.coarse ? 0.7 : 0.85, sc = s.scale || 1;
     let w = Math.round(W * sc * k), h = Math.round(H * sc * k);
-    const cap = lo ? 420 : 760; if (w > cap) { h = Math.round(h * cap / w); w = cap; }
+    const cap = lo ? 420 : s.coarse ? 600 : 760; if (w > cap) { h = Math.round(h * cap / w); w = cap; }
     const beat = Math.exp(-(((t * BPM / 60) % 1)) * 5);
     const img = this.gl.render({
       t, theme: th, skySize: lo ? 384 : 768, cam: { pos: EYE, yaw: this.yaw, pitch: this.pitch, fov: FOV },
@@ -984,6 +995,8 @@ class VoidBreaker {
       ctx.strokeStyle = chosen || hot ? opt.col : opt.col + '88';
       ctx.lineWidth = chosen ? 3 : hot ? 2.5 : 1.5;
       roundRect(ctx, cx0, cy0, cw, ch, 14); ctx.fill(); ctx.stroke();
+      // focus ring so ← → keyboard selection is unmistakable
+      if (hot) { ctx.save(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.setLineDash([5, 4]); ctx.lineDashOffset = -this.t * 20; roundRect(ctx, cx0 - 5, cy0 - 5, cw + 10, ch + 10, 17); ctx.stroke(); ctx.restore(); }
       // icon
       ctx.font = '32px system-ui'; ctx.textAlign = 'center'; ctx.fillStyle = opt.col;   // (was still the card's dark fill: the icons didn't show)
       ctx.fillText(opt.icon, cx0 + cw / 2, cy0 + 44);

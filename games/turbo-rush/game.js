@@ -312,7 +312,7 @@ class TurboRush {
   reset() {}
 
   /** LOW graphics: shorter view, fewer trees, simpler far cars, no glows. */
-  applyDetail() { this.lo = this.s.lowDetail; this.drawDist = this.themeId === 'fog' ? 70 : this.lo ? 95 : 150; }
+  applyDetail() { this.lo = this.s.lowDetail; this.drawDist = this.themeId === 'fog' ? 70 : this.lo ? (this.s.coarse ? 75 : 95) : 150; }   // LOW on a phone draws a shorter road
   onDetailChange() { this.applyDetail(); }
 
   startLevel(level, bonus) {
@@ -1160,19 +1160,23 @@ class TurboRush {
     ctx.globalAlpha = 1;
     if (th.sun) {
       const sx = (((W / 2 - this.skyOff * 60) % W) + W) % W, night = this.themeId === 'night', sy = HORIZON - (night ? 150 : this.themeId === 'coast' ? 230 : 70), R = night ? 24 : th.day ? (this.themeId === 'coast' ? 22 : 46) : 62;
+      // sun/moon glare gradients cached per theme (the sun slides with skyOff, so they
+      // are built at the origin and drawn translated)
+      this._sunGrads ??= new Map();
+      const sunGrad = (key, make) => { let gd = this._sunGrads.get(key); if (!gd) { gd = make(); if (this._sunGrads.size > 10) this._sunGrads.clear(); this._sunGrads.set(key, gd); } return gd; };
       if (th.day) {
         // a real daytime sun: no synthwave stripes, just a hot disc and a wide soft glare
-        const glare = ctx.createRadialGradient(sx, sy, R * 0.6, sx, sy, R * 5); glare.addColorStop(0, th.sun + 'aa'); glare.addColorStop(1, th.sun + '00');
-        ctx.fillStyle = glare; ctx.fillRect(sx - R * 5, sy - R * 5, R * 10, R * 10);
+        const glare = sunGrad(`day|${th.sun}|${R}`, () => { const gd = ctx.createRadialGradient(0, 0, R * 0.6, 0, 0, R * 5); gd.addColorStop(0, th.sun + 'aa'); gd.addColorStop(1, th.sun + '00'); return gd; });
+        ctx.save(); ctx.translate(sx, sy); ctx.fillStyle = glare; ctx.fillRect(-R * 5, -R * 5, R * 10, R * 10); ctx.restore();
         ctx.fillStyle = th.sun; ctx.beginPath(); ctx.arc(sx, sy, R, 0, Math.PI * 2); ctx.fill();
       } else if (night) {
-        const halo = ctx.createRadialGradient(sx, sy, R, sx, sy, R * 3); halo.addColorStop(0, 'rgba(226,232,240,.18)'); halo.addColorStop(1, 'rgba(226,232,240,0)');
-        ctx.fillStyle = halo; ctx.fillRect(sx - R * 3, sy - R * 3, R * 6, R * 6);
+        const halo = sunGrad(`night|${R}`, () => { const gd = ctx.createRadialGradient(0, 0, R, 0, 0, R * 3); gd.addColorStop(0, 'rgba(226,232,240,.18)'); gd.addColorStop(1, 'rgba(226,232,240,0)'); return gd; });
+        ctx.save(); ctx.translate(sx, sy); ctx.fillStyle = halo; ctx.fillRect(-R * 3, -R * 3, R * 6, R * 6); ctx.restore();
         ctx.fillStyle = '#e2e8f0'; ctx.beginPath(); ctx.arc(sx, sy, R, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = 'rgba(148,163,184,.55)'; for (const [cx, cy, cr] of [[-7, -5, 5], [6, 4, 4], [-2, 9, 3], [9, -8, 2.5]]) { ctx.beginPath(); ctx.arc(sx + cx, sy + cy, cr, 0, Math.PI * 2); ctx.fill(); }
       } else {
-        const glow = ctx.createRadialGradient(sx, sy, R * 0.8, sx, sy, R * 2.2); glow.addColorStop(0, th.sun + '55'); glow.addColorStop(1, th.sun + '00');
-        ctx.fillStyle = glow; ctx.fillRect(sx - R * 2.2, sy - R * 2.2, R * 4.4, R * 4.4);
+        const glow = sunGrad(`syn|${th.sun}|${R}`, () => { const gd = ctx.createRadialGradient(0, 0, R * 0.8, 0, 0, R * 2.2); gd.addColorStop(0, th.sun + '55'); gd.addColorStop(1, th.sun + '00'); return gd; });
+        ctx.save(); ctx.translate(sx, sy); ctx.fillStyle = glow; ctx.fillRect(-R * 2.2, -R * 2.2, R * 4.4, R * 4.4); ctx.restore();
         const sg = ctx.createLinearGradient(0, sy - R, 0, sy + R);
         sg.addColorStop(0, th.sun); sg.addColorStop(1, '#f472b6');
         ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(sx, sy, R, 0, Math.PI * 2); ctx.fill();
@@ -1463,20 +1467,31 @@ class TurboRush {
     this.mphN = (this.mphN ?? mph) + (mph - (this.mphN ?? mph)) * 0.25;
     const backlit = (this.cabDim || 0) > 0.15;
     const dial = (cx, cy, r, f, n, label, red, sub) => {
-      // face
-      const fg = ctx.createRadialGradient(cx, cy - r * 0.3, r * 0.1, cx, cy, r);
-      fg.addColorStop(0, '#1f1f26'); fg.addColorStop(1, '#09090c');
-      ctx.fillStyle = fg; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = '#3f3f46'; ctx.lineWidth = 3; ctx.stroke();
-      ctx.strokeStyle = '#a1a1aa'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(cx, cy, r - 2.5, 0, Math.PI * 2); ctx.stroke();
-      // ticks and numbers
-      for (let i = 0; i <= n; i++) {
-        const u = i / n, a = A0 + u * SW, big = i % 2 === 0, r0 = r - (big ? 11 : 7);
-        ctx.strokeStyle = red != null && u >= red ? accent : backlit ? '#fef3c7' : '#e4e4e7'; ctx.lineWidth = big ? 2 : 1;
-        ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0); ctx.lineTo(cx + Math.cos(a) * (r - 4), cy + Math.sin(a) * (r - 4)); ctx.stroke();
-        if (big && sub) { ctx.fillStyle = red != null && u >= red ? accent : '#d4d4d8'; ctx.font = '700 8px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(sub(i), cx + Math.cos(a) * (r - 19), cy + Math.sin(a) * (r - 19)); }
+      // face, rings, ticks and numbers are static per theme — rendered once into a sprite
+      this._dialFaces ??= new Map();
+      const dkey = `${r}|${n}|${label}|${red}|${backlit}|${accent}`;
+      let dcv = this._dialFaces.get(dkey);
+      if (!dcv) {
+        if (this._dialFaces.size > 8) this._dialFaces.clear();
+        const pad = r + 3;
+        dcv = document.createElement('canvas'); dcv.width = dcv.height = pad * 4;   // 2× for crispness
+        const g2 = dcv.getContext('2d'); g2.scale(2, 2); g2.translate(pad, pad);
+        const fg = g2.createRadialGradient(0, -r * 0.3, r * 0.1, 0, 0, r);
+        fg.addColorStop(0, '#1f1f26'); fg.addColorStop(1, '#09090c');
+        g2.fillStyle = fg; g2.beginPath(); g2.arc(0, 0, r, 0, Math.PI * 2); g2.fill();
+        g2.strokeStyle = '#3f3f46'; g2.lineWidth = 3; g2.stroke();
+        g2.strokeStyle = '#a1a1aa'; g2.lineWidth = 1; g2.beginPath(); g2.arc(0, 0, r - 2.5, 0, Math.PI * 2); g2.stroke();
+        for (let i = 0; i <= n; i++) {
+          const u = i / n, a = A0 + u * SW, big = i % 2 === 0, r0 = r - (big ? 11 : 7);
+          g2.strokeStyle = red != null && u >= red ? accent : backlit ? '#fef3c7' : '#e4e4e7'; g2.lineWidth = big ? 2 : 1;
+          g2.beginPath(); g2.moveTo(Math.cos(a) * r0, Math.sin(a) * r0); g2.lineTo(Math.cos(a) * (r - 4), Math.sin(a) * (r - 4)); g2.stroke();
+          if (big && sub) { g2.fillStyle = red != null && u >= red ? accent : '#d4d4d8'; g2.font = '700 8px system-ui'; g2.textAlign = 'center'; g2.textBaseline = 'middle'; g2.fillText(sub(i), Math.cos(a) * (r - 19), Math.sin(a) * (r - 19)); }
+        }
+        g2.fillStyle = '#a1a1aa'; g2.font = '800 7px system-ui'; g2.textAlign = 'center'; g2.textBaseline = 'middle'; g2.fillText(label, 0, r * 0.62);
+        this._dialFaces.set(dkey, dcv);
       }
-      ctx.fillStyle = '#a1a1aa'; ctx.font = '800 7px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, cx, cy + r * 0.62);
+      const pad = r + 3;
+      ctx.drawImage(dcv, cx - pad, cy - pad, pad * 2, pad * 2);
       // needle
       const a = A0 + clamp(f + jitter, 0, 1.02) * SW;
       if (!lo) { ctx.shadowColor = accent; ctx.shadowBlur = backlit ? 10 : 5; }
@@ -1799,12 +1814,20 @@ class TurboRush {
       this.drawPickup(ctx, p, px, py, Math.max(1.5, sc * 90 * W / 2));
     }
     ctx.globalAlpha = 1;
-    // traffic (and VIPER) on this segment
+    // traffic (and VIPER) on this segment — bucketed by segment once per frame,
+    // instead of copying and scanning the whole car array for every drawn segment
     const pz = this.position + PLAYER_Z;
-    const list = [...this.cars]; if (this.rival) list.push(this.rival); if (this.ghost) list.push(this.ghost);
-    const drawn = [];
-    for (const car of list) if (car.z >= z1 && car.z < z2) drawn.push(car);
-    drawn.sort((a, b) => b.z - a.z);
+    if (this._bucketT !== this.t) {
+      this._bucketT = this.t;
+      const b = this._buckets ??= new Map(); b.clear();
+      const push = (car) => { const i = Math.floor(car.z / SEG), a = b.get(i); a ? a.push(car) : b.set(i, [car]); };
+      for (const car of this.cars) push(car);
+      if (this.rival) push(this.rival);
+      if (this.ghost) push(this.ghost);
+    }
+    const bucket = this._buckets.get(seg.i);
+    if (!bucket) { ctx.restore(); return; }
+    const drawn = bucket.slice().sort((a, b) => b.z - a.z);
     for (const car of drawn) {
       const k = (car.z - z1) / SEG, sc = lerp(p1.scale, p2.scale, k);
       const cx = lerp(p1.x, p2.x, k) + car.x * lerp(p1.w, p2.w, k), cy = lerp(p1.y, p2.y, k);

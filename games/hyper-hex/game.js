@@ -57,7 +57,7 @@ class HyperHex {
     this.s = s; this.t = 0;
     this.angle = -Math.PI / 2;   // top lane, dead centre
     this.rot = 0; this.rotSpeed = 0.6; this.pulse = 0; this.hue = 190;
-    this.lite = this.s.coarse;   // phones: skip the costly glow
+    this.lite = this.s.coarse || this.s.lowDetail;   // phones or Graphics: LOW — skip the costly glow
     this.setupTouch();
     this.startLevel(1, false);
   }

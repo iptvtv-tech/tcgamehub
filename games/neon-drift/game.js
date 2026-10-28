@@ -2064,7 +2064,8 @@ class NeonDrift {
     const mobile = this.s.coarse;
     if (mobile && this.tuneT <= 0 && this.raceT < 6) {
       ctx.textAlign = 'center'; ctx.font = '600 12px system-ui'; ctx.fillStyle = 'rgba(226,232,240,.6)';
-      ctx.fillText(this.wheelMode ? 'Drag the wheel to steer · full lock to drift' : this.tiltOn ? 'Tilt to steer · hold the middle to drift' : this.needTiltPermission ? 'Tap to enable tilt steering · or hold a side to steer' : 'Hold the left or right side to steer', W / 2, H - 52);
+      // in wheel mode the hint sits above the wheel, not across its hub
+      ctx.fillText(this.wheelMode ? 'Drag the wheel to steer · full lock to drift' : this.tiltOn ? 'Tilt to steer · hold the middle to drift' : this.needTiltPermission ? 'Tap to enable tilt steering · or hold a side to steer' : 'Hold the left or right side to steer', W / 2, this.wheelMode ? 512 : H - 52);
     }
     if (this.tiltOn && this.tuneT <= 0 && !this.wheelMode) {
       const bw = 90, bh = 10, bx = W / 2 - bw / 2 + 40, by = H - 31, fr = clamp(this.tiltFrac, -1, 1), fw = Math.abs(fr) * (bw / 2 - 3);

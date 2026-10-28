@@ -848,9 +848,14 @@ class Pinball {
     });
     // saucer: a hole in the table
     this.plane(ctx, SAUCER.x, SAUCER.y, 0, () => {
-      const hg = ctx.createRadialGradient(0, -4, 1, 0, 0, SAUCER.r);
-      hg.addColorStop(0, '#000'); hg.addColorStop(1, '#1e1b4b');
-      ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(0, 0, SAUCER.r, 0, TAU); ctx.fill();
+      // pit gradient built once; the pulsing ring stays live (it's just a stroke)
+      if (!this._saucerGrad) {
+        this._saucerGrad = ctx.createRadialGradient(0, -4, 1, 0, 0, SAUCER.r);
+        this._saucerGrad.addColorStop(0, '#000'); this._saucerGrad.addColorStop(1, '#1e1b4b');
+      }
+      ctx.fillStyle = this._saucerGrad; ctx.beginPath(); ctx.arc(0, 0, SAUCER.r, 0, TAU); ctx.fill();
+      const gs = this.s.glowSprite('rgba(253,224,71,.6)');
+      ctx.globalAlpha = 0.5 + 0.5 * Math.sin(t * 5); ctx.drawImage(gs, -SAUCER.r * 1.6, -SAUCER.r * 1.6, SAUCER.r * 3.2, SAUCER.r * 3.2); ctx.globalAlpha = 1;
       ctx.strokeStyle = `rgba(253,224,71,${0.5 + 0.5 * Math.sin(t * 5)})`; ctx.lineWidth = 3; ctx.stroke();
     });
     // black hole
@@ -866,7 +871,9 @@ class Pinball {
     }
     // teleport portals
     if (this.portals) PORTALS.forEach((p) => this.plane(ctx, p.x, p.y, 0.5, () => {
-      ctx.strokeStyle = p.col; if (!lo) { ctx.shadowColor = p.col; ctx.shadowBlur = 12; } ctx.lineWidth = 3;
+      // glow from a cached sprite instead of a per-frame shadowBlur pass
+      if (!lo) { const gs = this.s.glowSprite(p.col); ctx.globalAlpha = 0.45; ctx.drawImage(gs, -22, -22, 44, 44); ctx.globalAlpha = 1; }
+      ctx.strokeStyle = p.col; ctx.lineWidth = 3;
       for (let i = 0; i < 2; i++) { ctx.beginPath(); ctx.arc(0, 0, 13 - i * 5, t * (3 + i), t * (3 + i) + 4.2); ctx.stroke(); }
     }));
     // trap doors: invisible until found (a faint crack on the early levels)

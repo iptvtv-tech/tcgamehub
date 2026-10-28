@@ -642,9 +642,12 @@ class LunarDelivery {
       dust: (R) => this.drawDust(R),
       glow: (R) => this.drawGlow(R, M, tg),
     };
-    const k = lo ? 0.6 : 1, sc = s.scale || 1;
+    const k = lo ? 0.6 : s.coarse ? 0.8 : 1, sc = s.scale || 1;
     let w = Math.round(W * sc * k), h = Math.round(H * sc * k);
-    const cap = lo ? 480 : 900; if (w > cap) { h = Math.round(h * cap / w); w = cap; }
+    // phones: cap the GL pixels (≈0.45 MP HIGH / 0.25 MP LOW) — fill rate is their limit
+    const cap = lo ? (s.coarse ? 420 : 480) : s.coarse ? 560 : 900;
+    if (w > cap) { h = Math.round(h * cap / w); w = cap; }
+    if (s.coarse) { const mp = lo ? 250000 : 450000; const px = w * h; if (px > mp) { const f = Math.sqrt(mp / px); w = Math.round(w * f); h = Math.round(h * f); } }
     const img = this.gl.render(S, w, h);
     if (img) ctx.drawImage(img, 0, 0, W, H);
     this.drawHud(ctx, tg, alt);

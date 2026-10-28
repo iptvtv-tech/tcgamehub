@@ -223,8 +223,9 @@ class AstroBlaster {
     }
     this.caps = this.caps.filter((c) => !c.got && c.y < H + 20);
 
-    // Engine exhaust
-    if (Math.random() < 0.7) s.fx.burst(sh.x + (Math.random() - 0.5) * 6, sh.y + 18, { colors: ['#fb923c', '#fde047', '#f472b6'], count: 1, speed: 90, life: 0.35, size: 3, angle: Math.PI / 2, spread: 0.5 });
+    // Engine exhaust — rate-limited to ~40/s so a 120 Hz display doesn't triple the particles
+    this.exT = (this.exT || 0) + dt;
+    if (this.exT >= 1 / 40) { this.exT = 0; if (Math.random() < 0.85) s.fx.burst(sh.x + (Math.random() - 0.5) * 6, sh.y + 18, { colors: ['#fb923c', '#fde047', '#f472b6'], count: 1, speed: 90, life: 0.35, size: 3, angle: Math.PI / 2, spread: 0.5 }); }
   }
 
   hitRock(k) {
@@ -352,17 +353,20 @@ class AstroBlaster {
   // ── Draw ───────────────────────────────────────────────────
   render(ctx) {
     const t = this.t;
-    // Space
-    const g = ctx.createLinearGradient(0, 0, 0, H);
-    if (this.bonus) { g.addColorStop(0, '#2e1065'); g.addColorStop(1, '#0c0a2a'); }
-    else { g.addColorStop(0, '#050816'); g.addColorStop(1, '#0b1033'); }
-    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    // Space — gradient cached per mode; nebulas drawn from cached glow sprites
+    this.s.layer(ctx, `ab-sky|${this.bonus}`, (c) => {
+      const g = c.createLinearGradient(0, 0, 0, H);
+      if (this.bonus) { g.addColorStop(0, '#2e1065'); g.addColorStop(1, '#0c0a2a'); }
+      else { g.addColorStop(0, '#050816'); g.addColorStop(1, '#0b1033'); }
+      c.fillStyle = g; c.fillRect(0, 0, W, H);
+    });
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     for (const n of this.nebulas) {
       const y = ((n.y + t * 8) % (H + 400)) - 200;
-      const ng = ctx.createRadialGradient(n.x, y, 0, n.x, y, n.r);
-      ng.addColorStop(0, `hsla(${this.bonus ? (n.hue + t * 40) % 360 : n.hue}, 90%, 50%, .16)`); ng.addColorStop(1, 'hsla(0,0%,0%,0)');
-      ctx.fillStyle = ng; ctx.fillRect(n.x - n.r, y - n.r, n.r * 2, n.r * 2);
+      // hue quantised to 10° in bonus so the sprite cache isn't churned every frame
+      const hue = this.bonus ? (n.hue + Math.round(t * 4) * 10) % 360 : n.hue;
+      const spr = this.s.glowSprite(`hsla(${hue}, 90%, 50%, .16)`);
+      ctx.drawImage(spr, n.x - n.r, y - n.r, n.r * 2, n.r * 2);
     }
     ctx.restore();
     for (const st of this.stars) {
@@ -460,11 +464,20 @@ class AstroBlaster {
     ctx.rotate(k.rot);
     const shock = k.type === 'shock';
     const pulse = shock ? 0.5 + Math.sin(t * 9 + k.hue) * 0.5 : 0;
-    if (shock) { ctx.shadowColor = '#fde047'; ctx.shadowBlur = 18 + pulse * 18; }
-    // body
-    const bg = ctx.createRadialGradient(-k.r * 0.3, -k.r * 0.3, 2, 0, 0, k.r);
-    if (shock) { bg.addColorStop(0, '#fef08a'); bg.addColorStop(0.5, '#f97316'); bg.addColorStop(1, '#7c2d12'); }
-    else { bg.addColorStop(0, `hsl(${k.hue} 60% 62%)`); bg.addColorStop(1, `hsl(${k.hue} 55% 26%)`); }
+    // shock glow: a cached sprite scaled with the pulse (was a per-frame pulsing shadowBlur)
+    if (shock) { const gr = k.r * (1.9 + pulse * 0.9), gs = this.s.glowSprite('rgba(253,224,71,.5)'); ctx.drawImage(gs, -gr, -gr, gr * 2, gr * 2); }
+    // body gradient cached by kind, hue bucket (20°) and radius bucket (8px)
+    this._rockGrads ??= new Map();
+    const rb = Math.max(8, Math.round(k.r / 8) * 8), hb = Math.round(k.hue / 20) * 20;
+    const gkey = `${shock}|${hb}|${rb}`;
+    let bg = this._rockGrads.get(gkey);
+    if (!bg) {
+      bg = ctx.createRadialGradient(-rb * 0.3, -rb * 0.3, 2, 0, 0, rb);
+      if (shock) { bg.addColorStop(0, '#fef08a'); bg.addColorStop(0.5, '#f97316'); bg.addColorStop(1, '#7c2d12'); }
+      else { bg.addColorStop(0, `hsl(${hb} 60% 62%)`); bg.addColorStop(1, `hsl(${hb} 55% 26%)`); }
+      if (this._rockGrads.size > 60) this._rockGrads.clear();
+      this._rockGrads.set(gkey, bg);
+    }
     ctx.fillStyle = k.flash ? '#fff' : bg;
     ctx.beginPath();
     k.shape.forEach((m, i) => { const a = i / k.shape.length * Math.PI * 2; ctx.lineTo(Math.cos(a) * k.r * m, Math.sin(a) * k.r * m); });

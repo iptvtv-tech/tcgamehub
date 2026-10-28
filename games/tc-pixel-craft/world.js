@@ -200,7 +200,7 @@ export class World {
   relight() {
     const e = this.edits;
     let x0 = 0, x1 = SX - 1, z0 = 0, z1 = SZ - 1;
-    if (e.length && e.length <= 64) {
+    if (e.length && e.length <= 400) {   // ~200 edits: a Boomcap blast stays a local relight (its bounding box is small), no full-island hitch
       let ax = SX, bx = -1, az = SZ, bz = -1;
       for (let k = 0; k < e.length; k += 2) { ax = Math.min(ax, e[k]); bx = Math.max(bx, e[k]); az = Math.min(az, e[k + 1]); bz = Math.max(bz, e[k + 1]); }
       x0 = Math.max(0, ax - 15); x1 = Math.min(SX - 1, bx + 15); z0 = Math.max(0, az - 15); z1 = Math.min(SZ - 1, bz + 15);

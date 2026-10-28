@@ -268,16 +268,19 @@ class VaultJob {
     const th = this.theme, t = this.t, L = this.L;
     ctx.fillStyle = '#05060d'; ctx.fillRect(0, 0, W, H);
 
-    // Floor + walls
-    for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
-      const ch = this.grid[y][x], X = x * T, Y = OY + y * T;
-      if (ch === '#') {
-        ctx.fillStyle = th.wall; ctx.fillRect(X, Y, T, T);
-        ctx.fillStyle = th.top; ctx.fillRect(X, Y, T, 5);
-        continue;
+    // Floor + walls — static per level (walls never move; loot pickups don't change the
+    // floor pattern), so painted once into a cached layer
+    this.s.layer(ctx, `vj-board|${this.level}|${this.secret}|${this.bonus}`, (c) => {
+      for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+        const ch = this.grid[y][x], X = x * T, Y = OY + y * T;
+        if (ch === '#') {
+          c.fillStyle = th.wall; c.fillRect(X, Y, T, T);
+          c.fillStyle = th.top; c.fillRect(X, Y, T, 5);
+          continue;
+        }
+        c.fillStyle = th.floor[(x + y) % 2]; c.fillRect(X, Y, T, T);
       }
-      ctx.fillStyle = th.floor[(x + y) % 2]; ctx.fillRect(X, Y, T, T);
-    }
+    });
     // Things on the floor
     for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
       const ch = this.grid[y][x];

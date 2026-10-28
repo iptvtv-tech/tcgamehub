@@ -889,9 +889,11 @@ class Shell {
       <p class="muted">${esc(this.reachedText(false))} · Score ${fmt(this.score)}</p>
       <button class="btn primary big" data-act="resume">▶ Resume</button>
       <div class="row"><button class="btn" data-act="restart">↻ Restart</button><a class="btn" href="../../">⌂ Arcade</a></div>
-      ${this.detailChip()}`);
+      ${this.detailChip()}
+      ${this.def.pauseExtra ? this.def.pauseExtra(this) : ''}`);
     o.querySelector('[data-act="resume"]').onclick = () => this.resume();
     this.wireDetailChip(o, o.querySelector('[data-act="resume"]'));
+    this.def.wirePause?.(o, this);   // a game can add its own controls to the pause panel
     o.querySelector('[data-act="restart"]').onclick = () => { this.state = 'title'; this.restart(); };
     o.querySelector('[data-act="resume"]').focus({ preventScroll: true });
   }

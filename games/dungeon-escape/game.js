@@ -413,6 +413,22 @@ class DungeonEscape {
       sprites,
     });
     if (this.flashT > 0) { ctx.fillStyle = `rgba(224,242,254,${this.flashT * 1.2})`; ctx.fillRect(0, VIEW.y, W, VIEW.h); }
+
+    // a hunting ghoul you can't see: a pulsing chevron on the view edge it's coming from
+    if (!this.bonus && s.state === 'playing') {
+      for (const g of this.ghouls) {
+        if (!g.hunting || g.stun > 0) continue;
+        const dx = g.x - p.x, dy = g.y - p.y, d = Math.hypot(dx, dy);
+        if (d > 11) continue;
+        let da = Math.atan2(dy, dx) - p.a; da = Math.atan2(Math.sin(da), Math.cos(da));
+        if (Math.abs(da) < 0.7) continue;                     // roughly on screen: the ghoul itself is the warning
+        const right = da > 0, ex = right ? W - 16 : 16, ey = VIEW.y + VIEW.h / 2;
+        const pulse = 0.5 + 0.5 * Math.sin(t * 9), dir2 = right ? 1 : -1;
+        ctx.save(); ctx.globalAlpha = 0.45 + 0.45 * pulse; ctx.fillStyle = '#f87171';
+        ctx.beginPath(); ctx.moveTo(ex + 7 * dir2, ey); ctx.lineTo(ex - 5 * dir2, ey - 11); ctx.lineTo(ex - 5 * dir2, ey + 11); ctx.closePath(); ctx.fill();
+        ctx.restore();
+      }
+    }
     if (this.nearest < 3 && !this.bonus) { ctx.fillStyle = `rgba(127,29,29,${(3 - this.nearest) * 0.08 * (0.6 + 0.4 * Math.sin(t * 8))})`; ctx.fillRect(0, VIEW.y, W, VIEW.h); }
     drawTorchHand(ctx, VIEW, { t, flick, gold: s.gold, sway: bob * 1.2, size: this.bonus ? 1 : Math.min(1, this.fuel / 25) });
     this.drawVignette(ctx);

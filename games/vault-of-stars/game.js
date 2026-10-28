@@ -388,9 +388,8 @@ class VaultOfStars {
     const s = this.s, v = this.v, th = this.th, t = this.t, st = this.st, f = this.frac();
     // space
     ctx.fillStyle = '#04060f'; ctx.fillRect(0, 0, W, H);
-    const neb = ctx.createRadialGradient(W * 0.75, 120, 10, W * 0.75, 120, 360);
-    neb.addColorStop(0, th.glow + '0.16)'); neb.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = neb; ctx.fillRect(0, 0, W, H);
+    // nebula from a cached glow sprite (was a fresh 360px radial gradient every frame)
+    ctx.drawImage(s.glowSprite(th.glow + '0.16)'), W * 0.75 - 360, 120 - 360, 720, 720);
     for (const p of STARS) { ctx.globalAlpha = 0.35 + 0.35 * Math.sin(t * 1.3 + p.tw); ctx.fillStyle = '#fff'; ctx.fillRect(p.x, p.y, p.s, p.s); }
     ctx.globalAlpha = 1;
     if (this.layers) ctx.drawImage(this.layers, MAP.x, MAP.y);
@@ -527,9 +526,7 @@ class VaultOfStars {
     const v = this.v, t = this.t;
     if (v.exit) {
       const [x, y] = v.exit, cx = this.px(x) + T / 2, cy = this.py(y) + T / 2;
-      const g = ctx.createRadialGradient(cx, cy, 2, cx, cy, 26);
-      g.addColorStop(0, 'rgba(74,222,128,.55)'); g.addColorStop(1, 'rgba(74,222,128,0)');
-      ctx.fillStyle = g; ctx.fillRect(cx - 28, cy - 28, 56, 56);
+      ctx.drawImage(this.s.glowSprite('rgba(74,222,128,.55)'), cx - 28, cy - 28, 56, 56);
       ctx.strokeStyle = '#4ade80'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(cx, cy, 12, 0, 7); ctx.stroke();
       ctx.save(); ctx.translate(cx, cy); ctx.rotate(t * 1.5);
       ctx.strokeStyle = '#bbf7d0'; ctx.lineWidth = 2;
@@ -539,9 +536,14 @@ class VaultOfStars {
     if (v.beacon) {
       const [x, y] = v.beacon, cx = this.px(x) + T / 2, cy = this.py(y) + T / 2, f = this.finale;
       const pulse = 1 + 0.12 * Math.sin(t * 4) + (f ? Math.min(1.5, f.t * 0.6) : 0);
-      const g = ctx.createRadialGradient(cx, cy, 2, cx, cy, 60 * pulse);
-      g.addColorStop(0, 'rgba(253,230,138,.85)'); g.addColorStop(0.4, 'rgba(110,231,183,.25)'); g.addColorStop(1, 'rgba(110,231,183,0)');
-      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, 62 * pulse, 0, 7); ctx.fill();
+      // beacon glow baked once (3-stop gradient), scaled by the pulse
+      this._beaconSpr ??= (() => {
+        const cv = document.createElement('canvas'); cv.width = cv.height = 128;
+        const g2 = cv.getContext('2d'), gr = g2.createRadialGradient(64, 64, 2, 64, 64, 62);
+        gr.addColorStop(0, 'rgba(253,230,138,.85)'); gr.addColorStop(0.4, 'rgba(110,231,183,.25)'); gr.addColorStop(1, 'rgba(110,231,183,0)');
+        g2.fillStyle = gr; g2.beginPath(); g2.arc(64, 64, 62, 0, 7); g2.fill(); return cv;
+      })();
+      ctx.drawImage(this._beaconSpr, cx - 62 * pulse, cy - 62 * pulse, 124 * pulse, 124 * pulse);
       ctx.save(); ctx.translate(cx, cy); ctx.rotate(t * 0.6);
       ctx.strokeStyle = 'rgba(253,230,138,.5)'; ctx.lineWidth = 1.5;
       for (let i = 0; i < 8; i++) { ctx.rotate(Math.PI / 4); ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(30 * pulse, 0); ctx.stroke(); }
@@ -557,10 +559,11 @@ class VaultOfStars {
     const [nx, ny] = droneAt(d, st.t + d.every);
     const look = Math.atan2(ny - by, nx - bx);
     ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(x, y + 10, 11, 4, 0, 0, 7); ctx.fill();
+    // telegraph: a dashed outline on the tile this drone moves to next
+    ctx.save(); ctx.strokeStyle = 'rgba(251,146,60,.45)'; ctx.lineWidth = 1.5; ctx.setLineDash([4, 4]); ctx.lineDashOffset = -t * 12;
+    ctx.strokeRect(this.px(nx) + 3, this.py(ny) + 3, T - 6, T - 6); ctx.restore();
     const hover = Math.sin(t * 6 + bx) * 1.5;
-    const glow = ctx.createRadialGradient(x, y + hover, 2, x, y + hover, 22);
-    glow.addColorStop(0, 'rgba(251,146,60,.35)'); glow.addColorStop(1, 'rgba(251,146,60,0)');
-    ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(x, y + hover, 22, 0, 7); ctx.fill();
+    ctx.drawImage(this.s.glowSprite('rgba(251,146,60,.35)'), x - 22, y + hover - 22, 44, 44);
     ctx.fillStyle = '#1f2937'; ctx.beginPath(); ctx.arc(x, y + hover, 11, 0, 7); ctx.fill();
     ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y + hover, 11, t * 4, t * 4 + 4.4); ctx.stroke();
     ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(x + Math.cos(look) * 4, y + hover + Math.sin(look) * 4, 3.6, 0, 7); ctx.fill();
@@ -574,9 +577,7 @@ class VaultOfStars {
     const gold = s.gold;
     const suit = gold ? '#fbbf24' : '#e2e8f0', suit2 = gold ? '#b45309' : '#94a3b8', visor = gold ? '#fde68a' : '#38bdf8';
     ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(x, y + 11, 10, 4, 0, 0, 7); ctx.fill();
-    const glow = ctx.createRadialGradient(x, y, 2, x, y, 24);
-    glow.addColorStop(0, gold ? 'rgba(251,191,36,.35)' : 'rgba(56,189,248,.3)'); glow.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(x, y, 24, 0, 7); ctx.fill();
+    ctx.drawImage(s.glowSprite(gold ? 'rgba(251,191,36,.35)' : 'rgba(56,189,248,.3)'), x - 24, y - 24, 48, 48);
     // backpack (behind the facing direction)
     ctx.fillStyle = suit2; roundRect(ctx, x - fx * 7 - 7, y - fy * 7 - 7, 14, 14, 4); ctx.fill();
     // body + helmet
