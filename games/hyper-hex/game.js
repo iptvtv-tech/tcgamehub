@@ -250,8 +250,9 @@ class HyperHex {
     }
     this.gems = this.gems.filter((g) => !g.got && g.d > CORE);
 
-    // beat pulse
-    const beat = 60 / 152;
+    // beat pulse — match the music's tempo, which the engine raises per level
+    // (same formula as engine.js startLevel; hard-coding 152 drifted from L2 on)
+    const beat = 60 / (152 * Math.min(1.45, 1 + (this.level - 1) * 0.025));
     if (Math.floor(this.t / beat) !== Math.floor((this.t - dt) / beat)) this.pulse = 1;
 
     // clock

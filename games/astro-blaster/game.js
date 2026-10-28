@@ -182,7 +182,7 @@ class AstroBlaster {
         if (k.type === 'gem') this.kill(k);
         else if (!this.bonus && !this.invuln) { if (this.crash(k)) return; }
       }
-      if (k.y > H + 60 || k.x < -80 || k.x > W + 80) { k.dead = true; if (k.type !== 'comet' && k.type !== 'gem') s.resetCombo(); }
+      if (k.y > H + 60 || k.x < -80 || k.x > W + 80) k.dead = true;   // a rock drifting off no longer breaks the combo
     }
     this.rocks = this.rocks.filter((k) => !k.dead);
 

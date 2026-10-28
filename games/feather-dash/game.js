@@ -262,6 +262,8 @@ class FeatherDash {
     this.bird.y = H * 0.42; this.bird.vy = 0; this.bird.rot = 0;
     this.hover = true; this.hoverBase = this.bird.y;
     this.hawks = [];
+    // never respawn inside (or right in front of) a pillar
+    this.pillars = this.pillars.filter((p) => p.x > BIRD_X + 150);
   }
 
   // ── Draw ───────────────────────────────────────────────────

@@ -146,8 +146,13 @@ class HeistPlanner {
   onAction(a, x, y) {
     if (this.bonus) { if (a === 'action' || a === 'press') this.safeTry(); return; }
     if (this.phase === 'run' && (a === 'action' || a === 'tap')) { this.fast = true; return; }
+    if (a === 'press') { this.swiped = false; return; }
     const map = { up: 'U', down: 'D', left: 'L', right: 'R' };
-    if (map[a]) { this.addMove(map[a]); return; }
+    if (map[a]) {
+      // one planned step per swipe — a dragged finger used to add a move every few pixels
+      if (this.s.input.pointer.down) { if (this.swiped) return; this.swiped = true; }
+      this.addMove(map[a]); return;
+    }
     if (a === 'action') { this.addMove('W'); return; }
     if (a === 'tap') this.tapAt(x, y);
   }

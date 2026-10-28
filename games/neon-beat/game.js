@@ -412,7 +412,7 @@ class NeonBeat {
         ctx.globalAlpha = 1 - (this.songT / this.beat - b);
         ctx.fillText(['4', '3', '2', '1'][b] || '', W / 2, H * 0.42);
         ctx.font = '600 12px system-ui'; ctx.fillStyle = '#94a3b8'; ctx.globalAlpha = 0.7;
-        ctx.fillText('[ / ] to adjust timing offset', W / 2, H * 0.42 + 44);
+        if (!this.s.coarse) ctx.fillText('[ / ] to adjust timing offset', W / 2, H * 0.42 + 44);   // keyboard-only hint: hide on phones
         ctx.restore();
       }
     }
@@ -440,7 +440,7 @@ class NeonBeat {
       const sign = offsetMs > 0 ? '+' : '';
       const col = offsetMs === 0 ? '#94a3b8' : offsetMs > 0 ? '#fb923c' : '#60a5fa';
       ctx.fillStyle = col;
-      ctx.fillText(`OFFSET ${sign}${offsetMs}ms  [ / ]`, 8, H - 34);
+      ctx.fillText(`OFFSET ${sign}${offsetMs}ms${this.s.coarse ? '' : '  [ / ]'}`, 8, H - 34);
       ctx.restore();
     }
   }

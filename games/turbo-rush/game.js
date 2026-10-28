@@ -357,7 +357,10 @@ class TurboRush {
     this.ghost = this.ghostRun ? { ghost: true, z: 0, x: 0, w: 0.35 * CW, kind: 'sports', color: '#e0f2fe' } : null;
     this.ghostDelta = null;
     const avg = Math.min(0.61, 0.50 + level * 0.01);            // average speed the clock expects (fraction of top speed) — tuned down ~20% for a gentler time limit
-    this.timeMax = bonus ? 0 : Math.round(this.finishZ / (this.maxSpeed * avg) + 3 + (this.closures.length ? 2 : 0));
+    // Easier start (28 Oct 2026): levels 1–5 get a few grace seconds (L1 +5 … L5 +1) —
+    // every recorded run in the first month ended before level 6, so the opening clock
+    // was the wall. Level 6 onward is unchanged.
+    this.timeMax = bonus ? 0 : Math.round(this.finishZ / (this.maxSpeed * avg) + 3 + (this.closures.length ? 2 : 0) + Math.max(0, 6 - level));
     this.timeLeft = this.timeMax;
     this.done = false;
   }
@@ -472,7 +475,10 @@ class TurboRush {
 
   buildTraffic(r) {
     const L = this.level, cars = [];
-    const gap = Math.max(15, 36 - L * 1.5);                      // segments between cars (on average) — widened ~20% for lighter traffic
+    // Segments between cars (on average) — widened ~20% for lighter traffic, and levels
+    // 1–4 run lighter still (L1 ×1.24 → L4 ×1.06) so the first runs teach overtaking
+    // before the road fills up. From level 5 the old density is back.
+    const gap = Math.max(15, 36 - L * 1.5) * (L < 5 ? 1.3 - L * 0.06 : 1);
     let pairGap = 0;
     const kindFor = (truck) => (truck ? 'truck' : r.chance(0.25) ? 'suv' : r.chance(0.15) ? 'sports' : 'sedan');
     const pickLane = (z, avoid = -1) => {

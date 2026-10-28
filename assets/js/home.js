@@ -12,7 +12,7 @@ siteChrome();
 
 // ── WhatsApp share ──────────────────────────────────────────
 const wa = document.getElementById('wa-share');
-wa.href = whatsappLink(`🎮 Free quick games with levels, bonus rounds and high-score boards. Come and try to beat my scores! ${location.origin + location.pathname}`);
+wa.href = whatsappLink(`🎮 Free quick games with levels, bonus rounds and high-score boards. Come and try to beat my scores! ${location.origin + location.pathname}?from=wa`);
 wa.innerHTML = `${WA_ICON} Share on WhatsApp`;
 
 // ── Play now (random game) ──────────────────────────────────

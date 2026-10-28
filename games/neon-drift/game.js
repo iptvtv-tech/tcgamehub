@@ -317,7 +317,8 @@ class NeonDrift {
     this.s = s; this.t = 0; this.touch = 0;
     glowShell = s;            // glowDot draws from the shared sprite cache
     this.station = 0;
-    try { const v = +localStorage.getItem('nd-station'); if (v >= 0 && v < STATIONS.length) this.station = v | 0; } catch (e) { /* storage blocked */ }
+    this.tunedBefore = false;
+    try { const v = +localStorage.getItem('nd-station'); if (v >= 0 && v < STATIONS.length) { this.station = v | 0; this.tunedBefore = true; } } catch (e) { /* storage blocked */ }
     Object.assign(MUSIC, STATIONS[this.station].music);
     this.sfx = null;                // continuous sounds (squeal, engine, afterburner), made on first use
     this.cam = { s: 0, lat: 0, lz: 0, yaw: 0, y: CAM_H, py: 0, roll: 0, bobX: 0, bobY: 0, lean: 0, init: false, cockpit: false };
@@ -455,7 +456,9 @@ class NeonDrift {
     this.gridOffs = [-2 / 3, -1 / 3, 0, 1 / 3, 2 / 3].map((f) => f * hw);
     this.buildMinimap();
     this.resetRace();
-    if (this.needTune && !bonus && !isIce(level)) { this.needTune = false; this.tuneT = TUNE_TIME; this.dialF = STATIONS[this.station].freq; }
+    // Returning players (station saved last time) get a 2.5s tuner instead of the 7s one:
+    // long enough to retune, short enough to feel like a skip.
+    if (this.needTune && !bonus && !isIce(level)) { this.needTune = false; this.tuneMax = this.tunedBefore ? 2.5 : TUNE_TIME; this.tuneT = this.tuneMax; this.dialF = STATIONS[this.station].freq; }
     else this.tuneT = 0;
   }
 
@@ -538,7 +541,7 @@ class NeonDrift {
   /** portrait bands: on a tall phone the wheel and buttons hang below the box, at thumb height */
   drop() { const b = this.s.bands?.bottom || 0; return b >= 120 ? Math.min(b - 20, 160) : 0; }
   /** in touch-wheel mode BOOST sits above HANDBRAKE on the right (one thumb for both), VIEW goes bottom-left */
-  boostButton() { const d = this.drop(); return this.wheelMode ? { x: W - 100, y: H - 86 + d, w: 90, h: 32 } : { x: 10, y: H - 46 + d, w: 100, h: 34 }; }
+  boostButton() { const d = this.drop(); return this.wheelMode ? { x: W - 100, y: H - 100 + d, w: 90, h: 36 } : { x: 10, y: H - 46 + d, w: 100, h: 34 }; }   // wheel mode: a clear gap above HANDBRAKE (was 8px)
   /** fire the drift-charged boost: the whole meter goes in one burst (longer the fuller it was) */
   fireBoost() {
     const p = this.p, s = this.s;
@@ -605,7 +608,7 @@ class NeonDrift {
     return c < 0.5 ? mixHex('#ff4fa3', '#a78bfa', c * 2) : mixHex('#a78bfa', '#22d3ee', (c - 0.5) * 2);
   }
   viewButton() { const d = this.drop(); return this.wheelMode ? { x: 10, y: H - 46 + d, w: 90, h: 34 } : { x: W - 100, y: H - 46 + d, w: 90, h: 34 }; }
-  handButton() { return { x: W - 100, y: H - 46, w: 90, h: 34 }; }
+  handButton() { const d = this.drop(); return { x: W - 100, y: H - 46 + d, w: 90, h: 34 }; }   // drops into the phone band like the other buttons
   get wheelMode() { return this.wheelTouch.active; }
   tuneButtons() { return STATIONS.map((_, i) => ({ x: 52 + i * 128, y: 352, w: 120, h: 74 })); }
 
@@ -1977,7 +1980,7 @@ class NeonDrift {
     });
     ctx.font = '700 12px system-ui'; ctx.fillStyle = '#e2e8f0';
     ctx.fillText('← → to tune · SPACE or tap a station to race', W / 2, 450);
-    progressBar(ctx, 70, 460, W - 140, 6, this.tuneT / TUNE_TIME, th.edge, '');
+    progressBar(ctx, 70, 460, W - 140, 6, this.tuneT / (this.tuneMax || TUNE_TIME), th.edge, '');
     ctx.restore();
   }
 

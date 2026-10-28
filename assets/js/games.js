@@ -617,6 +617,7 @@ export const GAMES = [
   {
     id: 'vault-of-stars',
     genres: ['puzzle', 'space'],
+    noDaily: true,                  // hand-drawn fixed vaults: the Daily seed changes nothing, so no Daily mode
     gold: 'Golden Astronaut',       // golden character unlocked by the Zone 5 egg (gold suit and visor)
     title: 'Vault of Stars',
     tagline: 'Fifteen sealed vaults on an alien moon. Time the laser grids, slip past the sentry drones, drift across zero-g fields and reach the airlock before your oxygen runs out. Same layout every time: learn it, then beat the par.',

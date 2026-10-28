@@ -522,6 +522,7 @@ class LunarDelivery {
   }
 
   idle(dt) {
+    if (this.s.state === 'paused') return;   // freeze particles and camera on the pause screen
     this.t += dt;
     if (this.s.state === 'title') { this.camYaw += 0.15 * dt; this.titleCam = true; }
     else this.titleCam = false;

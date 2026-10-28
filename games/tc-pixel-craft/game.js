@@ -234,7 +234,7 @@ class PixelCraft {
       if (this.joy && e.pointerId === this.joy.id) this.joy = null;
       if (this.look && e.pointerId === this.look.id) {
         const l = this.look; this.look = null;   // a quick tap on the view = use / place
-        if (Math.hypot(l.x - l.x0, l.y - l.y0) < 10 && performance.now() - l.t < 250 && playing() && !this.ui.open) this.useQueued = true;
+        if (Math.hypot(l.x - l.x0, l.y - l.y0) < 10 && performance.now() - l.t < 250 && playing() && !this.ui.open) { this.useQueued = true; this.useFromTap = true; }
       }
       if (this.mineTouch === e.pointerId) this.mineTouch = null;
       if (this.jumpTouch === e.pointerId) this.jumpTouch = null;
@@ -601,7 +601,18 @@ class PixelCraft {
       } else this.mining = null;
     } else this.mining = null;
 
-    if (this.useQueued) { this.useQueued = false; if (this.useCd <= 0) this.use(target); }
+    if (this.useQueued) {
+      this.useQueued = false;
+      const fromTap = this.useFromTap; this.useFromTap = false;
+      // A tap on the view only *uses* with something usable: a block or food in hand, or an
+      // interactive target. A tap while holding a tool used to do nothing confusing — teach
+      // the real gesture once instead.
+      const it = this.held();
+      const interactive = target && (target.v === B.BUSH_RIPE || target.v === B.TABLE || target.v === B.FURNACE || target.v === B.BED);
+      if (fromTap && !interactive && !(it && (INFO[it.id].food || isBlock(it.id)))) {
+        if (!this.mineToast) { this.mineToast = true; this.s.fx.text(W / 2, VIEW_H * 0.5, 'Hold ⛏ HIT to mine', { color: '#e2e8f0', size: 18, life: 1.8 }); }
+      } else if (this.useCd <= 0) this.use(target);
+    }
   }
 
   breakTime(v, tool) {

@@ -46,7 +46,7 @@ function setNowPlaying(title, meta, game) {
   $('np-big').hidden = false;
   const share = $('np-share');
   if (game) {
-    const url = new URL(`?play=${game.id}`, location.href).href;
+    const url = new URL(`?play=${game.id}&from=wa`, location.href).href;
     share.innerHTML = `${WA_ICON} Share`;
     share.href = whatsappLink(`Play ${game.title} free in your browser on the Retro Vault: ${url}`);
     share.hidden = false;

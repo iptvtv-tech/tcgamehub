@@ -104,11 +104,35 @@ class NeonSnake {
     if (this.golden && this.golden.x === x && this.golden.y === y) return true;
     return false;
   }
+  /** Cells the snake can actually reach from its head, walking round the obstacles
+   *  (the body and pickups move, so only walls count). Stops food spawning walled in
+   *  on solid-wall levels. */
+  reachableCells() {
+    const head = this.snake?.[0];
+    if (!head) return null;
+    const seen = new Uint8Array(COLS * ROWS), q = [head.y * COLS + head.x];
+    seen[q[0]] = 1;
+    while (q.length) {
+      const i = q.pop(), x = i % COLS, y = (i / COLS) | 0;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        let nx = x + dx, ny = y + dy;
+        if (this.solid) { if (nx < 0 || ny < 0 || nx >= COLS || ny >= ROWS) continue; }
+        else { nx = (nx + COLS) % COLS; ny = (ny + ROWS) % ROWS; }
+        const j = ny * COLS + nx;
+        if (seen[j] || this.obstacles.has(j)) continue;
+        seen[j] = 1; q.push(j);
+      }
+    }
+    return seen;
+  }
+
   freeCell({ farFrom = this.snake[0], min = 3 } = {}) {
     const r = this.s.rng;
+    const reach = this.reachableCells();
     for (let i = 0; i < 400; i++) {
       const x = r.int(0, COLS - 1), y = r.int(0, ROWS - 1);
       if (this.blocked(x, y)) continue;
+      if (reach && !reach[y * COLS + x]) continue;
       if (farFrom && Math.abs(farFrom.x - x) + Math.abs(farFrom.y - y) < min) continue;
       return { x, y };
     }

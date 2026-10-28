@@ -112,7 +112,7 @@ class CryptOfCrowns {
         if (!open.has(W.at(x + dx, y + dy))) return;
         const lx = x + 0.5 + dx * 0.8, ly = y + 0.5 + dy * 0.8;
         if (taken.some(([ax, ay]) => Math.hypot(ax - lx, ay - ly) < 3.6)) return;
-        if (((x * 73856093) ^ (y * 19349663) ^ (this.level * 83492791)) % 5 === 0) return;   // leave a few gaps
+        if (Math.abs((x * 73856093) ^ (y * 19349663) ^ (this.level * 83492791)) % 5 === 0) return;   // leave a few gaps (abs: the xor can go negative, and a negative remainder never hit 0)
         taken.push([lx, ly]);
         this.sconces.set(this.faceKey(x, y, dx, dy), true);
         this.sconceLights.push({ x: lx, y: ly, r: 1.3, g: 0.66, b: 0.26, rad: 3.6 });

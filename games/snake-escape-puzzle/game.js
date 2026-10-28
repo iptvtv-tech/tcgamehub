@@ -105,7 +105,10 @@ class SnakeEscape {
 
   // ── Puzzle mode ────────────────────────────────────────────
   loadPuzzle() {
-    const P = puzzleFor(this.level);
+    let P = puzzleFor(this.level);
+    // Daily Challenge: the hand-made boards are fixed, so rotate/mirror by today's seed.
+    // The Daily board now differs from normal mode and changes each day (same for everyone).
+    if (this.s.daily) P = transform(P, 1 + this.s.rng.int(0, 6));
     this.P = P;
     this.B = makeBoard(P);
     this.n = P.n; this.cell = BOARD / P.n;

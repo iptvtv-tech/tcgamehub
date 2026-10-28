@@ -148,6 +148,7 @@ class VoidBreaker {
     this.upgradePhase = { opts: this.pickUpgrades(), hover: 1, chosen: -1, t: 0 };
     // a locked mouse can't point at the cards: let it go without pausing the game
     if (document.pointerLockElement) { this.quietUnlock = true; this.releaseMouse(); }
+    else this.quietUnlock = false;   // no lock to release: a stale flag here would swallow the next real ESC pause
   }
   applyUpgrade(idx) {
     const up = this.upgradePhase.opts[idx];

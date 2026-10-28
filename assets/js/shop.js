@@ -1,4 +1,5 @@
 import { Tokens, THEMES, AVATARS, EFFECTS, SOUNDPACKS, FLAIR, EARN, DAILY_CAP } from './tokens.js';
+import { event as statEvent } from './stats.js';
 import { Store } from './storage.js';
 import { Sound } from './audio.js';
 import { siteChrome, esc } from './site.js';
@@ -87,6 +88,7 @@ document.addEventListener('click', (e) => {
   if (btn.dataset.act === 'unequip') { Tokens.setFlair(null); Sound.unlock(); Sound.play('click'); render(); return; }
   if (btn.dataset.act === 'buy') {
     if (!Tokens.buy(id)) return;
+    statEvent('buy', id);   // anonymous: just the item id
     Sound.unlock(); Sound.play('powerup');
     card.classList.add('bought');
   }

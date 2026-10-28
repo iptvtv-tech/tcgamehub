@@ -44,6 +44,7 @@ runGame({
   id: ID,
   width: W, height: H,
   lives: 3,
+  noDaily: true,   // hand-drawn fixed vaults — the Daily seed changes nothing
   extend: { maxH: 900, topShare: 0 },
   levelName: 'Vault',
   finalLevel: FINAL,

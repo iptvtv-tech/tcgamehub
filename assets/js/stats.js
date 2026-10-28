@@ -34,12 +34,21 @@ export function countingState() {
 }
 
 // ?nostats (or ?nostats=1) switches counting off for this browser, ?nostats=0 back on.
-// The switch is then taken out of the address bar so a shared link can't carry it.
+// ?from=<anything> marks an arrival from a shared link (counted once as arrive/share; the
+// tag itself is not sent). Both are then taken out of the address bar so a copied or
+// re-shared link can't carry them.
 {
   const q = new URLSearchParams(location.search);
+  let touched = false;
   if (q.has('nostats')) {
     setCounting(q.get('nostats') === '0');
-    q.delete('nostats');
+    q.delete('nostats'); touched = true;
+  }
+  if (q.has('from')) {
+    event('arrive', 'share');
+    q.delete('from'); touched = true;
+  }
+  if (touched) {
     const rest = q.toString();
     try { history.replaceState(history.state, '', location.pathname + (rest ? `?${rest}` : '') + location.hash); } catch { /* ignore */ }
   }
@@ -57,7 +66,10 @@ function send(params) {
 function pageView() {
   let ref = '';
   try { const r = new URL(document.referrer); if (r.hostname !== location.hostname) ref = r.origin; } catch { /* none */ }
-  send({ p: location.pathname, t: document.title, r: ref, s: String(screen.width) });
+  // The 404 page (<html data-notfound>) is counted as /404 whatever the broken path was,
+  // so broken inbound links show up as one line instead of one path per typo.
+  const notFound = document.documentElement.hasAttribute('data-notfound');
+  send({ p: notFound ? '/404' : location.pathname, t: notFound ? `404: ${location.pathname}` : document.title, r: ref, s: String(screen.width) });
 }
 
 /** A game event, e.g. event('start', 'neon-snake') or event('over', 'neon-snake', 7). */

@@ -1271,6 +1271,7 @@ class AlienShooter {
       }
     }
     if (this.boss) { this.boss.lasers = null; this.boss.spiral = null; this.boss.atkT = 2.5; }
+    this.timers = [];   // a queued boss volley must not fire into the respawn
     this.lanes = [];
     this.beamCarrier = null; this.capture = null; this.rescue = null;
     this.shipHidden = false; this.dual = false; this.shield = false;

@@ -109,7 +109,10 @@ class DungeonEscape {
     this.ghouls = [];
     const nG = Math.min(6, level <= 2 ? 1 : 1 + Math.floor(level / 2.5)); // slightly fewer ghouls (~20% reduction)
     for (let i = 0; i < nG; i++) { const c = r.pick(cells.filter((q) => q.d > Math.max(6, cells[cells.length - 1].d * 0.4))); this.ghouls.push(this.newGhoul(c)); }
-    this.fuelMax = Math.round(48 + n * n * 1.32); // ~20% more torch fuel
+    // Easier start (28 Oct 2026): every recorded run in the first month ended before level 6,
+    // and the torch is what ends early runs — levels 1–5 start with more fuel
+    // (L1 ×1.25 → L5 ×1.05); level 6 onward is unchanged.
+    this.fuelMax = Math.round((48 + n * n * 1.32) * (level < 6 ? 1.3 - level * 0.05 : 1)); // ~20% more torch fuel
     this.fuel = this.fuelMax;
     this.placePlayer();
     this.setupLight();
@@ -257,7 +260,8 @@ class DungeonEscape {
   onLifeLost() {
     this.placePlayer();
     this.hurtT = 0;
-    if (this.fuel < 25) this.fuel = Math.min(this.fuelMax, 30);
+    // A torch-out death used to respawn you with a flat 30s — not enough in a big maze.
+    if (this.fuel < 25) this.fuel = Math.min(this.fuelMax, Math.max(30, Math.round(this.fuelMax * 0.35)));
     // ghouls go back to their lairs
     for (const g of this.ghouls) { g.x = g.home.x + 0.5; g.y = g.home.y + 0.5; g.tx = g.home.x; g.ty = g.home.y; g.hunting = false; g.stun = 1.5; }
   }
@@ -317,7 +321,7 @@ class DungeonEscape {
 
     // ghouls
     let nearest = 99;
-    const gSpeed = Math.min(1.92, 1.08 + L * 0.056); // ~20% slower ghouls
+    const gSpeed = Math.min(1.92, 1.08 + L * 0.056) * (L < 4 ? 0.85 + (L - 1) * 0.05 : 1); // ~20% slower ghouls; gentler still on L1–3
     for (const g of this.ghouls) {
       if (g.stun > 0) { g.stun -= dt; continue; }
       const d = Math.hypot(g.x - p.x, g.y - p.y);

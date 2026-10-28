@@ -255,13 +255,14 @@ class Shell {
     this.bands = { top: 0, bottom: 0 };
     this.gold = false; // set after meta is known (below)
     const params = new URLSearchParams(location.search);
-    this.daily = params.get('daily') === '1';
+    this.daily = params.get('daily') === '1' && !def.noDaily;   // noDaily: fixed-layout games where the Daily seed changes nothing
     this.mode = this.daily ? 'daily' : 'normal';
     this.checkpoints = this.computeCheckpoints();
     this.gold = !!this.meta.gold && Legends.goldOn(this.id);
     // "Beat my score" links: ?beat=12450&by=Sam
     const beat = parseInt(params.get('beat'), 10), by = cleanName(params.get('by') || '');
     this.challenge = beat > 0 && beat < 1e9 ? { score: beat, by: by && !nameProblem(by) ? by : 'A friend' } : null;
+    if (this.challenge) statEvent('arrive', 'challenge');   // anonymous: no score or name sent
     const wanted = parseInt(params.get('start'), 10);
     this.chosenStart = this.checkpoints.includes(wanted) ? wanted : 1;
 
@@ -526,6 +527,7 @@ class Shell {
     this.unlock('legend', true);
     this.reward('egg');
     const hadCrown = Legends.hasGoldenCrown();
+    statEvent('egg', this.id);   // a Golden Egg won (anonymous)
     Legends.grant(this.id);
     for (const n of Legends.eggs()) this.unlock(`crown${n}`, true);   // the zone's Golden Egg
     this.crownWon = !hadCrown && Legends.hasGoldenCrown();
@@ -857,7 +859,7 @@ class Shell {
         <span>${Tokens.avatarHTML()} ${best ? `Your best: <b>${fmt(best)}</b>` : 'No best score yet — go!'}</span>
         <span data-top>…</span>
       </div>
-      <p class="small">${this.daily ? `<a href="./">Play normal mode instead</a>` : `<a href="./?daily=1">Try today's Daily Challenge seed →</a>`}${document.getElementById('about') ? ' · <a href="#about" class="about-link">ⓘ How to play</a>' : ''}</p>
+      <p class="small">${this.def.noDaily ? '' : this.daily ? `<a href="./">Play normal mode instead</a>` : `<a href="./?daily=1">Try today's Daily Challenge seed →</a>`}${document.getElementById('about') ? ' · <a href="#about" class="about-link">ⓘ How to play</a>' : ''}</p>
     `);
     o.querySelector('[data-act="play"]').onclick = () => this.startRun(this.chosenStart);
     const gb = o.querySelector('[data-gold]');
@@ -902,7 +904,7 @@ class Shell {
     if (Store.submitBest(this.id, score)) this.unlock('pb', true);
     const zone = zoneOf(this.id);
     const unlocks = Legends.unlocks().filter((u) => u.zone === zone?.n);
-    const shareText = `🥚👑 I found the secret at ${location.origin}/ … can you? Only true Legends get in.`;
+    const shareText = `🥚👑 I found the secret at ${location.origin}/?from=wa … can you? Only true Legends get in.`;
     const o = this.showOverlay(`
       ${zone ? `<div class="legend-prize">${eggSVG(zone.n, { size: 84 })}</div>` : ''}
       <h2 class="legend-title">${zone ? `${esc(eggName(zone.n))} won!` : '👑 You are a Legend'}</h2>
@@ -979,7 +981,7 @@ class Shell {
       const q = new URLSearchParams({ ...(this.daily ? { daily: '1' } : {}), beat: String(score), ...(me ? { by: me } : {}) });
       return score > 0
         ? `🎮 ${me ? `${me} scored` : 'I scored'} ${fmt(score)} on ${this.meta.title}${this.daily ? " (today's Daily Challenge)" : ''} and reached ${this.reachedText(true)}! Can you beat me? ${location.origin}${location.pathname}?${q}`
-        : `🎮 Come play ${this.meta.title} with me, free in your browser: ${gameUrl}`;
+        : `🎮 Come play ${this.meta.title} with me, free in your browser: ${gameUrl}${gameUrl.includes('?') ? '&' : '?'}from=wa`;
     };
     const shareText = makeShare();
 

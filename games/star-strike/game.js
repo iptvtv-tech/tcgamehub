@@ -1057,7 +1057,7 @@ class StarStrike {
     ctx.fillText(`💣${this.bombs}`, W - 44, H - 60);
     ctx.restore();
     ctx.textAlign = 'center'; ctx.font = '600 11px system-ui'; ctx.fillStyle = 'rgba(226,232,240,.45)';
-    if (s.state === 'playing' && this.sectorT < 6) ctx.fillText(this.s.coarse ? 'Drag to fly · you fire automatically · 💣 button' : 'Arrows / mouse to fly · Space / click to fire · B bomb', W / 2, H - 14);
+    if (s.state === 'playing' && this.sectorT < 6) ctx.fillText(this.s.coarse ? 'Touch and hold: fly and fire · 💣 button' : 'Arrows / mouse to fly · Space / click to fire · B bomb', W / 2, H - 14);
     if (s.gold) { ctx.fillStyle = '#fbbf24'; ctx.font = '700 12px system-ui'; ctx.fillText('★ GOLDEN FIGHTER', W / 2, 60); }
   }
 }

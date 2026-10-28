@@ -301,7 +301,7 @@ function gamePage(g) {
           <li>Every 5th level is a <b>bonus round</b>: no way to lose, a timer and lots of points. Clear it to unlock a checkpoint you can start from next time.</li>
           <li>Chain hits quickly to raise your <b>combo multiplier</b>.</li>
           <li>Make the top 20 and type a nickname to go on the <a href="${rel}leaderboard/#${g.id}">public leaderboard</a> — no account needed. Boards reset daily and weekly.</li>
-          <li>One game a day is the <b>Daily Challenge</b>: the same layout for everyone, with its own board. <a href="./?daily=1">Play today's ${esc(g.title)} challenge</a>.</li>
+          ${g.noDaily ? '' : `<li>One game a day is the <b>Daily Challenge</b>: the same layout for everyone, with its own board. <a href="./?daily=1">Play today's ${esc(g.title)} challenge</a>.</li>`}
         </ul>
         ${g.legend ? `<h2>The Legends secret</h2>
         <p>${esc(g.title)} is ${esc(z.name)}'s <b>Legends game</b>. ${esc(g.legendHow || 'Finish it from level 1 without losing a life.')} Win the egg to enter the <a href="${rel}hall-of-legends/">Hall of Legends</a>${z.n <= 4 ? ' — and the Golden Eggs of Zones 1–4 together win the Golden Crown' : ' and add a jewel to the Golden Crown'}.</p>
