@@ -1,8 +1,25 @@
 import { siteChrome } from './site.js';
 import { CONFIG } from './config.js';
+import { countingState, setCounting } from './stats.js';
 siteChrome();
 // The visitor-statistics lines only show when stats are switched on in config.js.
 if ((CONFIG.goatcounter || '').trim()) document.querySelectorAll('[data-stats]').forEach((el) => { el.hidden = false; });
+
+// "Don't count this browser" switch (same as opening any page with ?nostats).
+const countText = document.querySelector('[data-stats-state]');
+const countBtn = document.querySelector('[data-stats-toggle]');
+function showCounting() {
+  if (!countText || !countBtn) return;
+  const s = countingState();
+  countText.textContent = s === 'dnt' ? 'Your browser sends "Do Not Track", so it is never counted.'
+    : s === 'none' ? 'Nothing is counted on this address.'
+    : s === 'off' ? 'This browser is not counted.'
+    : 'Visits from this browser are counted.';
+  countBtn.hidden = s === 'dnt' || s === 'none';
+  countBtn.textContent = s === 'off' ? 'Count this browser again' : 'Don\'t count this browser';
+}
+countBtn?.addEventListener('click', () => { setCounting(countingState() === 'off'); showCounting(); });
+showCounting();
 
 // Soft reset for a corrupt or unwanted save (audit P1). Two taps so it can't happen by accident.
 import { Store } from './storage.js';

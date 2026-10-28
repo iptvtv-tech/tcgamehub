@@ -152,7 +152,8 @@ export const Store = {
       if (isObj(raw) && ok(raw.progressCode)) keep.progressCode = raw.progressCode;
     } catch { keep = {}; }
     try {
-      for (const k of Object.keys(localStorage)) if (k.startsWith('arcade:')) localStorage.removeItem(k);
+      // keep the "don't count this browser" switch (stats.js): it's a device setting, not a save
+      for (const k of Object.keys(localStorage)) if (k.startsWith('arcade:') && k !== 'arcade:nostats') localStorage.removeItem(k);
       localStorage.setItem(KEY, JSON.stringify(keep));
     } catch { /* storage unavailable */ }
     data = null;

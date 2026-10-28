@@ -134,7 +134,7 @@ See **[docs/ADDING_A_GAME.md](docs/ADDING_A_GAME.md)**. In short: copy `games/_t
 - **Fair scores**: every game starts with a server-timed ticket (`start_game` → `submit_score_v2`), see `supabase/update-2026-10.sql`.
 - **Security check**: paste `supabase/verify-audit-2026-10.sql` into the SQL Editor any time — it changes nothing and every row should say `true` (Row Level Security on, old score function closed, helpers private).
 - **Releases**: bump `CACHE_VERSION` in `sw.js` so returning visitors drop the old cached files; pages never visited show `offline.html` when there's no connection.
-- **Visitor stats (optional)**: set `goatcounter` in `assets/js/config.js` to your GoatCounter code. No cookies; only page paths and anonymous game start/finish events are counted.
+- **Visitor stats (optional)**: set `goatcounter` in `assets/js/config.js` to your GoatCounter code. No cookies; only page paths and anonymous game start/finish events are counted. To leave your own devices out, open any page once with `?nostats` in each browser you use (`?nostats=0` counts it again), or use the switch at the bottom of the About page.
 
 | Feature | Where |
 |---|---|
