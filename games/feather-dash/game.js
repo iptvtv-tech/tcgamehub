@@ -262,8 +262,15 @@ class FeatherDash {
     this.bird.y = H * 0.42; this.bird.vy = 0; this.bird.rot = 0;
     this.hover = true; this.hoverBase = this.bird.y;
     this.hawks = [];
-    // never respawn inside (or right in front of) a pillar
-    this.pillars = this.pillars.filter((p) => p.x > BIRD_X + 150);
+    // Never respawn inside (or right in front of) a pillar. Slide everything still ahead of the
+    // bird back instead of deleting it: every spawned pillar must still be passed, or the
+    // "Pillars n / need" goal can't be reached and the level never ends.
+    const ahead = this.pillars.filter((p) => !p.passed);
+    const dx = BIRD_X + 150 - Math.min(...ahead.map((p) => p.x));   // -Infinity when none are left
+    if (dx > 0) {
+      for (const p of ahead) p.x += dx;
+      for (const o of [...this.seeds, ...this.items]) if (!o.taken && o.x > BIRD_X) o.x += dx;
+    }
   }
 
   // ── Draw ───────────────────────────────────────────────────
