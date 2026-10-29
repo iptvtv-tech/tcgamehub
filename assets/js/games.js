@@ -615,6 +615,24 @@ export const GAMES = [
     ],
   },
   {
+    id: 'astro-explorer',
+    genres: ['action', 'space'],
+    gold: 'Golden Explorer',        // golden character unlocked by the Zone 5 egg (gold suit and visor)
+    title: 'Astro Explorer',
+    tagline: 'Explore alien planets as a lone astronaut. Fight with an energy blade and a blaster, bounce off foes and spikes, and find the exit beacon. A guardian boss waits on every fifth planet.',
+    controls: 'A / D or ← → run · Space / W jump · J or X blade · K or C blaster · ↑ ↓ aim · on touch: stick + JUMP, BLADE, BLAST',
+    color: '#a78bfa',
+    isNew: true,
+    achievements: [
+      { id: 'landing',   icon: '🚀', title: 'Touchdown',     desc: 'Clear the first planet' },
+      { id: 'contact',   icon: '👽', title: 'First Contact', desc: 'Defeat your first alien' },
+      { id: 'pogo',      icon: '🌙', title: 'Moon Bounce',   desc: 'Bounce off 3 things in a row without landing' },
+      { id: 'untouched', icon: '🛡️', title: 'Untouched',     desc: 'Clear a planet without taking a hit' },
+      { id: 'level10',   icon: '🪐', title: 'Deep Explorer', desc: 'Reach planet 10' },
+      { id: 'score10k',  icon: '🏅', title: 'Ten Grand',     desc: 'Score 10,000 in one game' },
+    ],
+  },
+  {
     id: 'vault-of-stars',
     genres: ['puzzle', 'space'],
     noDaily: true,                  // hand-drawn fixed vaults: the Daily seed changes nothing, so no Daily mode
@@ -694,7 +712,7 @@ export const ZONES = [
     slots: ['tc-pixel-craft', 'dungeon-escape', 'neon-drift', 'crystal-cascade', 'void-breaker', 'crown-heist'] },
   { n: 5, name: 'Zone 5 · Beyond', blurb: 'Ultra difficulty, out past the Earth. Vault of Stars is this zone\'s Legends game.',
     legendGame: 'vault-of-stars',
-    slots: ['lunar-delivery', 'orbit-hopper', 'station-defense', 'dock-master', null, 'vault-of-stars'] },
+    slots: ['lunar-delivery', 'orbit-hopper', 'station-defense', 'dock-master', 'astro-explorer', 'vault-of-stars'] },
 ];
 
 /** Icon for each zone's prize (a Golden Egg — see eggs.js for the full artwork). */

@@ -170,6 +170,12 @@ export const COPY = {
     how: ['Press on a ship and drag a line to the bay of the same colour (each colour has its own hull shape, shown on the bay pad too).', 'The route commits the moment your line reaches the right bay — the ship flies it on its own, a little faster than it drifts.', 'Two ships touching is a collision and costs a life. Redraw a route any time by dragging from the ship again.', 'Dock the level’s quota to finish. From level 8 the bays trade colours on a timer — watch for the blink and reroute.'],
     tip: 'Routed ships fly faster than drifting ones — routing a ship out of danger is often better than routing it home.',
   },
+  'astro-explorer': {
+    kind: 'space exploration platformer',
+    blurb: 'Explore alien planets as a lone astronaut. Fight with an energy blade and blaster, bounce off foes and spikes, and find the exit beacon. Free.',
+    how: ['Run with A / D or the arrow keys and jump with Space or W. Hold jump to go higher.', 'Swing the energy blade with J or X; hold ↑ to strike upwards. In mid-air, hold ↓ and swing to bounce off aliens and spikes.', 'Blade hits charge the blaster. Fire it with K or C to hit aliens from a distance.', 'Each hit costs an armour plate, and spikes send you back to safe ground. Lose every plate and you lose a life.', 'On a phone, use the stick to run and aim, plus the JUMP, BLADE and BLAST buttons.'],
+    tip: 'Every down-slash bounce lifts you again, so you can chain them across a spike pit.',
+  },
   'vault-of-stars': {
     kind: 'speedrun puzzle game',
     blurb: 'Fifteen sealed vaults on an alien moon. Time the laser grids, slip past sentry drones, drift across zero-g fields and reach the airlock before your oxygen runs out. Zone 5’s Legends game.',
