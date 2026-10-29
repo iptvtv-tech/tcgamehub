@@ -47,6 +47,7 @@ export const ASTRO_H = 31;
  * Turn game state into a pose.
  * s = { mode: 'idle'|'run'|'jump'|'fall', t, phase, run (0..1), vy, flame (0..1), land (0..1),
  *       slash: { kind: 'side'|'up'|'down', k (0..1) } | null, shoot: { dir: 'side'|'up'|'down', k } | null,
+ *       dash: { k (0..1) } | null, cling (bool), focus (0..1, the energy heal),
  *       hurt (0..1), look: { x, y } (-1..1) — where the visor's shine drifts, idleLook (-1..1) }
  */
 export function astroPose(s) {
@@ -56,7 +57,7 @@ export function astroPose(s) {
     near: { thigh: 0.07, bend: 0.12 }, far: { thigh: -0.06, bend: 0.14 },
     armN: { a: 0.16, bend: 0.38 }, armF: { a: -0.04, bend: 0.32 },
     look: { x: s.look?.x ?? 0.5, y: s.look?.y ?? 0 }, visorBlade: 0,
-    squash: 1, flame: 0, weapon: null, weaponK: 0, slashKind: null, breath: 0,
+    squash: 1, flame: 0, jet: 0, weapon: null, weaponK: 0, slashKind: null, breath: 0,
   };
   if (s.mode === 'idle') {
     const br = Math.sin(t * 2.0);
@@ -84,6 +85,23 @@ export function astroPose(s) {
     P.near = { thigh: 0.36, bend: 0.55 }; P.far = { thigh: -0.32, bend: 0.7 };
     P.armN = { a: 1.7 + w, bend: 0.35 }; P.armF = { a: 2.0 - w, bend: 0.35 };
     P.lean = -0.04; P.look.y = 0.6;
+  }
+  if (s.dash) {                       // dash: thrown forward, arms swept back, legs trailing, thrusters roaring
+    const k = s.dash.k;
+    P.grounded = false; P.lean = 0.42; P.tilt = -0.1; P.look = { x: 1, y: 0.1 };
+    P.armN = { a: -0.95, bend: 0.35 }; P.armF = { a: -1.25, bend: 0.3 };
+    P.near = { thigh: -0.35, bend: 0.55 }; P.far = { thigh: -0.75, bend: 0.4 };
+    P.jet = 1 - k * 0.6; P.flame = 0;
+  } else if (s.cling) {               // drawn facing the wall: both gloves and a boot pressed to the rock, sliding down
+    P.grounded = false; P.lean = 0.1; P.tilt = -0.1; P.look = { x: 0.5, y: -0.7 };
+    P.armN = { a: 2.3, bend: -0.5 }; P.armF = { a: 1.9, bend: -0.2 };
+    P.near = { thigh: 1.0, bend: 0.6 }; P.far = { thigh: 0.15, bend: 0.35 };
+    P.flame = 0;
+  } else if (s.focus > 0) {           // the energy heal: braced, gloves to the chest, head bowed
+    const k = Math.min(1, s.focus * 3), q = Math.sin((s.t || 0) * 18) * 0.03 * s.focus;
+    P.near = { thigh: 0.28 * k + 0.07, bend: 0.75 * k + 0.12 }; P.far = { thigh: -0.3 * k - 0.06, bend: 0.7 * k + 0.14 };
+    P.armN = { a: 1.25 + q, bend: 1.75 }; P.armF = { a: 1.05 - q, bend: 1.6 };
+    P.lean = 0.08 * k; P.tilt = 0.16 * k; P.look = { x: 0.4, y: 0.7 }; P.visorBlade = 0.35 + 0.4 * s.focus;
   }
   if (s.land > 0) {
     const k = s.land;
@@ -306,6 +324,14 @@ export function drawAstronaut(ctx, P, C, opt = {}) {
   ctx.fillStyle = C.trim; ctx.beginPath(); ctx.arc(-9.4, -16.3, 0.45, 0, TAU); ctx.fill();
   // thruster nozzles + flame
   ctx.fillStyle = C.trim; ctx.fillRect(-9.4, -1.3, 1.6, 1.0); ctx.fillRect(-6.2, -1.3, 1.6, 1.0);
+  if (P.jet > 0) {                    // dash: both thrusters swung back, a long horizontal jet
+    const L = (6 + 9 * P.jet) * (0.85 + 0.15 * Math.sin(performance.now() / 19));
+    for (const [ny, w] of [[-8.6, 1.1], [-4.4, 1.25]]) {
+      const fg = ctx.createLinearGradient(-10.4, 0, -10.4 - L, 0);
+      fg.addColorStop(0, 'rgba(255,251,235,.95)'); fg.addColorStop(0.3, 'rgba(165,243,252,.85)'); fg.addColorStop(1, 'rgba(34,211,238,0)');
+      ctx.fillStyle = fg; ctx.beginPath(); ctx.moveTo(-10.2, ny - w); ctx.quadraticCurveTo(-10.4 - L * 1.1, ny, -10.2, ny + w); ctx.fill();
+    }
+  }
   if (P.flame > 0) {
     for (const nx of [-8.6, -5.4]) {
       const L = (3 + 4.5 * P.flame) * (0.8 + 0.2 * Math.sin(performance.now() / 23 + nx));
@@ -366,12 +392,13 @@ export function drawPortrait(ctx, P, C) {
 }
 
 /** The energy-blade swoosh in front of the body (world px, caller has mirrored for facing). */
-export function drawSlashArc(ctx, kind, k, C) {
+export function drawSlashArc(ctx, kind, k, C, reach = 0) {
   // the swoosh follows the blade: same easing as the arm in astroPose(), sweeping from where the
   // swing starts to where the blade is now; sized to match slashBox() in world.js
   const e = 1 - Math.pow(1 - Math.min(1, k * 1.25), 3), fade = k < 0.6 ? 1 : 1 - (k - 0.6) / 0.4;
   if (fade <= 0 || e <= 0.02) return;
-  const [cx, cy, r, from, to] = kind === 'up' ? [1, -22, 23, 0.5, -2.2] : kind === 'down' ? [0, -9, 22, -0.25, 2.25] : [2, -19, 24, -1.22, 0.98];
+  const [cx, cy, r0, from, to] = kind === 'up' ? [1, -22, 23, 0.5, -2.2] : kind === 'down' ? [0, -9, 22, -0.25, 2.25] : [2, -19, 24, -1.22, 0.98];
+  const r = r0 + reach;                                    // a higher blade tier reaches further
   const end = from + (to - from) * e;
   ctx.save(); ctx.lineCap = 'round';
   for (const [w, col] of [[9, C.blade[2] + (0.26 * fade) + ')'], [4, C.blade[2] + (0.6 * fade) + ')'], [1.5, `rgba(255,255,255,${0.95 * fade})`]]) {
@@ -480,4 +507,88 @@ export function drawSpitter(ctx, f, t, white) {
   ctx.fillStyle = white ? '#fff' : e ? '#fde047' : '#ecfccb';
   ctx.beginPath(); ctx.arc(-3.6, -10, 0.9, 0, TAU); ctx.arc(3.6, -10, 0.9, 0, TAU); ctx.fill();
   ctx.restore();
+}
+
+// ── Pickups and props ──────────────────────────────────────────
+
+const ABIL_COL = { double: ['#fed7aa', '#fb923c', '#9a3412'], dash: ['#cffafe', '#22d3ee', '#155e75'], cling: ['#d9f99d', '#84cc16', '#3f6212'], cache: ['#fef3c7', '#fbbf24', '#92400e'] };
+export const abilityColor = (kind) => ABIL_COL[kind] || ABIL_COL.cache;
+
+/** Ability icons (also used on the HUD and the capsule): drawn in a size × size box centred on x, y. */
+export function drawAbilityIcon(ctx, kind, x, y, size, col = '#fff') {
+  const u = size / 16;
+  ctx.save(); ctx.translate(x, y); ctx.scale(u, u);
+  ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = 1.8;
+  if (kind === 'double') {           // two chevrons rising over a thruster puff
+    for (const dy of [-1.5, 3.5]) { ctx.beginPath(); ctx.moveTo(-4.5, dy + 1.5); ctx.lineTo(0, dy - 3); ctx.lineTo(4.5, dy + 1.5); ctx.stroke(); }
+    ctx.beginPath(); ctx.ellipse(0, 6.4, 4.2, 1.1, 0, 0, Math.PI * 2); ctx.fill();
+  } else if (kind === 'dash') {      // an arrow with speed lines
+    ctx.beginPath(); ctx.moveTo(-1, -4.5); ctx.lineTo(5, 0); ctx.lineTo(-1, 4.5); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-6.5, -2.2); ctx.lineTo(1.5, -2.2); ctx.moveTo(-5, 2.2); ctx.lineTo(1.5, 2.2); ctx.moveTo(-7, 0); ctx.lineTo(3, 0); ctx.stroke();
+  } else if (kind === 'cling') {     // three hooked claws biting into a wall
+    ctx.fillRect(-7.5, -7.5, 3, 15);
+    for (const fy of [-4.2, 0, 4.2]) { ctx.beginPath(); ctx.moveTo(5.5, fy + 1.6); ctx.quadraticCurveTo(-0.5, fy + 1.4, -3.2, fy - 1.2); ctx.stroke(); }
+    ctx.beginPath(); ctx.moveTo(6, -5); ctx.lineTo(6, 6.5); ctx.stroke();
+  } else if (kind === 'cache') {     // a star-dust diamond
+    ctx.beginPath(); ctx.moveTo(0, -6.5); ctx.lineTo(4.8, 0); ctx.lineTo(0, 6.5); ctx.lineTo(-4.8, 0); ctx.closePath(); ctx.fill();
+  } else if (kind === 'plate') {     // an armour plate
+    ctx.beginPath(); ctx.moveTo(-5.5, -5); ctx.lineTo(5.5, -5); ctx.lineTo(5.5, 0.5); ctx.quadraticCurveTo(5, 5, 0, 7); ctx.quadraticCurveTo(-5, 5, -5.5, 0.5); ctx.closePath(); ctx.fill();
+  } else if (kind === 'blade') {     // the energy blade
+    ctx.lineWidth = 2.4; ctx.beginPath(); ctx.moveTo(-5.5, 5.5); ctx.lineTo(5.5, -5.5); ctx.stroke();
+    ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-6.5, 3); ctx.lineTo(-3, 6.5); ctx.stroke();
+  } else if (kind === 'blaster') {   // a bolt
+    ctx.beginPath(); ctx.moveTo(1.5, -7); ctx.lineTo(-4, 1); ctx.lineTo(-0.5, 1); ctx.lineTo(-1.5, 7); ctx.lineTo(4, -1); ctx.lineTo(0.5, -1); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+}
+
+/** The ability capsule: a hovering canister with the ability's icon behind glass (world px, centre x, y). */
+export function drawCapsule(ctx, kind, x, y, t, glow) {
+  const [hi, mid, lo] = abilityColor(kind), bob = Math.sin(t * 2.2) * 2.2, cy = y + bob;
+  if (glow) { ctx.globalAlpha = 0.5 + 0.25 * Math.sin(t * 3); ctx.drawImage(glow, x - 26, cy - 26, 52, 52); ctx.globalAlpha = 1; }
+  // light cone under it
+  const g = ctx.createLinearGradient(0, cy, 0, cy + 30);
+  g.addColorStop(0, `rgba(255,255,255,${0.16 + 0.06 * Math.sin(t * 4)})`); g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(x - 5, cy + 8); ctx.lineTo(x + 5, cy + 8); ctx.lineTo(x + 12, cy + 30); ctx.lineTo(x - 12, cy + 30); ctx.fill();
+  // canister: caps + glass
+  ctx.fillStyle = 'rgba(8,10,26,.65)'; rr(ctx, x - 8.2, cy - 11.2, 16.4, 22.4, 4); ctx.fill();
+  ctx.fillStyle = '#64748b'; rr(ctx, x - 7.5, cy - 10.5, 15, 4, 1.6); ctx.fill(); rr(ctx, x - 7.5, cy + 6.5, 15, 4, 1.6); ctx.fill();
+  ctx.fillStyle = '#cbd5e1'; ctx.fillRect(x - 7, cy - 10.2, 14, 1); ctx.fillRect(x - 7, cy + 6.8, 14, 1);
+  const gg = ctx.createLinearGradient(x - 6, 0, x + 6, 0);
+  gg.addColorStop(0, lo); gg.addColorStop(0.45, mid); gg.addColorStop(1, lo);
+  ctx.fillStyle = gg; ctx.fillRect(x - 6, cy - 6.5, 12, 13);
+  ctx.save(); ctx.translate(x, cy); ctx.rotate(Math.sin(t * 1.7) * 0.15);
+  drawAbilityIcon(ctx, kind, 0, 0, 9.5, hi);
+  ctx.restore();
+  ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.fillRect(x - 4.8, cy - 6, 1.3, 12);
+}
+
+/** The rest beacon: a pylon with a dish and a ring light (world px, feet x, y). lit: 0 dark … 1 burning. */
+export function drawBeacon(ctx, x, y, t, lit, glow) {
+  if (lit > 0) {
+    const g = ctx.createLinearGradient(0, y - 150, 0, y);
+    g.addColorStop(0, 'rgba(94,234,212,0)'); g.addColorStop(1, `rgba(94,234,212,${(0.18 + 0.06 * Math.sin(t * 2.5)) * lit})`);
+    ctx.fillStyle = g; ctx.fillRect(x - 12, y - 150, 24, 150);
+    if (glow) { ctx.globalAlpha = (0.5 + 0.2 * Math.sin(t * 2.5)) * lit; ctx.drawImage(glow, x - 34, y - 78, 68, 68); ctx.globalAlpha = 1; }
+  }
+  // base plinth
+  ctx.fillStyle = '#0f172a'; rr(ctx, x - 11, y - 7, 22, 7, 2); ctx.fill();
+  ctx.fillStyle = '#334155'; rr(ctx, x - 10, y - 6.2, 20, 2.2, 1); ctx.fill();
+  // mast
+  ctx.fillStyle = '#1e293b'; ctx.fillRect(x - 3, y - 44, 6, 38);
+  ctx.fillStyle = '#475569'; ctx.fillRect(x - 3, y - 44, 1.6, 38);
+  // rungs
+  ctx.fillStyle = '#0f172a'; for (let i = 0; i < 4; i++) ctx.fillRect(x - 3, y - 14 - i * 8, 6, 1.2);
+  // ring light: spins when lit
+  const on = lit > 0, a = on ? t * 2.2 : 0, cy = y - 48;
+  ctx.strokeStyle = on ? `rgba(153,246,228,${0.55 + 0.45 * lit})` : '#475569'; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.ellipse(x, cy, 9, 3.2, 0, 0, Math.PI * 2); ctx.stroke();
+  for (let i = 0; i < 3; i++) {
+    const q = a + i * 2.094, px = x + Math.cos(q) * 9, py = cy + Math.sin(q) * 3.2;
+    ctx.fillStyle = on ? '#ccfbf1' : '#64748b'; ctx.beginPath(); ctx.arc(px, py, 1.3, 0, Math.PI * 2); ctx.fill();
+  }
+  // core
+  const k = on ? 0.7 + 0.3 * Math.sin(t * 4) : 0;
+  ctx.fillStyle = on ? `rgba(240,253,250,${0.6 + 0.4 * k})` : '#334155'; ctx.beginPath(); ctx.arc(x, cy, 3.6, 0, Math.PI * 2); ctx.fill();
+  if (on) { ctx.fillStyle = '#5eead4'; ctx.beginPath(); ctx.arc(x, cy, 1.8, 0, Math.PI * 2); ctx.fill(); }
 }

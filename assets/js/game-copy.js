@@ -172,9 +172,9 @@ export const COPY = {
   },
   'astro-explorer': {
     kind: 'space exploration platformer',
-    blurb: 'Explore alien planets as a lone astronaut. Fight with an energy blade and blaster, bounce off foes and spikes, and find the exit beacon. Free.',
-    how: ['Run with A / D or the arrow keys and jump with Space or W. Hold jump to go higher.', 'Swing the energy blade with J or X; hold ↑ to strike upwards. In mid-air, hold ↓ and swing to bounce off aliens and spikes.', 'Blade hits charge the blaster. Fire it with K or C to hit aliens from a distance.', 'Each hit costs an armour plate, and spikes send you back to safe ground. Lose every plate and you lose a life.', 'On a phone, use the stick to run and aim, plus the JUMP, BLADE and BLAST buttons.'],
-    tip: 'Every down-slash bounce lifts you again, so you can chain them across a spike pit.',
+    blurb: 'Explore alien planets as a lone astronaut. Blade and blast the aliens, find new moves, upgrade your suit at rest beacons and beat a guardian boss on every fifth planet. Free.',
+    how: ['Run with A / D or the arrow keys and jump with Space or W. Hold jump to go higher.', 'Swing the energy blade with J or X; hold ↑ to strike upwards. In mid-air, hold ↓ and swing to bounce off aliens and spikes.', 'Blade hits charge the blaster (K or C). Stand still and hold ↓ to turn 3 energy into an armour plate.', 'Each planet hides an ability capsule: double jump, then dash (L, Shift or V), then wall-cling. New moves open up secrets.', 'Light the rest beacon to repair your suit and spend star dust on armour, blade and blaster upgrades. Every fifth planet is a guardian’s lair, then a treasure vault.', 'On a phone, use the stick to run and aim, plus the JUMP, BLADE, BLAST and DASH buttons.'],
+    tip: 'Cracked rock can be broken with the blade, and there’s always something behind it.',
   },
   'vault-of-stars': {
     kind: 'speedrun puzzle game',

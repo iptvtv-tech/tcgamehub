@@ -11,11 +11,27 @@
 //  one stream per planet, seeded from the run seed and the planet number. So in the Daily
 //  Challenge every player meets the same aliens on the same planet, whatever came before.
 //
+//  Upgrades (Section 3). Abilities come from capsules, always in the same order: double jump,
+//  dash, wall-cling. Each planet's capsule holds the next one you don't have yet (with all
+//  three it holds a star-dust cache). Rest beacons are mid-planet checkpoints: lighting one
+//  repairs the suit, a lost life restarts there, and its shop sells armour plates and blade
+//  and blaster tiers for star dust. Standing still and holding ↓ turns 3 energy into a plate.
+//  Everything resets when a run ends.
+//
+//  The levels (Section 4): planets 1–4, 7–9, 12–14… are explore planets (the six hand-drawn maps in
+//  turn); every 5th is a guardian's lair (guardians.js); the one after each guardian is a treasure
+//  vault, the engine's 20-second bonus round.
+//
 //  Tiles:   # rock   = one-way ledge (land on it from above)   ^ floor spikes   v ceiling spikes
-//  Markers (air underneath):  S spawn   E exit beacon   * star dust
+//           x cracked rock: solid until the blade (or blaster) breaks it open
+//           D a lair's gate: open until you step into the arena, then shut until the guardian falls
+//  Markers (air underneath):  S spawn   E exit beacon   * star dust   A ability capsule   B rest beacon
 //           c ground alien slot   f flying alien slot   t acid pod slot (rooted on the rock beside it)
+//           G where the guardian waits   T a treasure chest (vaults)
 // ─────────────────────────────────────────────────────────────
 import { makeRng } from '../../assets/js/rng.js';
+import { MAPS } from './planets.js';
+import { GUARDIANS, GUARDIAN_ORDER, makeGuardian, resetGuardian, wakeGuardian, stepGuardian, guardianParts, damageGuardian, stepBossShots, shotBox } from './guardians.js';
 
 export const TILE = 24;
 export const DT = 1 / 120;
@@ -29,82 +45,142 @@ export const RUN = 175, ACCEL_G = 1900, ACCEL_A = 1250, FRICTION = 2300;
 export const GRAV = 1500, FALL_MUL = 1.45, MAX_FALL = 640;
 export const JUMP_V = -520, JUMP_CUT = 0.45;
 export const COYOTE = 0.09, BUFFER = 0.11;
+// Abilities: the jetpack's second burst, the dash, and the wall-cling (slide, then kick off)
+export const DJ_V = -470;
+export const DASH_V = 440, DASH_T = 0.18, DASH_CD = 0.42, DASH_BUF = 0.1;
+export const WALL_SLIDE = 62, WJ_VY = -480, WJ_VX = 245, WJ_CLIMB = 140, WJ_LOCK = 0.1, WALL_COY = 0.08;
 
 // Combat
 export const SLASH_T = 0.17, SLASH_CD = 0.3, SLASH_ON = [0.012, 0.11];   // swing length, cooldown, frames that hit
 export const POGO_V = -440;                                               // bounce off a down-slash hit
 export const SHOT_CD = 0.24, BOLT_V = 560, BOLT_LIFE = 0.6;
 export const INV_T = 1.1, HAZARD_T = 0.6, KB_T = 0.2;
-/** What the explorer starts each run with (Section 3 upgrades raise these). */
-export const LOADOUT = { pips: 3, energy: 6, blade: 1, blaster: 1 };
+export const EXIT_RISE = 1.25;                    // a lair's exit rises out of the floor when its guardian falls; it works once it's up
+export const FOCUS_COST = 3, FOCUS_DELAY = 0.2, FOCUS_T = 0.85;           // the energy heal: hold ↓, standing still
+export const CRACK_HP = 2;
+
+// ── Abilities, upgrades and the shop ─────────────────────────
+/** The capsules hand these out in this order. */
+export const ABILITIES = ['double', 'dash', 'cling'];
+export const ABILITY_INFO = {
+  double: { name: 'Double Jump', how: 'Press jump again in mid-air for a second thruster burst.' },
+  dash:   { name: 'Dash', how: 'Press L, Shift or V (or DASH) for a quick burst. Once more in mid-air.' },
+  cling:  { name: 'Wall Cling', how: 'Push into a wall in mid-air to grab it, then jump to kick off.' },
+};
+export const NO_AB = Object.freeze({ double: false, dash: false, cling: false });
+/** The abilities you have after collecting the first n capsules. */
+export const abilSet = (n) => ({ double: n >= 1, dash: n >= 2, cling: n >= 3 });
+
+/** A fresh run: no abilities, no upgrades, an empty star-dust wallet. */
+export const newRun = () => ({ abil: 0, wallet: 0, plate: 0, blade: 0, blaster: 0, dust: 0 });
+/** What a run's upgrades add up to. */
+export function loadoutFor(run) {
+  return {
+    pips: 3 + run.plate, energy: 6 + run.blaster, abil: run.abil,
+    blade: [1, 1.5, 2][run.blade], reach: [0, 4, 7][run.blade],
+    blaster: [1, 1.5, 2][run.blaster], pierce: run.blaster >= 2,
+  };
+}
+/** What the explorer starts each run with. */
+export const LOADOUT = loadoutFor(newRun());
+/** The rest beacon's shop: two tiers of each, prices in star dust. */
+export const SHOP = [
+  { id: 'plate', name: 'Armour Plate', costs: [15, 30], lines: ['4 armour plates', '5 armour plates'] },
+  { id: 'blade', name: 'Energy Blade', costs: [20, 40], lines: ['1.5× damage, longer reach', '2× damage, longest reach'] },
+  { id: 'blaster', name: 'Blaster', costs: [15, 30], lines: ['1.5× damage, 7 energy cells', '2× damage, piercing bolts, 8 cells'] },
+];
 
 // ── Planets ──────────────────────────────────────────────────
-const LANDING_SITE = [
-  '########################################################',
-  '########################################################',
-  '########################################################',
-  '######..............###.................####....########',
-  '######..............###.................####....########',
-  '######..............vvv.................####....########',
-  '#........................................t......########',
-  '#..*.........f.........................................#',
-  '#.............................f........................#',
-  '#..................*...................................#',
-  '#...........*.....======............*..................#',
-  '#....E.*..======............*.....=====................#',
-  '#.#######.................======............*..........#',
-  '#.#######.................................=====.....*..#',
-  '#.#######.........................................######',
-  '#.................................................######',
-  '#..............................................*.......#',
-  '#.............................................====.....#',
-  '#......................................................#',
-  '#.........................................*............#',
-  '#........................................====..........#',
-  '#......................................................#',
-  '#....................................*.....f...........#',
-  '#...................................====...............#',
-  '#............................*.........................#',
-  '#..................*.....*.c...^^*.....................#',
-  '#.......................###########....................#',
-  '#..S..*....c..*.......*.###########..................*.#',
-  '#################....##############.....*....c...*..t..#',
-  '#################^^^^###################################',
-  '########################################################',
-  '########################################################',
-];
-
-// Until Section 4's hand-drawn planets arrive, every level flies the Landing Site map, but each
-// planet in the cycle has its own colours (game.js THEMES): sky, rock, crystals — and the
-// astronaut's mirrored visor reflects them.
+// The maps are designed in planets.js. Each explore planet keeps its own colours (game.js THEMES):
+// sky, rock, crystals — and the astronaut's mirrored visor reflects them.
+const map = (name) => MAPS[name] || MAPS['Landing Site'];
 export const PLANETS = [
-  { name: 'Landing Site', theme: 'dust', rows: LANDING_SITE },
-  { name: 'Frost Moon', theme: 'ice', rows: LANDING_SITE },
-  { name: 'Ember Rock', theme: 'ember', rows: LANDING_SITE },
-  { name: 'Spore Jungle', theme: 'jungle', rows: LANDING_SITE },
-  { name: 'Dune World', theme: 'desert', rows: LANDING_SITE },
-  { name: 'Nebula Reach', theme: 'nebula', rows: LANDING_SITE },
+  { name: 'Landing Site', theme: 'dust', rows: map('Landing Site') },
+  { name: 'Frost Moon', theme: 'ice', rows: map('Frost Moon') },
+  { name: 'Ember Rock', theme: 'ember', rows: map('Ember Rock') },
+  { name: 'Spore Jungle', theme: 'jungle', rows: map('Spore Jungle') },
+  { name: 'Dune World', theme: 'desert', rows: map('Dune World') },
+  { name: 'Nebula Reach', theme: 'nebula', rows: map('Nebula Reach') },
 ];
-export const planetFor = (level) => PLANETS[(level - 1) % PLANETS.length];
+/** The guardians' lairs (every 5th planet) and the treasure vault (the planet after each guardian). */
+export const LAIRS = {
+  matriarch: { name: 'Brood Hollow', theme: 'dust', kind: 'arena', boss: 'matriarch', rows: MAPS['Brood Hollow'] },
+  jelly: { name: 'Squall Hollow', theme: 'ice', kind: 'arena', boss: 'jelly', rows: MAPS['Squall Hollow'] },
+  wyrm: { name: 'Magma Hollow', theme: 'ember', kind: 'arena', boss: 'wyrm', rows: MAPS['Magma Hollow'] },
+};
+export const VAULT = { name: 'Treasure Vault', theme: 'vault', kind: 'vault', rows: MAPS['Treasure Vault'] };
+/** The engine's bonus rounds: the vaults (6, 11, 16…). */
+export const BONUS_LEVELS = Array.from({ length: 400 }, (_, i) => 6 + i * 5);
 
-/** Parse a planet into a tile grid plus its markers. Throws on ragged rows or a missing spawn/exit. */
-export function parsePlanet(p) {
+/**
+ * What a level is: planets 1–4 explore, 5 a guardian, 6 a treasure vault, 7–9 explore, 10 a guardian…
+ * Explore planets take the six maps in turn; guardians take the three in turn (tier = laps round them).
+ */
+export function stageFor(level) {
+  if (level % 5 === 0) {
+    const n = level / 5 - 1, boss = GUARDIAN_ORDER[n % GUARDIAN_ORDER.length];
+    return { kind: 'arena', boss, tier: Math.floor(n / GUARDIAN_ORDER.length), def: LAIRS[boss], name: GUARDIANS[boss].name };
+  }
+  if (level > 5 && level % 5 === 1) return { kind: 'vault', def: VAULT, name: VAULT.name };
+  const k = (level - 1) - Math.floor((level - 1) / 5) - Math.max(0, Math.floor((level - 2) / 5));
+  const def = PLANETS[k % PLANETS.length];
+  return { kind: 'explore', def, name: def.name };
+}
+export const planetFor = (level) => stageFor(level).def;
+
+/**
+ * Parse a planet into a tile grid plus its markers. Throws on ragged rows or a missing spawn/exit.
+ * opts.openCracks: treat cracked rock as already broken (the checker's view once you've slashed it).
+ */
+export function parsePlanet(p, opts = {}) {
   const rows = p.rows, R = rows.length, C = rows[0].length;
-  const t = new Uint8Array(R * C), dust = [], slots = [];
-  let spawn = null, exit = null;
+  const t = new Uint8Array(R * C), dust = [], slots = [], crackAt = [], gates = [], chests = [];
+  let spawn = null, exit = null, capsule = null, beacon = null, guard = null;
   for (let r = 0; r < R; r++) {
     if (rows[r].length !== C) throw new Error(`planet "${p.name}": row ${r} is ${rows[r].length} wide, expected ${C}`);
     for (let c = 0; c < C; c++) {
       const ch = rows[r][c];
-      t[r * C + c] = ch === '#' ? ROCK : ch === '=' ? LEDGE : ch === '^' ? SPIKE_UP : ch === 'v' ? SPIKE_DOWN : AIR;
+      t[r * C + c] = ch === '#' ? ROCK : ch === '=' ? LEDGE : ch === '^' ? SPIKE_UP : ch === 'v' ? SPIKE_DOWN : ch === 'x' && !opts.openCracks ? ROCK : AIR;
       if (ch === '*') dust.push({ c, r, x: c * TILE + TILE / 2, y: r * TILE + TILE / 2 });
       else if (ch === 'S') spawn = { x: c * TILE + TILE / 2, y: (r + 1) * TILE };
       else if (ch === 'E') exit = { c, r, x: c * TILE + TILE / 2, y: (r + 1) * TILE };
+      else if (ch === 'A') capsule = { c, r, x: c * TILE + TILE / 2, y: r * TILE + TILE / 2 };
+      else if (ch === 'B') beacon = { c, r, x: c * TILE + TILE / 2, y: (r + 1) * TILE };
+      else if (ch === 'x') crackAt.push([c, r]);
+      else if (ch === 'D') gates.push([c, r]);
+      else if (ch === 'G') guard = { c, r, x: c * TILE + TILE / 2, y: r * TILE + TILE / 2 };
+      else if (ch === 'T') chests.push({ c, r, x: c * TILE + TILE / 2, y: (r + 1) * TILE });
       else if (ch === 'c' || ch === 'f' || ch === 't') slots.push({ type: { c: 'ground', f: 'air', t: 'pod' }[ch], c, r });
     }
   }
-  if (!spawn || !exit) throw new Error(`planet "${p.name}" needs an S and an E`);
-  return { name: p.name, theme: p.theme, C, R, w: C * TILE, h: R * TILE, t, dust, slots, spawn, exit };
+  if (!spawn || (!exit && p.kind !== 'vault')) throw new Error(`planet "${p.name}" needs an S and an E`);
+  if (p.kind === 'arena' && (!guard || !gates.length)) throw new Error(`lair "${p.name}" needs a G and a gate (D)`);
+  // cracked rock: touching tiles form one wall that breaks open together
+  const cracks = [], seen = new Set();
+  for (const [c0, r0] of crackAt) {
+    if (seen.has(c0 + ',' + r0)) continue;
+    const tiles = [], stack = [[c0, r0]];
+    seen.add(c0 + ',' + r0);
+    while (stack.length) {
+      const [c, r] = stack.pop(); tiles.push([c, r]);
+      for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const k = (c + dc) + ',' + (r + dr);
+        if (!seen.has(k) && rows[r + dr]?.[c + dc] === 'x') { seen.add(k); stack.push([c + dc, r + dr]); }
+      }
+    }
+    cracks.push({ id: cracks.length, tiles, hp: CRACK_HP, open: !!opts.openCracks });
+  }
+  const m = { name: p.name, theme: p.theme, kind: p.kind || 'explore', C, R, w: C * TILE, h: R * TILE, t, dust, slots, spawn, exit, capsule, beacon, cracks, gates, chests, guard };
+  if (guard) {                                    // the arena: the room round the G, its left wall being the gate
+    let fr = guard.r; while (fr < R - 1 && t[(fr + 1) * C + guard.c] !== ROCK) fr++;
+    let cr = guard.r; while (cr > 0 && t[(cr - 1) * C + guard.c] !== ROCK) cr--;
+    const row = fr, gateCols = new Set(gates.map(([c]) => c));
+    let c0 = guard.c; while (c0 > 0 && t[row * C + c0 - 1] !== ROCK && !gateCols.has(c0 - 1)) c0--;
+    let c1 = guard.c; while (c1 < C - 1 && t[row * C + c1 + 1] !== ROCK) c1++;
+    m.arena = { x0: c0 * TILE, x1: (c1 + 1) * TILE, floorY: (fr + 1) * TILE, ceilY: cr * TILE, gx: guard.x, gy: guard.y };
+    if (p.boss === 'matriarch') m.arena.gy = m.arena.floorY;
+  }
+  return m;
 }
 
 /** Outside the map counts as rock, so nothing can leave it. */
@@ -118,9 +194,12 @@ const approach = (v, to, d) => (v < to ? Math.min(to, v + d) : Math.max(to, v - 
 /**
  * Move a box (o.x centre, o.y bottom) by its velocity, axis by axis, against rock.
  * oneWay: land on = ledges when falling onto them from above. Zeroes the blocked velocity.
+ * Returns { wall, ground, ceil } — one shared object, so read it straight away.
  */
+const RES = { wall: 0, ground: false, ceil: false };          // reused: read it before the next moveBody call
 export function moveBody(o, hw, h, m, dt, oneWay = true) {
-  const res = { wall: 0, ground: false, ceil: false };
+  const res = RES;
+  res.wall = 0; res.ground = false; res.ceil = false;
   o.x += o.vx * dt;
   const top = Math.floor((o.y - h + 0.01) / TILE), bot = Math.floor((o.y - 0.01) / TILE);
   if (o.vx > 0) {
@@ -146,40 +225,98 @@ export function moveBody(o, hw, h, m, dt, oneWay = true) {
 }
 
 // ── The astronaut ────────────────────────────────────────────
-export function makePlayer(m, lo = LOADOUT) {
+export function makePlayer(m, lo = LOADOUT, at = m.spawn) {
   return {
-    x: m.spawn.x, y: m.spawn.y, vx: 0, vy: 0, face: 1, ground: true, coyote: 0, buffer: 0, jumpHeld: false, jumped: false, air: 0, kbT: 0,
+    x: at.x, y: at.y, vx: 0, vy: 0, face: 1, ground: true, coyote: 0, buffer: 0, jumpHeld: false, jumped: false, air: 0, kbT: 0,
+    airJumps: 1, airDash: true, dashT: 0, dashDir: 1, dashCD: 0, dashBuf: 0, cling: 0, wallSide: 0, wallCoy: 0, wjT: 0,
     pips: lo.pips, energy: lo.energy, inv: 0, atk: null, atkCD: 0, shotCD: 0, slashBuf: 0, shotBuf: 0, shoot: null, hazard: 0, dead: false,
-    safe: { x: m.spawn.x, y: m.spawn.y }, pogos: 0, hits: 0,
+    focus: 0, focusHold: 0, safe: { x: at.x, y: at.y }, pogos: 0, hits: 0,
   };
 }
 
+/** Rock right beside the astronaut's body on that side (what the wall-cling grabs). */
+export function wallAt(p, m, side) {
+  const c = Math.floor((p.x + side * (PW / 2 + 1)) / TILE);
+  return tileAt(m, c, Math.floor((p.y - PH + 5) / TILE)) === ROCK && tileAt(m, c, Math.floor((p.y - 5) / TILE)) === ROCK;
+}
+
+// stepPlayer's return value: what started this tick
+export const EV_JUMP = 1, EV_DJUMP = 2, EV_WALLJUMP = 4, EV_DASH = 8, EV_CLING = 16;
+
 /**
- * One 1/120 s movement step. inp = { dir: -1|0|1, jumpPress (edge), jumpHeld }.
- * Returns true on the tick a jump starts. check.mjs searches with exactly this function.
+ * One 1/120 s movement step. inp = { dir: -1|0|1, jumpPress (edge), jumpHeld, dashPress (edge) };
+ * ab = the abilities you have (abilSet). Returns EV_* flags for what started this tick.
+ * check.mjs searches with exactly this function.
  */
-export function stepPlayer(p, inp, m, dt = DT) {
+export function stepPlayer(p, inp, m, ab = NO_AB) {
+  const dt = DT;
+  let ev = 0;
   const ctrl = !(p.kbT > 0);                 // knocked back: no steering for a moment
   if (p.kbT > 0) p.kbT -= dt;
-  const dir = ctrl ? inp.dir : 0;
-  if (dir) { if (!p.atk) p.face = dir; p.vx = approach(p.vx, dir * RUN, (p.ground ? ACCEL_G : ACCEL_A) * dt); }
-  else if (ctrl) p.vx = approach(p.vx, 0, (p.ground ? FRICTION : FRICTION * 0.25) * dt);
-
-  // jump: buffered press + coyote time; let go early for a short hop
-  let jumped = false;
+  if (p.dashCD > 0) p.dashCD -= dt;
+  if (p.wjT > 0) p.wjT -= dt;
+  if (p.wallCoy > 0) p.wallCoy -= dt;
   p.buffer = inp.jumpPress ? BUFFER : Math.max(0, p.buffer - dt);
+  p.dashBuf = inp.dashPress ? DASH_BUF : Math.max(0, p.dashBuf - dt);
   p.coyote = p.ground ? COYOTE : Math.max(0, p.coyote - dt);
-  if (ctrl && p.buffer > 0 && p.coyote > 0) { p.vy = JUMP_V; p.buffer = 0; p.coyote = 0; p.ground = false; p.jumped = true; jumped = true; }
+
+  // dash: a short, straight, weightless burst (once more in the air after leaving the ground)
+  if (ab.dash && ctrl && p.dashBuf > 0 && p.dashT <= 0 && p.dashCD <= 0 && (p.ground || p.airDash)) {
+    const d = p.cling ? -p.cling : inp.dir || p.face;
+    p.dashT = DASH_T; p.dashDir = d; p.face = d; p.dashCD = DASH_CD; p.dashBuf = 0;
+    if (!p.ground) p.airDash = false;
+    p.cling = 0; p.wjT = 0; p.jumped = false;
+    ev |= EV_DASH;
+  }
+  if (p.dashT > 0) {
+    p.dashT -= dt;
+    p.vx = p.dashDir * DASH_V; p.vy = 0;
+    const r = moveBody(p, PW / 2, PH, m, dt, true);
+    p.ground = r.ground;
+    if (r.wall) p.dashT = 0;
+    if (p.dashT <= 0) { p.dashT = 0; p.vx = r.wall ? 0 : p.dashDir * RUN; }    // out of it at running speed
+    if (p.ground) { p.airJumps = 1; p.airDash = true; }
+    p.jumpHeld = !!inp.jumpHeld;
+    p.air = p.ground ? 0 : p.air + dt;
+    return ev;
+  }
+
+  // steering (a wall jump's kick holds it off for a moment)
+  const lock = p.wjT > 0, dir = ctrl && !lock ? inp.dir : 0;
+  if (dir) { if (!p.atk) p.face = dir; p.vx = approach(p.vx, dir * RUN, (p.ground ? ACCEL_G : ACCEL_A) * dt); }
+  else if (ctrl && !lock) p.vx = approach(p.vx, 0, (p.ground ? FRICTION : FRICTION * 0.25) * dt);
+
+  // jumps: from the ground (buffered press + coyote time), off a wall, or the second burst
+  if (ctrl && p.buffer > 0) {
+    if (p.coyote > 0) { p.vy = JUMP_V; p.coyote = 0; p.ground = false; ev |= EV_JUMP; }
+    else if (ab.cling && (p.cling || p.wallCoy > 0)) {
+      const side = p.cling || p.wallSide, climb = inp.dir === side;       // holding into the wall: a climbing hop
+      p.vy = WJ_VY; p.vx = -side * (climb ? WJ_CLIMB : WJ_VX); p.wjT = WJ_LOCK; p.face = -side;
+      p.cling = 0; p.wallCoy = 0; ev |= EV_WALLJUMP;
+    } else if (ab.double && p.airJumps > 0) { p.vy = DJ_V; p.airJumps = 0; ev |= EV_DJUMP; }
+    if (ev) { p.buffer = 0; p.jumped = true; }
+  }
+  // let go early for a shorter jump
   if (!inp.jumpHeld && p.jumpHeld && p.vy < 0 && p.jumped) { p.vy *= JUMP_CUT; p.jumped = false; }
   p.jumpHeld = !!inp.jumpHeld;
 
-  // gravity, heavier on the way down so jumps feel snappy
-  p.vy = Math.min(MAX_FALL, p.vy + GRAV * (p.vy > 0 ? FALL_MUL : 1) * dt);
+  // gravity, heavier on the way down so jumps feel snappy; clinging to a wall, a slow slide
+  if (p.cling) p.vy = Math.min(WALL_SLIDE, p.vy + GRAV * dt);
+  else p.vy = Math.min(MAX_FALL, p.vy + GRAV * (p.vy > 0 ? FALL_MUL : 1) * dt);
   const r = moveBody(p, PW / 2, PH, m, dt, true);
   p.ground = r.ground;
-  if (r.ground) p.jumped = false;
+  if (p.ground) { p.jumped = false; p.cling = 0; p.wallCoy = 0; p.airJumps = 1; p.airDash = true; }
+  else if (ab.cling) {
+    if (p.cling) {                            // let go: push away, or the wall ends
+      if (inp.dir === -p.cling || !wallAt(p, m, p.cling)) { p.wallSide = p.cling; p.wallCoy = WALL_COY; p.cling = 0; }
+      else { p.airJumps = 1; p.airDash = true; p.face = -p.cling; }
+    } else if (ctrl && inp.dir && p.vy >= 0 && !lock && wallAt(p, m, inp.dir)) {   // grab: falling while pushing into rock
+      p.cling = inp.dir; p.face = -inp.dir; p.airJumps = 1; p.airDash = true; p.jumped = false;
+      ev |= EV_CLING;
+    }
+  }
   p.air = p.ground ? 0 : p.air + dt;
-  return jumped;
+  return ev;
 }
 
 /** Does this box touch the sharp part of any spike tile? */
@@ -187,8 +324,8 @@ export function boxHitsSpikes(m, x0, y0, x1, y1) {
   const c0 = Math.floor(x0 / TILE), c1 = Math.floor(x1 / TILE), r0 = Math.floor(y0 / TILE), r1 = Math.floor(y1 / TILE);
   for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) {
     const k = tileAt(m, c, r);
-    if (k === SPIKE_UP && hit4([x0, y0, x1, y1], [c * TILE + 3, r * TILE + TILE * 0.4, (c + 1) * TILE - 3, (r + 1) * TILE])) return true;
-    if (k === SPIKE_DOWN && hit4([x0, y0, x1, y1], [c * TILE + 3, r * TILE, (c + 1) * TILE - 3, r * TILE + TILE * 0.6])) return true;
+    if (k === SPIKE_UP) { if (x0 < (c + 1) * TILE - 3 && x1 > c * TILE + 3 && y0 < (r + 1) * TILE && y1 > r * TILE + TILE * 0.4) return true; }
+    else if (k === SPIKE_DOWN) { if (x0 < (c + 1) * TILE - 3 && x1 > c * TILE + 3 && y0 < r * TILE + TILE * 0.6 && y1 > r * TILE) return true; }
   }
   return false;
 }
@@ -196,6 +333,9 @@ export const touchesSpikes = (p, m) => boxHitsSpikes(m, p.x - PW / 2 + 1.5, p.y 
 
 /** The astronaut's box overlaps the exit beacon. */
 export const atExit = (p, m) => Math.abs(p.x - m.exit.x) < TILE * 0.7 && p.y > m.exit.y - TILE * 2 && p.y - PH < m.exit.y;
+/** …the rest beacon (to light it), the ability capsule (to take it). */
+export const touchesBeacon = (p, m) => !!m.beacon && Math.abs(p.x - m.beacon.x) < 16 && p.y > m.beacon.y - TILE * 2.5 && p.y - PH < m.beacon.y;
+export const touchesCapsule = (p, m) => !!m.capsule && Math.abs(p.x - m.capsule.x) < PW / 2 + 9 && m.capsule.y > p.y - PH - 10 && m.capsule.y < p.y + 10;
 
 /** Star dust the astronaut is touching (indices into m.dust). */
 export function dustTouched(p, m, taken) {
@@ -208,11 +348,11 @@ export function dustTouched(p, m, taken) {
   return out;
 }
 
-/** Where the energy blade hits: [x0, y0, x1, y1] for a side, up or down slash. */
-export function slashBox(p, kind, face) {
-  if (kind === 'up') return [p.x - 16, p.y - PH - 22, p.x + 16, p.y - PH + 6];
-  if (kind === 'down') return [p.x - 15, p.y - 8, p.x + 15, p.y + 26];
-  return face > 0 ? [p.x + 2, p.y - PH - 3, p.x + 31, p.y + 1] : [p.x - 31, p.y - PH - 3, p.x - 2, p.y + 1];
+/** Where the energy blade hits: [x0, y0, x1, y1] for a side, up or down slash (reach: blade tier). */
+export function slashBox(p, kind, face, reach = 0) {
+  if (kind === 'up') return [p.x - 16 - reach / 2, p.y - PH - 22 - reach, p.x + 16 + reach / 2, p.y - PH + 6];
+  if (kind === 'down') return [p.x - 15 - reach / 2, p.y - 8, p.x + 15 + reach / 2, p.y + 26 + reach];
+  return face > 0 ? [p.x + 2, p.y - PH - 3, p.x + 31 + reach, p.y + 1] : [p.x - 31 - reach, p.y - PH - 3, p.x - 2, p.y + 1];
 }
 
 /** Clear view between two points (no rock in the way). */
@@ -364,31 +504,72 @@ export function stepFoe(sim, f) {
 
 // ── One planet in play ───────────────────────────────────────
 export class PlanetSim {
-  /** def: a PLANETS entry; seed: this planet's seed; lo: the run's loadout (see LOADOUT). */
-  constructor(def, level, seed, lo = LOADOUT) {
+  /** def: a PLANETS entry; seed: this planet's seed; lo: the run's loadout (loadoutFor). */
+  constructor(def, level, seed, lo = LOADOUT, opts = {}) {
     this.level = level; this.lo = { ...LOADOUT, ...lo };
-    this.m = parsePlanet(def);
+    this.ab = abilSet(this.lo.abil);
+    this.m = parsePlanet(def, opts);
+    this.kind = this.m.kind;
     this.rng = makeRng(seed >>> 0);
     this.foes = spawnFoes(this.m, level, this.rng);
     this.p = makePlayer(this.m, this.lo);
     this.taken = new Array(this.m.dust.length).fill(false);
-    this.bolts = []; this.globs = []; this.drops = [];
+    this.bolts = []; this.globs = []; this.drops = []; this.bossShots = [];
     this.dustGot = 0; this.kills = 0; this.hits = 0; this.t = 0; this.stop = 0; this.done = false;
-    this.pend = { jump: false, slash: false, shoot: false };
+    this.beaconLit = false; this.capTaken = false;
+    /** What this planet's capsule holds: the next ability you don't have yet, or a star-dust cache. */
+    this.capKind = this.lo.abil < ABILITIES.length ? ABILITIES[this.lo.abil] : 'cache';
+    this.exitOpen = this.kind === 'explore'; this.exitWait = 0;
+    if (this.kind === 'arena') {                    // a guardian's lair: its own seeded stream, so its patterns never depend on your drops
+      this.brng = makeRng((seed ^ 0x5bd1e995) >>> 0);
+      this.boss = makeGuardian(def.boss, this.m, Math.floor((Math.max(1, level / 5) - 1) / GUARDIAN_ORDER.length));
+      this.fight = 'wait';
+    }
+    this.chests = this.m.chests.map((c, i) => ({ ...c, id: i, hp: 3, open: false, hurtT: 0 }));
+    this.cleared = false;
+    this.pend = { jump: false, slash: false, shoot: false, dash: false };
     this.ev = [];
   }
 
-  /** After a lost life: back to the landing spot with a fresh suit. Beaten aliens stay beaten. */
+  /** A Dust Mite the Matriarch calls down from the ceiling. */
+  addMinion(kind, x, y, dir) {
+    const d = FOES[kind], hp = d.hp + (this.level >= 10 ? 1 : 0), id = 1000 + (this.minionN = (this.minionN || 0) + 1);
+    const f = { id, kind, x, y, vx: 0, vy: 0, dir, hp, max: hp, elite: false, sp: Math.min(1.55, Math.pow(1.04, this.level - 1)), phase: 0.5, t: 0,
+      hurtT: 0, kbT: 0, kbv: 0, ground: false, moving: false, dead: false, tele: 0, teleMax: 0.5, cool: 0, hop: 0.8, crouch: 0, aggro: false, minion: true };
+    f.home = { x, y, dir };
+    this.foes.push(f);
+  }
+  setGates(closed) { for (const [c, r] of this.m.gates) this.m.t[r * this.m.C + c] = closed ? ROCK : AIR; }
+
+  /** After a lost life: back to the lit rest beacon (or the landing spot) with a fresh suit. Beaten aliens stay beaten. */
   respawn() {
-    this.p = makePlayer(this.m, this.lo);
+    this.p = makePlayer(this.m, this.lo, this.beaconLit ? this.m.beacon : this.m.spawn);
     this.p.inv = 1.0;                               // a moment's grace after "Get ready!"
-    this.bolts = []; this.globs = []; this.drops = [];
+    this.bolts = []; this.globs = []; this.bossShots = []; this.drops = this.drops.filter((d) => d.kind === 'dust');
+    this.foes = this.foes.filter((f) => !f.minion);
     for (const f of this.foes) if (!f.dead) resetFoe(f);
-    this.stop = 0; this.pend = { jump: false, slash: false, shoot: false };
+    // the guardian heals and waits for you again — unless it was already going down: then it finishes dying
+    if (this.boss && this.fight === 'on' && this.boss.state !== 'dying') { resetGuardian(this.boss); this.fight = 'wait'; this.setGates(false); }
+    this.stop = 0; this.pend = { jump: false, slash: false, shoot: false, dash: false };
+  }
+
+  /** The shop sold an upgrade: apply the new loadout (and fill what grew). */
+  setLoadout(lo) {
+    const p = this.p, old = this.lo;
+    this.lo = { ...this.lo, ...lo, abil: this.lo.abil };
+    if (this.lo.pips > old.pips) p.pips = this.lo.pips;
+    if (this.lo.energy > old.energy) p.energy = this.lo.energy;
+  }
+  /** Rest at a beacon: every plate and energy cell back. */
+  rest() { this.p.pips = this.lo.pips; this.p.energy = this.lo.energy; this.p.focus = 0; }
+  /** Standing in the light of the lit rest beacon (↓ opens its shop there). */
+  atBeacon() {
+    const b = this.m.beacon, p = this.p;
+    return !!b && this.beaconLit && p.ground && !p.dead && p.hazard <= 0 && Math.abs(p.x - b.x) < 22 && Math.abs(p.y - b.y) < 2;
   }
 
   /**
-   * Advance 1/120 s. inp = { dir, aim (-1 up, 0, 1 down), jumpPress, jumpHeld, slashPress, shootPress }.
+   * Advance 1/120 s. inp = { dir, aim (-1 up, 0, 1 down), jumpPress, jumpHeld, slashPress, shootPress, dashPress }.
    * Returns this tick's events.
    */
   step(inp) {
@@ -399,11 +580,13 @@ export class PlanetSim {
       if (inp.jumpPress) this.pend.jump = true;
       if (inp.slashPress) this.pend.slash = true;
       if (inp.shootPress) this.pend.shoot = true;
+      if (inp.dashPress) this.pend.dash = true;
       return ev;
     }
     const I = { dir: inp.dir || 0, aim: inp.aim || 0, jumpHeld: !!inp.jumpHeld,
-      jumpPress: !!inp.jumpPress || this.pend.jump, slashPress: !!inp.slashPress || this.pend.slash, shootPress: !!inp.shootPress || this.pend.shoot };
-    this.pend.jump = this.pend.slash = this.pend.shoot = false;
+      jumpPress: !!inp.jumpPress || this.pend.jump, slashPress: !!inp.slashPress || this.pend.slash,
+      shootPress: !!inp.shootPress || this.pend.shoot, dashPress: !!inp.dashPress || this.pend.dash };
+    this.pend.jump = this.pend.slash = this.pend.shoot = this.pend.dash = false;
     this.t += DT;
     const p = this.p, m = this.m;
 
@@ -411,7 +594,7 @@ export class PlanetSim {
       const before = p.hazard;
       p.hazard -= DT;
       if (before > HAZARD_T / 2 && p.hazard <= HAZARD_T / 2) {
-        p.x = p.safe.x; p.y = p.safe.y; p.vx = 0; p.vy = 0; p.ground = true;
+        p.x = p.safe.x; p.y = p.safe.y; p.vx = 0; p.vy = 0; p.ground = true; p.cling = 0; p.dashT = 0; p.wjT = 0;
         ev.push({ type: 'return', x: p.x, y: p.y });
       }
       if (p.hazard <= 0) { p.hazard = 0; p.inv = Math.max(p.inv, 0.7); }
@@ -423,17 +606,67 @@ export class PlanetSim {
       p.shotBuf = I.shootPress ? 0.12 : Math.max(0, p.shotBuf - DT);
       if (p.slashBuf > 0 && p.atkCD <= 0) { p.slashBuf = 0; this.slash(I); }
       if (p.shotBuf > 0 && p.shotCD <= 0) { p.shotBuf = 0; this.fire(I); }
+      this.focus(I);
       const wasGround = p.ground, vy0 = p.vy;
-      if (stepPlayer(p, I, m)) ev.push({ type: 'jump', x: p.x, y: p.y });
+      const f = stepPlayer(p, I, m, this.ab);
+      if (f) {
+        if (f & EV_JUMP) ev.push({ type: 'jump', x: p.x, y: p.y });
+        if (f & EV_DJUMP) ev.push({ type: 'djump', x: p.x, y: p.y });
+        if (f & EV_WALLJUMP) ev.push({ type: 'walljump', x: p.x, y: p.y, side: -p.face });
+        if (f & EV_DASH) ev.push({ type: 'dash', x: p.x, y: p.y, dir: p.dashDir });
+        if (f & EV_CLING) ev.push({ type: 'cling', x: p.x, y: p.y, side: p.cling });
+      }
       if (p.ground && !wasGround) { p.pogos = 0; ev.push({ type: 'land', x: p.x, y: p.y, hard: vy0 > 330 }); }
       if (p.atk) this.stepSlash();
       if (touchesSpikes(p, m) || p.y > m.h + 60) this.spiked();
       else if (p.ground && p.kbT <= 0) this.markSafe();
     }
+    if (this.boss) this.stepLair();
     for (const f of this.foes) if (!f.dead) stepFoe(this, f);
     this.stepBolts(); this.stepGlobs(); this.stepDrops();
+    for (const c of this.chests) if (c.hurtT > 0) c.hurtT -= DT;
     if (!p.dead && p.hazard <= 0) { this.contact(); this.collect(); }
     return ev;
+  }
+
+  /** The lair: step into the arena and the gate slams shut; beat the guardian and it opens, and the exit lights. */
+  stepLair() {
+    const p = this.p, a = this.m.arena, g = this.boss;
+    if (this.exitWait > 0) this.exitWait = Math.max(0, this.exitWait - DT);
+    if (this.fight === 'wait' && p.hazard <= 0 && p.x > a.x0 + TILE * 1.6) {
+      this.fight = 'on'; this.setGates(true); wakeGuardian(g);
+      this.ev.push({ type: 'fight', kind: g.kind, x: g.x, y: g.y });
+    }
+    if (this.fight === 'on' || g.state === 'dying') stepGuardian(this, g);
+    stepBossShots(this);
+    for (const e of this.ev) if (e.type === 'boss-dead' && this.fight === 'on') {
+      this.fight = 'won'; this.setGates(false); this.exitOpen = true; this.exitWait = EXIT_RISE;
+      for (const f of this.foes) if (f.minion && !f.dead) { f.dead = true; this.ev.push({ type: 'pop', x: f.x, y: f.y - 6, foe: f.kind }); }
+      this.bossShots = [];
+      this.dropDust(14 + 2 * g.tier, e.x, e.y);
+      for (let i = 0; i < 3; i++) this.drops.push({ kind: 'orb', x: e.x, y: e.y, vx: this.rng.range(-90, 90), vy: this.rng.range(-300, -180), t: 0, dead: false });
+      this.drops.push({ kind: 'kit', x: e.x, y: e.y, vx: 0, vy: -260, t: 0, dead: false });
+    }
+  }
+
+  /** The energy heal: stand still on the ground and hold ↓ — 3 energy becomes 1 armour plate. */
+  focus(I) {
+    const p = this.p;
+    const can = p.ground && I.aim > 0 && !I.dir && Math.abs(p.vx) < 15 && !p.atk && p.dashT <= 0 && p.kbT <= 0
+      && p.energy >= FOCUS_COST && p.pips < this.lo.pips && !this.atBeacon() && !I.jumpPress;
+    if (!can) {
+      if (p.focus > 0) this.ev.push({ type: 'focus-stop' });
+      p.focus = 0; p.focusHold = 0;
+      return;
+    }
+    p.focusHold += DT;
+    if (p.focusHold < FOCUS_DELAY) return;
+    if (p.focus === 0) this.ev.push({ type: 'focus', x: p.x, y: p.y });
+    p.focus += DT / FOCUS_T;
+    if (p.focus >= 1) {
+      p.energy -= FOCUS_COST; p.pips++; p.focus = 0; p.focusHold = FOCUS_DELAY;     // keep holding: straight into the next
+      this.ev.push({ type: 'heal', x: p.x, y: p.y - PH / 2, pips: p.pips });
+    }
   }
 
   markSafe() {
@@ -457,7 +690,7 @@ export class PlanetSim {
     a.t += DT;
     if (a.t >= SLASH_T) { p.atk = null; return; }
     if (a.t < SLASH_ON[0] || a.t > SLASH_ON[1]) return;
-    const b = slashBox(p, a.kind, a.face);
+    const b = slashBox(p, a.kind, a.face, this.lo.reach);
     for (const f of this.foes) {
       if (f.dead || a.hit.has(f.id) || !hit4(b, foeBox(f))) continue;
       a.hit.add(f.id);
@@ -469,16 +702,66 @@ export class PlanetSim {
     for (const g of this.globs) {
       if (!g.dead && circleBox(g.x, g.y, 5, b)) { g.dead = true; this.ev.push({ type: 'parry', x: g.x, y: g.y }); if (a.kind === 'down') this.pogo(a); }
     }
+    if (this.boss && !a.hit.has('boss')) {          // the guardian
+      for (const part of guardianParts(this.boss)) {
+        if (!part.solid || !hit4(b, part.b)) continue;
+        a.hit.add('boss');
+        const cx = (Math.max(b[0], part.b[0]) + Math.min(b[2], part.b[2])) / 2, cy = (Math.max(b[1], part.b[1]) + Math.min(b[3], part.b[3])) / 2;
+        if (part.weak) this.hitBoss(this.lo.blade, cx, cy, a.kind);
+        else { this.ev.push({ type: 'clink', x: cx, y: cy }); this.stop = Math.max(this.stop, 0.03); }
+        if (a.kind === 'down') this.pogo(a);
+        break;
+      }
+    }
+    for (const c of this.chests) {                  // treasure chests: three blows
+      if (c.open || a.hit.has('t' + c.id) || !hit4(b, [c.x - 10, c.y - 17, c.x + 10, c.y])) continue;
+      a.hit.add('t' + c.id);
+      this.hitChest(c, 1);
+      if (a.kind === 'down') this.pogo(a);
+    }
+    for (const k of this.m.cracks) {                // cracked rock: two blows break it open
+      if (k.open || a.hit.has('k' + k.id) || !k.tiles.some(([c, r]) => hit4(b, [c * TILE, r * TILE, (c + 1) * TILE, (r + 1) * TILE]))) continue;
+      a.hit.add('k' + k.id);
+      this.hitCrack(k, 1, (b[0] + b[2]) / 2, (b[1] + b[3]) / 2);
+      if (a.kind === 'down') this.pogo(a);
+    }
     if (a.kind === 'down' && !a.pogo && boxHitsSpikes(this.m, b[0], b[1], b[2], b[3])) {
       this.pogo(a); this.ev.push({ type: 'clink', x: p.x, y: b[3] - 8 });
     }
+  }
+
+  hitBoss(dmg, x, y, by) {
+    const r = damageGuardian(this, this.boss, dmg);
+    if (!r) { this.ev.push({ type: 'clink', x, y }); return; }
+    if (by !== 'bolt') this.p.energy = Math.min(this.lo.energy, this.p.energy + 1);    // blade hits charge the blaster, as on aliens
+    this.ev.push({ type: r === 'kill' ? 'boss-kill' : 'boss-hit', x, y, by, kind: this.boss.kind, hp: this.boss.hp, max: this.boss.max });
+    this.stop = Math.max(this.stop, r === 'kill' ? 0.2 : by === 'bolt' ? 0.02 : 0.05);
+  }
+  hitChest(c, dmg) {
+    c.hp -= dmg; c.hurtT = 0.12;
+    if (c.hp > 0) { this.ev.push({ type: 'chest-hit', x: c.x, y: c.y - 8 }); this.stop = Math.max(this.stop, 0.03); return; }
+    c.open = true;
+    this.dropDust(6, c.x, c.y - 10);
+    this.ev.push({ type: 'chest', x: c.x, y: c.y - 8 });
+    this.stop = Math.max(this.stop, 0.05);
+  }
+
+  hitCrack(k, dmg, x, y) {
+    k.hp -= dmg;
+    const [c, r] = k.tiles[0];
+    if (k.hp > 0) { this.ev.push({ type: 'crack', x, y, c, r }); this.stop = Math.max(this.stop, 0.03); return; }
+    k.open = true;
+    for (const [tc, tr] of k.tiles) this.m.t[tr * this.m.C + tc] = AIR;
+    this.ev.push({ type: 'break', id: k.id, tiles: k.tiles, x: (c + 0.5) * TILE, y: (r + 0.5) * TILE });
+    this.stop = Math.max(this.stop, 0.06);
   }
 
   pogo(a) {
     if (a.pogo) return;
     const p = this.p;
     a.pogo = true;
-    p.vy = POGO_V; p.jumped = false; p.ground = false; p.coyote = 0; p.buffer = 0;
+    p.vy = POGO_V; p.jumped = false; p.ground = false; p.coyote = 0; p.buffer = 0; p.cling = 0;
+    p.airJumps = 1; p.airDash = true;               // a bounce gives the second jump and the air dash back
     p.pogos++;
     this.ev.push({ type: 'pogo', x: p.x, y: p.y, n: p.pogos });
   }
@@ -489,8 +772,8 @@ export class PlanetSim {
     const dir = I.aim < 0 ? 'up' : I.aim > 0 && !p.ground ? 'down' : 'side';
     p.energy -= 1; p.shotCD = SHOT_CD; p.shoot = { dir, t: 0 };
     const x = p.x + p.face * (dir === 'side' ? 12 : 4), y = dir === 'up' ? p.y - PH - 6 : dir === 'down' ? p.y + 2 : p.y - 18;
-    this.bolts.push({ x, y, vx: dir === 'side' ? p.face * BOLT_V : 0, vy: dir === 'up' ? -BOLT_V : dir === 'down' ? BOLT_V : 0, t: 0, dead: false });
-    if (dir === 'side' && p.kbT <= 0) p.vx -= p.face * 45;
+    this.bolts.push({ x, y, vx: dir === 'side' ? p.face * BOLT_V : 0, vy: dir === 'up' ? -BOLT_V : dir === 'down' ? BOLT_V : 0, t: 0, dead: false, hit: new Set() });
+    if (dir === 'side' && p.kbT <= 0 && p.dashT <= 0) p.vx -= p.face * 45;
     this.ev.push({ type: 'shoot', x, y, dir });
   }
 
@@ -505,10 +788,11 @@ export class PlanetSim {
       f.kbT = 0.24; f.vx = dx * 240; f.vy = by === 'up' ? -240 : by === 'down' ? 240 : -40;
     }
     const b = foeBox(f), cx = (b[0] + b[2]) / 2, cy = (b[1] + b[3]) / 2;
-    if (f.hp <= 0) {
+    if (f.hp <= 1e-6) {
       f.dead = true; this.kills++;
-      this.ev.push({ type: 'kill', id: f.id, x: cx, y: cy, foe: f.kind, elite: f.elite, by, pts: Math.round(FOES[f.kind].pts * (f.elite ? 1.5 : 1)) });
-      this.dropLoot(f, cx, cy);
+      // a guardian's minions are worth nothing (no points, no loot), so stalling a fight to farm them never pays
+      this.ev.push({ type: 'kill', id: f.id, x: cx, y: cy, foe: f.kind, elite: f.elite, by, minion: !!f.minion, pts: f.minion ? 0 : Math.round(FOES[f.kind].pts * (f.elite ? 1.5 : 1)) });
+      if (!f.minion) this.dropLoot(f, cx, cy);
       this.stop = Math.max(this.stop, 0.07);
     } else {
       this.ev.push({ type: 'hit', x: cx, y: cy, foe: f.kind, by });
@@ -521,19 +805,51 @@ export class PlanetSim {
     for (let i = 0; i < n; i++) this.drops.push({ kind: 'orb', x, y: y + 4, vx: rng.range(-70, 70), vy: rng.range(-280, -170), t: 0, dead: false });
     if (kit) this.drops.push({ kind: 'kit', x, y: y + 4, vx: rng.range(-40, 40), vy: -250, t: 0, dead: false });
   }
+  /** Star dust that bursts out of something (a treasure, a guardian): flies out, then drifts to you. */
+  dropDust(n, x, y) {
+    const rng = this.rng;
+    for (let i = 0; i < n; i++) this.drops.push({ kind: 'dust', x, y, vx: rng.range(-150, 150), vy: rng.range(-330, -160), t: 0, dead: false });
+  }
 
   stepBolts() {
     for (const b of this.bolts) {
       if ((b.t += DT) > BOLT_LIFE) { b.dead = true; continue; }
       b.x += b.vx * DT; b.y += b.vy * DT;
-      if (tileAtPx(this.m, b.x, b.y) === ROCK) { b.dead = true; this.ev.push({ type: 'spark', x: b.x, y: b.y }); continue; }
-      for (const f of this.foes) {
-        if (f.dead) continue;
-        const fb = foeBox(f);
-        if (b.x > fb[0] - 3 && b.x < fb[2] + 3 && b.y > fb[1] - 3 && b.y < fb[3] + 3) { b.dead = true; this.damageFoe(f, this.lo.blaster, 'bolt', Math.sign(b.vx) || this.p.face); break; }
+      if (tileAtPx(this.m, b.x, b.y) === ROCK) {
+        b.dead = true; this.ev.push({ type: 'spark', x: b.x, y: b.y });
+        const c = Math.floor(b.x / TILE), r = Math.floor(b.y / TILE);
+        const k = this.m.cracks.find((q) => !q.open && q.tiles.some(([tc, tr]) => tc === c && tr === r));
+        if (k) this.hitCrack(k, 1, b.x, b.y);
+        continue;
+      }
+      if (this.boss && !b.hit.has('boss')) {
+        for (const part of guardianParts(this.boss)) {
+          const q = part.b;
+          if (!part.solid || b.x < q[0] - 2 || b.x > q[2] + 2 || b.y < q[1] - 2 || b.y > q[3] + 2) continue;
+          b.hit.add('boss');
+          if (part.weak) { this.hitBoss(this.lo.blaster, b.x, b.y, 'bolt'); if (!this.lo.pierce) b.dead = true; }
+          else { b.dead = true; this.ev.push({ type: 'spark', x: b.x, y: b.y }); }
+          break;
+        }
+        if (b.dead) continue;
+      }
+      for (const c of this.chests) {
+        if (c.open || b.hit.has('t' + c.id) || b.x < c.x - 11 || b.x > c.x + 11 || b.y < c.y - 18 || b.y > c.y) continue;
+        b.hit.add('t' + c.id); b.dead = true; this.hitChest(c, 1); break;
       }
       if (b.dead) continue;
-      for (const g of this.globs) if (!g.dead && Math.hypot(g.x - b.x, g.y - b.y) < 8) { g.dead = true; b.dead = true; this.ev.push({ type: 'parry', x: g.x, y: g.y }); break; }
+      for (const f of this.foes) {
+        if (f.dead || b.hit.has(f.id)) continue;
+        const fb = foeBox(f);
+        if (b.x > fb[0] - 3 && b.x < fb[2] + 3 && b.y > fb[1] - 3 && b.y < fb[3] + 3) {
+          b.hit.add(f.id);
+          if (!this.lo.pierce) b.dead = true;
+          this.damageFoe(f, this.lo.blaster, 'bolt', Math.sign(b.vx) || this.p.face);
+          if (b.dead) break;
+        }
+      }
+      if (b.dead) continue;
+      for (const g of this.globs) if (!g.dead && Math.hypot(g.x - b.x, g.y - b.y) < 8) { g.dead = true; if (!this.lo.pierce) b.dead = true; this.ev.push({ type: 'parry', x: g.x, y: g.y }); break; }
     }
     this.bolts = this.bolts.filter((b) => !b.dead);
   }
@@ -547,15 +863,18 @@ export class PlanetSim {
     this.globs = this.globs.filter((g) => !g.dead);
   }
 
-  /** Energy orbs and suit-repair kits: fall, settle, and drift to the astronaut when he needs them. */
+  /** Energy orbs, suit-repair kits and star dust: fall, settle, and drift to the astronaut (orbs and kits only when he needs them). */
   stepDrops() {
     const p = this.p;
     for (const d of this.drops) {
-      if ((d.t += DT) > 12) { d.dead = true; continue; }
-      const want = d.kind === 'orb' ? p.energy < this.lo.energy : p.pips < this.lo.pips;
+      if (d.kind !== 'dust' && (d.t += DT) > 12) { d.dead = true; continue; }
+      if (d.kind === 'dust') d.t += DT;
+      const want = d.kind === 'dust' || (d.kind === 'orb' ? p.energy < this.lo.energy : p.pips < this.lo.pips);
       const dx = p.x - d.x, dy = (p.y - PH / 2) - (d.y - 4), dist = Math.hypot(dx, dy) || 1;
-      if (want && !p.dead && p.hazard <= 0 && d.t > 0.35 && dist < 72) {
-        d.vx = (d.vx + (dx / dist) * 1100 * DT) * 0.96; d.vy = (d.vy + (dy / dist) * 1100 * DT) * 0.96;
+      const reach = d.kind === 'dust' ? (d.t > 0.8 ? 1e9 : 0) : 72;
+      if (want && !p.dead && p.hazard <= 0 && d.t > 0.35 && dist < reach) {
+        const pull = d.kind === 'dust' ? 1500 : 1100;
+        d.vx = (d.vx + (dx / dist) * pull * DT) * 0.96; d.vy = (d.vy + (dy / dist) * pull * DT) * 0.96;
         d.x += d.vx * DT; d.y += d.vy * DT;
         continue;
       }
@@ -569,9 +888,9 @@ export class PlanetSim {
   hurt(n, fromX) {
     const p = this.p;
     if (p.inv > 0 || p.hazard > 0 || p.dead) return;
-    p.hits++; this.hits++; p.pips -= n; p.inv = INV_T; p.atk = null;
+    p.hits++; this.hits++; p.pips -= n; p.inv = INV_T; p.atk = null; p.focus = 0; p.focusHold = 0;
     const d = Math.sign(p.x - fromX) || -p.face;
-    p.vx = d * 240; p.vy = -300; p.kbT = KB_T; p.ground = false; p.jumped = false;
+    p.vx = d * 240; p.vy = -300; p.kbT = KB_T; p.ground = false; p.jumped = false; p.dashT = 0; p.cling = 0; p.wjT = 0;
     this.ev.push({ type: 'hurt', x: p.x, y: p.y - PH / 2, pips: p.pips });
     this.stop = Math.max(this.stop, 0.08);
     if (p.pips <= 0) { p.pips = 0; p.dead = true; this.ev.push({ type: 'dead' }); }
@@ -579,7 +898,8 @@ export class PlanetSim {
 
   spiked() {
     const p = this.p;
-    p.hits++; this.hits++; p.pips -= 1; p.atk = null; p.shoot = null; p.vx = 0; p.vy = 0; p.kbT = 0;
+    p.hits++; this.hits++; p.pips -= 1; p.atk = null; p.shoot = null; p.vx = 0; p.vy = 0; p.kbT = 0; p.focus = 0;
+    p.dashT = 0; p.cling = 0; p.wjT = 0;
     this.ev.push({ type: 'spike', x: p.x, y: p.y - PH / 2, pips: p.pips });
     this.stop = Math.max(this.stop, 0.06);
     if (p.pips <= 0) { p.pips = 0; p.dead = true; this.ev.push({ type: 'dead' }); return; }
@@ -591,6 +911,16 @@ export class PlanetSim {
     if (p.inv > 0) return;
     const pb = [p.x - PW / 2 + 2, p.y - PH + 3, p.x + PW / 2 - 2, p.y - 1];
     for (const f of this.foes) if (!f.dead && hit4(pb, inset(foeBox(f), 2.5))) { this.hurt(1, f.x); return; }
+    if (this.boss && this.fight === 'on') {
+      for (const part of guardianParts(this.boss)) if (part.harm && hit4(pb, inset(part.b, 3))) { this.hurt(1, (part.b[0] + part.b[2]) / 2); return; }
+      for (const sh of this.bossShots) {
+        const q = shotBox(sh);
+        if (!q || !hit4(pb, q)) continue;
+        if (sh.kind === 'orb' || sh.kind === 'glob') sh.dead = true;
+        this.hurt(1, sh.x - (sh.vx || 0) * 0.05);
+        return;
+      }
+    }
     for (const g of this.globs) {
       if (!g.dead && circleBox(g.x, g.y, 4.5, pb)) { g.dead = true; this.ev.push({ type: 'splat', x: g.x, y: g.y }); this.hurt(1, g.x - g.vx); return; }
     }
@@ -607,7 +937,26 @@ export class PlanetSim {
       if (dx * dx + dy * dy > 16 * 16) continue;
       if (d.kind === 'orb' && p.energy < this.lo.energy) { d.dead = true; p.energy++; this.ev.push({ type: 'orb', x: d.x, y: d.y - 4 }); }
       else if (d.kind === 'kit' && p.pips < this.lo.pips) { d.dead = true; p.pips++; this.ev.push({ type: 'repair', x: d.x, y: d.y - 4 }); }
+      else if (d.kind === 'dust' && d.t > 0.35) { d.dead = true; this.ev.push({ type: 'dustdrop', x: d.x, y: d.y - 4 }); }
     }
-    if (!this.done && atExit(p, m)) { this.done = true; this.ev.push({ type: 'exit', x: m.exit.x, y: m.exit.y, clean: this.hits === 0 }); }
+    if (!this.beaconLit && touchesBeacon(p, m)) {
+      this.beaconLit = true; this.rest(); p.safe.x = m.beacon.x; p.safe.y = m.beacon.y;
+      this.ev.push({ type: 'beacon', x: m.beacon.x, y: m.beacon.y });
+    }
+    if (!this.capTaken && touchesCapsule(p, m)) {
+      this.capTaken = true;
+      if (this.capKind !== 'cache') { this.lo.abil++; this.ab = abilSet(this.lo.abil); }
+      this.ev.push({ type: 'capsule', kind: this.capKind, x: m.capsule.x, y: m.capsule.y });
+    }
+    if (!this.done && this.exitOpen && this.exitWait <= 0 && m.exit && atExit(p, m)) {
+      this.done = true;
+      // star dust still in the air flies into the suit as you leave, so a quick exit never loses any
+      let n = 0;
+      for (const d of this.drops) if (d.kind === 'dust' && !d.dead) { d.dead = true; this.ev.push({ type: 'dustdrop', x: d.x, y: d.y - 4, quiet: n++ > 0 }); }
+      this.ev.push({ type: 'exit', x: m.exit.x, y: m.exit.y, clean: this.hits === 0 });
+    }
+    if (this.kind === 'vault' && !this.cleared && this.dustGot === m.dust.length && this.chests.every((c) => c.open) && !this.drops.some((d) => d.kind === 'dust')) {
+      this.cleared = true; this.ev.push({ type: 'vault-clear', x: p.x, y: p.y });
+    }
   }
 }

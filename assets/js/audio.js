@@ -170,6 +170,9 @@ const PROGRESSIONS = {
   neon:   [[53, 56, 60], [49, 53, 56], [56, 60, 63], [51, 55, 58]], // Fm Db Ab Eb — warm and wistful
   toxic:  [[52, 55, 59], [48, 52, 55], [50, 54, 57], [47, 51, 54]], // Em C D B — dark drive
   station: [[50, 53, 57], [55, 59, 62], [50, 53, 57], [46, 50, 53], [53, 57, 60], [48, 52, 55], [55, 58, 62], [57, 61, 64]], // Dm G Dm Bb F C Gm A — Station Defense: Dorian lift, a long way home
+  explorer: [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62], [57, 60, 64], [50, 53, 57], [52, 55, 59], [52, 56, 59]], // Am F C G Am Dm Em E — Astro Explorer: alone on a strange planet
+  guardian: [[50, 53, 57], [46, 50, 53], [43, 46, 50], [45, 49, 52], [50, 53, 57], [51, 55, 58], [43, 46, 50], [45, 49, 52]], // Dm Bb Gm A Dm Eb Gm A — a guardian's lair
+  treasure: [[48, 52, 55], [45, 48, 52], [53, 57, 60], [55, 59, 62]], // C Am F G — the treasure vault
 };
 const ARP = [0, 1, 2, 1, 0, 1, 2, 1], OCT = [12, 12, 12, 12, 24, 24, 24, 24];
 const music = { on: false, timer: null, step: 0, nextTime: 0, bpm: 110, prog: PROGRESSIONS.minor, lead: 'square', arp: ARP, oct: OCT, bass: 'half', kit: 'chip', hook: null };
@@ -273,7 +276,7 @@ export const Sound = {
     if (musicBus) musicBus.gain.setTargetAtTime(on ? 0.28 : 0, ctx.currentTime, 0.05);
   },
 
-  /** Start looping background music. style: 'minor' | 'major' | 'dream' | 'cosmic' | 'bubbly' | 'hero' | 'crypt' | 'chase'.
+  /** Start looping background music. style: any PROGRESSIONS key ('minor' | 'major' | 'dream' | 'cosmic' | 'hero' | 'chase' …).
    *  Optional: arp (8 chord-note indexes, 3-5 = an octave up), oct (8 octave offsets), bass: 'half' | 'drive'. */
   startMusic({ bpm = 110, style = 'minor', lead = 'square', arp = ARP, oct = OCT, bass = 'half', kit = 'chip', hook = null } = {}) {
     const c = ac(); if (!c) return;
