@@ -170,12 +170,13 @@ Each zone ends with a **Legends game**. Finish it from level 1 without losing a 
 | 2 | Heist Planner | 🥚 Golden Heist Egg (sapphires, mask) | golden characters in games 7–12 |
 | 3 | Crypt of Crowns 3D | 🥚 Golden Crypt Egg (amethysts, skull) | golden characters in games 13–18 |
 | 4 | Crown Heist 3D | 🥚 Golden Throne Egg (rubies, throne) — won by carrying the crown out of all 15 floors, over as many visits as it takes; a flawless run also opens the secret floor 16, the Empty Throne (Kingmaker badge) | golden characters in games 19–24 |
+| 5 | Vault of Stars | 🥚 Golden Beacon Egg (star emeralds, ringed moon) — a flawless run opens the hidden 16th vault, the Signal Room | golden characters in games 25–30 |
 
 Every egg also opens the hidden **Hall of Legends** (`/hall-of-legends/`) and gives a Legend code for restoring your eggs on another device.
 
-All four eggs win **👑 The Golden Crown**: the hidden **Crown Room** (`/crown-room/`) with the Crown Roll of every crown holder and a downloadable certificate, a **golden theme** for the whole arcade (switch it in the Crown Room), and a 👑 next to your name on every leaderboard.
+All five eggs win **👑 The Golden Crown** (it was four until 29 Oct 2026; players crowned before then keep their crown): the hidden **Crown Room** (`/crown-room/`) with the Crown Roll of every crown holder and a downloadable certificate, a **golden theme** for the whole arcade (switch it in the Crown Room), and a 👑 next to your name on every leaderboard.
 
-Egg and crown artwork is drawn in code in `assets/js/eggs.js`. The badge ids `crown1`–`crown4` (eggs) and `grand` (the Golden Crown) are kept from the older "zone crown" names so nobody loses a badge. Run `supabase/eggs-crown-update.sql` once so one Legend code can hold all your eggs.
+Egg and crown artwork is drawn in code in `assets/js/eggs.js`. The badge ids `crown1`–`crown5` (eggs) and `grand` (the Golden Crown) are kept from the older "zone crown" names so nobody loses a badge. Run `supabase/eggs-crown-update.sql` once so one Legend code can hold all your eggs.
 
 **One code for everything.** A Legend code also carries your progress in every game (games played — which opens the zones — levels reached, best scores, badges) between browsers. Players without an egg get the same kind of code from Crown Heist after floor 3 (`issue_code`); it restores on the Legends page, and when they later win an egg and sign the Hall with the same name the egg goes on that same code. See `supabase/zone4-completion.sql`.
 

@@ -1,7 +1,8 @@
 // ─────────────────────────────────────────────────────────────
 //  The Golden Eggs (one per zone's Legends game) and the Golden Crown
-//  (the four eggs of Zones 1–4 — the crown's jewels match them: diamonds, sapphires, amethysts, rubies).
-//  Every egg after that adds a star-cut jewel in its own colour to the top of the crown.
+//  (all five eggs, Zones 1–5 — the crown's band matches the first four: diamonds, sapphires, amethysts,
+//  rubies — and the Zone 5 egg is the star emerald on top). Every egg after that adds another
+//  star-cut jewel in its own colour.
 //  Drawn as inline SVG so they stay crisp at any size.
 // ─────────────────────────────────────────────────────────────
 export const EGGS = {
@@ -57,7 +58,7 @@ export function eggSVG(n, { size = 64, won = true, title = '' } = {}) {
   </svg>`;
 }
 
-// Where the extra jewels sit (the egg of Zone 5 first, then 6, 7…): above the centre, then out along the band.
+// Where the star stones sit (the Zone 5 emerald first, then the jewels of Zones 6, 7…): above the centre, then out along the band.
 const JEWEL_SPOTS = [[120, 64], [42, 116], [198, 116], [94, 104], [146, 104], [120, 42]];
 const jewelStar = (x, y, r, fill) => {
   let d = '';
@@ -65,8 +66,8 @@ const jewelStar = (x, y, r, fill) => {
   return `<path d="${d}Z" fill="${fill}" stroke="#fef3c7" stroke-width="1.6" stroke-linejoin="round"/>`;
 };
 
-/** The Golden Crown (for holders of the four eggs of Zones 1–4).
- *  jewels: zone numbers of the eggs won beyond that (Legends.jewels()) — each adds a star jewel. */
+/** The Golden Crown (for holders of all five Golden Eggs).
+ *  jewels: zone numbers of the eggs past Zone 4 the player holds (Legends.crownStones()) — each draws a star stone. */
 export function crownSVG({ size = 240, cls = '', jewels = [] } = {}) {
   const id = `crown_${++uid}`;
   const extra = jewels.slice(0, JEWEL_SPOTS.length).map((n, i) => {

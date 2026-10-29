@@ -103,7 +103,7 @@ Games are laid out in `ZONES` in `assets/js/games.js` (6 per zone, difficulty ri
 
 Every game is open to everyone; zones are the recommended order and playing all of a zone's games completes it. The zone's crown unlocks the golden characters of its 6 games (and a `crownN` badge — add it to `GLOBAL_ACHIEVEMENTS`).
 
-The Golden Crown is the eggs of Zones 1–4 and never changes (`CROWN_EGGS` in games.js). The egg of every later zone adds a jewel to the crown instead, so adding a zone never takes the crown away from anyone. Give each new egg an entry in `EGGS` (assets/js/eggs.js) — its jewel colours are used for the crown jewel too.
+The Golden Crown is the eggs of Zones 1–5 and never changes again (`CROWN_EGGS = 5` in games.js; it was 4 until 29 Oct 2026, and anyone crowned under that rule keeps the crown). The egg of every later zone adds a jewel to the crown instead, so adding a zone never takes the crown away from anyone. Give each new egg an entry in `EGGS` (assets/js/eggs.js) — its jewel colours are used for the crown jewel too.
 
 ### 4e. (Optional) Open-world / day-based games
 Three optional `runGame({...})` settings for games that aren't built from separate levels (see TC Pixel Craft):

@@ -1,5 +1,5 @@
 import { CONFIG } from './config.js';
-import { GAMES, GLOBAL_ACHIEVEMENTS, ZONES, SLOTS, gameById, dailyGame, legendZones, crownZones, jewelZones } from './games.js';
+import { GAMES, GLOBAL_ACHIEVEMENTS, ZONES, SLOTS, gameById, dailyGame, legendZones, crownZones, jewelZones, crownEggsText } from './games.js';
 import { Store } from './storage.js';
 import { Scores } from './scores.js';
 import { Legends } from './legends.js';
@@ -163,7 +163,7 @@ loadTicker(); setInterval(loadTicker, 60000);
       <span class="prize-art">👑</span>
       <b>The Golden Crown</b>
       <span class="muted small">${crowned ? 'Yours ✓' : `${Legends.eggs().filter((n) => n <= crownZones().length).length} of ${crownZones().length} eggs`}</span>
-      <span class="prize-how">${crowned ? 'Golden theme, 👑 on the boards, the Crown Room' : 'Win the eggs of Zones 1–' + crownZones().length + ' for the golden theme, a 👑 by your name and the Crown Room'}</span>
+      <span class="prize-how">${crowned ? 'Golden theme, 👑 on the boards, the Crown Room' : `Win ${crownEggsText()} for the golden theme, a 👑 by your name and the Crown Room`}</span>
     </a>`;
   const goldCard = `<a class="prize gold-prize${goldCount ? ' won' : ''}" href="hall-of-legends/">
       <span class="prize-art">✨</span>
@@ -194,8 +194,11 @@ loadTicker(); setInterval(loadTicker, 60000);
 if (Legends.isLegend()) {
   const el = document.createElement('div');
   el.className = 'legend-banner';
-  const crowned = Legends.hasGoldenCrown();
-  el.innerHTML = `<span class="banner-eggs">${Legends.eggs().map((n) => eggSVG(n, { size: 26 })).join('')}</span><div><b>${crowned ? '👑 You hold the Golden Crown.' : 'You are a Legend.'}</b><br><span class="muted small">${crowned ? `The Crown Room is yours — and so is the golden arcade.${jewelZones().length > Legends.jewels().length ? ` ${jewelZones().length - Legends.jewels().length === 1 ? 'One jewel' : `${jewelZones().length - Legends.jewels().length} jewels`} still to win for your crown.` : ''}` : `Golden Eggs: ${Legends.eggs().map((n) => eggName(n).replace('Golden ', '')).join(' & ')}. Win the eggs of Zones 1–${crownZones().length} for the Golden Crown.`} Your golden characters are on in those zones' games — switch them from each game's menu.</span></div><span class="banner-btns">${crowned ? '<a class="btn gold-btn" href="crown-room/">👑 Crown Room</a>' : ''}<a class="btn" href="hall-of-legends/">🏛️ Hall of Legends</a></span>`;
+  const crowned = Legends.hasGoldenCrown(), cz = crownZones();
+  const short = (n) => eggName(n).replace('Golden ', '');
+  const crownMissing = cz.filter((z) => !Legends.hasEgg(z.n)).map((z) => short(z.n));   // a crown won under the old 4-egg rule
+  const held = Legends.eggs().filter((n) => n <= cz.length).length;
+  el.innerHTML = `<span class="banner-eggs">${Legends.eggs().map((n) => eggSVG(n, { size: 26 })).join('')}</span><div><b>${crowned ? '👑 You hold the Golden Crown.' : 'You are a Legend.'}</b><br><span class="muted small">${crowned ? `The Crown Room is yours — and so is the golden arcade.${crownMissing.length ? ` The ${crownMissing.join(' & ')} is still out there.` : ''}${jewelZones().length > Legends.jewels().length ? ` ${jewelZones().length - Legends.jewels().length === 1 ? 'One jewel' : `${jewelZones().length - Legends.jewels().length} jewels`} still to win for your crown.` : ''}` : `Golden Eggs: ${Legends.eggs().map(short).join(', ').replace(/, ([^,]*)$/, ' & $1')} (${held} of ${cz.length}). Win ${crownEggsText()} for the Golden Crown.`} Your golden characters are on in those zones' games — switch them from each game's menu.</span></div><span class="banner-btns">${crowned ? '<a class="btn gold-btn" href="crown-room/">👑 Crown Room</a>' : ''}<a class="btn" href="hall-of-legends/">🏛️ Hall of Legends</a></span>`;
   document.getElementById('games').before(el);
 } else {
   // Not a Legend yet: show where the eggs are hidden, right above the games.
@@ -203,7 +206,7 @@ if (Legends.isLegend()) {
   el.className = 'legend-banner hall-door';
   el.href = 'hall-of-legends/';
   const n = legendZones().length;
-  el.innerHTML = `<span class="banner-eggs">${legendZones().map((z) => eggSVG(z.n, { size: 26, won: false })).join('')}</span><div><b>${n} Golden Eggs are hidden in this arcade</b><br><span class="muted small">Each zone's 6th game, marked 👑 LEGENDS, holds one. Win an egg to enter the Hall of Legends. The eggs of Zones 1–${crownZones().length} win the Golden Crown${jewelZones().length ? ', and every egg after that adds a jewel to it' : ''}.</span></div><span class="btn">🏛️ How to become a Legend</span>`;
+  el.innerHTML = `<span class="banner-eggs">${legendZones().map((z) => eggSVG(z.n, { size: 26, won: false })).join('')}</span><div><b>${n} Golden Eggs are hidden in this arcade</b><br><span class="muted small">Each zone's 6th game, marked 👑 LEGENDS, holds one. Win an egg to enter the Hall of Legends. Win ${crownEggsText()} for the Golden Crown${jewelZones().length ? ', and every egg after that adds a jewel to it' : ''}.</span></div><span class="btn">🏛️ How to become a Legend</span>`;
   document.getElementById('games').before(el);
 }
 

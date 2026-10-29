@@ -32,7 +32,7 @@ const args = new Set(process.argv.slice(2));
 const CHECK = args.has('--check');
 const IMAGES = args.has('--images');
 
-const { GAMES, ZONES, SLOTS, GENRES, GLOBAL_ACHIEVEMENTS, genreById } = await import(pathToFileURL(join(ROOT, 'assets/js/games.js')).href);
+const { GAMES, ZONES, SLOTS, GENRES, GLOBAL_ACHIEVEMENTS, genreById, CROWN_EGGS } = await import(pathToFileURL(join(ROOT, 'assets/js/games.js')).href);
 const { COPY } = await import(pathToFileURL(join(ROOT, 'assets/js/game-copy.js')).href);
 
 // ── helpers ──────────────────────────────────────────────────
@@ -55,7 +55,7 @@ const genreCount = (id) => GAMES.filter((g) => genresOf(g).some((x) => x.id === 
 const genrePages = () => [
   ...GENRES.filter((ge) => genreCount(ge.id) >= 2),
   { id: '3d', label: '3D games', blurb: 'Every game built on one of the site\'s 3D engines: raycast crypts, pseudo-3D racers and full WebGL worlds. They all run in the browser with nothing to install.' },
-  { id: 'legends', label: 'Legends games', blurb: 'The sixth game of every zone hides a Golden Egg. Finish it from level 1 without losing a life to open its secret final level — win all four eggs of Zones 1–4 for the Golden Crown.' },
+  { id: 'legends', label: 'Legends games', blurb: 'The sixth game of every zone hides a Golden Egg. Finish it from level 1 without losing a life to open its secret final level — win all 5 Golden Eggs for the Golden Crown.' },
 ];
 const hasGenrePage = (id) => genrePages().some((ge) => ge.id === id);
 const genreHref = (rel, id) => `${rel}games/${hasGenrePage(id) ? id + '/' : ''}`;
@@ -313,7 +313,7 @@ function gamePage(g) {
           ${g.noDaily ? '' : `<li>One game a day is the <b>Daily Challenge</b>: the same layout for everyone, with its own board. <a href="./?daily=1">Play today's ${esc(g.title)} challenge</a>.</li>`}
         </ul>
         ${g.legend ? `<h2>The Legends secret</h2>
-        <p>${esc(g.title)} is ${esc(z.name)}'s <b>Legends game</b>. ${esc(g.legendHow || 'Finish it from level 1 without losing a life.')} Win the egg to enter the <a href="${rel}hall-of-legends/">Hall of Legends</a>${z.n <= 4 ? ' — and the Golden Eggs of Zones 1–4 together win the Golden Crown' : ' and add a jewel to the Golden Crown'}.</p>
+        <p>${esc(g.title)} is ${esc(z.name)}'s <b>Legends game</b>. ${esc(g.legendHow || 'Finish it from level 1 without losing a life.')} Win the egg to enter the <a href="${rel}hall-of-legends/">Hall of Legends</a>${z.n <= CROWN_EGGS ? ` — and all ${CROWN_EGGS} Golden Eggs together win the Golden Crown` : ' and add a jewel to the Golden Crown'}.</p>
         ${g.legendLore ? `<p class="lore">“${esc(g.legendLore)}”</p>` : ''}` : (legendGame ? `<p>Looking for this zone's Golden Egg? It is hidden in <a href="${rel}games/${legendGame.id}/">${esc(legendGame.title)}</a>, the zone's Legends game.</p>` : '')}
       </div>
     </div>

@@ -660,8 +660,8 @@ export const GLOBAL_ACHIEVEMENTS = [
   { id: 'crown2',  icon: '🥚', title: 'Golden Heist Egg', desc: 'Win Zone 2\'s Legends game perfectly — unlocks the golden characters in games 7–12', legendary: true, secret: true },
   { id: 'crown3',  icon: '🥚', title: 'Golden Crypt Egg', desc: 'Win Zone 3\'s Legends game perfectly — unlocks the golden characters in games 13–18', legendary: true, secret: true },
   { id: 'crown4',  icon: '🥚', title: 'Golden Throne Egg', desc: 'Carry the crown out of all 15 floors of Crown Heist — unlocks the golden characters in games 19–24', legendary: true, secret: true },
-  { id: 'crown5',  icon: '🥚', title: 'Golden Beacon Egg', desc: 'Reach the Golden Beacon in Vault of Stars — unlocks the golden characters in games 25–30 and adds a jewel to the Golden Crown', legendary: true, secret: true },
-  { id: 'grand',   icon: '👑', title: 'The Golden Crown', desc: 'Collect the Golden Eggs of Zones 1–4 — opens the Crown Room', legendary: true, secret: true },
+  { id: 'crown5',  icon: '🥚', title: 'Golden Beacon Egg', desc: 'Reach the Golden Beacon in Vault of Stars — unlocks the golden characters in games 25–30 and is the 5th egg of the Golden Crown', legendary: true, secret: true },
+  { id: 'grand',   icon: '👑', title: 'The Golden Crown', desc: 'Collect all 5 Golden Eggs — opens the Crown Room', legendary: true, secret: true },
 ];
 
 // ── Difficulty tiers & zones ─────────────────────────────────
@@ -701,11 +701,21 @@ export const ZONES = [
 export const crownIcon = () => '🥚';
 /** Zones that have a Legends game yet (each one hides a Golden Egg). */
 export const legendZones = () => ZONES.filter((z) => z.legendGame);
-/** The Golden Crown is the first four eggs (Zones 1–4) and never changes, so adding a zone never
- *  takes it away from anyone. Every Legends game after that adds one jewel to the crown instead. */
-export const CROWN_EGGS = 4;
+/** The Golden Crown is the eggs of Zones 1–5 and never changes again, so adding a zone never
+ *  takes it away from anyone. Every Legends game after that adds one jewel to the crown instead.
+ *  (Until 29 Oct 2026 it was the eggs of Zones 1–4. Anyone crowned under that rule keeps the crown:
+ *  see CROWN_OF_FOUR_UNTIL here and Legends.hasGoldenCrown / hallPeople in legends.js.) */
+export const CROWN_EGGS = 5;
+/** Old rule: the eggs of Zones 1–4, all signed in the Hall before this moment, still make a crown. */
+export const OLD_CROWN_EGGS = 4;
+export const CROWN_OF_FOUR_UNTIL = Date.UTC(2026, 9, 30);   // 30 Oct 2026 00:00 UTC — set to the release day
 export const crownZones = () => legendZones().filter((z) => z.n <= CROWN_EGGS);
 export const jewelZones = () => legendZones().filter((z) => z.n > CROWN_EGGS);
+/** How the site names the crown's eggs: "all 5 Golden Eggs" while every egg is a crown egg,
+ *  "the Golden Eggs of Zones 1–5" once later zones add jewels. */
+export const crownEggsText = () => jewelZones().length
+  ? `the Golden Eggs of Zones 1–${crownZones().length}`
+  : `all ${crownZones().length} Golden Eggs`;
 
 /** Every slot in order: { n, zone, tier, legendSlot, game|null } */
 export const SLOTS = ZONES.flatMap((z) => z.slots.map((id, i) => {

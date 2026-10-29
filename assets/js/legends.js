@@ -13,16 +13,18 @@
 //  (Crown Heist, Zone 4's Legends game, is the one exception: its egg is won by carrying the
 //  crown out of all 15 floors, across as many sessions as it takes — a flawless run also opens
 //  its secret 16th floor.)
-//  The first four eggs (Zones 1–4) → THE GOLDEN CROWN (badge "grand"): the hidden Crown Room page
+//  All five eggs (Zones 1–5) → THE GOLDEN CROWN (badge "grand"): the hidden Crown Room page
 //  (/crown-room/), a golden theme for the whole site, and a 👑 by your name on
-//  the leaderboards. The crown never changes: every Legends game after Zone 4 adds a JEWEL
+//  the leaderboards. The crown never changes again: every Legends game after Zone 5 adds a JEWEL
 //  to it instead (see crownZones / jewelZones in games.js), so a new zone never takes it away.
+//  Until 29 Oct 2026 the crown was the eggs of Zones 1–4; anyone crowned then keeps it
+//  (the "grand" badge or crownAt on their device, or Hall dates before CROWN_OF_FOUR_UNTIL).
 //
 //  Any future game can join by adding `legend: {...}` to its entry in games.js
 //  and finalLevel / secretLevel to its runGame() settings. See docs/ADDING_A_GAME.md
 // ─────────────────────────────────────────────────────────────
 import { Store } from './storage.js';
-import { GAMES, ZONES, zoneOf, gameById, crownZones, jewelZones } from './games.js';
+import { GAMES, ZONES, zoneOf, gameById, crownZones, jewelZones, OLD_CROWN_EGGS, CROWN_OF_FOUR_UNTIL } from './games.js';
 
 import { rpc, ONLINE, nameProblem } from './scores.js';
 
@@ -30,7 +32,9 @@ let crownSet = null, crownPromise = null;
 const missingFn = (err) => /could not find the function|does not exist|PGRST202|404/i.test(String(err?.message || err));
 
 /** Group Hall rows by name: [{ name, at, zones:Map, games:[], crown, jewels, crownAt }]
- *  (crownAt = when the last of their four crown eggs came in; jewels = eggs won beyond the crown). */
+ *  (crownAt = when the last of their crown eggs came in; jewels = eggs won beyond the crown).
+ *  Someone whose Zone 1–4 eggs were all signed before CROWN_OF_FOUR_UNTIL was crowned under the old
+ *  four-egg rule and keeps the crown. */
 export function hallPeople(rows) {
   const byName = new Map();
   for (const r of rows) {
@@ -40,11 +44,14 @@ export function hallPeople(rows) {
     if (z && (!e.zones.has(z.n) || e.zones.get(z.n) > r.at)) e.zones.set(z.n, r.at);
     e.games.push(r.game);
   }
-  const cz = crownZones();
+  const cz = crownZones(), old = cz.filter((z) => z.n <= OLD_CROWN_EGGS);
   return [...byName.values()].map((p) => {
-    const crown = cz.length > 0 && cz.every((z) => p.zones.has(z.n));
+    const full = cz.length > 0 && cz.every((z) => p.zones.has(z.n));
+    const oldAt = old.length && old.every((z) => p.zones.has(z.n)) ? Math.max(...old.map((z) => p.zones.get(z.n))) : Infinity;
+    const legacy = oldAt < CROWN_OF_FOUR_UNTIL;
+    const crown = full || legacy;
     return { ...p, crown, jewels: jewelZones().filter((z) => p.zones.has(z.n)).length,
-      crownAt: crown ? Math.max(...cz.map((z) => p.zones.get(z.n))) : Math.max(...p.zones.values()) };
+      crownAt: legacy ? oldAt : full ? Math.max(...cz.map((z) => p.zones.get(z.n))) : Math.max(...p.zones.values()) };
   });
 }
 export const crownHolders = (rows) => hallPeople(rows).filter((p) => p.crown).sort((a, b) => a.crownAt - b.crownAt);
@@ -178,10 +185,18 @@ export const Legends = {
     return ZONES.filter((z) => z.legendGame && done.includes(z.legendGame)).map((z) => z.n);
   },
   hasEgg(zoneN) { return this.eggs().includes(zoneN); },
-  /** The Golden Crown: the eggs of Zones 1–4. */
-  hasGoldenCrown() { const cz = crownZones(); return cz.length > 0 && cz.every((z) => this.hasEgg(z.n)); },
-  /** Zones whose egg adds a jewel to the crown (Zone 5 on) that this player has won. */
+  /** The Golden Crown: all the eggs of Zones 1–5 — or a crown already won under the old
+   *  four-egg rule (its badge, which travels with a Legend code, or crownAt is on this browser). */
+  hasGoldenCrown() {
+    const cz = crownZones();
+    if (cz.length > 0 && cz.every((z) => this.hasEgg(z.n))) return true;
+    return Store.hasAch('g:grand') || !!data().legend?.crownAt;
+  },
+  /** Zones whose egg adds a jewel to the crown (Zone 6 on) that this player has won. */
   jewels() { return jewelZones().filter((z) => this.hasEgg(z.n)).map((z) => z.n); },
+  /** The star stones drawn on top of the crown: every egg past Zone 4 this player holds
+   *  (the Zone 5 emerald, then each jewel). */
+  crownStones() { return this.eggs().filter((n) => n > OLD_CROWN_EGGS); },
   /** When the crown was won (first seen on this device). */
   crownAt() { return data().legend?.crownAt || null; },
   // old names, still used in a few places
@@ -191,8 +206,8 @@ export const Legends = {
   syncCrowns() {
     const c = this.eggs();
     for (const n of c) Store.unlockAch(`g:crown${n}`);
-    // "grand" = The Golden Crown (the four eggs of Zones 1–4)
-    if (!this.hasGoldenCrown() && Store.hasAch('g:grand')) Store.lockAch('g:grand');
+    // "grand" = The Golden Crown (all five eggs). Never taken back: a crown won under the old
+    // four-egg rule is kept.
     if (this.hasGoldenCrown()) {
       Store.unlockAch('g:grand');
       const d = data();

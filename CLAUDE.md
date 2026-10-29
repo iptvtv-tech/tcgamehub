@@ -20,8 +20,9 @@ publisher. Supabase holds the leaderboard (players enter a name only). GoatCount
   games of a zone completes it (+50 tokens, home-page celebration). Never add unlock
   gates back.
 - Legends: finish a Legends game from level 1 without losing a life to open its secret
-  final level and win the zone's Golden Egg. The Golden Crown = the 4 eggs of Zones 1–4,
-  fixed forever (`CROWN_EGGS = 4`); every egg after that adds a jewel to the crown.
+  final level and win the zone's Golden Egg. The Golden Crown = all 5 eggs of Zones 1–5,
+  fixed from now on (`CROWN_EGGS = 5`; it was 4 until 29 Oct 2026 and players crowned
+  then keep it); every egg after Zone 5 adds a jewel to the crown.
   Eggs gate nothing except golden characters.
 - **Golden characters are egg-only, never sold**, and every unlockable character must be
   GOLDEN, in every game, including future ones.

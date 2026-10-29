@@ -1,5 +1,5 @@
 // Hall of Legends — hidden page. Locked for everyone except Legends.
-import { GAMES, ZONES, gameById, legendZones, crownZones, jewelZones } from './games.js';
+import { GAMES, ZONES, gameById, legendZones, crownZones, jewelZones, crownEggsText } from './games.js';
 import { Store } from './storage.js';
 import { Legends, hallPeople } from './legends.js';
 import { eggSVG, eggName, crownSVG } from './eggs.js';
@@ -8,6 +8,7 @@ import { siteChrome, esc } from './site.js';
 
 siteChrome();
 const main = document.getElementById('hall');
+const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 const date = (ts) => new Date(ts).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
 const UNIT = { 'heist-planner': 'job', 'crypt-of-crowns': 'crypt', 'crown-heist': 'floor', 'vault-of-stars': 'vault' };
@@ -51,7 +52,7 @@ function locked() {
         <li><b>Open the zones</b><span>Play every game in a zone at least once and the next zone unlocks.</span></li>
         <li><b>Find the Legends game</b><span>The 6th game in every zone is marked <span class="pill legend-pill">👑 LEGENDS</span> on the home page.</span></li>
         <li><b>Win its Golden Egg</b><span>Each one hides its egg in a different way. The clues are below, and perfection is usually the key.</span></li>
-        <li><b>Collect the first ${crownZones().length}</b><span>The eggs of Zones 1–${crownZones().length} win the <b>Golden Crown</b>: the Crown Room, a golden arcade and a 👑 by your name on every leaderboard.${jewelZones().length ? ` Every egg after that adds a jewel to your crown.` : ''}</span></li>
+        <li><b>Collect all ${crownZones().length}</b><span>${cap(crownEggsText())} win the <b>Golden Crown</b>: the Crown Room, a golden arcade and a 👑 by your name on every leaderboard.${jewelZones().length ? ` Every egg after that adds a jewel to your crown.` : ''}</span></li>
       </ol>
     </section>
 
@@ -98,10 +99,15 @@ function locked() {
   };
 }
 
-/** "All 4 crown eggs + 1 jewel" for the crown stand. */
+/** "All 5 Golden Eggs + 1 jewel!" for the crown stand (a crown won under the old 4-egg rule
+ *  says which egg is still out there). */
 function crownLine() {
+  const cz = crownZones(), missing = cz.filter((z) => !Legends.hasEgg(z.n));
   const j = Legends.jewels().length, left = jewelZones().length - j;
-  return `All ${crownZones().length} crown eggs${j ? ` + ${j} jewel${j > 1 ? 's' : ''}` : ''}!${left > 0 ? ` ${left} more jewel${left > 1 ? 's' : ''} to win.` : ''}`;
+  const eggs = missing.length
+    ? `Crowned with ${cz.length - missing.length} eggs — the ${missing.map((z) => eggName(z.n).replace('Golden ', '')).join(' & ')} is still out there.`
+    : `All ${cz.length} Golden Eggs${j ? ` + ${j} jewel${j > 1 ? 's' : ''}` : ''}!`;
+  return `${eggs}${left > 0 ? ` ${left} more jewel${left > 1 ? 's' : ''} to win.` : ''}`;
 }
 
 async function open() {
@@ -110,14 +116,14 @@ async function open() {
   main.innerHTML = `
     <section class="hall-head">
       <h1>🏛️ Hall of Legends</h1>
-      <p>Only players who have won a Legends game's Golden Egg have found their way in here. Every zone's Legends game has one. The eggs of Zones 1–${crownZones().length} win the Golden Crown${jewelZones().length ? ', and every egg after that adds a jewel to it' : ''}. Welcome, ${esc(me.name || Store.name() || 'Legend')}.</p>
+      <p>Only players who have won a Legends game's Golden Egg have found their way in here. Every zone's Legends game has one. ${cap(crownEggsText())} win the Golden Crown${jewelZones().length ? ', and every egg after that adds a jewel to it' : ''}. Welcome, ${esc(me.name || Store.name() || 'Legend')}.</p>
       <div class="egg-shelf">${legendZones().map((z) => {
         const won = Legends.hasEgg(z.n), lg = gameById(z.legendGame);
         return `<a class="egg-stand${won ? ' won' : ''}" href="../games/${lg.id}/">${eggSVG(z.n, { size: 70, won })}<b>${esc(eggName(z.n))}</b><small>${won ? 'Won! Golden characters unlocked in Zone ' + z.n + '.' : esc(lg.legendHow || `Finish ${lg.title} without losing a life.`)}</small><span class="stand-link">${esc(lg.title)} →</span></a>`;
       }).join('')}
         ${Legends.hasGoldenCrown()
-          ? `<a class="egg-stand crown-stand won" href="../crown-room/">${crownSVG({ size: 110, cls: 'spin', jewels: Legends.jewels() })}<b>The Golden Crown</b><small>${crownLine()} Enter the Crown Room →</small></a>`
-          : `<div class="egg-stand crown-stand"><span class="crown-ghost">👑</span><b>The Golden Crown</b><small>Win the eggs of Zones 1–${crownZones().length} to win it — and open the Crown Room.</small></div>`}
+          ? `<a class="egg-stand crown-stand won" href="../crown-room/">${crownSVG({ size: 110, cls: 'spin', jewels: Legends.crownStones() })}<b>The Golden Crown</b><small>${crownLine()} Enter the Crown Room →</small></a>`
+          : `<div class="egg-stand crown-stand"><span class="crown-ghost">👑</span><b>The Golden Crown</b><small>Win ${crownEggsText()} to win it — and open the Crown Room.</small></div>`}
       </div>
     </section>
     <div class="hall-grid">
