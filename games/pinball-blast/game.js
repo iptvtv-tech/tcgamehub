@@ -784,6 +784,7 @@ class Pinball {
     const pull = this.charging ? this.charge * 40 : 0;
     this.layer(ctx, `base|${this.bonus}|${lo}`, (c) => this.paintBase(c, lo));
     this.paintTable(ctx, lo, pull);
+    this.drawMissionMarks(ctx);
     this.layer(ctx, `walls|${lo}|${this.pinchWalls.map((w) => w[0]).join(',')}`, (c) => this.drawWalls(c, lo));
     this.drawWallLights(ctx, lo);
     this.drawStanding(ctx, lo, pull);
@@ -940,6 +941,30 @@ class Pinball {
     ctx.strokeStyle = this.divFlash > 0 ? '#fde047' : '#f472b6'; ctx.shadowColor = ctx.strokeStyle; ctx.lineWidth = 4;
     const d0 = cam.at(24, 292, 10), d1 = cam.at(56, 306, 10);
     ctx.beginPath(); ctx.moveTo(d0[0], d0[1]); ctx.lineTo(d1[0], d1[1]); ctx.stroke();
+    ctx.restore();
+  }
+
+  /** Where to aim: every unfinished mission's targets get a pulsing amber ring painted on the
+   *  table (the same amber as its bar in the HUD), so you can see what to shoot at, not just read it. */
+  drawMissionMarks(ctx) {
+    if (this.bonus || !this.missions?.length) return;
+    const t = this.t, open = new Set(this.missions.filter((m) => m.have < m.need).map((m) => m.id));
+    if (!open.size) return;
+    const a = 0.6 + 0.3 * Math.sin(t * 5);                        // never fades below ~0.3, so it reads at any moment
+    ctx.save();
+    ctx.strokeStyle = `rgba(251,191,36,${a})`; ctx.lineWidth = 3; ctx.setLineDash([7, 5]); ctx.lineDashOffset = -t * 18;
+    const ring = (x, y, rx, ry = rx) => this.plane(ctx, x, y, 0, () => { ctx.beginPath(); ctx.ellipse(0, 0, rx, ry, 0, 0, TAU); ctx.stroke(); });
+    const box = (x, y, w, h) => this.plane(ctx, x, y, 0, () => { ctx.strokeRect(-w / 2, -h / 2, w, h); });
+    if (open.has('bumpers')) for (const b of BUMPERS) ring(b.x, b.y, b.r + 9);
+    if (open.has('saucer')) ring(SAUCER.x, SAUCER.y, SAUCER.r + 9);
+    if (open.has('ufo') && this.ufo) ring(this.ufo.x, UFO_Y, 30, 16);
+    if (open.has('spinner')) box((SPINNER.x1 + SPINNER.x2) / 2, SPINNER.y, SPINNER.x2 - SPINNER.x1 + 10, 26);
+    if (open.has('lanes')) LANES.forEach((x, i) => { if (!this.lanesLit[i]) ring(x, 172, 15); });
+    if (open.has('targets')) {
+      // the drop targets stand up and hide a mark at their foot, so arrows on the table point at the bank
+      ctx.setLineDash([]); ctx.fillStyle = `rgba(251,191,36,${a})`;
+      TARGETS.forEach((tg, i) => { if (!this.targetsDown[i]) this.plane(ctx, tg.x - 22 - Math.sin(t * 5) * 3, tg.y + tg.h / 2, 0, () => { ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(-4, -7); ctx.lineTo(-4, 7); ctx.closePath(); ctx.fill(); }); });
+    }
     ctx.restore();
   }
 

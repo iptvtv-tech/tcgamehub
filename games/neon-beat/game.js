@@ -98,7 +98,8 @@ class NeonBeat {
 
   startSong() {
     this.songT = -0.3;
-    this.nextBeat = 0;
+    this.nextBeat = 0; this.visBeat = 0;
+    this.anchor = null;                                      // audio-clock time of songT = 0 (set on the next update)
     this.notes = this.chart.map((n) => ({ ...n, state: 'live' }));
     this.hp = 100;
     this.stats = { perfect: 0, great: 0, good: 0, miss: 0, stray: 0 };
@@ -178,7 +179,11 @@ class NeonBeat {
 
   press(lane) {
     this.flash[lane] = 1;
-    const t = this.songT + (Store.setting('beatOffset') || 0) / 1000;
+    // judge against the song position at the moment of the press: the audio clock when it's
+    // running (not the last frame's songT, which can be a frame stale), plus your saved offset
+    const now = this.anchor != null ? this.s.sound.now?.() : null;
+    const songNow = now != null ? now - this.anchor : this.songT;
+    const t = songNow + (Store.setting('beatOffset') || 0) / 1000;
     let best = null;
     for (const n of this.notes) {
       if (n.lane !== lane || n.state !== 'live') continue;
@@ -243,21 +248,43 @@ class NeonBeat {
     s.sound.tone({ freq: s.sound.note(pitch + 12), dur: 0.08, type: 'triangle', vol: 0.03 });
   }
 
-  // Backing track: kick, snare, hats and bass, locked to the chart's clock
+  /** Keep the song clock on the audio clock. Frame time drifts from what you hear (and steps in
+   *  whole frames), so ease songT toward the audio clock each update; after a pause, a hidden tab
+   *  or a restart the gap is big, so pick up from where the song is instead. */
+  syncClock() {
+    const now = this.s.sound.now?.();
+    if (now == null) { this.anchor = null; return; }          // no audio yet (muted before any tap): frame time it is
+    if (this.anchor == null) { this.anchor = now - this.songT; return; }
+    const err = (now - this.anchor) - this.songT;
+    if (Math.abs(err) > 0.25) this.anchor = now - this.songT;
+    else this.songT += err * 0.1;
+  }
+
+  // Backing track: kick, snare, hats and bass, scheduled a little ahead on the audio clock so
+  // each beat lands exactly on time instead of on the next frame (up to 16–33 ms late before).
   backing() {
-    const s = this.s, beat = this.beat;
-    while (this.songT >= this.nextBeat * beat) {
+    const s = this.s, beat = this.beat, LOOKAHEAD = 0.1;
+    const now = this.anchor != null ? s.sound.now?.() : null;
+    while (this.songT + LOOKAHEAD >= this.nextBeat * beat) {
       const b = this.nextBeat++;
-      if (this.songT - b * beat > 0.1) continue;             // skip if we fell behind (e.g. tab hidden)
+      // seconds from now until this beat: on the audio clock when it's running (exact spacing),
+      // else from the song clock
+      const at = now != null ? this.anchor + b * beat - now : b * beat - this.songT;
+      if (at < -0.05) continue;                               // fell behind (e.g. tab hidden): skip, don't pile up
+      const d = Math.max(0, at);
       const bar = Math.floor((b - 4) / 4), inBar = ((b % 4) + 4) % 4;
-      if (b < 4) { s.sound.tone({ freq: b === 3 ? 1320 : 880, dur: 0.05, type: 'square', vol: 0.06 }); continue; } // count-in
-      if (this.songT > this.endT - 1) continue;
-      s.sound.tone({ freq: 150, to: 45, dur: 0.14, type: 'sine', vol: 0.22 });                   // kick
-      if (inBar === 1 || inBar === 3) s.sound.noise({ dur: 0.12, vol: 0.08, freq: 2500, to: 900 }); // snare
-      s.sound.noise({ dur: 0.03, vol: 0.03, freq: 7000, type: 'highpass', delay: beat / 2 });             // off-beat hat
+      if (b < 4) { s.sound.tone({ freq: b === 3 ? 1320 : 880, dur: 0.05, type: 'square', vol: 0.06, delay: d }); continue; } // count-in
+      if (b * beat > this.endT - 1) continue;
+      s.sound.tone({ freq: 150, to: 45, dur: 0.14, type: 'sine', vol: 0.22, delay: d });                   // kick
+      if (inBar === 1 || inBar === 3) s.sound.noise({ dur: 0.12, vol: 0.08, freq: 2500, to: 900, delay: d }); // snare
+      s.sound.noise({ dur: 0.03, vol: 0.03, freq: 7000, type: 'highpass', delay: d + beat / 2 });             // off-beat hat
       const ch = PROG[Math.max(0, bar) % 4];
-      s.sound.tone({ freq: s.sound.note(ch[0] - 12), dur: beat * 0.8, type: 'triangle', vol: 0.11 });
-      this.pulse = 1;
+      s.sound.tone({ freq: s.sound.note(ch[0] - 12), dur: beat * 0.8, type: 'triangle', vol: 0.11, delay: d });
+    }
+    // the background pulse is visual, so it fires on the beat itself, not when the sound is queued
+    while (this.songT >= this.visBeat * beat) {
+      const b = this.visBeat++;
+      if (b >= 4 && b * beat <= this.endT - 1 && this.songT - b * beat < 0.1) this.pulse = 1;
     }
   }
 
@@ -276,6 +303,7 @@ class NeonBeat {
   update(dt) {
     const s = this.s;
     this.t += dt; this.songT += dt;
+    this.syncClock();
     this.fade(dt);
     this.backing();
 

@@ -256,6 +256,9 @@ export const Sound = {
   setPack(id) { sfxPack = id || 'sfx-classic'; },
   play(name, p) { if (Store.setting('muted')) return; try { PRESETS[name]?.(p); } catch { /* ignore */ } },
   tone, noise, note, synth, voice,
+  /** The audio clock in seconds, or null until audio is running. A rhythm game locks its song
+   *  clock to this and schedules beats ahead on it, so they land exactly on time. */
+  now() { return ctx && ctx.state === 'running' ? ctx.currentTime : null; },
   /** is background music running right now? */
   get musicPlaying() { return music.on; },
 

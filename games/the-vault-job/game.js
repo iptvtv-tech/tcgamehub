@@ -11,6 +11,8 @@ import { TICK, PLAYER_EVERY, COLS, ROWS, DIRS, parseLevel, walkable, isHide, wat
 const T = 32, W = COLS * T, TOP = 44, OY = TOP + 4, H = OY + ROWS * T + 4;
 const cx = (x) => x * T + T / 2;
 const cy = (y) => OY + y * T + T / 2;
+// label sizes follow the tile, so they stay readable when a phone shows the board at ~80%
+const FS = { exit: Math.round(T * 0.36), small: Math.round(T * 0.44), mark: Math.round(T * 0.6) };   // 12 · 14 · 19 px at T = 32
 const S = (b) => atob(b); // a few secrets are stored scrambled so a quick peek at the code doesn't spoil them
 const EGG_TEXT = S('VEMgTEVHRU5EUw=='); // engraved around the egg
 
@@ -381,7 +383,7 @@ class VaultJob {
     // loot bag
     ctx.fillStyle = gold ? '#fde68a' : '#a16207'; ctx.beginPath(); ctx.arc(9, 6, 5, 0, 7); ctx.fill();
     ctx.restore();
-    if (hidden) { ctx.font = '12px system-ui'; ctx.textAlign = 'center'; ctx.fillStyle = '#a3e635'; ctx.fillText('hidden', x, y - 22); }
+    if (hidden) { ctx.font = `700 ${FS.small}px system-ui`; ctx.textAlign = 'center'; ctx.fillStyle = '#a3e635'; ctx.fillText('hidden', x, y - 22); }
   }
 
   drawWatcher(ctx, w, t) {
@@ -410,7 +412,7 @@ class VaultJob {
       ctx.fillStyle = '#fef08a'; ctx.beginPath(); ctx.arc(dx * 11, 2 + dy * 11, 3.5, 0, 7); ctx.fill(); // torch
     }
     ctx.restore();
-    if (st.turning && w.type !== 'camera') { ctx.font = '800 15px system-ui'; ctx.textAlign = 'center'; ctx.fillStyle = '#fde68a'; ctx.fillText('?', x, y - 22); }
+    if (st.turning && w.type !== 'camera') { ctx.font = `800 ${FS.mark}px system-ui`; ctx.textAlign = 'center'; ctx.fillStyle = '#fde68a'; ctx.fillText('?', x, y - 22); }
   }
 
   drawExhibit(ctx, x, y) {
@@ -462,8 +464,8 @@ class VaultJob {
     ctx.save(); ctx.shadowColor = '#4ade80'; ctx.shadowBlur = 12 + Math.sin(t * 4) * 6;
     ctx.fillStyle = '#166534'; roundRect(ctx, X + 4, Y + 3, T - 8, T - 6, 4); ctx.fill();
     ctx.restore();
-    ctx.fillStyle = '#4ade80'; ctx.font = '800 9px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('EXIT', X + T / 2, Y + T / 2);
+    ctx.fillStyle = '#86efac'; ctx.font = `900 ${FS.exit}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('EXIT', X + T / 2, Y + T / 2, T - 6);   // max width keeps it inside the tile
   }
 
   /** The display case. open: 0 (closed) → 1 (lid fully open) */
