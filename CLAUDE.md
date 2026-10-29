@@ -67,6 +67,11 @@ pages, and the "N free browser games" counts in the home page title/meta. Change
 
 ## Testing
 
+- Before pushing a batch of game or engine changes, run `node tools/smoke.mjs` (or
+  `--quick`, or `--games=a,b`). It plays every game headless through the real engine
+  (layout on phone + desktop, levels, lives, bonus/secret, game over, play again,
+  stale cached pictures) and exits non-zero on any problem. Needs Playwright once:
+  `npm install -g playwright && npx playwright install chromium`.
 - Local server: `python3 -m http.server 8765` from the repo root.
 - `window.shell` is the live engine handle on a game page (`state`, `score`, `level`,
   `game`, `bands`, `input`) — handy for headless Playwright smoke tests.
