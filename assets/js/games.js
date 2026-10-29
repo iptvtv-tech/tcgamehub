@@ -723,6 +723,12 @@ export const gameById = (id) => GAMES.find((g) => g.id === id);
 
 // One game per day gets the "Daily Challenge" (same seed for everyone, own leaderboard).
 export function dailyGame(date = new Date()) {
-  const day = Math.floor(date.getTime() / 86400000);
-  return GAMES[day % GAMES.length];
+  const day = Math.floor(date.getTime() / 86400000), n = GAMES.length;
+  // A game without a Daily mode (noDaily: fixed layouts) gives its day to the game 13 places
+  // on, so the Daily link never opens normal mode. Every other day keeps its game.
+  for (let k = 0; k < n; k++) {
+    const g = GAMES[(day + k * 13) % n];
+    if (!g.noDaily) return g;
+  }
+  return GAMES[day % n];
 }

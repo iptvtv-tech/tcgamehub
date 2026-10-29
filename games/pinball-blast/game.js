@@ -853,9 +853,12 @@ class Pinball {
         this._saucerGrad = ctx.createRadialGradient(0, -4, 1, 0, 0, SAUCER.r);
         this._saucerGrad.addColorStop(0, '#000'); this._saucerGrad.addColorStop(1, '#1e1b4b');
       }
+      // the glow goes under the pit (a halo round the hole, not a fill over it), and not on LOW
+      if (!lo) {
+        const gs = this.s.glowSprite('rgba(253,224,71,.6)');
+        ctx.globalAlpha = 0.5 + 0.5 * Math.sin(t * 5); ctx.drawImage(gs, -SAUCER.r * 1.6, -SAUCER.r * 1.6, SAUCER.r * 3.2, SAUCER.r * 3.2); ctx.globalAlpha = 1;
+      }
       ctx.fillStyle = this._saucerGrad; ctx.beginPath(); ctx.arc(0, 0, SAUCER.r, 0, TAU); ctx.fill();
-      const gs = this.s.glowSprite('rgba(253,224,71,.6)');
-      ctx.globalAlpha = 0.5 + 0.5 * Math.sin(t * 5); ctx.drawImage(gs, -SAUCER.r * 1.6, -SAUCER.r * 1.6, SAUCER.r * 3.2, SAUCER.r * 3.2); ctx.globalAlpha = 1;
       ctx.strokeStyle = `rgba(253,224,71,${0.5 + 0.5 * Math.sin(t * 5)})`; ctx.lineWidth = 3; ctx.stroke();
     });
     // black hole

@@ -56,6 +56,9 @@ function sfxVoice(type, vol) {
 function tone({ freq = 440, to = null, dur = 0.1, type = 'square', vol = 0.2, delay = 0, bus = null, attack = 0.005, pan = 0 }) {
   const c = ac(); if (!c) return;
   if (!bus) [type, vol] = sfxVoice(type, vol);
+  // A silent tone (e.g. Crypt's footsteps exactly 8 tiles away) would ramp the gain to 0,
+  // which the Web Audio API rejects with a RangeError that aborted the game's update.
+  if (!(vol > 0)) return;
   const t = c.currentTime + delay;
   const o = c.createOscillator(), g = c.createGain();
   o.type = type;

@@ -582,7 +582,7 @@ class CryptOfCrowns {
     if (st.gold > 0) { ctx.fillStyle = '#fcd34d'; ctx.fillText(`🔑×${st.gold}`, kx, 16); }
     // message
     if (this.msg) {
-      this.msg.t -= rdt;
+      this.msg.t -= this.rdt ?? 1 / 60;   // rdt is render()'s local; reading it here threw every frame once a message showed
       if (this.msg.t <= 0) this.msg = null;
       else {
         ctx.save(); ctx.globalAlpha = Math.min(1, this.msg.t * 2);

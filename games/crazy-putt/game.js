@@ -75,6 +75,9 @@ class CrazyPutt {
   // ── Build a hole ───────────────────────────────────────────
   startLevel(level, bonus) {
     const s = this.s, rng = s.rng;
+    // The course is a cached picture, and a hole's mirroring and hidden traps come from the
+    // run's seed: drop the old picture so a replayed or mirrored hole never shows the last one.
+    s.dropLayers();
     this.level = level; this.bonus = bonus;
     this.theme = bonus ? BONUS_THEME : THEMES[Math.floor(((level - 1) % 20) / 5)];
     this.strokes = 0; this.sinking = null; this.charging = null; this.power = 0;
@@ -492,8 +495,9 @@ class CrazyPutt {
     }
     ctx.globalAlpha = 1;
 
-    // Course — static per hole (border, green, stripes, hints, water base, sand, traps,
-    // blocks), painted once into a cached layer; a reveal changes the key and repaints.
+    // Course — static per hole (border, green, stripes, hints, water base, sand), painted once
+    // into a cached layer; a reveal changes the key and repaints. Revealed traps and blocks are
+    // drawn live below so they stay on top of the conveyor belts.
     const revCount = this.sand.filter((z) => z.revealed).length + this.traps.filter((r) => r.revealed).length;
     this.s.layer(ctx, `cp|${this.level}|${this.bonus}|${th.name}|${revCount}`, (c) => {
       c.save();
@@ -527,23 +531,6 @@ class CrazyPutt {
         c.fillStyle = '#d97706';
         for (let k = 0; k < 10; k++) { c.beginPath(); c.arc(z.x + 8 + ((k * 37) % (z.w - 14)), z.y + 8 + ((k * 23) % (z.h - 14)), 1.4, 0, 7); c.fill(); }
       }
-      // Revealed traps
-      for (const tr of this.traps) {
-        if (!tr.revealed) continue;
-        if (tr.kind === 'trapdoor') {
-          c.fillStyle = '#1c1917'; roundRect(c, tr.x, tr.y, tr.w, tr.h, 4); c.fill();
-          c.strokeStyle = '#78350f'; c.lineWidth = 3; c.strokeRect(tr.x + 2, tr.y + 2, tr.w - 4, tr.h - 4);
-          c.fillStyle = '#fb7185'; c.font = '800 14px system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('!', tr.x + tr.w / 2, tr.y + tr.h / 2 + 1);
-        } else {
-          c.fillStyle = '#fb923c'; roundRect(c, tr.x, tr.y, tr.w, tr.h, 6); c.fill();
-          c.fillStyle = '#fff'; c.font = '800 16px system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('»', tr.x + tr.w / 2, tr.y + tr.h / 2 + 1);
-        }
-      }
-      // Blocks (inner walls)
-      for (const bl of this.blocks) {
-        c.fillStyle = th.border; roundRect(c, bl.x, bl.y, bl.w, bl.h, 6); c.fill();
-        c.fillStyle = th.borderHi; roundRect(c, bl.x + 3, bl.y + 3, bl.w - 6, Math.min(6, bl.h - 6), 3); c.fill();
-      }
       c.restore();
     });
 
@@ -569,6 +556,23 @@ class CrazyPutt {
         ctx.beginPath(); ctx.moveTo(x - 6 * c.dx, c.y + 12); ctx.lineTo(x + 6 * c.dx, c.y + c.h / 2); ctx.lineTo(x - 6 * c.dx, c.y + c.h - 12); ctx.stroke();
       }
       ctx.restore();
+    }
+    // Revealed traps
+    for (const tr of this.traps) {
+      if (!tr.revealed) continue;
+      if (tr.kind === 'trapdoor') {
+        ctx.fillStyle = '#1c1917'; roundRect(ctx, tr.x, tr.y, tr.w, tr.h, 4); ctx.fill();
+        ctx.strokeStyle = '#78350f'; ctx.lineWidth = 3; ctx.strokeRect(tr.x + 2, tr.y + 2, tr.w - 4, tr.h - 4);
+        ctx.fillStyle = '#fb7185'; ctx.font = '800 14px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('!', tr.x + tr.w / 2, tr.y + tr.h / 2 + 1);
+      } else {
+        ctx.fillStyle = '#fb923c'; roundRect(ctx, tr.x, tr.y, tr.w, tr.h, 6); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.font = '800 16px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('»', tr.x + tr.w / 2, tr.y + tr.h / 2 + 1);
+      }
+    }
+    // Blocks (inner walls)
+    for (const bl of this.blocks) {
+      ctx.fillStyle = th.border; roundRect(ctx, bl.x, bl.y, bl.w, bl.h, 6); ctx.fill();
+      ctx.fillStyle = th.borderHi; roundRect(ctx, bl.x + 3, bl.y + 3, bl.w - 6, Math.min(6, bl.h - 6), 3); ctx.fill();
     }
     ctx.restore();
 

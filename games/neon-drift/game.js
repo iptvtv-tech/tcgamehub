@@ -318,7 +318,8 @@ class NeonDrift {
     glowShell = s;            // glowDot draws from the shared sprite cache
     this.station = 0;
     this.tunedBefore = false;
-    try { const v = +localStorage.getItem('nd-station'); if (v >= 0 && v < STATIONS.length) { this.station = v | 0; this.tunedBefore = true; } } catch (e) { /* storage blocked */ }
+    // only a station saved earlier counts as "tuned before" (a missing value would read as 0)
+    try { const raw = localStorage.getItem('nd-station'), v = +raw; if (raw !== null && v >= 0 && v < STATIONS.length) { this.station = v | 0; this.tunedBefore = true; } } catch (e) { /* storage blocked */ }
     Object.assign(MUSIC, STATIONS[this.station].music);
     this.sfx = null;                // continuous sounds (squeal, engine, afterburner), made on first use
     this.cam = { s: 0, lat: 0, lz: 0, yaw: 0, y: CAM_H, py: 0, roll: 0, bobX: 0, bobY: 0, lean: 0, init: false, cockpit: false };
@@ -2064,8 +2065,9 @@ class NeonDrift {
     const mobile = this.s.coarse;
     if (mobile && this.tuneT <= 0 && this.raceT < 6) {
       ctx.textAlign = 'center'; ctx.font = '600 12px system-ui'; ctx.fillStyle = 'rgba(226,232,240,.6)';
-      // in wheel mode the hint sits above the wheel, not across its hub
-      ctx.fillText(this.wheelMode ? 'Drag the wheel to steer · full lock to drift' : this.tiltOn ? 'Tilt to steer · hold the middle to drift' : this.needTiltPermission ? 'Tap to enable tilt steering · or hold a side to steer' : 'Hold the left or right side to steer', W / 2, this.wheelMode ? 512 : H - 52);
+      // in wheel mode the hint sits just above the wheel's rim (rim top: 544 + drop), clear of
+      // both the hub and the speed/boost readout on the dash
+      ctx.fillText(this.wheelMode ? 'Drag the wheel to steer · full lock to drift' : this.tiltOn ? 'Tilt to steer · hold the middle to drift' : this.needTiltPermission ? 'Tap to enable tilt steering · or hold a side to steer' : 'Hold the left or right side to steer', W / 2, this.wheelMode ? 534 + this.drop() : H - 52);
     }
     if (this.tiltOn && this.tuneT <= 0 && !this.wheelMode) {
       const bw = 90, bh = 10, bx = W / 2 - bw / 2 + 40, by = H - 31, fr = clamp(this.tiltFrac, -1, 1), fw = Math.abs(fr) * (bw / 2 - 3);

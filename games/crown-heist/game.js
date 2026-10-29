@@ -188,6 +188,7 @@ class CrownHeist {
     this.ammo = { coin: this.level >= 4 ? 3 : 2, smoke: this.level >= 11 ? 2 : this.level >= 6 ? 1 : 1 };
     this.thrown = []; this.smokes = []; this.cracking = new Map(); this.collapseT = -1; this.collapsedTo = -1;
     this.caughtFx = null; this.hidden = false; this.bob = 0; this.walkT = 0; this.beatT = 0; this.exitWarn = 0;
+    this.grabFx = 0;   // the crown hand reads it; undefined made the secret floor's first frame NaN
     this.wraith = null; this.pitCount = 0;
     this.guards = f.guards.map((gd, i) => {
       const [x, y] = gd.route[gd.phase % gd.route.length];

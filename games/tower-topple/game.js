@@ -310,8 +310,9 @@ class TowerTopple {
       ctx.fillRect(hx - this.hang.w / 2, hy + 14 + BH, this.hang.w, Math.max(0, this.topY() - cam - (hy + 14 + BH)));
       // safe-landing band: the top floor's span, where this block must land
       const topF = this.floors[this.floors.length - 1] || { x: W / 2, w: BASE_W };
+      const topX = topF.x + (this.floors.length ? this.sway(this.floors.length - 1) : 0);   // where the top floor is drawn (and tested), sway included
       ctx.globalAlpha = 0.3; ctx.fillStyle = '#4ade80';
-      ctx.fillRect(topF.x - topF.w / 2, this.topY() - cam - 3, topF.w, 3);
+      ctx.fillRect(topX - topF.w / 2, this.topY() - cam - 3, topF.w, 3);
       ctx.restore();
     }
 

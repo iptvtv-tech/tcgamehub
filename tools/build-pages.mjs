@@ -82,7 +82,16 @@ function replaceBlock(file, name, html) {
   const next = src.slice(0, a + open.length) + (inline ? html.trim() : '\n' + html.trim() + '\n') + src.slice(b);
   out(file, next);
 }
+let historyChecked = false;
 const lastmod = (file) => {
+  if (!historyChecked) {
+    historyChecked = true;
+    // In a shallow clone every file looks last changed in the newest commit, which silently
+    // stamps today's date on the whole sitemap (it happened on 28 Oct): refuse instead.
+    let shallow = false;
+    try { shallow = execSync('git rev-parse --is-shallow-repository', { cwd: ROOT, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim() === 'true'; } catch { /* not a git checkout */ }
+    if (shallow) throw new Error('sitemap dates come from git history, but this clone is shallow. Run `git fetch --unshallow origin` (or --depth=1000), then build again.');
+  }
   try {
     const d = execSync(`git log -1 --format=%cI -- "${file}"`, { cwd: ROOT, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
     if (d) return d.slice(0, 10);

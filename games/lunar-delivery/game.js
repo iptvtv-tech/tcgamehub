@@ -550,7 +550,8 @@ class LunarDelivery {
   // ── Drawing ───────────────────────────────────────────────
   render(ctx) {
     const s = this.s, lo = s.lowDetail, now = performance.now() / 1000;
-    const rdt = Math.min(0.05, this.lastR ? now - this.lastR : 0.016); this.lastR = now;
+    // paused: the engine skips idle() and only draws, so freeze particles and camera here
+    const rdt = s.state === 'paused' ? 0 : Math.min(0.05, this.lastR ? now - this.lastR : 0.016); this.lastR = now;
     this.stepParts(rdt);
     this.cam = this.camera(rdt);
     if (!this.gl) return this.noGL(ctx);

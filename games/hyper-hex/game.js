@@ -324,7 +324,7 @@ class HyperHex {
     else progressBar(ctx, 14, 12, W - 28, 20, clamp(this.clock / this.goal, 0, 1), `hsl(${hue},90%,60%)`, `Survive ${Math.max(0, this.goal - this.clock).toFixed(1)} s`);
     ctx.save(); ctx.font = '900 30px system-ui'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(255,255,255,.9)';
     if (!this.bonus) ctx.fillText(this.clock.toFixed(2), W / 2, 86);
-    if (this.touchMode || this.lite) {
+    if (this.touchMode || this.s.coarse) {   // touch controls follow the device, not Graphics: LOW
       const held = this.touchDir();
       for (const d of [-1, 1]) {
         const x = d < 0 ? 44 : W - 44;
@@ -335,7 +335,7 @@ class HyperHex {
       }
     }
     ctx.font = '700 12px system-ui'; ctx.fillStyle = 'rgba(255,255,255,.45)';
-    ctx.fillText(this.lite || this.touchMode ? 'Tap a side to hop one lane · hold to keep turning' : 'Hold ← / → (or A / D)', W / 2, H - 16);
+    ctx.fillText(this.s.coarse || this.touchMode ? 'Tap a side to hop one lane · hold to keep turning' : 'Hold ← / → (or A / D)', W / 2, H - 16);
     ctx.restore();
   }
 }

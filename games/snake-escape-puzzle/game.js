@@ -97,6 +97,7 @@ class SnakeEscape {
 
   startLevel(level, bonus) {
     this.level = level; this.bonus = bonus;
+    this.hover = null; this.cursor = null;   // a snake tapped on the last board must not point into this one
     this.bonusCount = 0; this.restarts = 0; this.fails = 0;
     this.moving = []; this.pendingHurt = 0; this.pendingFail = 0;
     if (bonus) this.buildStampede();
@@ -415,7 +416,7 @@ class SnakeEscape {
 
     // helper for the first levels: the hovered snake's way out
     const hv = this.hover;
-    if (hv && hv.alive && s.state === 'playing' && (this.bonus ? !hv.leaving : this.level <= 3 && !this.busy())) {
+    if (hv && hv.alive && hv === this.snakes[hv.id] && s.state === 'playing' && (this.bonus ? !hv.leaving : this.level <= 3 && !this.busy())) {
       ctx.save(); ctx.strokeStyle = this.color(hv); ctx.globalAlpha = 0.4; ctx.lineWidth = 2; ctx.setLineDash([6, 8]);
       ctx.beginPath();
       if (this.bonus) {

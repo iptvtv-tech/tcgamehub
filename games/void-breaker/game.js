@@ -150,7 +150,7 @@ class VoidBreaker {
     // hitching on the first frame of the new level
     try {
       if (this.gl) {
-        const next = THEMES[Math.floor(this.level) % 3];
+        const next = this.s.isBonusLevel(this.level + 1) ? GOLD_THEME : THEMES[Math.floor(this.level) % 3];   // after a boss wave comes the gold Star Shower
         this.gl.skyFor(next, this.s.lowDetail ? 384 : 768);
       }
     } catch (e) { /* baking early is only a warm-up */ }

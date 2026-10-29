@@ -169,7 +169,7 @@ class BubbleBlitz {
     const s = this.s;
     const sx = x, sy = y;
     if (x != null) [x, y] = this.toBoard(x, y);
-    if (a === 'press') { const nb = this.cam.at(NEXT_X, NEXT_Y, 8 + R * 0.8); if (Math.hypot(sx - nb[0], sy - nb[1]) < 48) { this.swap(); this.swapTap = true; return; } this.swapTap = false; if (y < GUN_Y + 10) this.setAimFrom(x, y); return; }   // 48: a thumb-sized NEXT target (was 32, ~26 css px)
+    if (a === 'press') { const nb = this.cam.at(NEXT_X, NEXT_Y, 8 + R * 0.8); if (!this.bonus && Math.hypot(sx - nb[0], sy - nb[1]) < 48) { this.swap(); this.swapTap = true; return; } this.swapTap = false; if (y < GUN_Y + 10) this.setAimFrom(x, y); return; }   // 48: a thumb-sized NEXT target (was 32, ~26 css px)
     if (a === 'release') { if (this.swapTap) { this.swapTap = false; return; } if (y < GUN_Y + 30) { this.setAimFrom(x, y); this.fire(); } return; }
     if (a === 'action') this.fire();
     if (a === 'up' && !s.input.pointer.down) this.swap();

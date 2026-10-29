@@ -769,7 +769,13 @@ class Shell {
   }
 
   fit() {
-    const r = this.stageEl.getBoundingClientRect();
+    // Size to the stage's content box: its padding (4px on phones, 10px on desktop) must stay
+    // clear, or the canvas runs off the right/bottom edge of the screen by that much.
+    const b = this.stageEl.getBoundingClientRect(), cs = getComputedStyle(this.stageEl);
+    const r = {
+      width: b.width - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0),
+      height: b.height - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0),
+    };
     if (this.def.extend && r.width > 0) {
       // how tall (in logical px) the stage is at full width; grow into it, up to maxH
       const ideal = Math.round(this.boxH * (r.height / Math.max(1, r.width)) * (this.boxW / this.boxH));

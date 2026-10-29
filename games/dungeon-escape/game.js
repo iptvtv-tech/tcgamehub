@@ -421,7 +421,7 @@ class DungeonEscape {
         const dx = g.x - p.x, dy = g.y - p.y, d = Math.hypot(dx, dy);
         if (d > 11) continue;
         let da = Math.atan2(dy, dx) - p.a; da = Math.atan2(Math.sin(da), Math.cos(da));
-        if (Math.abs(da) < 0.7) continue;                     // roughly on screen: the ghoul itself is the warning
+        if (Math.abs(da) < 0.58) continue;                    // on screen (half the view is atan(0.66) ≈ 0.58 rad): the ghoul itself is the warning
         const right = da > 0, ex = right ? W - 16 : 16, ey = VIEW.y + VIEW.h / 2;
         const pulse = 0.5 + 0.5 * Math.sin(t * 9), dir2 = right ? 1 : -1;
         ctx.save(); ctx.globalAlpha = 0.45 + 0.45 * pulse; ctx.fillStyle = '#f87171';

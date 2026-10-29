@@ -52,6 +52,9 @@ class NeonSnake {
 
   startLevel(level, bonus) {
     const s = this.s, r = s.rng;
+    // The obstacle layer is cached; a new level (or a new run, with its new seed) builds new
+    // obstacles, so drop the old picture or the previous run's blocks get drawn instead.
+    s.dropLayers();
     this.level = level; this.bonus = bonus; this.dead = false;
     this.solid = !bonus && level >= 4;
     this.stepTime = Math.max(0.055, 0.165 / s.speed(0.07, 3, level)) * (bonus ? 0.85 : 1);
