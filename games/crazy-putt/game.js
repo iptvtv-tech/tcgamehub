@@ -13,6 +13,7 @@ const W = 480, H = 720, TOP = 44;
 const R = 7;            // ball radius
 const CUP_R = 11;       // hole radius
 const MAX_SPEED = 900;  // fastest putt (px/s)
+const BALL_CAP = 1300;  // fastest the ball may ever go (px/s), whatever pushes it (pads, bumpers, windmill)
 const CHARGE_TIME = 1.15; // seconds of holding for full power
 
 const THEMES = [
@@ -83,6 +84,7 @@ class CrazyPutt {
     this.strokes = 0; this.sinking = null; this.charging = null; this.power = 0;
     this.walls = []; this.blocks = []; this.water = []; this.sand = []; this.bumpers = [];
     this.traps = []; this.conveyors = []; this.movers = []; this.windmill = null; this.decoy = null;
+    this.rescues = 0;   // times the "back in play" safety net fired this hole (games/crazy-putt/test.mjs expects 0)
     this.bonusCups = null; this.bonusSunk = 0;
     this.trail = [];
 
@@ -119,7 +121,13 @@ class CrazyPutt {
       if (level >= 4 && !lay.windmill && rng.chance(0.6)) {
         const y = lerpN(this.tee[1], this.cup.y, rng.range(0.35, 0.6));
         const [minX, maxX] = this.spanAt(y);
-        if (maxX - minX > 120) this.movers.push({ y, minX: minX + 6, maxX: maxX - 76, w: 70, h: 14, x: minX + 6, spd: 70 + level * 6, dir: 1 });
+        // never on a track that runs through a rock or wall block (it would slide through it and
+        // drag a resting ball into the rock: found by games/crazy-putt/test.mjs)
+        const clear = !this.blocks.some((bl) => y + 7 + R * 2 > bl.y && y - 7 - R * 2 < bl.y + bl.h);
+        // it stops a ball-width short of each wall (it used to stop 6 px short and could squeeze
+        // a ball resting against the wall straight through it)
+        const gap = R * 2 + 4;
+        if (clear && maxX - minX > 120) this.movers.push({ y, minX: minX + gap, maxX: maxX - 70 - gap, w: 70, h: 14, x: minX + gap, spd: 70 + level * 6, dir: 1 });
       }
       // Conveyor belt (from level 7)
       if (level >= 7 && rng.chance(0.7)) {
@@ -229,6 +237,7 @@ class CrazyPutt {
     const sp = 40 + p * (MAX_SPEED - 40);
     this.ball.vx = Math.cos(this.aim) * sp; this.ball.vy = Math.sin(this.aim) * sp;
     this.ball.moving = true;
+    this.shot = (this.shot || 0) + 1;      // a speed pad boosts once per putt
     this.lastRest = [this.ball.x, this.ball.y];
     if (!this.bonus) this.strokes++;
     s.sound.noise({ dur: 0.05, vol: 0.35 + p * 0.3, freq: 3000, type: 'bandpass' });
@@ -279,8 +288,10 @@ class CrazyPutt {
       else return;
     }
 
-    // Physics (2 sub-steps for solid collisions)
-    for (let step = 0; step < 2 && b.moving; step++) this.physics(dt / 2);
+    // Physics in sub-steps short enough that the ball moves at most half its radius in each
+    // (at least 2): a ball that moved further in one step could jump clean through a thin wall.
+    const n = Math.min(12, Math.max(2, Math.ceil((Math.hypot(b.vx, b.vy) * dt) / (R * 0.5))));
+    for (let step = 0; step < n && b.moving; step++) this.physics(dt / n);
   }
 
   physics(dt) {
@@ -297,13 +308,16 @@ class CrazyPutt {
     const nsp = Math.max(0, sp - (decel + drag * sp) * dt);
     if (sp > 0) { b.vx *= nsp / sp; b.vy *= nsp / sp; }
     sp = nsp;
+    // Nothing may push the ball past BALL_CAP (29 Oct 2026: a speed pad hit again and again
+    // reached 13,000 px/s and the ball flew through the wall and off the screen).
+    if (sp > BALL_CAP) { b.vx *= BALL_CAP / sp; b.vy *= BALL_CAP / sp; sp = BALL_CAP; }
 
     b.x += b.vx * dt; b.y += b.vy * dt;
     this.trail.push([b.x, b.y]); if (this.trail.length > 14) this.trail.shift();
 
-    // Walls, blockers, windmill
+    // Blockers and windmill first, then the walls, so the walls always get the last word: a
+    // ball squeezed between a moving part and a wall stays on the course.
     let hit = 0;
-    for (const [a, c] of this.walls) hit = Math.max(hit, collideSeg(b, a, c, 0.72));
     for (const m of this.movers) rect(m.x, m.y - m.h / 2, m.x + m.w, m.y + m.h / 2).forEach((p, i, arr) => { hit = Math.max(hit, collideSeg(b, p, arr[(i + 1) % 4], 0.8)); });
     if (this.windmill) {
       const wm = this.windmill;
@@ -311,12 +325,14 @@ class CrazyPutt {
         const ang = wm.a + k * Math.PI / 2;
         const tip = [wm.x + Math.cos(ang) * wm.len, wm.y + Math.sin(ang) * wm.len];
         const h = collideSeg(b, [wm.x, wm.y], tip, 0.9);
-        if (h) { // blades also swat the ball along
-          b.vx += -Math.sin(ang) * wm.spd * 40; b.vy += Math.cos(ang) * wm.spd * 40;
+        if (h) { // blades also swat the ball along (the same push per second at any sub-step size)
+          const kick = wm.spd * 40 * dt * 240;
+          b.vx += -Math.sin(ang) * kick; b.vy += Math.cos(ang) * kick;
           hit = Math.max(hit, h);
         }
       }
     }
+    for (const [a, c] of this.walls) hit = Math.max(hit, collideSeg(b, a, c, 0.72));
     if (hit > 60) s.sound.play('bounce', Math.min(8, hit / 80));
 
     // Bumpers
@@ -336,6 +352,19 @@ class CrazyPutt {
       }
     }
 
+    // Safety net: the ball is never allowed off the course or inside a rock. If anything ever
+    // gets it there, it goes back to where this putt was taken from, with no penalty (it isn't
+    // the player's fault). games/crazy-putt/test.mjs fails if this ever has to fire.
+    if (!pointInPoly(b.x, b.y, this.poly) || this.blocks.some((r) => inRect(b.x, b.y, r, -1))) {
+      this.rescues++;
+      b.vx = b.vy = 0; b.moving = false;
+      this.placeBall(this.lastRest[0], this.lastRest[1]);
+      s.fx.text(this.ball.x, this.ball.y - 22, 'Back in play!', { color: '#fff', size: 18 });
+      s.sound.play('click');
+      this.afterStop();
+      return;
+    }
+
     // Hidden traps
     for (const tr of this.traps) {
       if (!inRect(b.x, b.y, tr)) { tr.inside = false; continue; }
@@ -350,9 +379,12 @@ class CrazyPutt {
       if (tr.kind === 'speed' && !tr.inside) {
         tr.inside = true;
         this.reveal(tr, 'SPEED PAD!', '#fb923c');
-        const k = Math.max(sp * 1.9, 620) / Math.max(1, sp);
-        b.vx *= k; b.vy *= k;
-        s.sound.tone({ freq: 300, to: 1600, dur: 0.25, type: 'sawtooth', vol: 0.1 });
+        if (tr.boosted !== this.shot) {        // once per putt: rolling back over it doesn't stack
+          tr.boosted = this.shot;
+          const k = Math.min(BALL_CAP, Math.max(sp * 1.9, 620)) / Math.max(1, sp);
+          b.vx *= k; b.vy *= k;
+          s.sound.tone({ freq: 300, to: 1600, dur: 0.25, type: 'sawtooth', vol: 0.1 });
+        }
       }
     }
 

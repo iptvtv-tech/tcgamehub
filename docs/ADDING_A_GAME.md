@@ -143,9 +143,24 @@ insert into public.games (id, title, max_points_per_second) values ('space-dodge
 `sitemap.xml` is written by `tools/build-pages.mjs` (step 5b).
 
 ### 7. Test, then push
+- **Write `games/<id>/test.mjs`.** It plays your real `game.js` headless in Node with
+  `tools/lib/headless.mjs` (no browser; a whole level runs in milliseconds) and must prove:
+  - **every level can be finished, even after mistakes**: lose a life the way a player does
+    (a crash, a fall), then carry on and finish. Never fake it with `shell.hurt()` alone;
+  - **the game's rules always hold**: the player/ball stays inside the play area, never
+    inside solid walls, speeds stay under a cap, the counts behind the level goal add up.
+  - Copy the pattern from `games/dock-master/test.mjs` (finishing after crashes) and
+    `games/crazy-putt/test.mjs` (a bot plus a check after every physics step). Exit non-zero
+    on any problem (`reporter()` does that).
+- Run `node tools/test-all.mjs --games=<id>`, then `node tools/smoke.mjs --games=<id>`
+  (every level in a real browser).
 - Play levels 1–6 so you see a bonus round and a checkpoint.
 - Try it on a phone (touch controls).
-- Commit and push. GitHub Pages updates in about a minute.
+- Push to a review branch: GitHub runs every test (`.github/workflows/tests.yml`) and
+  `main` only takes it once "all tests passed" is green. GitHub Pages updates about a
+  minute after `main` changes.
+- **Every bug report gets a test first:** reproduce it in the game's `test.mjs`, see it
+  fail, fix it, see it pass, and keep the test.
 
 ## Resetting a game's high scores after a big update
 1. In Supabase → SQL Editor: `delete from public.scores where game = 'your-id';`

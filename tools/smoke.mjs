@@ -6,6 +6,7 @@
 //    node tools/smoke.mjs                  every game (≈15–40 min; the 3D games are slow)
 //    node tools/smoke.mjs --quick          first 4 levels per game instead of all
 //    node tools/smoke.mjs --games=neon-snake,crazy-putt
+//    node tools/smoke.mjs --zone=3              one zone's games (GitHub runs the zones side by side)
 //
 //  Per game it checks:
 //    layout  the canvas sits fully inside the screen on a phone (390×844) and a desktop (1280×800)
@@ -59,8 +60,9 @@ function serve() {
 
 // ── The games, in zone order ─────────────────────────────────
 const { SLOTS } = await import(pathToFileURL(path.join(ROOT, 'assets/js/games.js')).href);
-let GAMES = SLOTS.filter((s) => s.game).map((s) => s.game.id);
+let GAMES = SLOTS.filter((s) => s.game && (!args.zone || s.zone.n === +args.zone)).map((s) => s.game.id);
 if (args.games) { const want = String(args.games).split(','); GAMES = GAMES.filter((g) => want.includes(g)); }
+if (!GAMES.length) { console.error('No games match the --zone / --games given.'); process.exit(2); }
 
 const NOISE = ['supabase', 'goatcounter', 'gc.zgo.at', 'net::ERR', 'Failed to load resource', 'favicon'];
 const KEYS = ['Space', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space', 'KeyW', 'KeyA', 'KeyD'];

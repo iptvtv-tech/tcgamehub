@@ -56,6 +56,9 @@ class OrbitHopper {
     for (const p of this.planets) {
       p.x0 = p.x; p.phase = s.rng.range(0, Math.PI * 2);
       p.amp = (!bonus && level >= 4 && !p.start && !p.goal && s.rng.chance(Math.min(0.6, 0.2 + level * 0.04))) ? s.rng.range(30, 60 + level * 3) : 0;
+      // the swing keeps the planet fully on screen: a planet near the edge used to carry the
+      // orbiting hopper past the void line, so letting go cost a life at once (29 Oct 2026 review)
+      if (p.amp) p.amp = Math.max(0, Math.min(p.amp, p.x0 - p.r - 8, W - 8 - p.r - p.x0));
       p.om = s.rng.range(0.35, 0.7);
     }
     // one black hole in a gap from L7

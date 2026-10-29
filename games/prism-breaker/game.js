@@ -105,10 +105,16 @@ class PrismBreaker {
       if (level >= 6) {
         const n = Math.min(6, level - 5);
         const pool = this.bricks.filter((b) => b.type === 'normal');
+        const made = [];
         for (let i = 0; i < n && pool.length > 4; i++) {
           const b = pool.splice(r.int(0, pool.length - 1), 1)[0];
           b.type = 'steel'; b.hp = b.maxHp = Infinity;
+          made.push(b);
         }
+        // Steel must never wall a brick in (the ball can't pass the 5 px gaps), or the level could
+        // never be cleared (29 Oct 2026 review: ~1 level in 800 from level 11). Undo the newest
+        // steel until every brick can be reached. No extra rng draws, so other boards are unchanged.
+        while (made.length && this.sealedIn().length) { const b = made.pop(); b.type = 'normal'; b.hp = b.maxHp = 1; }
       }
     }
     this.total = this.breakable();
@@ -119,6 +125,31 @@ class PrismBreaker {
     this.bricks.push({ x: BX0 + c * (BW + GAP), y: BY0 + row * (BH + GAP), w: BW, h: BH, type, hp, maxHp: hp, hue, alive: true, flash: 0 });
   }
   breakable() { return this.bricks.filter((b) => b.alive && b.type !== 'steel').length; }
+  /** Breakable bricks the ball can never reach: shut in by steel on every side (flood fill from
+   *  the open space around the wall, through empty cells and breakable bricks). */
+  sealedIn() {
+    const cell = new Map(), key = (c, row) => `${c},${row}`;
+    let rows = 0;
+    for (const b of this.bricks) {
+      if (!b.alive) continue;
+      const c = Math.round((b.x - BX0) / (BW + GAP)), row = Math.round((b.y - BY0) / (BH + GAP));
+      cell.set(key(c, row), b); rows = Math.max(rows, row + 1);
+    }
+    const seen = new Set(), queue = [];
+    for (let c = -1; c <= COLS; c++) for (let row = -1; row <= rows; row++) {
+      if (c === -1 || c === COLS || row === -1 || row === rows) { seen.add(key(c, row)); queue.push([c, row]); }
+    }
+    while (queue.length) {
+      const [c, row] = queue.pop();
+      for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nc = c + dc, nr = row + dr, k = key(nc, nr);
+        if (nc < -1 || nc > COLS || nr < -1 || nr > rows || seen.has(k)) continue;
+        if (cell.get(k)?.type === 'steel') continue;
+        seen.add(k); queue.push([nc, nr]);
+      }
+    }
+    return [...cell.entries()].filter(([k, b]) => b.type !== 'steel' && !seen.has(k)).map(([, b]) => b);
+  }
   newBall() { return { x: this.paddle.x, y: PY - BALL_R - 1, vx: 0, vy: 0, stuck: true, trail: [] }; }
   get pw() { return this.wideT > 0 ? 150 : 96; }
   get speedMul() { return this.slowT > 0 ? 0.65 : 1; }

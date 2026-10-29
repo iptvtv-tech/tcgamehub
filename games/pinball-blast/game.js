@@ -243,6 +243,7 @@ class Pinball {
   update(dt) {
     const s = this.s;
     this.t += dt;
+    this.tickLater(dt);
     this.animate(dt);
 
     // Plunger
@@ -743,13 +744,28 @@ class Pinball {
     }
   }
 
-  later(t, fn) {
-    const id = setTimeout(() => { this.timers.delete(id); if (this.s.state === 'playing' || this.s.state === 'banner') fn(); }, t * 1000);
-    (this.timers ??= new Set()).add(id);
+  // Delayed actions run on the game clock (ticked in update), so they pause with the game. They
+  // used setTimeout and were silently dropped if the ball drained, the game paused or the tab lost
+  // focus at the wrong moment, leaving a target bank or N·E·O·N stuck lit and its mission
+  // impossible for the rest of the level (29 Oct 2026 review).
+  later(t, fn) { (this.timers ??= []).push({ t, fn }); }
+  clearLater() { this.timers = []; }
+  tickLater(dt) {
+    if (!this.timers?.length) return;
+    for (const x of this.timers) x.t -= dt;
+    const due = this.timers.filter((x) => x.t <= 0);
+    this.timers = this.timers.filter((x) => x.t > 0);
+    for (const x of due) x.fn();
   }
-  clearLater() { for (const id of this.timers || []) clearTimeout(id); this.timers?.clear(); }
 
-  onLifeLost() { this.clearLater(); this.balls = []; this.multiball = false; this.hole = null; this.endChaos(); this.magnet = null; if (this.mTime <= 0) this.mTime = Math.min(this.mTimeMax, 40); this.newBall(); }
+  onLifeLost() {
+    this.clearLater(); this.balls = []; this.multiball = false; this.hole = null; this.endChaos(); this.magnet = null;
+    // a completed bank or N·E·O·N whose reset was pending resets now (it could never re-arm otherwise)
+    if (this.targetsDown.every(Boolean)) this.targetsDown = [false, false, false, false, false];
+    if (this.lanesLit.every(Boolean)) this.lanesLit = [false, false, false, false];
+    if (this.mTime <= 0) this.mTime = Math.min(this.mTimeMax, 40);
+    this.newBall();
+  }
   onLevelClear() {}
 
   // ── Draw (3D) ─────────────────────────────────────────────

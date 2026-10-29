@@ -160,11 +160,13 @@ class DockMaster {
     if (this.hintT > 0) this.hintT -= dt;
     for (const b of this.bays) { b.flash = Math.max(0, b.flash - dt * 2); b.pulse = Math.max(0, b.pulse - dt * 2.5); }
 
-    // warp-ins: telegraph first, then the ship turns solid
+    // warp-ins: telegraph first, then the ship turns solid. Keep sending ships until the ones
+    // docked plus the ones still out can make the quota: a crash destroys two ships, and they
+    // must be replaced or the level can never finish (29 Oct 2026: stuck at 15/17 on level 6).
     this.spawnT -= dt;
-    const want = this.bonus ? 999 : this.spec.quota;
+    const want = this.bonus ? Infinity : this.spec.quota;
     const alive = this.ships.length + this.incoming.length;
-    if (this.spawnT <= 0 && this.spawned < want && alive < this.spec.maxAlive + (this.bonus ? 2 : 0)) {
+    if (this.spawnT <= 0 && this.docked + alive < want && alive < this.spec.maxAlive + (this.bonus ? 2 : 0)) {
       const sh = spawnShip(this.spec, s.rng);
       this.incoming.push({ sh, t: WARP_T });
       this.spawned++;

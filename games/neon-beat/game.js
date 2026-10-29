@@ -254,6 +254,11 @@ class NeonBeat {
   syncClock() {
     const now = this.s.sound.now?.();
     if (now == null) { this.anchor = null; return; }          // no audio yet (muted before any tap): frame time it is
+    // An audio clock that says "running" but has stopped moving (an output device dropping out)
+    // would hold the song still for ever (the easing below cancels each frame's time exactly).
+    // If it hasn't moved for 0.25 s of frame time, follow frame time until it moves again.
+    if (now !== this.lastNow) { this.lastNow = now; this.nowAt = this.t; }
+    else if (this.t - this.nowAt > 0.25) { this.anchor = null; return; }
     if (this.anchor == null) { this.anchor = now - this.songT; return; }
     const err = (now - this.anchor) - this.songT;
     if (Math.abs(err) > 0.25) this.anchor = now - this.songT;

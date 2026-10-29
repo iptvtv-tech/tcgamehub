@@ -1,0 +1,83 @@
+# Quick Play Arcade — automatic tests.
+#
+# Runs on every push to a review branch, every night on main, and on demand (Actions tab →
+# Tests → Run workflow). Free on GitHub's standard runners for a public repo.
+#
+#   fast    level checkers + headless game tests + page build check  (node tools/test-all.mjs)
+#   smoke   every game played in a real browser, EVERY level (node tools/smoke.mjs --zone=N),
+#           one job per zone side by side; zones are read from assets/js/games.js, so a new
+#           zone is picked up automatically
+#   all tests passed   the single check to require in branch protection for main
+name: Tests
+
+on:
+  push:
+    branches-ignore: [main]
+  schedule:
+    - cron: '23 2 * * *'        # nightly, 02:23 UTC, on main
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  fast:
+    name: Level checkers and game tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # the page build check needs real history for the sitemap
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node tools/test-all.mjs
+
+  zones:
+    name: List zones
+    runs-on: ubuntu-latest
+    outputs:
+      list: ${{ steps.z.outputs.list }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - id: z
+        run: echo "list=$(node -e "import('./assets/js/games.js').then(m => console.log(JSON.stringify([...new Set(m.SLOTS.filter(s => s.game).map(s => s.zone.n))])))")" >> "$GITHUB_OUTPUT"
+
+  smoke:
+    name: Smoke test, zone ${{ matrix.zone }} (every level)
+    needs: zones
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        zone: ${{ fromJSON(needs.zones.outputs.list) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright with Chromium
+        run: |
+          npm install -g playwright@1.63.0
+          playwright install --with-deps chromium
+      - run: node tools/smoke.mjs --zone=${{ matrix.zone }}
+
+  all:
+    name: all tests passed
+    if: always()
+    needs: [fast, smoke]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every test job passed
+        run: |
+          echo "fast: ${{ needs.fast.result }} · smoke: ${{ needs.smoke.result }}"
+          test "${{ needs.fast.result }}" = success && test "${{ needs.smoke.result }}" = success
