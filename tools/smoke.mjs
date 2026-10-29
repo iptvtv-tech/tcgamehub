@@ -128,18 +128,21 @@ async function play(page, rand, seconds, phone) {
 // pictures differ, a cached layer is stale (it shows an old level, run or layout). Returns the
 // share of pixels that changed.
 const STALE = `() => { const s = window.shell, c = s.canvas, x = c.getContext('2d');
-  const fxr = s.fx.render; s.fx.render = () => {};          // particles drift between the two draws
+  const fxr = s.fx.render; s.fx.render = () => {};          // particles drift between draws
   const rnd = Math.random; Math.random = () => 0.5;          // so do random sparkles
+  const grab = () => { s.draw(); return x.getImageData(0, 0, c.width, c.height).data.slice(); };
+  const cmp = (a, b) => { let d = 0; for (let i = 0; i < a.length; i += 4) if (Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]) > 20) d++; return d / (a.length / 4); };
   try {
-    s.draw(); const a = x.getImageData(0, 0, c.width, c.height).data.slice();
-    const kept = s._layers; s._layers = new Map(); s.draw(); s._layers = kept;   // fresh caches for one draw, then put the game's own back
-    const b = x.getImageData(0, 0, c.width, c.height).data;
-    let d = 0; for (let i = 0; i < a.length; i += 4) if (Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]) > 20) d++;
-    return d / (a.length / 4);
+    // Some games animate inside the draw itself (Turbo Rush's rain), so even two cached
+    // draws differ a little: measure that flicker first, then compare a fresh-cache draw.
+    const a = grab(), b = grab();
+    const kept = s._layers; s._layers = new Map(); const f = grab(); s._layers = kept;   // fresh caches for one draw, then the game's own back
+    return { flicker: cmp(a, b), fresh: cmp(b, f) };
   } finally { s.fx.render = fxr; Math.random = rnd; } }`;
 const stale = async (page, where, notes) => {
-  const f = await ev(page, STALE);
-  if (f > 0.005) notes.push(`${where}: the cached picture is stale (${(f * 100).toFixed(1)}% of the screen redraws differently)`);
+  const { flicker, fresh } = await ev(page, STALE);
+  // stale = a fresh redraw differs by clearly more than the game's own draw-to-draw flicker
+  if (fresh > flicker * 2 + 0.005) notes.push(`${where}: the cached picture is stale (${(fresh * 100).toFixed(1)}% of the screen redraws differently)`);
 };
 
 async function checkLayout(browser, base, gid, phone) {
