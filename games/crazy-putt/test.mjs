@@ -51,4 +51,23 @@ for (let hole = 1; hole <= HOLES; hole++) {
   }
   for (const b of bad) t.fail(b);
 }
-t.done(`${putts} putts, ball always on the course, fastest ${Math.round(fastest)} px/s, ${sunk} holes sunk`);
+// Conveyor belts (found by the benchmark, 30 Oct 2026): a ball carried by a belt into a wall or
+// rock used to stay pinned there "moving" for ever, so the player could never putt again and
+// the hole could never end. Drop a still ball at points along every belt and check it can always
+// be putted again within a few seconds.
+let belts = 0;
+for (let hole = 7; hole <= HOLES; hole++) {
+  if (hole % 5 === 0) continue;
+  for (let seed = 1; seed <= 12; seed++) {
+    const s = CP.start({ seed: seed * 13 + hole * 1000, level: hole, lives: 999 }), g = s.game;
+    if (!g.conveyors.length) continue;
+    const c = g.conveyors[0];
+    for (const f of [0.1, 0.5, 0.9]) {
+      g.placeBall(c.x + c.w * f, c.y + c.h / 2); g.ball.moving = true; belts++;
+      s.run(8, () => g.canShoot() || s.cleared);
+      if (s.cleared) break;                                // the belt carried it into the cup: fine
+      if (!g.canShoot()) { t.fail(`hole ${hole} (${g.layoutName}) seed ${seed}: a ball on the conveyor got pinned at (${g.ball.x.toFixed(0)}, ${g.ball.y.toFixed(0)}) and can never be putted again`); break; }
+    }
+  }
+}
+t.done(`${putts} putts, ball always on the course, fastest ${Math.round(fastest)} px/s, ${sunk} holes sunk; ${belts} balls on belts all puttable again`);

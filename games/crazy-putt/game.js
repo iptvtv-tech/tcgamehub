@@ -236,7 +236,7 @@ class CrazyPutt {
     if (!this.canShoot() || p < 0.04) return;
     const sp = 40 + p * (MAX_SPEED - 40);
     this.ball.vx = Math.cos(this.aim) * sp; this.ball.vy = Math.sin(this.aim) * sp;
-    this.ball.moving = true;
+    this.ball.moving = true; this.ball.pinned = false; this.ball.pin = null;
     this.shot = (this.shot || 0) + 1;      // a speed pad boosts once per putt
     this.lastRest = [this.ball.x, this.ball.y];
     if (!this.bonus) this.strokes++;
@@ -283,8 +283,8 @@ class CrazyPutt {
       return;
     }
     if (!b.moving) {
-      // resting on a conveyor still moves you
-      if (this.conveyors.some((c) => inRect(b.x, b.y, c))) b.moving = true;
+      // resting on a conveyor still moves you (unless the belt has it pinned against a wall)
+      if (!b.pinned && this.conveyors.some((c) => inRect(b.x, b.y, c))) b.moving = true;
       else return;
     }
 
@@ -426,8 +426,17 @@ class CrazyPutt {
       }
     }
 
-    // Stopped?
-    if (Math.hypot(b.vx, b.vy) < 6 && !this.conveyors.some((c) => inRect(b.x, b.y, c))) {
+    // Stopped? On a belt the ball keeps moving, unless the belt has pressed it against a wall or
+    // rock and it hasn't got anywhere for 0.6 s: then it has stopped too, and can be putted from
+    // there (found by the benchmark, 30 Oct 2026: it stayed "moving" for ever, so the hole could
+    // never be finished).
+    const onBelt = this.conveyors.some((c) => inRect(b.x, b.y, c));
+    if (onBelt) {
+      if (!b.pin || Math.hypot(b.x - b.pin.x, b.y - b.pin.y) > 2) b.pin = { x: b.x, y: b.y, t: 0 };
+      else b.pin.t += dt;
+    } else b.pin = null;
+    if ((Math.hypot(b.vx, b.vy) < 6 && !onBelt) || (b.pin && b.pin.t > 0.6)) {
+      b.pinned = onBelt;
       b.vx = b.vy = 0; b.moving = false; this.trail = [];
       this.lastRest = [b.x, b.y];
       this.afterStop();
