@@ -210,6 +210,7 @@ class PrismBreaker {
       if (b.stuck) { b.x = p.x; b.y = PY - BALL_R - 1; continue; }
       b.trail.push([b.x, b.y]); if (b.trail.length > 9) b.trail.shift();
       const m = this.speedMul;
+      const px = b.x, py = b.y;            // where it was: always clear of every brick
       b.x += b.vx * dt * m; b.y += b.vy * dt * m;
       if (b.x < BALL_R) { b.x = BALL_R; b.vx = Math.abs(b.vx); this.wallBounce(b); }
       if (b.x > W - BALL_R) { b.x = W - BALL_R; b.vx = -Math.abs(b.vx); this.wallBounce(b); }
@@ -221,7 +222,7 @@ class PrismBreaker {
         const a = off * 1.05;
         const sp = Math.min(this.baseSpeed * 1.2, Math.hypot(b.vx, b.vy) * 1.01);
         b.vx = Math.sin(a) * sp; b.vy = -Math.cos(a) * sp;
-        b.y = PY - BALL_R;
+        b.y = PY - BALL_R; b.loopT = 0;
         s.resetCombo();
         s.sound.play('bounce');
         s.fx.burst(b.x, PY, { color: '#f0abfc', count: 5, speed: 90, life: 0.3, angle: -Math.PI / 2, spread: 2 });
@@ -238,11 +239,32 @@ class PrismBreaker {
         const dx = b.x - nx, dy = b.y - ny;
         if (dx * dx + dy * dy > BALL_R * BALL_R) continue;
         if (fire && br.type !== 'steel') { this.hitBrick(br, true); continue; }
-        if (dx === 0 && dy === 0) { b.vy = -b.vy; }
-        else if (Math.abs(dx) > Math.abs(dy)) { b.vx = Math.sign(dx) * Math.abs(b.vx); b.x = nx + Math.sign(dx) * BALL_R; }
-        else { b.vy = Math.sign(dy) * Math.abs(b.vy); b.y = ny + Math.sign(dy) * BALL_R; }
+        // Bounce off the face it came through, from where it was a step ago (clear of every
+        // brick). It used to be pushed BALL_R (7 px) out from the face it hit, but bricks are only
+        // GAP (5 px) apart, so it could land 2 px inside the next brick and zig-zag straight
+        // through a row, steel included (found by the benchmark, 30 Oct 2026).
+        // A corner: bounce on whichever axis it is moving towards the brick (both if both).
+        const fromSide = px < br.x || px > br.x + br.w, fromEnd = py < br.y || py > br.y + br.h;
+        const towardX = (px < br.x && b.vx > 0) || (px > br.x + br.w && b.vx < 0);
+        const towardY = (py < br.y && b.vy > 0) || (py > br.y + br.h && b.vy < 0);
+        let flipX = fromSide && !fromEnd, flipY = fromEnd && !fromSide;
+        if (fromSide && fromEnd) { flipX = towardX; flipY = towardY; if (!flipX && !flipY) flipX = flipY = true; }
+        if (!fromSide && !fromEnd) flipY = true;                // (never happens: it was clear a step ago)
+        if (flipX) b.vx = (px < br.x + br.w / 2 ? -1 : 1) * Math.abs(b.vx);
+        if (flipY) b.vy = (py < br.y + br.h / 2 ? -1 : 1) * Math.abs(b.vy);
+        b.x = px; b.y = py;
+        if (br.type !== 'steel') b.loopT = 0;
         this.hitBrick(br);
         break;
+      }
+      // A ball can settle into a loop between steel bricks and the walls that never comes down to
+      // the paddle and never touches a brick it can break: the level could then never be finished
+      // (found by the benchmark, 30 Oct 2026). After 6 s of that, nudge its angle a little.
+      b.loopT = (b.loopT || 0) + dt;
+      if (b.loopT > 6) {
+        b.loopT = 0;
+        const a = Math.atan2(b.vy, b.vx) + (s.rng.chance(0.5) ? 1 : -1) * s.rng.range(0.18, 0.4), sp0 = Math.hypot(b.vx, b.vy);
+        b.vx = Math.cos(a) * sp0; b.vy = Math.sin(a) * sp0;
       }
       // Never let the ball get stuck travelling almost horizontally
       const sp = Math.hypot(b.vx, b.vy);
