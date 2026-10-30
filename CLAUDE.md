@@ -10,6 +10,11 @@ publisher. Supabase holds the leaderboard (players enter a name only). GoatCount
 - **Never commit or push without the owner's review and go-ahead.** Work on a review
   branch; merge to main only when told.
 - Bump `CACHE_VERSION` in `sw.js` on every release (any merge to main that changes the site).
+  Do it as the **last commit on the review branch** (plus a sitemap rebuild if game files
+  changed: commit the game changes first, then run `node tools/build-pages.mjs` and commit
+  `sitemap.xml`), wait for GitHub's "all tests passed", then fast-forward `main` to that exact
+  commit. `main` only accepts commits that passed the tests, so nothing is committed on `main`
+  itself.
 
 ## Structure rules
 
