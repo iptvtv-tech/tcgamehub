@@ -41,16 +41,21 @@ jobs:
       - run: node tools/test-all.mjs
 
   bench:
-    name: Benchmark (bots play every level)
+    name: Benchmark, zone ${{ matrix.zone }} (bots play every level)
+    needs: zones
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        zone: ${{ fromJSON(needs.zones.outputs.list) }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version: 22
       # the scorecard table appears on the run's summary page
-      - run: node tools/bench.mjs --summary="$GITHUB_STEP_SUMMARY"
+      - run: node tools/bench.mjs --zone=${{ matrix.zone }} --summary="$GITHUB_STEP_SUMMARY"
 
   zones:
     name: List zones

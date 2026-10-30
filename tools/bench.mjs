@@ -6,6 +6,7 @@
 //
 //    node tools/bench.mjs                      every game with a bench.mjs
 //    node tools/bench.mjs --games=a,b          only these
+//    node tools/bench.mjs --zone=3             one zone's games (GitHub runs the zones side by side)
 //    node tools/bench.mjs --seeds=5            expert runs per level (default 3); the average-bot
 //                                              curve uses --curve-seeds (default 6)
 //    node tools/bench.mjs --summary=FILE       also write the scorecard as a markdown table
@@ -38,6 +39,8 @@
 //                                        //   b.t seconds into the level, b.mem a scratch object
 //      mistake: (g, s, b) => boolean,    // make one REAL mistake now (crash into something, fall);
 //                                        //   return true once it is under way (optional)
+//      wip: 'why',                       // (optional) the bot isn't good enough yet: skipped and
+//                                        //   listed as "bot in progress" unless named with --games
 //    };
 // ─────────────────────────────────────────────────────────────
 import fs from 'node:fs';
@@ -49,7 +52,7 @@ const args = Object.fromEntries(process.argv.slice(2).map((a) => { const [k, v] 
 const SEEDS = +(args.seeds || 3);
 const CURVE_SEEDS = Math.max(SEEDS, +(args['curve-seeds'] || 6));   // the difficulty curve needs more runs to be steady
 const { SLOTS } = await import(pathToFileURL(path.join(ROOT, 'assets/js/games.js')).href);
-let ids = SLOTS.filter((s) => s.game).map((s) => ({ id: s.game.id, zone: s.zone.n, title: s.game.title }));
+let ids = SLOTS.filter((s) => s.game && (!args.zone || s.zone.n === +args.zone)).map((s) => ({ id: s.game.id, zone: s.zone.n, title: s.game.title }));
 if (args.games) {
   const want = String(args.games).split(',');
   // a game still being built (not in games.js yet, or the template) can be benched by name
@@ -98,12 +101,13 @@ const fmt = (v) => (typeof v === 'number' ? (Number.isInteger(v) ? String(v) : v
 const t0 = Date.now();
 const card = [];            // one row per game for the summary
 let hardFails = 0;
-const missing = [];
+const missing = [], wip = [];
 for (const { id, zone, title } of ids) {
   const file = path.join(ROOT, 'games', id, 'bench.mjs');
   if (!fs.existsSync(file)) { missing.push(id); continue; }
   const g0 = Date.now();
   const B = (await import(pathToFileURL(file).href)).default;
+  if (B.wip && !String(args.games || '').split(',').includes(id)) { wip.push(`${id} (${B.wip})`); continue; }
   const G = await loadGame(id);
   const probe = G.start({ level: 1 });
   const top = B.levels ?? G.def.finalLevel ?? 20;
@@ -152,12 +156,13 @@ for (const { id, zone, title } of ids) {
 const mins = ((Date.now() - t0) / 60000).toFixed(1);
 console.log(`\n${card.length - hardFails}/${card.length} games pass every hard rule in ${mins} min${hardFails ? ` — ${hardFails} need a look` : ''}`);
 if (missing.length) console.log(`no bot yet (${missing.length}): ${missing.join(', ')}`);
+if (wip.length) console.log(`bot in progress, not run (${wip.length}): ${wip.join('; ')}`);
 
 if (args.summary) {
   const bars = '▁▂▃▄▅▆▇█';
   const spark = (xs) => { const m = Math.max(1, ...xs); return xs.map((x) => bars[Math.min(7, Math.round((x / m) * 7))]).join(''); };
   const lines = [
-    '## Benchmark scorecard',
+    `## Benchmark scorecard${args.zone ? `, zone ${args.zone}` : ''}`,
     '',
     `Hard rules (finishable after a mistake, rules hold, never stuck, no crash): **${card.length - hardFails}/${card.length} games pass**. Difficulty columns are lives an average-skill bot loses per level — reported, not enforced yet.`,
     '',
@@ -166,6 +171,7 @@ if (args.summary) {
     ...card.map((c) => `| ${c.zone} | ${c.title} | ${c.ok ? '✅ pass' : `❌ ${c.fails} problem(s)`} | ${c.levels} | ${c.start.toFixed(1)} → ${c.end.toFixed(1)} | ${spark(c.spark)} | ${c.walls.join(', ') || '—'} |`),
     '',
     missing.length ? `No bot yet (${missing.length}): ${missing.join(', ')}` : 'Every game has a bot.',
+    wip.length ? `Bot in progress, not run (${wip.length}): ${wip.join('; ')}` : '',
     '',
   ];
   fs.appendFileSync(args.summary, lines.join('\n'));
