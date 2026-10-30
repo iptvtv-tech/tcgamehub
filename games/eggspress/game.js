@@ -123,7 +123,7 @@ class Eggspress {
     this.themeKey = bonus ? 'gold' : THEME_ORDER[(level - 1) % THEME_ORDER.length];
     this.goalX = bonus ? 1e9 : (380 + level * 55) * PX_PER_M;
     this.checkX = this.goalX * 0.5; this.respawnX = 60; this.flagged = false;
-    this.X0 = -1600; this.Hs = []; this.genX = this.X0;
+    this.X0 = -1600; this.Hs = []; this.genX = this.X0; this.hill = undefined;
     this.f = [r.range(0.0022, 0.003), r.range(0.0055, 0.0068), r.range(0.012, 0.015), r.range(0.0008, 0.0011)];
     this.p = [r.range(0, TAU), r.range(0, TAU), r.range(0, TAU), r.range(0, TAU)];
     this.coins = []; this.mushrooms = []; this.lowG = []; this.bumps = []; this.ramps = []; this.gaps = []; this.winds = []; this.oils = []; this.props = [];
@@ -181,7 +181,7 @@ class Eggspress {
     }
   }
 
-  baseHeight(x) {
+  baseHeight(x, withRamps = true) {
     const f = this.f, p = this.p, m = x / PX_PER_M, d = this.d;
     const amp = Math.min(180, 50 + d * 100 + m * 0.05);
     // calm, flat ground for a good run-up before each chasm and after its landing
@@ -195,6 +195,15 @@ class Eggspress {
       const w = Math.sin((x - b.x0) / (b.x1 - b.x0) * Math.PI) * b.k * (1 - calm);
       y += w * (5 * Math.sin(x * 0.085) + 3 * Math.sin(x * 0.19 + 1) + 2 * Math.sin(x * 0.31));
     }
+    // flatten the farm yard at the end of the road
+    const g = x - (this.goalX - 300);
+    if (g > 0) y = y * Math.max(0, 1 - g / 300) + this.yardY * Math.min(1, g / 300);
+    return withRamps ? y + this.rampLift(x) : y;
+  }
+
+  /** How far the ramps and chasm kickers raise the road at x (negative = up). */
+  rampLift(x) {
+    let y = 0;
     for (const rp of this.ramps) {
       const u = x - rp.x;
       if (rp.gap) {
@@ -204,9 +213,6 @@ class Eggspress {
       } else if (u > -200 && u <= 0) y -= rp.h * ((u + 200) / 200) ** 2;          // the kicker
       else if (u > 0 && u <= 280) y -= rp.h * (0.5 + 0.5 * Math.cos(u / 280 * Math.PI));   // a landing slope: jump it fast, or roll down it slowly
     }
-    // flatten the farm yard at the end of the road
-    const g = x - (this.goalX - 300);
-    if (g > 0) y = y * Math.max(0, 1 - g / 300) + this.yardY * Math.min(1, g / 300);
     return y;
   }
 
@@ -215,13 +221,17 @@ class Eggspress {
     this.placeFeatures(b + 1500);
     if (this.yardY === undefined || this.genX === this.X0) this.yardY = 300;
     const Hs = this.Hs;
+    // The hills are clamped to a steepest grade, then the ramps are added on top as designed.
+    // (Clamping the ramps too squashed each kicker, and the missing height came back as one
+    // sudden step at the lip — a wall up to 233 px high. And from delivery 8 the grade cap rose to
+    // 0.70–0.78, steeper than any driving can keep the egg in the cup on: it slides over the back
+    // past about 0.65. Both found by the benchmark, 30 Oct 2026.)
+    const maxD = Math.min(0.62, 0.6 + this.d * 0.18) * STEP;
     for (let x = a; x < b; x += STEP) {
-      let y = this.baseHeight(x);
-      const free = this.ramps.some((rp) => x > rp.x - 10 && x < rp.x + (rp.gap ? rp.w + 400 : 300));
-      if (Hs.length && !free) {
-        const maxD = (0.6 + this.d * 0.18) * STEP, prev = Hs[Hs.length - 1];
-        if (prev < 1500) y = clamp(y, prev - maxD, prev + maxD);
-      }
+      let h = this.baseHeight(x, false);
+      if (this.hill !== undefined) h = clamp(h, this.hill - maxD, this.hill + maxD);
+      this.hill = h;
+      let y = h + this.rampLift(x);
       if (this.gaps.some((gp) => x >= gp.x0 && x < gp.x1)) y = 3000;      // the chasm
       Hs.push(y);
     }

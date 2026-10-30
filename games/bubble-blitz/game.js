@@ -90,7 +90,7 @@ class BubbleBlitz {
 
   buildBoard() {
     const r = this.s.rng, L = this.level;
-    this.par = 0; this.drops = 0;
+    this.par = 0; this.drops = 0; this.lift = 0;
     this.touch();
     this.grid = [];
     this.shot = null; this.popping = []; this.falling = []; this.clearing = 0; this.failing = 0;
@@ -126,7 +126,7 @@ class BubbleBlitz {
   }
 
   // ── Grid helpers ──────────────────────────────────────────
-  get top() { return TOP0 + this.drops * ROWH; }
+  get top() { return TOP0 + (this.drops - this.lift) * ROWH; }
   offset(row) { return ((row + this.par) & 1) === 1; }
   ncols(row) { return this.offset(row) ? COLS - 1 : COLS; }
   xy(row, c) { return [LEFT + R + c * D + (this.offset(row) ? R : 0), this.top + R + row * ROWH]; }
@@ -182,7 +182,7 @@ class BubbleBlitz {
 
   fire() {
     const s = this.s;
-    if (this.shot || this.clearing || this.failing || s.state !== 'playing') return;
+    if (this.shot || this.clearing || this.failing > 0 || s.state !== 'playing') return;
     const rainbow = this.bonus || this.rainbowShots > 0;
     if (!this.bonus && this.rainbowShots > 0) this.rainbowShots--;
     this.shot = { x: GUN_X, y: GUN_Y, vx: Math.cos(this.aim) * SHOT_SPEED, vy: -Math.sin(this.aim) * SHOT_SPEED, c: this.cur, rainbow, bounces: 0 };
@@ -195,11 +195,19 @@ class BubbleBlitz {
   }
 
   onLifeLost() {
+    this.failing = 0;
     // keep your progress: the two lowest rows melt away instead of the whole board rebuilding
     let cut = 0;
     while (cut < 2 && this.grid.length > 2) { this.grid.pop(); this.touch(); cut++; }
+    // and the ceiling comes back up until the board sits at least two rows clear of the line
+    // (it never rose again, so after enough drops every shot cost another life: a death spiral;
+    // found by the benchmark, 30 Oct 2026). Only the picture moves up; the drop count for the
+    // level's score stays as it was.
+    while (this.drops - this.lift > 0 && this.lowestY() > DANGER - 2 * ROWH) { this.lift++; this.touch(); }
+    while (this.grid.length > 2 && this.lowestY() > DANGER - 2 * ROWH) { this.grid.pop(); this.touch(); }
     if (!this.countColoured()) this.buildBoard();
   }
+  lowestY() { let y = -Infinity; for (const [row] of this.cells()) y = Math.max(y, this.xy(row, 0)[1] + R); return y; }
 
   idle(dt) { this.t += dt; this.animate(dt); }
 
@@ -211,7 +219,10 @@ class BubbleBlitz {
     if (s.input.isDown('left')) this.aim = clamp(this.aim + 2.2 * dt, 0.12, Math.PI - 0.12);
     if (s.input.isDown('right')) this.aim = clamp(this.aim - 2.2 * dt, 0.12, Math.PI - 0.12);
 
-    if (this.failing > 0) { this.failing -= dt; if (this.failing <= 0) { s.sound.play('boom'); s.hurt(); } return; }
+    // (failing must land on exactly 0: counting 0.6 down in 1/120 s steps ends at -3.6e-16, which
+    // the launcher and the danger check read as "still failing", so after the first TOO LOW the
+    // launcher never fired again and the level could never end; found by the benchmark, 30 Oct 2026)
+    if (this.failing > 0) { this.failing -= dt; if (this.failing <= 0) { this.failing = 0; s.sound.play('boom'); s.hurt(); } return; }
     if (this.clearing > 0) { this.clearing -= dt; if (this.clearing <= 0) this.finishLevel(); return; }
     if (this.freeze > 0) this.freeze -= dt;
 
@@ -483,7 +494,7 @@ class BubbleBlitz {
   }
 
   checkDanger() {
-    if (this.bonus || this.failing) return;
+    if (this.bonus || this.failing > 0) return;
     for (const [row] of this.cells()) {
       if (this.xy(row, 0)[1] + R > DANGER) {
         this.failing = 0.6;

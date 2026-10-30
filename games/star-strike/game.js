@@ -189,7 +189,9 @@ class StarStrike {
     this.invuln = 2.2; this.bolts = []; this.shield = false;
     // losing a life costs one weapon level
     if (this.weapon.lvl > 1) this.weapon.lvl--; else this.weapon = { type: 'laser', lvl: 1, t: 0 };
-    this.ents = this.ents.filter((e) => e.z > 30 || e.boss || e.kind === 'pickup');
+    // clear what's near the ship, but never a boss's own parts: a tail segment removed here was
+    // never counted as broken, so the Hydra's armour could never crack (30 Oct 2026 review)
+    this.ents = this.ents.filter((e) => e.z > 30 || e.boss || e.kind === 'pickup' || e.kind === 'seg' || e.kind === 'gun' || e.kind === 'plate');
     this.bombs = Math.max(this.bombs, 1);
   }
 
@@ -389,7 +391,7 @@ class StarStrike {
       this.ents.push(this.boss);
       const n = 8 + round * 2;
       for (let i = 0; i < n; i++) this.ents.push({ kind: 'seg', i: i + 1, x: 0, y: 0, z: 100 + i, hp: 5 + round * 2, fireT: 2 + i * 0.4 });
-      this.hydraSegs = n;
+      this.hydraSegs = n; this.hydraTotal = n;
     } else {
       const hp = 90 + L * 8;
       this.boss = { kind: 'core', boss: true, x: 0, y: 0.5, z: 95, targetZ: 32, hp, max: hp, spin: 0, fireT: 2.5, pattern: 0 };
@@ -497,7 +499,8 @@ class StarStrike {
       case 'pylon': e.link.alive--; break;
       case 'seg': {
         this.hydraSegs--;
-        if (this.boss && this.boss.armour && this.hydraSegs <= Math.ceil(this.ents.filter((x) => x.kind === 'seg').length / 2)) { this.boss.armour = false; s.fx.text(W / 2, HORIZ - 60, 'ARMOUR CRACKED! Hit the head!', { color: '#86efac', size: 20, life: 1.6 }); }
+        // the head's armour cracks once half the tail is broken (it used to wait for 2 of 8 left)
+        if (this.boss && this.boss.armour && this.hydraSegs <= Math.floor(this.hydraTotal / 2)) { this.boss.armour = false; s.fx.text(W / 2, HORIZ - 60, 'ARMOUR CRACKED! Hit the head!', { color: '#86efac', size: 20, life: 1.6 }); }
         break;
       }
     }
@@ -608,7 +611,11 @@ class StarStrike {
         case 'head': {
           e.patT += dt;
           const tz = 34 + Math.sin(e.patT * 0.5) * 5;
-          e.z += (Math.max(tz, e.z > 40 ? e.z - 14 * dt : tz) - e.z) * Math.min(1, dt * 2);
+          // comes in at 14 units/s, then eases into its weave (the approach used to be scaled by dt
+          // twice, ~0.23 units/s, so it never came within firing range; found by the benchmark,
+          // 30 Oct 2026)
+          if (e.z > 40) e.z = Math.max(tz, e.z - 14 * dt);
+          else e.z += (tz - e.z) * Math.min(1, dt * 2);
           e.x = Math.sin(e.patT * 0.8) * 2.4; e.y = 0.3 + Math.cos(e.patT * 1.1) * 1.3;
           e.fireT -= dt;
           if (e.fireT <= 0 && e.z < 42) {

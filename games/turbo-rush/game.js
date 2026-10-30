@@ -964,6 +964,10 @@ class TurboRush {
       }
     }
     this.cars = sorted.filter((car) => car.z < this.trackLen && !(car.police && car.z > pz + 70 * SEG));
+    // the police car can leave the road here too: let go of it at once, or it stays "on duty"
+    // frozen where it left (no new police car for the rest of the life, and a "MOVE!" warning and
+    // siren with no car there; found by the benchmark, 30 Oct 2026)
+    if (this.police && !this.cars.includes(this.police)) this.policeGone();
 
     // slipstream: tuck in behind a car at speed and the draft fills your nitro
     this.drafting = !!drafting && pct > 0.55 && this.draftCool <= 0;
@@ -1021,6 +1025,8 @@ class TurboRush {
   }
 
   /** 🚨 A police car comes up from behind in your lane. It locks its lane when it gets close. */
+  /** The police car has gone: clear it and time the next one. */
+  policeGone() { this.police = null; this.policeNext = this.s.rng.range(9, 16) * Math.max(0.6, 1 - (this.level - 9) * 0.04); }
   updatePolice(dt, pz) {
     const s = this.s, max = this.maxSpeed;
     if (!this.feat.police) return;
@@ -1050,7 +1056,7 @@ class TurboRush {
       this.sirenT = 0.38; this.sirenHi = !this.sirenHi;
       s.sound.tone({ freq: this.sirenHi ? 960 : 720, dur: 0.34, type: 'square', vol: (dz < 0 ? 0.05 : 0.025) * clamp(1 - Math.abs(dz) / (40 * SEG), 0.15, 1), pan: clamp((p.x - this.playerX) * 0.8, -0.8, 0.8) });
     }
-    if (dz > 70 * SEG) { this.police = null; this.policeNext = s.rng.range(9, 16) * Math.max(0.6, 1 - (this.level - 9) * 0.04); }
+    if (dz > 70 * SEG) this.policeGone();
   }
 
   /** 🏁 VIPER, the rival: races you to the checkpoint and dodges traffic. */
