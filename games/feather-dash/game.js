@@ -72,7 +72,7 @@ class FeatherDash {
     this.spacing = Math.max(215, 285 - level * 4);
     this.pillars = []; this.seeds = []; this.items = []; this.hawks = [];
     this.spawned = 0; this.passed = 0; this.need = need(level);
-    this.lastGapY = H * 0.45;
+    this.lastGapY = H * 0.45; this.lastAmp = 0;
     this.bird.vy = 0; this.hover = true; this.hoverBase = this.bird.y = clamp(this.bird.y, 120, GROUND - 120);
     this.waveT = 0;
   }
@@ -94,8 +94,17 @@ class FeatherDash {
     const margin = 70;
     const lo = margin + this.gap / 2, hi = GROUND - margin - this.gap / 2;
     const maxJump = 170 + L * 8;
-    const gapY = clamp(r.range(lo, hi), this.lastGapY - maxJump, this.lastGapY + maxJump);
-    this.lastGapY = gapY;
+    // Every gap must be reachable from the last one (30 Oct 2026: from level 13 the next gap
+    // could jump further than any bird can climb or fall between two pillars, so some pillars
+    // could not be passed at all). The move between gaps, plus both pillars' sway, stays within
+    // what a bird covers in the open stretch between them, plus a share of the gap's own room.
+    const open = (this.spacing - PILLAR_W) / this.scroll, room = 0.4 * (this.gap - 2 * R);
+    const tc = MAX_FALL / GRAVITY;            // a falling bird speeds up to MAX_FALL, it doesn't start there
+    const fall = open < tc ? 0.5 * GRAVITY * open * open : 0.5 * GRAVITY * tc * tc + MAX_FALL * (open - tc);
+    const upBudget = 0.58 * -FLAP * open + room, downBudget = 0.45 * fall + room;
+    const prevAmp = this.lastAmp || 0;
+    let gapY = clamp(r.range(lo, hi), this.lastGapY - maxJump, this.lastGapY + maxJump);
+    gapY = clamp(gapY, this.lastGapY - Math.max(0, upBudget - prevAmp), this.lastGapY + Math.max(0, downBudget - prevAmp));
     const moving = L >= 3 && r.chance(Math.min(0.75, 0.25 + (L - 3) * 0.08));
     const p = {
       x: W + 20, base: gapY, gapY, gap: this.gap, passed: false,
@@ -103,6 +112,9 @@ class FeatherDash {
       seeds: [-24, 0, 24].map((dx) => ({ dx, taken: false })),
     };
     p.amp = Math.min(p.amp, p.base - lo + 20, hi - p.base + 20);
+    const budget = gapY < this.lastGapY ? upBudget : downBudget;
+    p.amp = Math.max(0, Math.min(p.amp, budget - Math.abs(gapY - this.lastGapY) - prevAmp));
+    this.lastGapY = gapY; this.lastAmp = p.amp;
     this.pillars.push(p);
     this.spawned++;
 
