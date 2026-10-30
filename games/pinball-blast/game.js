@@ -339,8 +339,12 @@ class Pinball {
           // ball save: straight back into play
           s.fx.text(...this.sp(W / 2, H * 0.55), 'BALL SAVED!', { color: '#4ade80', size: 26 });
           s.sound.play('powerup');
-          const nb = this.addBall(LANE_X, 560, 0, 0);
-          this.launchBall(nb, 0.85);
+          // With another ball still in the playfield the lane gate shuts at once, so a ball sent up
+          // the lane would bounce off it and drain again (29 Oct 2026 review): eject it from the
+          // saucer instead, as multiball does. On its own it goes back up the lane as before.
+          const others = this.balls.some((o) => o.inPlay);
+          const nb = others ? this.addBall(SAUCER.x + 40, SAUCER.y - 30, 230, -380) : this.addBall(LANE_X, 560, 0, 0);
+          if (!others) this.launchBall(nb, 0.85);
           nb.saveUntil = 0;                                   // one save per ball
         }
       }

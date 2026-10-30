@@ -38,4 +38,26 @@ for (const level of [7, 8, 12, 17]) {
     t.check(g2.lanesLit.every((l) => !l), `level ${level}, ${interrupt} right after N·E·O·N: lanes stuck lit ${JSON.stringify(g2.lanesLit)}`);
   }
 }
-t.done('target bank and N·E·O·N always re-arm after a lost ball or a pause');
+// Ball save with another ball in play (multiball, Frenzy): the saved ball must come back into the
+// playfield. It used to go up the shooter lane, hit the gate the other ball had just closed, and
+// drain again (29 Oct 2026 review).
+for (const bonus of [false, true]) {
+  const level = bonus ? 5 : 9;
+  const s = P.start({ seed: 11, level, lives: 9 }), g = s.game;
+  s.run(1);
+  g.balls = [];
+  const main = g.addBall(200, 300, 0, 0);
+  g.addBall(240, 700, 0, 400);                            // a fresh ball (ball save still on) heading for the drain
+  if (!bonus) g.multiball = true;
+  const before = new Set(g.balls);
+  let saved = null, reachedField = false;
+  for (let i = 0; i < 120 * 3; i++) {
+    Object.assign(main, { x: 200, y: 300, vx: 0, vy: 0 });  // the other ball stays up in the playfield
+    s.tick();
+    saved ||= g.balls.find((b) => !before.has(b));
+    if (saved && saved.inPlay && saved.x < 420 && saved.y < 600) reachedField = true;
+  }
+  t.check(!!saved, `${bonus ? 'Frenzy bonus' : 'multiball'}: the draining ball wasn't saved`);
+  t.check(reachedField, `${bonus ? 'Frenzy bonus' : 'multiball'}: the saved ball never got back into the playfield (stuck behind the lane gate)`);
+}
+t.done('target bank and N·E·O·N always re-arm; a saved ball always gets back into play');
