@@ -29,13 +29,16 @@ const NOOP = new Proxy(function () {}, { get: (_, k) => (k === 'then' ? undefine
 // Some games paint sprites into off-screen canvases while they set up. Headless, a canvas is a
 // stand-in whose drawing calls do nothing (the game logic never reads pixels back).
 if (typeof globalThis.document === 'undefined') {
-  const canvas = () => ({ width: 0, height: 0, style: {}, getContext: () => NOOP, toDataURL: () => '' });
-  globalThis.document = { createElement: canvas, body: NOOP, documentElement: { style: {} } };
+  const canvas = () => ({ width: 0, height: 0, style: {}, getContext: () => NOOP, toDataURL: () => '',
+    addEventListener() {}, removeEventListener() {}, getBoundingClientRect: () => ({ left: 0, top: 0, width: 480, height: 720 }) });
+  globalThis.document = { createElement: canvas, body: NOOP, documentElement: { style: {} }, addEventListener() {}, removeEventListener() {},
+    querySelector: () => null, getElementById: () => null, hidden: false, pointerLockElement: null };
   globalThis.OffscreenCanvas ??= class { constructor(w, h) { Object.assign(this, canvas(), { width: w, height: h }); } };
 }
-// window-level listeners (keys, resize) never fire headless
+// window-level listeners (keys, resize) never fire headless; the page has no URL options
 globalThis.addEventListener ??= () => {};
 globalThis.removeEventListener ??= () => {};
+globalThis.location ??= { search: '', hash: '', href: 'http://headless/', pathname: '/' };
 
 export class HeadlessShell {
   constructor(def, { seed = 1, lives } = {}) {
@@ -51,6 +54,7 @@ export class HeadlessShell {
     this.sound = new Proxy(NOOP, { get: (_, k) => (k === 'now' ? () => null : NOOP) }); this.fx = NOOP;
     this.input = { isDown: () => false, pointer: { x: 0, y: 0, down: false }, pointers: new Map() };
     this.bands = { top: 0, bottom: 0 }; this.coarse = false; this.lowDetail = false; this.gold = false;
+    this.canvas = document.createElement('canvas'); this.canvas.width = this.W; this.canvas.height = this.H;
     this.game = def.create(this);
   }
 

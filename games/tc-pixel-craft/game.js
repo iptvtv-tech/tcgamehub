@@ -814,17 +814,21 @@ class PixelCraft {
     }
   }
 
-  /** Everything you carry drops into a grave where you fell. */
+  /** Everything you carry drops into a grave where you fell. Dying again before you got back to
+   *  an earlier grave never loses it (29 Oct 2026 review: it used to be replaced, or deleted
+   *  when you died empty-handed): empty-handed, the old grave stays where it is; carrying things,
+   *  the old grave's items join them in the new grave where you fell. */
   dropGrave() {
     const items = [...this.inv, ...this.armour].filter(Boolean);
     this.inv = new Array(36).fill(null); this.armour = [null, null, null, null];
-    if (!items.length || this.s.lives <= 1) { this.grave = null; return; }
+    if (this.s.lives <= 1) { this.grave = null; return; }   // the last life: the run is over
+    if (!items.length) return;                               // nothing new: any earlier grave stays put
     const p = this.p;
     let y = Math.floor(p.y);
     if (this.touching(p, 0.3, 1.8, B.LAVA) || y < 1) { // a grave in lava would be lost: put it on the nearest safe ground above
       y = this.world.top[clamp(Math.floor(p.z), 0, SZ - 1) * SX + clamp(Math.floor(p.x), 0, SX - 1)] + 1;
     }
-    this.grave = { x: p.x, y, z: p.z, items };
+    this.grave = { x: p.x, y, z: p.z, items: [...(this.grave?.items || []), ...items] };
   }
   openGrave() {
     const g = this.grave; this.grave = null;
