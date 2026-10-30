@@ -5,7 +5,7 @@
 // headless (tools/lib/headless.mjs): die with things, die again (empty-handed, or carrying
 // something new), then walk to the grave and check every item comes back.
 import { loadGame, reporter } from '../../tools/lib/headless.mjs';
-import { B, I } from './items.js';
+import { B, I, INFO } from './items.js';
 import { SX } from './world.js';
 
 const G = await loadGame('tc-pixel-craft');
@@ -29,4 +29,12 @@ for (const second of ['empty-handed', 'carrying something new']) {
   t.check(count(g, B.LOG) === 12 && count(g, I.APPLE) === 3, `${second}: got back ${count(g, B.LOG)}/12 logs and ${count(g, I.APPLE)}/3 apples from the first grave`);
   if (second !== 'empty-handed') t.check(count(g, I.BERRIES) === 5, `${second}: got back ${count(g, I.BERRIES)}/5 berries from the second death`);
 }
-t.done('dying again never loses the first grave');
+// Holding a block made matching blocks unbreakable (found by the benchmark, 30 Oct 2026): blocks
+// carry a `tool` (the tool that's best on them) but no `speed`, so with a log in hand the next log
+// took NaN seconds to break, and never did. The first log you chop lands in the selected slot.
+for (const [target, held] of [[B.LOG, B.LOG], [B.GRASS, B.DIRT], [B.DIRT, B.DIRT], [B.STONE, B.COBBLE]]) {
+  const g = G.start({ seed: 3, level: 1 }).game;
+  const bt = g.breakTime(target, INFO[held]), bare = g.breakTime(target, null);
+  t.check(Number.isFinite(bt) && bt === bare, `holding ${INFO[held].name || held}, a ${INFO[target].name || target} takes ${bt} s to break (empty-handed ${bare} s)`);
+}
+t.done('dying again never loses the first grave; a block in hand never stops you breaking blocks');

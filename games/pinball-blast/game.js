@@ -685,8 +685,11 @@ class Pinball {
     const s = this.s;
     {
       if (b.limbo.bad) {
-        // …and comes out of the drain chute. Ouch.
-        const nb = this.addBall(220, 700, 0, 500); nb.saveUntil = 0;
+        // …and comes out of the chute down an inlane, onto a flipper: a scare you can still save.
+        // (It used to drop out under the flippers heading for the drain, an unavoidable lost life
+        // up to 45% of the time on the later levels; found by the benchmark, 30 Oct 2026.)
+        const left = s.rng.chance(0.5);
+        const nb = this.addBall(left ? 79 : 361, 480, 0, 120); nb.saveUntil = 0;
         s.fx.text(...this.sp(W / 2, H * 0.55), 'DOWN THE CHUTE!', { color: '#f87171', size: 24 });
       } else {
         // …and gets shot out at the top of the table

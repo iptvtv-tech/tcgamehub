@@ -616,6 +616,9 @@ class PixelCraft {
   }
 
   breakTime(v, tool) {
+    // only a real tool (one with a speed) counts: blocks carry `tool` too (the tool that's best on
+    // them), and holding a log / dirt / cobble used to make time /= undefined → NaN → unbreakable
+    if (tool && !tool.speed) tool = null;
     const bi = INFO[v];
     if (!bi || !isFinite(bi.hard)) return Infinity;
     if (bi.hard === 0) return 0.05;
@@ -628,6 +631,7 @@ class PixelCraft {
   }
 
   breakBlock(t, tool) {
+    if (tool && !tool.speed) tool = null;   // a block in hand is no pickaxe (an altar isn't an iron one)
     const s = this.s, bi = INFO[t.v], v = t.v, f = this.foodK();
     this.mining = null;
     if (v === B.BUSH_RIPE) return this.harvest(t);

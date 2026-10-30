@@ -276,6 +276,8 @@ class CrystalCascade {
       const cell = row[i];
       if (cell.kind === 'stone') continue;
       for (let k = 0; k < 8 && this.groupAt(i, 0).length >= 3; k++) cell.c = (cell.c + 1 + r.int(0, this.nColors - 2)) % this.nColors;
+      // the random re-picks can all miss the one safe colour: then try every colour in turn (no rng, so boards stay the same)
+      for (let c = 0; c < this.nColors && this.groupAt(i, 0).length >= 3; c++) cell.c = c;
     }
   }
 

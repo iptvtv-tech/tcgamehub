@@ -103,7 +103,14 @@ class DungeonEscape {
     if (level >= 3) {
       const corridors = cells.filter((c) => c.d > 3 && !used.has(c.x + ',' + c.y) && ((this.open(c.x - 1, c.y) && this.open(c.x + 1, c.y) && !this.open(c.x, c.y - 1) && !this.open(c.x, c.y + 1)) || (this.open(c.x, c.y - 1) && this.open(c.x, c.y + 1) && !this.open(c.x - 1, c.y) && !this.open(c.x + 1, c.y))));
       const nS = Math.min(10, 2 + level);
-      for (let i = 0; i < nS && corridors.length; i++) { const c = corridors.splice(r.int(0, corridors.length - 1), 1)[0]; this.spikes.push({ x: c.x, y: c.y, phase: r.range(0, 3) }); }
+      // never two traps side by side: with their own rhythms a pair can leave no moment to cross
+      // (you need 0.37 s in each square at full pace), and if it's the only way to a key or the
+      // stairs the level can't be finished. One clear square between traps is a place to wait.
+      for (let i = 0; i < nS && corridors.length;) {
+        const c = corridors.splice(r.int(0, corridors.length - 1), 1)[0];
+        if (this.spikes.some((sp) => Math.abs(sp.x - c.x) + Math.abs(sp.y - c.y) === 1)) continue;
+        this.spikes.push({ x: c.x, y: c.y, phase: r.range(0, 3) }); i++;
+      }
     }
     // ghouls start far from you
     this.ghouls = [];
@@ -153,7 +160,12 @@ class DungeonEscape {
     this.seen = Array.from({ length: n }, () => new Array(n).fill(true));
     this.items = [];
     for (let y = 1; y < n - 1; y++) for (let x = 1; x < n - 1; x++) if (!this.map[y][x] && !(x === 1 && y === 1)) for (let k = 0; k < 2; k++) this.items.push({ kind: 'coin', x: x + 0.3 + r.range(0, 0.4), y: y + 0.3 + r.range(0, 0.4) });
-    for (let i = 0; i < 3; i++) this.items.push({ kind: 'chest', x: r.int(2, n - 3) + 0.5, y: r.int(2, n - 3) + 0.5 });
+    // chests go on open floor, never inside a pillar, and never two in one square
+    for (let i = 0, tries = 0; i < 3 && tries < 100; tries++) {
+      const x = r.int(2, n - 3), y = r.int(2, n - 3);
+      if (this.map[y][x] || this.items.some((it) => it.kind === 'chest' && it.x === x + 0.5 && it.y === y + 0.5)) continue;
+      this.items.push({ kind: 'chest', x: x + 0.5, y: y + 0.5 }); i++;
+    }
     this.ghouls = []; this.spikes = []; this.keysNeed = 0;
     this.fuel = this.fuelMax = 99;
     this.placePlayer();

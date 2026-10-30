@@ -1151,7 +1151,7 @@ class NeonDrift {
     const cockpit = this.view === 'cockpit' && st !== 'title';
     if (cockpit !== c.cockpit) { c.cockpit = cockpit; c.init = false; }
     let d, lat;
-    if (st === 'title' && this.rivals.length) { const rv = this.rivals[2]; d = rv.d; lat = rv.off; }
+    if (st === 'title' && this.rivals.length) { const rv = this.rivals[Math.min(2, this.rivals.length - 1)]; d = rv.d; lat = rv.off; }   // a boss race has one rival
     else { d = p.prog; lat = p.lat; }
     const k = Math.min(1, dt * 8);
     if (cockpit) {

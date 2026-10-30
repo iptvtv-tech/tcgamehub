@@ -296,7 +296,7 @@ class VoidBreaker {
     if (this.spawnT > 0 || alive >= this.maxAlive) return;
     const r = this.s.rng, kind = this.pickType();
     if (kind === 'swarm') {
-      const a = this.yaw + r.range(-Math.PI, Math.PI), base = [Math.sin(a) * 64, r.range(4, 10), Math.cos(a) * 64];
+      const a = (this.s.daily ? this.spawnBase : this.yaw) + r.range(-Math.PI, Math.PI), base = [Math.sin(a) * 64, r.range(4, 10), Math.cos(a) * 64];
       for (let k = 0; k < 6 && this.spawned < this.total; k++) { this.spawn('swarm', V3.add(base, [r.range(-3, 3), r.range(-2, 2), r.range(-3, 3)])); this.spawned++; }
     } else {
       const pack = Math.min(this.total - this.spawned, this.level < 3 ? 1 : r.int(1, Math.min(3, 1 + Math.floor(this.level / 4))));

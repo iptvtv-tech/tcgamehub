@@ -60,4 +60,31 @@ for (const bonus of [false, true]) {
   t.check(!!saved, `${bonus ? 'Frenzy bonus' : 'multiball'}: the draining ball wasn't saved`);
   t.check(reachedField, `${bonus ? 'Frenzy bonus' : 'multiball'}: the saved ball never got back into the playfield (stuck behind the lane gate)`);
 }
-t.done('target bank and N·E·O·N always re-arm; a saved ball always gets back into play');
+// A trap door's "DOWN THE CHUTE!" exit (from level 2; up to 45% of trap doors from level 12)
+// dropped the ball out under the flippers already heading for the drain: a lost life nobody could
+// save (found by the benchmark, 30 Oct 2026). It must come out where the flippers can play it:
+// the benchmark's expert bot saves almost every one.
+const B = (await import('./bench.mjs')).default;
+let chutes = 0, saved = 0;
+for (const level of [4, 12, 18]) {
+  for (let seed = 1; seed <= 8; seed++) {
+    const s = P.start({ seed: seed * 13 + level, level, unlimited: true }), g = s.game;
+    const b = { skill: 1, rand: () => 0.5, t: 0, level, mem: {} };
+    let i = 0;
+    for (; i < 120 * 6 && g.plungerBall; i++) { b.t = i / 120; B.bot(g, s, b); s.tick(); }    // launch
+    if (g.plungerBall || !g.balls.length) continue;
+    const ball = g.balls[0];
+    g.balls = [ball]; g.multiball = false;
+    ball.inPlay = false; ball.saveUntil = 0; ball.limbo = { t: 0, bad: true };         // it just fell down the chute
+    s.tick(); i++;
+    const out = g.balls.find((x) => x.inPlay);
+    if (!t.check(!!out, `level ${level} seed ${seed}: no ball came out of the chute`)) continue;
+    chutes++;
+    const lives = s.lives;
+    for (let k = 0; k < 120 * 4 && s.lives === lives && s.state === 'playing'; k++, i++) { b.t = i / 120; B.bot(g, s, b); s.tick(); }
+    if (s.lives === lives && s.state === 'playing') saved++;
+  }
+}
+t.check(chutes >= 20, `only ${chutes} chute exits tried`);
+t.check(saved >= chutes * 0.8, `the expert bot saved only ${saved} of ${chutes} balls that came "down the chute" (it must be playable, not a certain drain)`);
+t.done(`target bank and N·E·O·N always re-arm; a saved ball always gets back into play; ${saved}/${chutes} chute exits saved`);
