@@ -4,6 +4,8 @@
 # Tests → Run workflow). Free on GitHub's standard runners for a public repo.
 #
 #   fast    level checkers + headless game tests + page build check  (node tools/test-all.mjs)
+#   bench   bots play every level of every game that has games/<id>/bench.mjs; hard rules must
+#           pass, the difficulty scorecard is posted on the run's summary page (tools/bench.mjs)
 #   smoke   every game played in a real browser, EVERY level (node tools/smoke.mjs --zone=N),
 #           one job per zone side by side; zones are read from assets/js/games.js, so a new
 #           zone is picked up automatically
@@ -37,6 +39,18 @@ jobs:
         with:
           node-version: 22
       - run: node tools/test-all.mjs
+
+  bench:
+    name: Benchmark (bots play every level)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      # the scorecard table appears on the run's summary page
+      - run: node tools/bench.mjs --summary="$GITHUB_STEP_SUMMARY"
 
   zones:
     name: List zones
@@ -74,10 +88,10 @@ jobs:
   all:
     name: all tests passed
     if: always()
-    needs: [fast, smoke]
+    needs: [fast, bench, smoke]
     runs-on: ubuntu-latest
     steps:
       - name: Every test job passed
         run: |
-          echo "fast: ${{ needs.fast.result }} · smoke: ${{ needs.smoke.result }}"
-          test "${{ needs.fast.result }}" = success && test "${{ needs.smoke.result }}" = success
+          echo "fast: ${{ needs.fast.result }} · bench: ${{ needs.bench.result }} · smoke: ${{ needs.smoke.result }}"
+          test "${{ needs.fast.result }}" = success && test "${{ needs.bench.result }}" = success && test "${{ needs.smoke.result }}" = success

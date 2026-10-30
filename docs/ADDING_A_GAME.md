@@ -152,8 +152,14 @@ insert into public.games (id, title, max_points_per_second) values ('space-dodge
   - Copy the pattern from `games/dock-master/test.mjs` (finishing after crashes) and
     `games/crazy-putt/test.mjs` (a bot plus a check after every physics step). Exit non-zero
     on any problem (`reporter()` does that).
-- Run `node tools/test-all.mjs --games=<id>`, then `node tools/smoke.mjs --games=<id>`
-  (every level in a real browser).
+- **Write `games/<id>/bench.mjs`**, the benchmark contract (format at the top of
+  `tools/bench.mjs`; example `games/dock-master/bench.mjs`): a bot that plays the game through
+  its controls with a skill setting, one real `mistake`, `progress()` and `invariants()`. The
+  benchmark then proves on every level, with no rules written per zone, that the level can be
+  finished after a mistake, the rules always hold and nothing gets stuck, and reports the
+  difficulty curve (lives an average bot loses per level).
+- Run `node tools/test-all.mjs --games=<id>`, `node tools/bench.mjs --games=<id>`, then
+  `node tools/smoke.mjs --games=<id>` (every level in a real browser).
 - Play levels 1–6 so you see a bonus round and a checkpoint.
 - Try it on a phone (touch controls).
 - Push to a review branch: GitHub runs every test (`.github/workflows/tests.yml`) and

@@ -39,9 +39,13 @@ if (typeof globalThis.document === 'undefined') {
 globalThis.addEventListener ??= () => {};
 globalThis.removeEventListener ??= () => {};
 globalThis.location ??= { search: '', hash: '', href: 'http://headless/', pathname: '/' };
+globalThis.window ??= globalThis;
+globalThis.matchMedia ??= () => ({ matches: false, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} });
 
 export class HeadlessShell {
-  constructor(def, { seed = 1, lives } = {}) {
+  constructor(def, { seed = 1, lives, unlimited = false } = {}) {
+    this.unlimited = unlimited;          // the last life never runs out (the benchmark), but the
+                                         // game's own lives count stays normal (caps, extra lives)
     this.def = def; this.id = def.id;
     this.W = def.width; this.H = def.height; this.boxH = def.height;
     this.rng = makeRng(seed);
@@ -52,7 +56,7 @@ export class HeadlessShell {
     this.cleared = 0; this.timers = [];
     // no audio headless: sound.now() is null, as when the game is muted before any tap
     this.sound = new Proxy(NOOP, { get: (_, k) => (k === 'now' ? () => null : NOOP) }); this.fx = NOOP;
-    this.input = { isDown: () => false, pointer: { x: 0, y: 0, down: false }, pointers: new Map() };
+    this.input = { down: new Set(), isDown(a) { return this.down.has(a); }, pointer: { x: this.W / 2, y: this.H / 2, down: false, used: false }, pointers: new Map() };
     this.bands = { top: 0, bottom: 0 }; this.coarse = false; this.lowDetail = false; this.gold = false;
     this.canvas = document.createElement('canvas'); this.canvas.width = this.W; this.canvas.height = this.H;
     this.game = def.create(this);
@@ -80,7 +84,8 @@ export class HeadlessShell {
   }
   hurt() {
     if (this.state !== 'playing') return;
-    this.lives--; this.livesLost++; this.resetCombo();
+    if (!(this.unlimited && this.lives <= 1)) this.lives--;
+    this.livesLost++; this.resetCombo();
     if (this.lives <= 0) { this.state = 'over'; this.game.onGameOver?.(); return; }
     this.state = 'dying';
     this.after(0.9, () => {               // same timings as engine.js hurt()
@@ -90,6 +95,36 @@ export class HeadlessShell {
     });
   }
   after(t, fn) { this.timers.push({ t, fn }); }
+  finishRun() { this.state = 'over'; this.won = true; }
+  /** The Legends ending (egg found): headless it simply counts as finishing the level. */
+  legendFound() { if (this.state === 'playing') { this.legend = true; this.completeLevel(); } }
+
+  // ── controls for bots: the same calls the engine's Input class makes ──
+  /** Hold an action down (left, right, up, down, action) — like pressing its key. */
+  keyDown(a) { if (this.input.down.has(a)) return; this.input.down.add(a); if (this.state === 'playing') this.game.onAction?.(a); }
+  keyUp(a) { this.input.down.delete(a); }
+  /** Hold exactly these actions this frame (keyDown the new ones, keyUp the rest). */
+  hold(actions) { const want = new Set(actions); for (const a of [...this.input.down]) if (!want.has(a)) this.keyUp(a); for (const a of want) this.keyDown(a); }
+  pointerDown(x, y) {
+    const p = this.input.pointer; Object.assign(p, { x, y, down: true, used: true });
+    this.input.pointers.set(1, { x, y, t: this.time * 1000 }); this._press = { x, y, t: this.time };
+    if (this.state === 'playing') this.game.onAction?.('press', x, y);
+  }
+  pointerMove(x, y) {
+    const p = this.input.pointer; p.x = x; p.y = y;
+    if (p.down) this.input.pointers.set(1, { x, y, t: this.time * 1000 });
+    if (this.state === 'playing') this.game.onPointerMove?.(x, y, p.down);
+  }
+  pointerUp(x = this.input.pointer.x, y = this.input.pointer.y) {
+    const p = this.input.pointer; p.down = false; p.x = x; p.y = y; this.input.pointers.delete(1);
+    if (this.state === 'playing') {
+      this.game.onAction?.('release', x, y);
+      if (this._press && this.time - this._press.t < 0.35 && Math.hypot(x - this._press.x, y - this._press.y) < 26) this.game.onAction?.('tap', x, y);
+    }
+    this._press = null;
+  }
+  /** A quick tap (down + up) at a point. */
+  tap(x, y) { this.pointerDown(x, y); this.pointerUp(x, y); }
   isFlawless() { return this.livesLost === 0; }
 
   /** One engine step. */
@@ -132,8 +167,8 @@ export async function loadGame(id) {
   const api = {
     def,
     /** A shell with a fresh game at `level` (default 1), ready to play. */
-    start({ seed = 1, level = 1, lives } = {}) {
-      const s = new HeadlessShell(def, { seed, lives });
+    start({ seed = 1, level = 1, lives, unlimited } = {}) {
+      const s = new HeadlessShell(def, { seed, lives, unlimited });
       s.beginLevel(level);
       return s;
     },

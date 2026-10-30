@@ -80,6 +80,13 @@ pages, and the "N free browser games" counts in the home page title/meta. Change
   its levels can be **finished after real mistakes** and that its **rules always hold**
   (in bounds, speed caps, goal counts). Every new game needs one (`docs/ADDING_A_GAME.md`),
   and every bug report gets a failing test before its fix.
+- `node tools/bench.mjs` (or `--games=a,b`, `--seeds=N`): the benchmark. Each game's
+  `games/<id>/bench.mjs` gives a bot (plays through the controls only, `b.skill` 0..1), one real
+  `mistake`, `progress()` and `invariants()`. Hard rules, the same for every zone: an expert bot
+  finishes every level after a mistake, started straight from that level; invariants hold every
+  step; progress never stalls for `stuck` s; no exceptions. Difficulty (lives an average bot
+  loses per level, walls) is reported on the GitHub run summary, not enforced yet. Every game
+  needs a bench.mjs; games without one are listed as "no bot yet".
 - `node tools/smoke.mjs` (or `--games=a,b`, `--zone=N`, `--quick`): every game in headless
   Chromium through the real engine (layout on phone + desktop, every level, lives,
   bonus/secret, game over, play again, stale cached pictures). Needs Playwright once:
