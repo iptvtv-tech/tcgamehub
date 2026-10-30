@@ -75,6 +75,15 @@ function aimOffset(g, xl, rand) {
   return bestScore > 0 ? best : (rand() * 2 - 1) * 0.85;
 }
 
+/** Stuck on the last bricks for a while: aim straight at one of them (a player lining up a shot),
+ *  with a little spread so repeated tries differ. */
+function aimAtLeft(g, xl, rand) {
+  const left = g.bricks.filter((br) => br.alive && br.type !== 'steel');
+  if (!left.length) return (rand() * 2 - 1) * 0.9;
+  const br = left[Math.floor(rand() * left.length)];
+  const a = Math.atan2(br.x + br.w / 2 - xl, PY - (br.y + br.h)) + (rand() - 0.5) * 0.12;
+  return Math.max(-0.95, Math.min(0.95, a / 1.05));
+}
 /** A bell-curve random number (mean 0, spread 1): most misjudgements are small, a few are big. */
 const gauss = (rand) => Math.sqrt(-2 * Math.log(1 - rand() * 0.999999)) * Math.cos(2 * Math.PI * rand());
 
@@ -104,7 +113,7 @@ function bot(g, s, b) {
     }
     if (first) {
       // pick the aim once per fall (each time this ball comes down again, a new one)
-      if (m.trajBall !== first.ball || m.wasUp) { m.trajBall = first.ball; m.wasUp = false; m.aim = bored ? (b.rand() * 2 - 1) * 0.9 : b.rand() < b.skill * b.skill ? aimOffset(g, first.x, b.rand) : 0; m.err = gauss(b.rand) * (1 - b.skill) * Math.hypot(first.ball.vx, first.ball.vy) * 0.14; }
+      if (m.trajBall !== first.ball || m.wasUp) { m.trajBall = first.ball; m.wasUp = false; m.aim = bored ? aimAtLeft(g, first.x, b.rand) : b.rand() < b.skill * b.skill ? aimOffset(g, first.x, b.rand) : 0; m.err = gauss(b.rand) * (1 - b.skill) * Math.hypot(first.ball.vx, first.ball.vy) * 0.14; }
       const aim = m.aim, err = m.err;
       m.goal = { x: first.x + err - aim * half, t: b.t + first.t, ball: first.ball };   // meet it with that part of the paddle
     } else {
@@ -129,7 +138,7 @@ export default {
   // up to 10 rows of 8 bricks (some 2–3 hits): the expert takes ~20–130 s a level (level 1's
   // slow ball is the longest, ~3 s a round trip for 32 bricks); the last lone brick can take a while
   limit: (level) => 200 + level * 6,
-  stuck: 120,
+  stuck: 45,
   // damage done to breakable bricks (every hit counts, not just the last one)
   progress: (g) => g.bricks.reduce((a, br) => a + (br.type === 'steel' ? 0 : br.alive ? br.maxHp - br.hp : br.maxHp), 0),
 

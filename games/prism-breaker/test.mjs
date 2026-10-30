@@ -32,4 +32,20 @@ for (let level = 6; level <= LEVELS; level++) {
     if (n && bad++ < 2) t.fail(`level ${level} seed ${seed}: ${n} brick(s) walled in by steel — the level can never be cleared`);
   }
 }
-t.done(`${boards} boards from level 6 (${withSteel} with steel), every brick reachable`);
+// The last brick (found by the benchmark, 30 Oct 2026): a brick reachable only through one narrow
+// opening could take minutes. After 20 s in play with no brick hit, the steel brick nearest an
+// unbroken brick must crack into an ordinary one.
+let cracks = 0;
+for (const level of [8, 12, 16, 19]) {
+  const s = PB.start({ seed: level * 5, level }), g = s.game;
+  s.run(0.5); g.launch();
+  const steel0 = g.bricks.filter((b) => b.alive && b.type === 'steel').length, total0 = g.total;
+  if (!steel0) continue;
+  g.dryT = 20; s.tick();
+  const steel1 = g.bricks.filter((b) => b.alive && b.type === 'steel').length;
+  if (!t.check(steel1 === steel0 - 1 && g.total === total0 + 1, `level ${level}: no steel cracked after 20 s without a hit (steel ${steel0} → ${steel1}, total ${total0} → ${g.total})`)) continue;
+  cracks++;
+  s.run(5);                                       // and the clock keeps running: more cracks follow if needed
+  t.check(g.dryT < 20, `level ${level}: the dry-spell clock ran past 20 s`);
+}
+t.done(`${boards} boards from level 6 (${withSteel} with steel), every brick reachable; steel cracks after a 20 s dry spell (${cracks} levels)`);

@@ -80,7 +80,7 @@ class PrismBreaker {
     this.caps = [];
     this.wideT = 0; this.slowT = 0; this.fireT = 0;
     this.lostThisLevel = false;
-    this.idleLaunch = 6;
+    this.idleLaunch = 6; this.dryT = 0;
 
     if (bonus) {
       const rows = 6;
@@ -125,6 +125,21 @@ class PrismBreaker {
     this.bricks.push({ x: BX0 + c * (BW + GAP), y: BY0 + row * (BH + GAP), w: BW, h: BH, type, hp, maxHp: hp, hue, alive: true, flash: 0 });
   }
   breakable() { return this.bricks.filter((b) => b.alive && b.type !== 'steel').length; }
+  crackSteel() {
+    const left = this.bricks.filter((b) => b.alive && b.type !== 'steel');
+    let best = null, bestD = Infinity;
+    for (const st of this.bricks) {
+      if (!st.alive || st.type !== 'steel') continue;
+      for (const b of left) { const d = Math.hypot(st.x - b.x, st.y - b.y); if (d < bestD) { bestD = d; best = st; } }
+    }
+    if (!best) return;
+    best.type = 'normal'; best.hp = best.maxHp = 1; best.flash = 1;
+    this.total++; this.rev++;
+    const s = this.s;
+    s.sound.play('metal');
+    s.fx.text(best.x + best.w / 2, best.y - 6, 'STEEL CRACKS!', { color: '#e2e8f0', size: 16, life: 1.2 });
+    s.fx.burst(best.x + best.w / 2, best.y + best.h / 2, { color: '#e2e8f0', count: 14, speed: 140, life: 0.4 });
+  }
   /** Breakable bricks the ball can never reach: shut in by steel on every side (flood fill from
    *  the open space around the wall, through empty cells and breakable bricks). */
   sealedIn() {
@@ -222,7 +237,7 @@ class PrismBreaker {
         const a = off * 1.05;
         const sp = Math.min(this.baseSpeed * 1.2, Math.hypot(b.vx, b.vy) * 1.01);
         b.vx = Math.sin(a) * sp; b.vy = -Math.cos(a) * sp;
-        b.y = PY - BALL_R; b.loopT = 0;
+        b.y = PY - BALL_R;
         s.resetCombo();
         s.sound.play('bounce');
         s.fx.burst(b.x, PY, { color: '#f0abfc', count: 5, speed: 90, life: 0.3, angle: -Math.PI / 2, spread: 2 });
@@ -257,9 +272,10 @@ class PrismBreaker {
         this.hitBrick(br);
         break;
       }
-      // A ball can settle into a loop between steel bricks and the walls that never comes down to
-      // the paddle and never touches a brick it can break: the level could then never be finished
-      // (found by the benchmark, 30 Oct 2026). After 6 s of that, nudge its angle a little.
+      // A ball can settle into a loop that never touches a brick it can break: between steel and
+      // the walls, or between steel and the paddle when the ball keeps landing by a wall where the
+      // paddle can't reach round it, so every return is the same: the level could then never be
+      // finished (found by the benchmark, 30 Oct 2026). After 6 s of that, nudge its angle a little.
       b.loopT = (b.loopT || 0) + dt;
       if (b.loopT > 6) {
         b.loopT = 0;
@@ -271,6 +287,14 @@ class PrismBreaker {
       if (Math.abs(b.vy) < sp * 0.28) { b.vy = Math.sign(b.vy || -1) * sp * 0.28; b.vx = Math.sign(b.vx) * Math.sqrt(sp * sp - b.vy * b.vy); }
     }
     if (s.state !== 'playing') return;
+    // A last brick that can only be reached through one narrow opening could take minutes of
+    // tries (found by the benchmark, 30 Oct 2026). After 20 s in play with no brick hit, the steel
+    // brick nearest an unbroken brick cracks into an ordinary one; this repeats, so the level
+    // always comes to an end.
+    if (!this.bonus && this.balls.some((b) => !b.stuck)) {
+      this.dryT = (this.dryT || 0) + dt;
+      if (this.dryT > 20) { this.dryT = 0; this.crackSteel(); }
+    }
     this.balls = this.balls.filter((b) => !b.lost);
     if (this.balls.length === 0) {
       this.lostThisLevel = true;
@@ -305,7 +329,7 @@ class PrismBreaker {
       return;
     }
     br.hp -= fire ? br.hp : 1;
-    this.rev++;
+    this.rev++; this.dryT = 0;
     if (br.hp > 0) {
       br.flash = 1; s.sound.play('brick', 0);
       s.fx.burst(cx, cy, { color: `hsl(${br.hue} 80% 70%)`, count: 6, speed: 90, life: 0.3 });
