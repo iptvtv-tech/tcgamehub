@@ -140,13 +140,33 @@ class NeonSnake {
     return seen;
   }
 
-  freeCell({ farFrom = this.snake[0], min = 3 } = {}) {
+  /** Squares inside one-square-wide dead ends (on solid-wall levels). A snake can't turn round in
+   *  a corridor one square wide, so fruit there means a certain crash (found by the benchmark,
+   *  30 Oct 2026: about one level in 40 from level 6). Found by peeling off, again and again,
+   *  every open square with only one open neighbour; what gets peeled is a dead end. */
+  deadEnds() {
+    const key = `${this.level}|${this.solid}|${this.obstacles.size}`;
+    if (this._deadKey === key) return this._dead;
+    const dead = new Uint8Array(COLS * ROWS), deg = new Uint8Array(COLS * ROWS), q = [];
+    const open = (x, y) => x >= 0 && y >= 0 && x < COLS && y < ROWS && !this.obstacles.has(y * COLS + x);
+    const around = (i, f) => { const x = i % COLS, y = (i / COLS) | 0; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (open(x + dx, y + dy)) f((y + dy) * COLS + x + dx); };
+    if (this.solid) {
+      for (let i = 0; i < COLS * ROWS; i++) if (!this.obstacles.has(i)) { around(i, () => deg[i]++); if (deg[i] <= 1) { dead[i] = 1; q.push(i); } }
+      while (q.length) around(q.pop(), (j) => { if (!dead[j] && --deg[j] <= 1) { dead[j] = 1; q.push(j); } });
+    }
+    this._deadKey = key; this._dead = dead;
+    return dead;
+  }
+
+  freeCell({ farFrom = this.snake[0], min = 3, escape = false } = {}) {
     const r = this.s.rng;
     const reach = this.reachableCells();
+    const dead = escape ? this.deadEnds() : null;
     for (let i = 0; i < 400; i++) {
       const x = r.int(0, COLS - 1), y = r.int(0, ROWS - 1);
       if (this.blocked(x, y)) continue;
       if (reach && !reach[y * COLS + x]) continue;
+      if (dead && dead[y * COLS + x]) continue;
       if (farFrom && Math.abs(farFrom.x - x) + Math.abs(farFrom.y - y) < min) continue;
       return { x, y };
     }
@@ -154,7 +174,7 @@ class NeonSnake {
     // corner {0, 0} unchecked, which could be a wall or out of reach)
     for (const far of [true, false]) {
       for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
-        if (this.blocked(x, y) || (reach && !reach[y * COLS + x])) continue;
+        if (this.blocked(x, y) || (reach && !reach[y * COLS + x]) || (dead && dead[y * COLS + x])) continue;
         if (far && farFrom && Math.abs(farFrom.x - x) + Math.abs(farFrom.y - y) < min) continue;
         return { x, y };
       }
@@ -162,7 +182,7 @@ class NeonSnake {
     return { x: 0, y: 0 };
   }
   spawnFood() {
-    const c = this.freeCell(), r = this.s.rng;
+    const c = this.freeCell({ escape: true }), r = this.s.rng;
     // Fruit variety: from level 3 occasionally spawn a star (2×) or berry (1.5×) fruit
     let type = 'normal', pts = 10;
     if (this.level >= 5 && r.chance(0.15)) { type = 'star';  pts = 25; }

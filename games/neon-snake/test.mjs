@@ -55,4 +55,31 @@ for (let level = 1; level <= LEVELS; level++) {
     }
   }
 }
-t.done(`${boards} boards: reachable squares worked out right, ${foods} food spawns all reachable`);
+// Dead ends (found by the benchmark, 30 Oct 2026): on solid-wall levels fruit must never sit in a
+// one-square-wide dead end, where the snake can't turn round. Independent check: a square is in a
+// dead end when peeling off squares with one open neighbour, again and again, removes it.
+function deadSquares(g) {
+  const open = (x, y) => x >= 0 && y >= 0 && x < 20 && y < 20 && !g.obstacles.has(y * 20 + x);
+  const gone = new Set(); let changed = true;
+  while (changed) {
+    changed = false;
+    for (let y = 0; y < 20; y++) for (let x = 0; x < 20; x++) {
+      if (!open(x, y) || gone.has(`${x},${y}`)) continue;
+      const n = [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([a, b]) => open(x + a, y + b) && !gone.has(`${x + a},${y + b}`)).length;
+      if (n <= 1) { gone.add(`${x},${y}`); changed = true; }
+    }
+  }
+  return gone;
+}
+let solidBoards = 0, deadFood = 0, withDeadEnds = 0;
+for (let level = 4; level <= LEVELS; level++) {
+  if (level % 5 === 0) continue;
+  for (let seed = 1; seed <= Math.ceil(SEEDS / 4); seed++) {
+    const s = NS.start({ seed: seed * 613 + level, level }), g = s.game;
+    if (!g.solid) continue;
+    solidBoards++;
+    const gone = deadSquares(g); if (gone.size) withDeadEnds++;
+    for (let k = 0; k < 12; k++) { g.foods = []; g.spawnFood(); const f = g.foods[0]; if (gone.has(`${f.x},${f.y}`) && deadFood++ < 3) t.fail(`level ${level} seed ${seed}: fruit at ${f.x},${f.y} is in a dead end — eating it means a certain crash`); }
+  }
+}
+t.done(`${boards} boards: reachable squares worked out right, ${foods} food spawns all reachable; ${solidBoards} solid-wall boards (${withDeadEnds} with dead ends), no fruit in a dead end`);
