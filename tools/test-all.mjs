@@ -36,6 +36,14 @@ if (!only) {
   jobs.push(shallow ? { name: 'page build (skipped: shallow clone, run git fetch --unshallow)', skip: true } : { name: 'page build', cmd: ['tools/build-pages.mjs', '--check'] });
 }
 
+// On GitHub, also post each failure as a note at the top of the run page (an "annotation"),
+// so it can be read without opening the full log.
+const ghNote = (title, text) => {
+  if (!process.env.GITHUB_ACTIONS) return;
+  const esc = (v) => String(v).replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
+  console.log(`::error title=${esc(title).replace(/[:,]/g, ' ')}::${esc(text)}`);
+};
+
 const t0 = Date.now();
 let failed = 0;
 for (const j of jobs) {
@@ -49,6 +57,7 @@ for (const j of jobs) {
     failed++;
     console.log(`✗ ${j.name}  (${secs}s)${r.error ? ` — ${r.error.message}` : ''}`);
     for (const line of out.slice(-15)) console.log(`    ${line}`);
+    ghNote(j.name, out.slice(-8).join('\n'));
   }
 }
 const n = jobs.filter((j) => !j.skip).length;

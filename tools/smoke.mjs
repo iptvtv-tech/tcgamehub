@@ -231,7 +231,11 @@ for (const gid of GAMES) {
     ...(await checkPlay(browser, base, gid)),
   ];
   const secs = ((Date.now() - g0) / 1000).toFixed(0);
-  if (problems.length) { failed++; console.log(`✗ ${gid}  (${secs}s)`); for (const p of problems) console.log(`    ${p}`); }
+  if (problems.length) {
+    failed++; console.log(`✗ ${gid}  (${secs}s)`); for (const p of problems) console.log(`    ${p}`);
+    // on GitHub, also post it as a note at the top of the run page (an "annotation")
+    if (process.env.GITHUB_ACTIONS) console.log(`::error title=smoke ${gid}::${problems.slice(0, 6).join('%0A').replace(/\r?\n/g, '%0A')}`);
+  }
   else console.log(`✓ ${gid}  (${secs}s)`);
 }
 await browser.close();
