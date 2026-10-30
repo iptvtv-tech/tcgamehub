@@ -182,4 +182,10 @@ export const COPY = {
     how: ['Move one tile per step with the arrow keys, WASD, a swipe or the on-screen pad.', 'Everything moves on the same clock, so each vault plays out the same way every time.', 'Laser emitters flicker one beat before they fire.', 'Reach the airlock before the oxygen gauge empties; collect key cards to open force-field doors.'],
     tip: 'Clear a vault within half a second of its par time for the Speed of Light badge.',
   },
+  'magma-escape': {
+    kind: 'platform climbing game',
+    blurb: 'Climb out of an erupting volcano as a man made of ice. The lava rises, every burn melts you smaller, and three fire bosses wait on the way up.',
+    how: ['Climb from ledge to ledge up to the cold air of the vent at the top, before the rising lava catches you.', 'Your size is your health: every burn melts you smaller, and a smaller Iceman jumps lower. Ice crystals freeze you back up.', 'Slash the magma creatures that drip from above. A slash while falling is a jump-stab that bounces you up.', 'Levels 5, 10 and 15 are boss fights: your blade only hurts a boss while it is dazed and glowing white.'],
+    tip: 'Hold JUMP for a higher jump; a quick tap is a short hop that still clears a ledge.',
+  },
 };

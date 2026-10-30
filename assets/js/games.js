@@ -662,6 +662,26 @@ export const GAMES = [
       { id: 'beacon',   icon: '⭐', title: 'The Signal Room',   desc: 'Reach the Golden Beacon in the hidden 16th vault', legendary: true, secret: true },
     ],
   },
+  {
+    id: 'magma-escape',
+    genres: ['action', 'arcade'],
+    gold: 'Golden Iceman',          // golden character, unlocked by the Zone 6 egg (once Zone 6's Legends game exists) — never sold
+    title: 'Magma Escape',
+    tagline: 'You are made of ice, deep inside an erupting volcano. Climb out before the rising lava gets you — every burn melts you smaller. Slash the magma creatures and beat three bosses on the way up.',
+    controls: '← → move · ↑ or Space jump (hold for higher) · X, J or click to slash (touch: ◀ ▶, JUMP and SLASH)',
+    color: '#8fd3f0',
+    isNew: true,
+    achievements: [
+      { id: 'golem',    icon: '🪨', title: 'Golem Breaker',   desc: 'Defeat the Magma Golem' },
+      { id: 'drake',    icon: '🐉', title: 'Drake Downed',    desc: 'Defeat the Cinder Drake' },
+      { id: 'lord',     icon: '🌋', title: 'Cold Victory',    desc: 'Defeat the Volcano Lord and climb out of the volcano' },
+      { id: 'pogo3',    icon: '🧊', title: 'Ice Skipper',     desc: 'Bounce off 3 things with jump-stabs without landing' },
+      { id: 'crystals', icon: '💎', title: 'Every Crystal',   desc: 'Collect every ice crystal on a level' },
+      { id: 'frozen',   icon: '❄️', title: 'Frozen Solid',    desc: 'Climb out of a level still at full size' },
+      { id: 'level10',  icon: '🔥', title: 'Halfway Up',      desc: 'Reach level 10' },
+      { id: 'score10k', icon: '🏅', title: 'Ten Grand',       desc: 'Score 10,000 in one game' },
+    ],
+  },
 ];
 
 // Badges that any game can earn (unlocked automatically by the engine).
@@ -718,6 +738,10 @@ export const ZONES = [
   { n: 5, name: 'Zone 5 · Beyond', blurb: 'Ultra difficulty, out past the Earth. Vault of Stars is this zone\'s Legends game.',
     legendGame: 'vault-of-stars',
     slots: ['lunar-delivery', 'orbit-hopper', 'station-defense', 'dock-master', 'astro-explorer', 'vault-of-stars'] },
+  { n: 6, name: 'Zone 6 · Inferno', blurb: 'Beyond Ultra, into the fire. Magma Escape is open now; five more games are on their way.',
+    slots: ['magma-escape', null, null, null, null, null] },
+  { n: 7, name: 'Zone 7 · Coming soon', blurb: 'A whole new zone is being built. Check back soon!',
+    slots: [null, null, null, null, null, null] },
 ];
 
 /** Icon for each zone's prize (a Golden Egg — see eggs.js for the full artwork). */

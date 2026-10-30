@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#140c14"/><stop offset=".65" stop-color="#2a1010"/><stop offset="1" stop-color="#5a1c0a"/></linearGradient>
+    <linearGradient id="lava" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffb35c"/><stop offset=".12" stop-color="#f76707"/><stop offset=".5" stop-color="#c2410c"/><stop offset="1" stop-color="#5a1c0a"/></linearGradient>
+    <radialGradient id="vent" cx=".5" cy="0" r=".9"><stop offset="0" stop-color="#cfe8f5" stop-opacity=".75"/><stop offset="1" stop-color="#cfe8f5" stop-opacity="0"/></radialGradient>
+    <radialGradient id="ice" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffffff" stop-opacity=".55"/><stop offset="1" stop-color="#8fd3f0" stop-opacity="0"/></radialGradient>
+    <radialGradient id="ember" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ff7a1a" stop-opacity=".7"/><stop offset="1" stop-color="#ff7a1a" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="200" height="200" fill="url(#sky)"/>
+  <!-- cold light from the vent at the top -->
+  <path d="M80 0 L120 0 L160 110 L40 110 Z" fill="url(#vent)" opacity=".5"/>
+  <!-- shaft walls -->
+  <path d="M0 0 H34 L28 40 L38 70 L24 110 L34 150 L20 200 H0 Z" fill="#06050a" stroke="#7a2a12" stroke-width="1.5"/>
+  <path d="M200 0 H166 L172 36 L160 74 L176 112 L164 148 L180 200 H200 Z" fill="#06050a" stroke="#7a2a12" stroke-width="1.5"/>
+  <!-- ledges -->
+  <g stroke="#05050a" stroke-width="2.5" stroke-linejoin="round">
+    <path d="M40 66 H96 L92 74 L60 78 L42 73 Z" fill="#2a2634"/>
+    <path d="M108 112 H162 L158 120 L128 124 L110 119 Z" fill="#2a2634"/>
+    <path d="M44 150 H100 L96 158 L66 162 L46 157 Z" fill="#2a2634"/>
+  </g>
+  <g stroke="#8a8098" stroke-width="1.5"><path d="M43 66.8 H93"/><path d="M111 112.8 H159"/><path d="M47 150.8 H97"/></g>
+  <!-- an ember crawling on the middle ledge -->
+  <circle cx="148" cy="104" r="16" fill="url(#ember)"/>
+  <path d="M140 112 L139 102 L144 95 L152 95 L157 102 L156 112 Z" fill="#0a0709" stroke="#ff7a1a" stroke-width="1.8"/>
+  <path d="M146 101 L150 100 M152 100 L155 101" stroke="#ffb060" stroke-width="2.4" stroke-linecap="round"/>
+  <!-- the Iceman, mid-jump with his ice blade -->
+  <g transform="translate(76 120) rotate(-6)">
+    <circle cx="0" cy="-20" r="30" fill="url(#ice)"/>
+    <path d="M-10 -2 L-12 -22 L-6 -30 L8 -30 L12 -20 L10 -2 Z" fill="#7ebce6" stroke="#05050a" stroke-width="2.4" stroke-linejoin="round"/>
+    <path d="M-9 -30 L-12 -48 L0 -52 L12 -48 L10 -30 Z" fill="#5f9bd0" stroke="#05050a" stroke-width="2.4" stroke-linejoin="round"/>
+    <path d="M-11 -46 L-18 -58 L-7 -50 M11 -46 L18 -58 L7 -50" fill="#cfe8f5" stroke="#05050a" stroke-width="1.6"/>
+    <path d="M-15 -31 Q-11 -34 -7 -31 Q-3 -34 1 -31 Q5 -34 9 -31 Q13 -34 15 -31 L14 -25 L-14 -25 Z" fill="#eef6fa" stroke="#05050a" stroke-width="1.6" stroke-linejoin="round"/>
+    <circle cx="-4.5" cy="-41" r="3.6" fill="#fff"/><circle cx="5" cy="-41" r="3.6" fill="#fff"/>
+    <path d="M10 -18 L44 -40 L14 -12 Z" fill="#f2fbff" stroke="#05050a" stroke-width="2"/>
+    <path d="M-8 -2 L-12 8 M6 -2 L10 6" stroke="#05050a" stroke-width="5" stroke-linecap="round"/>
+    <path d="M-8 -2 L-12 8 M6 -2 L10 6" stroke="#4a8cc8" stroke-width="2.6" stroke-linecap="round"/>
+  </g>
+  <!-- rising lava -->
+  <g>
+    <path fill="url(#lava)" d="M0 176 Q25 170 50 176 T100 176 T150 176 T200 176 V200 H0 Z">
+      <animate attributeName="d" dur="3s" repeatCount="indefinite" values="M0 176 Q25 170 50 176 T100 176 T150 176 T200 176 V200 H0 Z;M0 176 Q25 182 50 176 T100 176 T150 176 T200 176 V200 H0 Z;M0 176 Q25 170 50 176 T100 176 T150 176 T200 176 V200 H0 Z"/>
+    </path>
+    <path d="M18 184 L34 182 L38 188 L22 190 Z M120 186 L140 183 L146 189 L126 192 Z" fill="#1a0805" stroke="#ffb060" stroke-width="1.2"/>
+  </g>
+  <g fill="#ffb060">
+    <circle cx="60" cy="170" r="1.6"><animate attributeName="cy" values="172;120" dur="2.4s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;0" dur="2.4s" repeatCount="indefinite"/></circle>
+    <circle cx="130" cy="170" r="1.3"><animate attributeName="cy" values="174;110" dur="3.1s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;0" dur="3.1s" repeatCount="indefinite"/></circle>
+  </g>
+</svg>

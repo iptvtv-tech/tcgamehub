@@ -173,6 +173,7 @@ const PROGRESSIONS = {
   explorer: [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62], [57, 60, 64], [50, 53, 57], [52, 55, 59], [52, 56, 59]], // Am F C G Am Dm Em E — Astro Explorer: alone on a strange planet
   guardian: [[50, 53, 57], [46, 50, 53], [43, 46, 50], [45, 49, 52], [50, 53, 57], [51, 55, 58], [43, 46, 50], [45, 49, 52]], // Dm Bb Gm A Dm Eb Gm A — a guardian's lair
   treasure: [[48, 52, 55], [45, 48, 52], [53, 57, 60], [55, 59, 62]], // C Am F G — the treasure vault
+  magma: [[52, 55, 59], [53, 57, 60], [52, 55, 59], [50, 53, 57], [48, 52, 55], [53, 57, 60], [47, 50, 53], [52, 56, 59]], // Em F Em Dm C F Bdim E — Magma Escape: Phrygian dread inside the volcano
 };
 const ARP = [0, 1, 2, 1, 0, 1, 2, 1], OCT = [12, 12, 12, 12, 24, 24, 24, 24];
 const music = { on: false, timer: null, step: 0, nextTime: 0, bpm: 110, prog: PROGRESSIONS.minor, lead: 'square', arp: ARP, oct: OCT, bass: 'half', kit: 'chip', hook: null };

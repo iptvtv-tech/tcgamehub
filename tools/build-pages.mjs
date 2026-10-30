@@ -133,7 +133,8 @@ function card(sl, rel, { home = false } = {}) {
 
 /** Site-map footer shared by every page. */
 function footer(rel) {
-  const zones = ZONES.map((z) => `
+  // a zone with no games yet stays out of the footer
+  const zones = ZONES.filter((z) => z.slots.some(Boolean)).map((z) => `
         <div><b>${esc(z.name)}</b><ul>${z.slots.filter(Boolean).map((id) => GAMES.find((g) => g.id === id)).filter(Boolean)
           .map((g) => `<li><a href="${rel}games/${g.id}/">${esc(g.title)}</a></li>`).join('')}</ul></div>`).join('');
   const genres = genrePages().map((ge) => `<li><a href="${rel}games/${ge.id}/">${esc(ge.label)}</a></li>`).join('');
