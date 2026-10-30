@@ -128,6 +128,21 @@ for (const [n, def] of Object.entries(LEVELS)) {
   out[n] = r.plans;
   if (VERBOSE) for (const [k, p] of Object.entries(r.plans)) console.log(`      ${k}: ${p}`);
 }
+// Every proven plan must also be ENTERABLE: typed into the real planning screen (games/heist-
+// planner/game.js, headless) it must be accepted step for step. The planner used to refuse a step
+// through a door on the same step the muscle smashes it, which the rules allow (the muscle moves
+// first), so the proven plans for L8 and L9 could not be typed in (found by the benchmark, 30 Oct 2026).
+{
+  const { loadGame } = await import('./lib/headless.mjs');
+  const G = await loadGame('heist-planner');
+  for (const [n, plans] of Object.entries(out)) {
+    const s = G.start({ level: +n }), g = s.game;
+    for (const id of Object.keys(plans)) { g.select(id); for (const k of plans[id]) g.addMove(k); }
+    for (const [id, want] of Object.entries(plans)) {
+      if (g.plans[id] !== want) { console.log(`L${n.padStart(2)} the planner refuses the proven ${id} plan: typed ${want}, kept ${g.plans[id]}`); bad++; }
+    }
+  }
+}
 console.log(bad ? `${bad} LEVEL(S) BROKEN` : 'ALL LEVELS OK');
 const ji = process.argv.indexOf('--json');
 if (ji > 0) (await import('node:fs')).writeFileSync(process.argv[ji + 1], JSON.stringify(out));

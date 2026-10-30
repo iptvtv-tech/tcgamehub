@@ -99,8 +99,11 @@ class HeistPlanner {
     if (k !== 'W') {
       const at = this.endPos(this.sel), [dx, dy] = MOVES[k];
       const ch = tileAt(this.L, at.x + dx, at.y + dy);
-      // walls and exhibits can't be planned through; doors only by the muscle (or once smashed)
-      const f = this.frames[p.length];
+      // walls and exhibits can't be planned through; doors only by the muscle (or once smashed).
+      // The muscle moves first in each step (sim.js), so a door he smashes on this very step is
+      // already open for the others: look at the doors after this step, not before it (the proven
+      // plans for L8, L9, L14 and L16 could not be typed in; found by the benchmark, 30 Oct 2026).
+      const f = this.frames[Math.min(p.length + 1, this.frames.length - 1)];
       const ok = ch !== '#' && ch !== 'P' && !this.L.blocked.has(`${at.x + dx},${at.y + dy}`) && (ch !== 'D' || this.sel === 'M' || f.open.has(`${at.x + dx},${at.y + dy}`));
       if (!ok) { this.s.sound.tone({ freq: 140, dur: 0.06, type: 'square', vol: 0.05 }); return; }
     }
