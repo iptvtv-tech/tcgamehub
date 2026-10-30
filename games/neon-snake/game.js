@@ -109,20 +109,31 @@ class NeonSnake {
   }
   /** Cells the snake can actually reach from its head, walking round the obstacles
    *  (the body and pickups move, so only walls count). Stops food spawning walled in
-   *  on solid-wall levels. */
+   *  on solid-wall levels. A portal is never stood on: moving into one comes out of the
+   *  other portal, one step further on in the same direction (as step() does), so a
+   *  pocket whose only way in is a portal square is not reachable (29 Oct 2026 review). */
   reachableCells() {
     const head = this.snake?.[0];
     if (!head) return null;
+    const wrap = (x, y) => {
+      if (this.solid) return x < 0 || y < 0 || x >= COLS || y >= ROWS ? null : [x, y];
+      return [(x + COLS) % COLS, (y + ROWS) % ROWS];
+    };
+    const [pa, pb] = this.portals || [];
     const seen = new Uint8Array(COLS * ROWS), q = [head.y * COLS + head.x];
     seen[q[0]] = 1;
     while (q.length) {
       const i = q.pop(), x = i % COLS, y = (i / COLS) | 0;
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-        let nx = x + dx, ny = y + dy;
-        if (this.solid) { if (nx < 0 || ny < 0 || nx >= COLS || ny >= ROWS) continue; }
-        else { nx = (nx + COLS) % COLS; ny = (ny + ROWS) % ROWS; }
-        const j = ny * COLS + nx;
+        let c = wrap(x + dx, y + dy);
+        if (c && pa) {
+          const out = c[0] === pa.x && c[1] === pa.y ? pb : c[0] === pb.x && c[1] === pb.y ? pa : null;
+          if (out) c = wrap(out.x + dx, out.y + dy);
+        }
+        if (!c) continue;
+        const j = c[1] * COLS + c[0];
         if (seen[j] || this.obstacles.has(j)) continue;
+        if (pa && ((c[0] === pa.x && c[1] === pa.y) || (c[0] === pb.x && c[1] === pb.y))) continue;
         seen[j] = 1; q.push(j);
       }
     }
@@ -138,6 +149,15 @@ class NeonSnake {
       if (reach && !reach[y * COLS + x]) continue;
       if (farFrom && Math.abs(farFrom.x - x) + Math.abs(farFrom.y - y) < min) continue;
       return { x, y };
+    }
+    // 400 unlucky tries: take the first good cell in reading order (it used to return the
+    // corner {0, 0} unchecked, which could be a wall or out of reach)
+    for (const far of [true, false]) {
+      for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+        if (this.blocked(x, y) || (reach && !reach[y * COLS + x])) continue;
+        if (far && farFrom && Math.abs(farFrom.x - x) + Math.abs(farFrom.y - y) < min) continue;
+        return { x, y };
+      }
     }
     return { x: 0, y: 0 };
   }
