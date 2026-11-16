@@ -488,6 +488,9 @@ class LunarDelivery {
   onLifeLost() {
     const k = this.crate ? this.crate.pad : Math.max(0, this.leg);
     this.meteors = [];
+    // this leg's fuel canisters wait again: some legs can't be flown on one tank (from level 8), so
+    // a canister used up before the crash would leave the leg impossible (found 16 Nov 2026)
+    for (const f of this.W.fuel) if (f.leg === k) f.got = false;
     this.spawnAtPad(k);
     this.newCrate(k, k === 0 ? this.W.pads[0].cargo : null);
     this.crate.hookCool = 0.5;
