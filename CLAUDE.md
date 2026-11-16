@@ -20,7 +20,9 @@ publisher. Supabase holds the leaderboard (players enter a name only). GoatCount
 
 - Zones of 6 games, difficulty rising; the order lives in `ZONES` in `assets/js/games.js`
   (the source of truth for zones, slots and genres). The 6th game of each zone is a
-  LEGENDS game.
+  LEGENDS game. Zones 1–5 are full; Zone 6 (*Inferno*) opened on 30 Oct 2026 with Magma
+  Escape and five "coming soon" slots. A zone with no game yet (Zone 7) stays in `ZONES`
+  but is not shown on the home page until its first game is registered.
 - **Every game is open to everyone.** Zones are a recommended order; playing all six
   games of a zone completes it (+50 tokens, home-page celebration). Never add unlock
   gates back.
@@ -42,7 +44,9 @@ publisher. Supabase holds the leaderboard (players enter a name only). GoatCount
 
 Follow `docs/ADDING_A_GAME.md`: copy `games/_template`, register it in
 `assets/js/games.js` (with genres), add its copy to `assets/js/game-copy.js`, add its
-Supabase row (Zone 5 games go in `supabase/zone5.sql`), then run
+Supabase row (each zone has one combined, re-runnable file: `supabase/zone5.sql`,
+`supabase/zone6.sql`, … — the owner runs it in the Supabase SQL Editor, and scores are
+rejected until then), then run
 `node tools/build-pages.mjs --images`. Build each new game in sections for the owner's
 review, and give it a `world.js`/`sim.js` + `check.mjs` level checker where levels are
 generated.

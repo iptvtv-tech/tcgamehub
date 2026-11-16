@@ -215,7 +215,8 @@ const breadcrumb = (items) => ({
 // no-JS visitors still see every card), Zone 1 is open by default, and home.js
 // opens the zone the player is currently working on instead.
 function homeGrid() {
-  return ZONES.map((z) => {
+  // a zone with no game at all yet (a placeholder for the next zone) is left off the page
+  return ZONES.filter((z) => z.slots.some(Boolean)).map((z) => {
     const slots = SLOTS.filter((sl) => sl.zone === z);
     const tiers = [...new Set(slots.map((sl) => sl.tier.label))];
     const range = tiers.length > 1 ? `${tiers[0]} to ${tiers[tiers.length - 1]}` : tiers[0];

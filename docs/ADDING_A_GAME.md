@@ -138,6 +138,8 @@ In Supabase → SQL Editor, run:
 insert into public.games (id, title, max_points_per_second) values ('space-dodge', 'Space Dodge', 3000);
 ```
 
+Put that line in the zone's own SQL file rather than a loose one: each zone from Zone 5 on has one combined, re-runnable file (`supabase/zone5.sql`, `supabase/zone6.sql`; start `supabase/zone7.sql` the same way when Zone 7 gets its first game), written as `insert … on conflict (id) do update`. The owner runs the file in the SQL Editor; until then every score for the new game is rejected as "Unknown game".
+
 `max_points_per_second` is the anti-cheat limit: the most points per second, averaged over a whole game, that a very good player could score. Set it generously. Scores above it are rejected.
 
 `sitemap.xml` is written by `tools/build-pages.mjs` (step 5b).

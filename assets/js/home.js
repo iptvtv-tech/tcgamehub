@@ -83,7 +83,8 @@ const grid = document.getElementById('grid');
 // Which zone bar opens: the first zone this player hasn't finished (or the last zone
 // once everything is done). A zone the player opened or closed by hand this visit
 // is left alone on later renders.
-const yourZone = ZONES.find((z) => { const p = ZoneLock.progress(z.n); return p.played < p.need; })?.n || ZONES[ZONES.length - 1].n;
+const SHOWN = ZONES.filter((z) => z.slots.some(Boolean));   // zones with at least one game (the page shows only these)
+const yourZone = SHOWN.find((z) => { const p = ZoneLock.progress(z.n); return p.played < p.need; })?.n || SHOWN[SHOWN.length - 1].n;
 for (const z of ZONES) {
   const zoneEl = grid.querySelector(`.zone[data-zone="${z.n}"]`);
   if (!zoneEl) continue;
@@ -234,7 +235,7 @@ if (Legends.isLegend()) {
       <p class="zone-unlock-emoji">🏁</p>
       <h2>Zone ${zone.n} Complete!</h2>
       <p class="zone-unlock-name">${esc(zone.name)}</p>
-      <p class="zone-unlock-sub">You've played every game in it.${ZONES.find((x) => x.n === zone.n + 1) ? ` Zone ${zone.n + 1} is up next.` : ''}</p>
+      <p class="zone-unlock-sub">You've played every game in it.${ZONES.find((x) => x.n === zone.n + 1 && x.slots.some(Boolean)) ? ` Zone ${zone.n + 1} is up next.` : ''}</p>
       <button class="btn primary zone-unlock-btn">Nice ▶</button>
     </div>`;
   document.body.appendChild(ov);

@@ -156,9 +156,18 @@ See **[docs/ADDING_A_GAME.md](docs/ADDING_A_GAME.md)**. In short: copy `games/_t
 
 ## Zones & difficulty
 
-Zone 5 (*Beyond*, games 25–30) continues the ladder (every game is open; zones are the recommended order). Its first game is Lunar Delivery 3D; the other slots show as "coming soon". Run `supabase/zone5.sql` (one combined file that grows as Zone 5 games are added).
+Every game is open to everyone; zones are the recommended order, and playing all six games of a zone completes it.
 
-Zone 3 (*Master Class*, games 13–18) opens once every Zone 2 game has been played. All six are live: Turbo Rush 3D, Bubble Blitz 3D, Pinball Blast 3D, Star Strike 3D, Eggspress 3D and the Legends game Crypt of Crowns 3D.
+| Zone | Games | Legends game |
+|---|---|---|
+| 1 · Arcade Classics | 1–6 | The Vault Job |
+| 2 · Hard Mode | 7–12 | Heist Planner |
+| 3 · Master Class | 13–18 | Crypt of Crowns 3D |
+| 4 · Ultra | 19–24 | Crown Heist 3D |
+| 5 · Beyond | 25–30 | Vault of Stars |
+| 6 · Inferno | 31 (Magma Escape); 32–36 "coming soon" | not chosen yet |
+
+Zones 1–5 are full. Zone 6 opened on 30 Oct 2026 with Magma Escape; its other slots show as "coming soon", and it can't be completed until all six are built. From Zone 5 on, each zone has one combined, re-runnable SQL file that grows as its games are added (`supabase/zone5.sql`, `supabase/zone6.sql`). A zone with no game yet (Zone 7) stays in `ZONES` but is hidden on the home page until its first game is registered.
 
 ### Golden Eggs & the Golden Crown
 
