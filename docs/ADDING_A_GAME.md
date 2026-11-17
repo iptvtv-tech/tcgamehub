@@ -154,6 +154,9 @@ Put that line in the zone's own SQL file rather than a loose one: each zone from
   - Copy the pattern from `games/dock-master/test.mjs` (finishing after crashes) and
     `games/crazy-putt/test.mjs` (a bot plus a check after every physics step). Exit non-zero
     on any problem (`reporter()` does that).
+  - Once the game has its `bench.mjs` (next step), `botPlay()` from `tools/lib/bot-play.mjs`
+    plays a level in the test with that bot: one real mistake, then on to the end, with the
+    contract's rules checked every step (see `games/hyper-hex/test.mjs`).
 - **Write `games/<id>/bench.mjs`**, the benchmark contract (format at the top of
   `tools/bench.mjs`; example `games/dock-master/bench.mjs`): a bot that plays the game through
   its controls with a skill setting, one real `mistake`, `progress()` and `invariants()`. The

@@ -83,7 +83,8 @@ pages, and the "N free browser games" counts in the home page title/meta. Change
   fixed 1/120 s step, lives, `onLifeLost`, `completeLevel`, seeded `s.rng`). Each proves
   its levels can be **finished after real mistakes** and that its **rules always hold**
   (in bounds, speed caps, goal counts). Every new game needs one (`docs/ADDING_A_GAME.md`),
-  and every bug report gets a failing test before its fix.
+  and every bug report gets a failing test before its fix. `tools/lib/bot-play.mjs` (`botPlay`)
+  plays one level in a test with the game's benchmark bot.
 - `node tools/bench.mjs` (or `--games=a,b`, `--seeds=N`): the benchmark. Each game's
   `games/<id>/bench.mjs` gives a bot (plays through the controls only, `b.skill` 0..1), one real
   `mistake`, `progress()` and `invariants()`. Hard rules, the same for every zone: an expert bot
