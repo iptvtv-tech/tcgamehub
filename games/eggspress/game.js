@@ -18,6 +18,7 @@ import * as S from './scene3d.js';
 
 const W = 800, H = 450;
 const STEP = 10;                 // terrain sample spacing (px)
+const STEEP_RUN = 160, STEEP_REST = 100;   // the longest steep climb (grade over 0.45), and the easier stretch that follows it (px)
 const PX_PER_M = 20;             // 20 px = 1 metre
 const G = 980;                   // gravity (px/s²)
 const TAU = Math.PI * 2;
@@ -123,7 +124,7 @@ class Eggspress {
     this.themeKey = bonus ? 'gold' : THEME_ORDER[(level - 1) % THEME_ORDER.length];
     this.goalX = bonus ? 1e9 : (380 + level * 55) * PX_PER_M;
     this.checkX = this.goalX * 0.5; this.respawnX = 60; this.flagged = false;
-    this.X0 = -1600; this.Hs = []; this.genX = this.X0; this.hill = undefined;
+    this.X0 = -1600; this.Hs = []; this.genX = this.X0; this.hill = undefined; this.steepRun = 0; this.steepRest = 0;
     this.f = [r.range(0.0022, 0.003), r.range(0.0055, 0.0068), r.range(0.012, 0.015), r.range(0.0008, 0.0011)];
     this.p = [r.range(0, TAU), r.range(0, TAU), r.range(0, TAU), r.range(0, TAU)];
     this.coins = []; this.mushrooms = []; this.lowG = []; this.bumps = []; this.ramps = []; this.gaps = []; this.winds = []; this.oils = []; this.props = [];
@@ -229,7 +230,16 @@ class Eggspress {
     const maxD = Math.min(0.62, 0.6 + this.d * 0.18) * STEP;
     for (let x = a; x < b; x += STEP) {
       let h = this.baseHeight(x, false);
-      if (this.hill !== undefined) h = clamp(h, this.hill - maxD, this.hill + maxD);
+      if (this.hill !== undefined) {
+        h = clamp(h, this.hill - maxD, this.hill + maxD);
+        // A climb may only stay steep for so long: after STEEP_RUN px at a grade over 0.45 the road
+        // eases off for STEEP_REST px before it may rear up again. (Climbs at the cap that ran on for
+        // 300–440 px could be driven with the egg only by near-perfect feathering of the gas; found
+        // by the benchmark, 17 Nov 2026.)
+        if (this.steepRest > 0) { h = Math.max(h, this.hill - 0.2 * STEP); this.steepRest -= STEP; this.steepRun = 0; }
+        else if (this.hill - h > 0.45 * STEP) { this.steepRun = (this.steepRun || 0) + STEP; if (this.steepRun >= STEEP_RUN) this.steepRest = STEEP_REST; }
+        else this.steepRun = 0;
+      }
       this.hill = h;
       let y = h + this.rampLift(x);
       if (this.gaps.some((gp) => x >= gp.x0 && x < gp.x1)) y = 3000;      // the chasm
