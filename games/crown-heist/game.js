@@ -188,6 +188,7 @@ class CrownHeist {
     this.ammo = { coin: this.level >= 4 ? 3 : 2, smoke: this.level >= 11 ? 2 : this.level >= 6 ? 1 : 1 };
     this.thrown = []; this.smokes = []; this.cracking = new Map(); this.collapseT = -1; this.collapsedTo = -1;
     this.caughtFx = null; this.hidden = false; this.bob = 0; this.walkT = 0; this.beatT = 0; this.exitWarn = 0;
+    this.tryT = 0;     // seconds into this try (the game clock t runs on through catches)
     this.grabFx = 0;   // the crown hand reads it; undefined made the secret floor's first frame NaN
     this.wraith = null; this.pitCount = 0;
     this.guards = f.guards.map((gd, i) => {
@@ -359,6 +360,7 @@ class CrownHeist {
   update(dt) {
     const s = this.s;
     this.t += dt;
+    this.tryT += dt;
     if (this.pressed) { this.pressed.t -= dt; if (this.pressed.t <= 0) this.pressed = null; }
     if (this.done) return;
     if (this.caughtFx) { this.caughtFx.t += dt; if (this.caughtFx.t >= this.caughtFx.dur) { this.caughtFx = null; s.hurt(); } return; }
@@ -592,7 +594,7 @@ class CrownHeist {
         }
       } else if (g.state === 'search') {
         g.searchT -= dt;
-        g.a += Math.sin(this.t * 1.7 + g.i) * dt * 2.2;                    // looking around
+        g.a += Math.sin(this.tryT * 1.7 + g.i) * dt * 2.2;                 // looking around (on this try's own clock: every try at a floor plays the same)
         if (g.searchT <= 0) g.state = 'return';
       } else if (g.state === 'return' || g.state === 'patrol') {
         if (g.sentry) {

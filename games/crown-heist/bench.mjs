@@ -12,7 +12,47 @@
 // falling vault (floor 15), and never steps back onto a floor that is giving way. Lower skill looks
 // less often, plans a shorter way ahead, under-reads the guards' range and cone and sometimes
 // forgets one guard. The mistake: walk straight into the nearest guard.
+//
+// 17 Nov 2026: on top of that reactive player there is a planner (bot-plan.mjs): it runs the game's
+// own guard code forward on a copy, walks each candidate route through it to see how the guards
+// would really react (seeing, chasing, catching; a smoke bomb when one closes in), and lifts the
+// crown at the first moment that has a way out that survives. The reactive player takes over when
+// no such way is in sight.
+//
+// 18 Nov 2026: and first of all, every bot plays the way out it has LEARNED for the floor (see
+// "the expert" below): the expert to the tick, weaker players with hesitations. The planner and
+// the reactive player are what a weaker player falls back on after four tries that went wrong.
 import { C, SPEED, bfs } from './floors.js';
+import { forecast as clockwork, dangers, route, wantsSmoke, spots, EVERY } from './bot-plan.mjs';
+import { findRoute, model as gameCopy, step as copyStep, KEY } from './route-search.mjs';
+import { ROUTES } from './routes.js';
+
+// ── the expert: a player who has learned the floor ───────────
+// A floor is the same every time, guards and all, so the expert plays a way it has worked out
+// beforehand: route-search.mjs tries ways of playing the floor on copies of the game until one
+// gets the crown out, and the expert then plays that, key for key. Working a floor out takes from
+// a second to twenty minutes, so the ways found are kept in routes.js (written by
+// `node games/crown-heist/find-routes.mjs`); a kept way is first played through on a copy of the
+// game, and if it no longer gets out (the game has changed) the floor is worked out afresh.
+/** Run-length text ⇄ the keys to hold on each engine step. */
+export { momentOf };
+export const packKeys = (keys) => { const out = []; for (let i = 0; i < keys.length;) { let j = i; while (j < keys.length && keys[j] === keys[i]) j++; out.push(keys[i].toString(36) + (j - i > 1 ? j - i : '')); i = j; } return out.join('.'); };
+const unpackKeys = (text) => { const out = []; for (const part of text.split('.')) { const k = parseInt(part[0], 36), n = part.length > 1 ? +part.slice(1) : 1; for (let i = 0; i < n; i++) out.push(k); } return Uint8Array.from(out); };
+/** The moment a way starts from: the floor, how far into the try, and where everyone is. (Every try at a
+ *  floor starts the same, so a way learned from a fresh start also serves after a catch.) */
+const momentOf = (g) => `${g.level}@${g.tryT.toFixed(3)}:${g.p.x.toFixed(2)},${g.p.y.toFixed(2)}:${g.guards.map((o) => `${o.x.toFixed(2)},${o.y.toFixed(2)},${o.state[0]}`).join(';')}`;
+const getsOut = (g, keys) => { const m = gameCopy(g); for (let i = 0; i < keys.length; i++) { const r = copyStep(m, keys[i]); if (r) return r === 'out'; } return false; };
+export const learned = new Map();                        // moment → keys (or null: no way found), for this run of the benchmark
+function learnedWay(g) {
+  const at = momentOf(g);
+  if (learned.has(at)) return learned.get(at);
+  let keys = ROUTES[at] ? unpackKeys(ROUTES[at]) : null;
+  if (keys && !getsOut(g, keys)) keys = null;
+  if (!keys) { const r = findRoute(g, { weight: 2, budget: 2500000, keep: 40000 }); keys = r.ok ? r.keys : null; }
+  learned.set(at, keys);
+  return keys;
+}
+
 
 const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];
 // the guards' numbers (game.js GUARD): speeds and eyes
@@ -385,7 +425,7 @@ function steer(g, s, tx, ty, allowFwd = true) {
   s.hold(keys);
 }
 
-function bot(g, s, b) {
+function reactive(g, s, b) {
   const m = b.mem, f = g.f, w = f.w;
   if (g.done || g.caughtFx) return s.hold([]);
   if (m.lives !== s.livesLost) { m.lives = s.livesLost; m.plan = null; m.leverPlan = null; m.forget = null; m.byCrown = null; m.lure = null; }
@@ -468,14 +508,224 @@ function bot(g, s, b) {
   steer(g, s, nx + 0.5, ny + 0.5, true);
 }
 
+// ── the plan (bot-plan.mjs): picture the guards, and how they would react to each way through ──
+const horizonOf = (g) => Math.min(70, (g.f.seal || 45) + 6);
+/** How the escape goes from square `from` once the crown is up: straight to the stairs, or by the lever. */
+function wayOut(g, from) {
+  const f = g.f, w = f.w, shut = (x, y) => { const v = g.g.at(x, y); return v === C.OPEN || v === C.ALCOVE || v === C.CRACK; };
+  const dE = bfs(g.g, [f.exit], shut)[from];
+  if (!f.gate || !f.lever || g.leverOn) return { lever: null };
+  const o = [f.lever.x + f.lever.fx, f.lever.y + f.lever.fy], oi = o[1] * w + o[0];
+  const dO = bfs(g.g, [o], shut)[from], open = bfs(g.g, [f.exit], (x, y) => shut(x, y) || g.g.at(x, y) === C.GATE)[oi];
+  return { lever: dO >= 0 && open >= 0 && (dE < 0 || dO + open + 3 < dE) ? oi : null };
+}
+/**
+ * A timed way from where we stand to `goals` that survives the guards as they would really react
+ * to it. Starts from the clockwork forecast, walks the candidate through the game's guard code,
+ * and where that goes wrong plans again round what the guards did, a few times over.
+ * o: { goals, speed, grabAt (s from now, or null), pass, a0, strictFirst }. Returns { path, t0, ok, caught } or null.
+ */
+function findWay(g, b, o) {
+  const f = g.f, w = f.w, N = w * f.h, [px, py] = cellOf(g.p), here = py * w + px, H = horizonOf(g);
+  const kg = o.grabAt == null ? (g.has ? 0 : 1e9) : Math.round(o.grabAt / EVERY), k0 = o.grabAt == null ? 0 : kg + 2;
+  const extra = { wraith: g.wraith ? { x: g.wraith.x, y: g.wraith.y, speed: f.wraithSpeed, wake: g.has ? Math.max(0, 3 - g.wraith.t) : 3 } : null,
+    collapse: f.collapse ? { since: Math.max(0, g.collapseT) } : null };
+  let fc = clockwork(g, { horizon: H, grabAt: o.grabAt });
+  let bestTry = null;
+  for (let round = 0; round < (o.rounds || 4); round++) {
+    const D = dangers(g, fc, { kGrab: kg, margin: b.sk.margin, near: [0.8, 1.0, 1.2, 1.4][round], ...extra });
+    let r = null;
+    if (round === 0 || o.strictFirst) r = route(g, D, fc.K, { from: here, a0: o.a0 ?? g.p.a, k0, goals: o.goals, speed: o.speed, allow: 0, pass: o.pass });
+    if (!r) r = route(g, D, fc.K, { from: here, a0: o.a0 ?? g.p.a, k0, goals: o.goals, speed: o.speed, allow: 1, pass: o.pass });
+    if (!r) break;
+    const path = k0 ? [{ i: here, k: 0 }, ...r.path] : r.path;
+    let end = r.kEnd, leverAt = null, whole = true;
+    if (o.lever) {
+      // by the lever: time to turn and pull it, then on through the open gate to the stairs
+      const DWELL = 10, lv = o.lever;
+      path.push({ i: lv.cell, k: end + DWELL });
+      leverAt = (end + DWELL - 2) * EVERY;
+      const r2 = route(g, D, fc.K, { from: lv.cell, a0: lv.a, k0: end + DWELL, goals: lv.goals, speed: o.speed, allow: 1, pass: lv.pass });
+      if (r2) { path.push(...r2.path.slice(1)); end = r2.kEnd; } else { whole = false; end += DWELL; }
+    }
+    // walk it through the guards as they would really react (and keep what they did, to plan round it)
+    const again = clockwork(g, { horizon: Math.min(H, (end + 2) * EVERY), grabAt: o.grabAt, leverAt, walk: { path, speed: o.speed, smoke: true, tight: b.sk.tight } });
+    // …and once more setting off a quarter of a second late: a plan that only works to the tick is no plan
+    const late = again.caught < 0 ? clockwork(g, { horizon: Math.min(H, (end + 4) * EVERY), grabAt: o.grabAt, leverAt: leverAt == null ? null : leverAt + 0.25, walk: { path: path.map((n, idx) => (idx ? { i: n.i, k: n.k + 2 } : n)), speed: o.speed, smoke: true, tight: b.sk.tight } }) : again;
+    if (late.caught >= 0 && again.caught < 0) again.caught = late.caught;
+    const cand = { path, t0: g.t, ok: whole && again.caught < 0 && (o.unseen ? !again.chased : true), caught: again.caught < 0 && !whole ? end * EVERY : again.caught, kEnd: end, leverAt: leverAt == null ? null : g.t + leverAt };
+    if (cand.ok) return cand;
+    if (!bestTry || cand.caught > bestTry.caught) bestTry = cand;
+    if (again.K < fc.K) { for (let k = 0; k < again.K; k++) for (let i = 0; i < fc.n; i++) { const j = k * fc.n + i; fc.x[j] = again.x[j]; fc.y[j] = again.y[j]; fc.a[j] = again.a[j]; fc.flag[j] = again.flag[j]; }
+      // from the catch on, hold the guards where they were: that spot stays dangerous
+      for (let k = again.K; k < Math.min(fc.K, again.K + 24); k++) for (let i = 0; i < fc.n; i++) { const j = k * fc.n + i, l = (again.K - 1) * fc.n + i; fc.x[j] = again.x[l]; fc.y[j] = again.y[l]; fc.a[j] = again.a[l]; fc.flag[j] = again.flag[l]; }
+    } else {
+      for (let k = 0; k < Math.min(again.K, fc.K); k++) for (let i = 0; i < fc.n; i++) { const j = k * fc.n + i; fc.x[j] = again.x[j]; fc.y[j] = again.y[j]; fc.a[j] = again.a[j]; fc.flag[j] = again.flag[j]; }
+    }
+  }
+  return bestTry;
+}
+/** Walk a timed path. Returns false when we have fallen off it (too late, or somewhere else). */
+function follow(g, s, P) {
+  const w = g.f.w, [px, py] = cellOf(g.p), here = py * w + px, k = (g.t - P.t0) / EVERY;
+  let q = 0;
+  while (q < P.path.length - 1 && P.path[q + 1].k <= k) q++;       // the last square we should have reached
+  let j = -1;
+  for (let d = 0; d <= 3 && j < 0; d++) { if (P.path[q + d]?.i === here) j = q + d; else if (P.path[q - d]?.i === here) j = q - d; }
+  if (j < 0) return false;
+  // the next different square after where we are, once it is time to set off for it
+  let n = j; while (n < P.path.length - 1 && P.path[n + 1].i === here) n++;
+  const nxt = P.path[n + 1];
+  const stepK = Math.ceil(1 / (g.has && !g.secret ? SPEED.carry : SPEED.walk) / EVERY - 1e-9);
+  const sp = spots(g);
+  if (!nxt || k < P.path[n].k - 0.5) { steer(g, s, sp.x[here], sp.y[here], true); return true; }   // wait on the square's spot
+  const go = k >= nxt.k - stepK - 0.5;
+  steer(g, s, sp.x[nxt.i], sp.y[nxt.i], go);
+  return k < nxt.k + 8;                                             // far behind: fallen off
+}
+function faceAndPress(g, s, cell) {
+  const err = angDiff(Math.atan2(cell[1] + 0.5 - g.p.y, cell[0] + 0.5 - g.p.x), g.p.a);
+  if (Math.abs(err) < 0.25) { s.hold([]); s.keyDown('action'); s.keyUp('action'); return true; }
+  s.hold([err > 0 ? 'right' : 'left']);
+  return false;
+}
+/** The rest of plan P from now, as a path timed from this moment. */
+function restOf(g, P) {
+  const w = g.f.w, [px, py] = cellOf(g.p), here = py * w + px, k = Math.round((g.t - P.t0) / EVERY);
+  const out = [{ i: here, k: 0 }];
+  for (const n of P.path) if (n.k > k) out.push({ i: n.i, k: n.k - k });
+  return out;
+}
+
+function bot(g, s, b) {
+  const m = b.mem, f = g.f, w = f.w;
+  if (g.done || g.caughtFx) return s.hold([]);
+  if (g.bonus || g.secret) return reactive(g, s, b);
+  {
+    // The way it has learned, from the start of each try at the floor. The expert plays it to the
+    // tick. A weaker player knows the way too but not the timing: every so often it hesitates
+    // (0.1–0.4 s with no key held) and is then that much late for everything after, which the
+    // floor forgives or doesn't. After two tries that did not get out it plays on by eye.
+    // (a try after a catch reaches the player one engine step in, so a fresh one waits out its first step too:
+    // every try then begins from the very same moment)
+    if (g.tryT < 1e-9) return s.hold([]);
+    if (m.wayLives !== s.livesLost) { m.wayLives = s.livesLost; m.way9 = (m.wayFails ?? 0) < (b.skill >= 0.9 ? 2 : 4) ? learnedWay(g) : null; m.wi = 0; m.pause = 0; if (s.livesLost) m.wayFails = (m.wayFails ?? 0) + (m.wayTried ? 1 : 0); m.wayTried = !!m.way9; }
+    if (m.way9) {
+      if (m.pause > 0) { m.pause--; return s.hold([]); }
+      if (b.skill < 0.9 && b.rand() < (1 - b.skill) * 0.22 / 120) { m.pause = Math.round((0.1 + 0.3 * b.rand()) * 120); return s.hold([]); }
+      if (m.wi < m.way9.length) {
+        const k = m.way9[m.wi++];
+        s.hold([...(k & KEY.up ? ['up'] : []), ...(k & KEY.left ? ['left'] : []), ...(k & KEY.right ? ['right'] : [])]);
+        if (k & KEY.use) g.use();
+        if (k & KEY.coin) g.throwCoin();
+        if (k & KEY.smoke) g.dropSmoke();
+        return;
+      }
+      m.way9 = null;                                           // it did not get out: play on by eye
+    }
+  }
+  if (m.cwLives !== s.livesLost) { m.cwLives = s.livesLost; m.cw = null; m.grab = null; m.way = null; m.waitFrom = null; m.checkAt = 0; m.react = 0; m.holdOff = null; m.away = false; }
+  // a weaker player reads the guards with less room to spare, looks again less often and waits less long
+  b.sk = { margin: -0.25 + 0.6 * b.skill, grabLook: 6 + 15 * b.skill, patience: 8 + 16 * b.skill, recheck: 0.4 + (1 - b.skill) * 1.5, careless: (1 - b.skill) * 0.5, tight: 0.55 + 0.35 * b.skill };
+  const [px, py] = cellOf(g.p), here = py * w + px, centred = Math.hypot(g.p.x - px - 0.5, g.p.y - py - 0.5) < 0.36;
+  const pass = (x, y) => passable(g, x, y), exit = f.exit[1] * w + f.exit[0];
+  if (wantsSmoke(g) && b.rand() < 0.3 + 0.7 * b.skill) g.dropSmoke();
+  if (!g.has && s.livesLost > 0 && g.t < (m.holdOff ??= g.t + ((s.livesLost * 1.7) % 6))) return s.hold([]);   // after a failure: set off at a different moment
+  if (g.t < m.react) return reactive(g, s, b);                     // no way through in sight: run, hide, smoke
+  const gateOpen = (x, y) => passable(g, x, y) || g.g.at(x, y) === C.GATE;
+  const leverLeg = (cell) => ({ cell, a: Math.atan2(f.lever.y - ((cell / w) | 0), f.lever.x - (cell % w)), goals: [exit], pass: gateOpen });
+  if (g.has) {
+    m.way ??= wayOut(g, here);
+    const byLever = m.way.lever != null && !g.leverOn;
+    if (byLever && here === m.way.lever) {                          // at the lever: pull it (the plan waits here for that)
+      if (!centred) return steer(g, s, px + 0.5, py + 0.5, true);
+      faceAndPress(g, s, [f.lever.x, f.lever.y]);
+      if (g.leverOn) m.checkAt = 0;
+      return;
+    }
+    // look again every so often: does the plan still hold, the guards being where they now are?
+    if (m.cw && g.t >= m.checkAt) {
+      m.checkAt = g.t + b.sk.recheck;
+      if (m.cw.byLever !== byLever && !(m.cw.byLever && g.leverOn)) m.cw = null;
+      else if (b.rand() >= b.sk.careless) {
+        const sim = clockwork(g, { horizon: 16, leverAt: byLever && m.cw.leverAt != null ? Math.max(0, m.cw.leverAt - g.t) : null, walk: { path: restOf(g, m.cw), speed: SPEED.carry, smoke: true } });
+        if (sim.caught >= 0) m.cw = null;
+      }
+    }
+    if (!m.cw) {
+      const P = findWay(g, b, { goals: [byLever ? m.way.lever : exit], speed: SPEED.carry, pass, strictFirst: true, lever: byLever ? leverLeg(m.way.lever) : null });
+      m.checkAt = g.t + b.sk.recheck;
+      if (!P || (!P.ok && P.caught < 2.5)) { m.react = g.t + 1.0; return reactive(g, s, b); }
+      P.byLever = byLever; m.cw = P;
+    }
+    if (!follow(g, s, m.cw)) { m.cw = null; s.hold([]); }
+    return;
+  }
+  const beside = Math.abs(px - f.crown[0]) + Math.abs(py - f.crown[1]) === 1;
+  if (beside && Math.hypot(g.p.x - px - 0.5, g.p.y - py - 0.5) < 0.2 && !m.away) {
+    m.waitFrom ??= g.t;
+    if (m.grab && g.t >= m.grab.at) { faceAndPress(g, s, f.crown); if (g.has) { m.way = null; m.cw = null; } return; }
+    if (!m.grab && g.t >= m.checkAt) {
+      m.checkAt = g.t + 3;
+      // the first moment to lift the crown that has a way out (to the lever, or the stairs) that survives
+      const way = wayOut(g, here), goal = way.lever != null ? way.lever : exit;
+      const gateShut = (x, y) => passable(g, x, y) && g.g.at(x, y) !== C.GATE;
+      const toFace = Math.atan2(f.crown[1] + 0.5 - g.p.y, f.crown[0] + 0.5 - g.p.x);
+      const patient = g.t - m.waitFrom < b.sk.patience;
+      let fallback = null;
+      for (let d = 0.3; d <= b.sk.grabLook && !m.grab; d += 1.5) {
+        const stay = clockwork(g, { horizon: d + 0.2, walk: { path: [{ i: here, k: 0 }], speed: SPEED.walk } });
+        if (stay.caught >= 0 || stay.chased) break;               // can't even wait here that long
+        const P = findWay(g, b, { goals: [goal], speed: SPEED.carry, grabAt: d, pass: f.gate ? gateShut : pass, a0: toFace, strictFirst: true, rounds: 3, lever: way.lever != null ? leverLeg(way.lever) : null });
+        if (P?.ok || (P && b.rand() < b.sk.careless)) m.grab = { at: g.t + d };
+        else if (P && (!fallback || P.caught - d > fallback.left)) fallback = { at: g.t + d, left: P.caught - d };
+      }
+      if (!m.grab) {
+        // nothing yet. Step away if standing here would get us seen; lift it anyway when out of patience
+        const stay = clockwork(g, { horizon: 4, walk: { path: [{ i: here, k: 0 }], speed: SPEED.walk } });
+        if (stay.caught >= 0 || stay.chased) {
+          // back into the shadows for a while (the nearest alcove), then come again
+          const cells = [];
+          for (let y = 0; y < f.h; y++) for (let x = 0; x < w; x++) if (g.g.at(x, y) === C.ALCOVE) cells.push(y * w + x);
+          cells.push(f.start[1] * w + f.start[0]);
+          const P = findWay(g, b, { goals: cells, speed: SPEED.walk, pass, strictFirst: true, unseen: true, rounds: 2 });
+          if (P) { m.cw = P; m.away = true; m.backAt = g.t + P.kEnd * EVERY + 5; }
+        } else if (!patient && fallback) m.grab = { at: fallback.at };
+      }
+    }
+    if (!m.away) {                                                  // wait, turned to the crown
+      const err = angDiff(Math.atan2(f.crown[1] + 0.5 - g.p.y, f.crown[0] + 0.5 - g.p.x), g.p.a);
+      return s.hold(Math.abs(err) > 0.1 ? [err > 0 ? 'right' : 'left'] : []);
+    }
+  }
+  if (!m.away) m.grab = null;
+  // the way in (or stepping away from the crown and back): unseen
+  if (m.cw && g.t >= m.checkAt) {
+    m.checkAt = g.t + b.sk.recheck;
+    if (b.rand() >= b.sk.careless) { const sim = clockwork(g, { horizon: 12, walk: { path: restOf(g, m.cw), speed: SPEED.walk } }); if (sim.caught >= 0 || sim.chased) m.cw = null; }
+  }
+  if (m.away) {                                                   // in the shadows: wait a little, then try again
+    if (g.t >= m.backAt) { m.cw = null; m.away = false; m.waitFrom = null; }
+    else if (m.cw && here === m.cw.path[m.cw.path.length - 1].i) return steer(g, s, px + 0.5, py + 0.5, true);
+  }
+  if (!m.cw) {
+    const cells = DIRS.map(([dx, dy]) => [f.crown[0] + dx, f.crown[1] + dy]).filter(([x, y]) => passable(g, x, y)).map(([x, y]) => y * w + x);
+    const P = findWay(g, b, { goals: cells, speed: SPEED.walk, pass, strictFirst: true, unseen: true });
+    m.checkAt = g.t + b.sk.recheck;
+    if (m.away) m.backAt = g.t;
+    if (!P || (!P.ok && P.caught >= 0 && P.caught < 2.5)) { m.react = g.t + 1.2; return reactive(g, s, b); }
+    m.cw = P;
+  }
+  if (!follow(g, s, m.cw)) { m.cw = null; m.away = false; s.hold([]); }
+}
+
 const best = new WeakMap();
 
 export default {
-  wip: 'expert bot finishes floors 1-3, the vaults and 16 after a mistake, but mostly not 4-15 yet: it gets caught by the crown (knights alerted by the grab converge on dead-end crown rooms) — needs better grab timing, lures and hiding',
   // floors 1–15 (5 and 10 are 15 s treasure vaults) + the Empty Throne (16). An escape takes
   // ~20–60 s (seal countdowns are 34–59 s); a catch sends you back to the entrance
   limit: (level) => (level === 16 ? 60 : 240),
-  stuck: 45,
+  stuck: 90,                               // it may wait in the shadows for the right moment to lift the crown
 
   progress(g, s) {
     if (g.bonus) return g.coinsHere;
@@ -548,7 +798,7 @@ export default {
   mistake(g, s, b) {
     const m = b.mem;
     m.mLives ??= s.livesLost;
-    if (s.livesLost > m.mLives) { m.plan = null; return true; }
+    if (s.livesLost > m.mLives) { m.plan = null; bot(g, s, b); return true; }   // caught: the new try starts on this very step
     if (g.bonus || g.secret) return true;
     if (g.done || g.caughtFx) { s.hold([]); return false; }
     // walk straight at the nearest guard
