@@ -19,6 +19,10 @@ import * as S from './scene3d.js';
 const W = 800, H = 450;
 const STEP = 10;                 // terrain sample spacing (px)
 const STEEP_RUN = 160, STEEP_REST = 100;   // the longest steep climb (grade over 0.45), and the easier stretch that follows it (px)
+const CHASM_PAD = 1650;          // a chasm's pad starts this far before its lip: after a 350 px lead-in, 980 px of flat run-up, then the kicker
+const WIND_SHELTER = [0.25, 0.45]; // a gust blowing down a slope fades from this grade and is gone by this one
+const RAMP_GRADE = 1.2;          // the steepest a ramp's kicker may get, the hill under it included
+const RAMP_HILL = [-0.4, 0.3];   // the hill's grade allowed over the 400 px before a ramp's lip (steepest drop, steepest climb)
 const PX_PER_M = 20;             // 20 px = 1 metre
 const G = 980;                   // gravity (px/s²)
 const TAU = Math.PI * 2;
@@ -123,8 +127,8 @@ class Eggspress {
     this.d = clamp((level - 1) / 13, 0, 1);
     this.themeKey = bonus ? 'gold' : THEME_ORDER[(level - 1) % THEME_ORDER.length];
     this.goalX = bonus ? 1e9 : (380 + level * 55) * PX_PER_M;
-    this.checkX = this.goalX * 0.5; this.respawnX = 60; this.flagged = false;
-    this.X0 = -1600; this.Hs = []; this.genX = this.X0; this.hill = undefined; this.steepRun = 0; this.steepRest = 0;
+    this.checkX = this.goalX * 0.5; this.respawnX = 60; this.flagged = false; this.flagPad = null;
+    this.X0 = -1600; this.Hs = []; this.hills = []; this.genX = this.X0; this.hill = undefined; this.steepRun = 0; this.steepRest = 0;
     this.f = [r.range(0.0022, 0.003), r.range(0.0055, 0.0068), r.range(0.012, 0.015), r.range(0.0008, 0.0011)];
     this.p = [r.range(0, TAU), r.range(0, TAU), r.range(0, TAU), r.range(0, TAU)];
     this.coins = []; this.mushrooms = []; this.lowG = []; this.bumps = []; this.ramps = []; this.gaps = []; this.winds = []; this.oils = []; this.props = [];
@@ -159,39 +163,85 @@ class Eggspress {
       n.bump += r.range(2600 - d * 1200, 4200 - d * 1800) * (this.level === 1 ? 1.4 : 1);
     }
     while (n.gap < upto) {
-      // a chasm: a launch ramp, then a gap you have to clear
-      const x = n.gap;
-      if (!this.ramps.some((q) => Math.abs(q.x - x) < 1400) && !this.gaps.some((q) => Math.abs(q.x0 - x) < 2000) && x < this.goalX - 1400 && Math.abs(x - this.checkX) > 1200) {
+      // a chasm: a launch ramp, then a gap you have to clear. (It lies 500 px past the spot drawn
+      // for it: that leaves room for its long flat run-up on road that is not laid yet.)
+      const x = n.gap + 500;
+      if (!this.ramps.some((q) => q.x > x - CHASM_PAD - 300 && q.x < x + 1400) && !this.gaps.some((q) => Math.abs(q.x0 - x) < 2000) && x < this.goalX - 1900 && Math.abs(x - this.checkX) > 1700) {
         const w = 90 + d * 45 + r.range(0, 15);
         this.ramps.push({ x, h: 60 + d * 25, gap: true, w });
         this.gaps.push({ x0: x, x1: x + w });
+        // A chasm's run-up, jump and landing (the calm ground of baseHeight) carry nothing else: no
+        // gust (in the air nothing holds the egg down, and a headwind in the run-up pushes it off the
+        // back), no oil and no moon patch (too little grip to get up to speed), and no mushroom (see
+        // genChunk). From delivery 11 on those made chasms that could not be jumped with the egg.
+        // Found by the benchmark, 17 Nov 2026.
+        const off = (z) => z.x1 <= x - CHASM_PAD || z.x0 >= x + w + 760;
+        this.winds = this.winds.filter(off); this.oils = this.oils.filter(off); this.lowG = this.lowG.filter(off);
       }
       n.gap += r.range(3600 - d * 900, 5200 - d * 1200);
     }
     while (n.ramp < upto) {
-      if (!this.bumps.some((b) => n.ramp > b.x0 - 300 && n.ramp < b.x1 + 400) && !this.ramps.some((q) => q.gap && n.ramp > q.x - 1400 && n.ramp < q.x + q.w + 900) && n.ramp < this.goalX - 800) this.ramps.push({ x: n.ramp, h: 65 + d * 60 });
+      if (!this.bumps.some((b) => n.ramp > b.x0 - 300 && n.ramp < b.x1 + 400) && !this.ramps.some((q) => q.gap && n.ramp > q.x - CHASM_PAD - 300 && n.ramp < q.x + q.w + 900) && n.ramp < this.goalX - 800 && (B || Math.abs(n.ramp - this.checkX) > 600)) this.ramps.push({ x: n.ramp, h: 65 + d * 60 });
       n.ramp += B ? r.range(1100, 1500) : r.range(2400 - d * 900, 3800 - d * 1500);
     }
-    while (n.lowG < upto) { this.lowG.push({ x0: n.lowG, x1: n.lowG + r.range(700, 1100) }); n.lowG += r.range(4000, 6500); }
-    while (n.wind < upto) { this.winds.push({ x0: n.wind, x1: n.wind + r.range(600, 1000), f: r.pick([-1, 1]) * (260 + d * 160) }); n.wind += r.range(2600, 4200); }
+    // nothing lies on a chasm's pad, or where you restart at the checkpoint flag (a gust, a moon patch
+    // or the foot of a ramp there cost the fresh egg before you could move)
+    const atChasm = (z) => this.ramps.some((q) => q.gap && z.x1 > q.x - CHASM_PAD && z.x0 < q.x + q.w + 760) || (!B && z.x1 > this.checkX - 300 && z.x0 < this.checkX + 500);
+    while (n.lowG < upto) { const z = { x0: n.lowG, x1: n.lowG + r.range(700, 1100) }; if (!atChasm(z)) this.lowG.push(z); n.lowG += r.range(4000, 6500); }
+    while (n.wind < upto) {
+      const w = { x0: n.wind, x1: n.wind + r.range(600, 1000), f: r.pick([-1, 1]) * (260 + d * 160) };
+      if (!atChasm(w)) this.winds.push(w);
+      n.wind += r.range(2600, 4200);
+    }
     while (n.oil < upto) {
       // oil only on flat or downhill road — an oily climb would be impossible
       const x = n.oil, len = r.range(160, 260), up = (this.baseHeight(x + len) - this.baseHeight(x)) / len;
-      if (clear(x, 200) && up > -0.08) this.oils.push({ x0: x, x1: x + len });
+      if (clear(x, 200) && up > -0.08 && !atChasm({ x0: x, x1: x + len })) this.oils.push({ x0: x, x1: x + len });
       n.oil += r.range(1600, 2800);
     }
   }
 
-  baseHeight(x, withRamps = true) {
+  /** The hills as they roll on their own: no pads, bumps, ramps or farm yard. */
+  wild(x) {
     const f = this.f, p = this.p, m = x / PX_PER_M, d = this.d;
     const amp = Math.min(180, 50 + d * 100 + m * 0.05);
-    // calm, flat ground for a good run-up before each chasm and after its landing
-    let calm = 0;
-    for (const rp of this.ramps) if (rp.gap) { const u = x - rp.x; calm = Math.max(calm, clamp(Math.min((u + 1150) / 350, (rp.w + 760 - u) / 300), 0, 1)); }
-    const ramp = clamp((x - 200) / 400, 0, 1) * (1 - calm);
-    let y = 300 + ramp * (amp * Math.sin(x * f[0] + p[0]) + amp * 0.45 * Math.sin(x * f[1] + p[1])
+    let y = 300 + clamp((x - 200) / 400, 0, 1) * (amp * Math.sin(x * f[0] + p[0]) + amp * 0.45 * Math.sin(x * f[1] + p[1])
       + amp * 0.2 * clamp((m - 20) / 100, 0, 1) * Math.sin(x * f[2] + p[2]) + amp * 0.9 * Math.sin(x * f[3] + p[3]));
     if (d > 0.5) y += (d - 0.5) * 2 * amp * 0.45 * Math.sin(x * 0.009 + p[2]) ** 3;
+    return y;
+  }
+
+  /** Everything that stands on a flat pad: the ramps, the chasms and the checkpoint flag. (You
+   *  restart at the flag with a fresh egg, standing still. On a steep slope the egg rolled straight
+   *  out of its cup: on 1 road in 4 if you did nothing, on 1 in 25 whatever you did, so every restart
+   *  lost another life. Found by the benchmark, 17 Nov 2026.) */
+  pads() { return this.bonus ? this.ramps : [...this.ramps, (this.flagPad ??= { x: this.checkX, flag: true })]; }
+
+  /** How much of the flat pad of ramp, chasm or flag rp the road at x has (0 none … 1 on the pad itself). */
+  padOf(rp, x) {
+    const u = x - rp.x;
+    if (rp.flag) return clamp(Math.min((u + 600) / 400, (700 - u) / 300), 0, 1);
+    return rp.gap ? clamp(Math.min((u + CHASM_PAD) / 350, (rp.w + 760 - u) / 300), 0, 1)
+      : this.bonus ? 0 : clamp(Math.min((u + 1120) / 700, (620 - u) / 340), 0, 1);
+  }
+
+  baseHeight(x, withRamps = true) {
+    let y = this.wild(x), calm = 0;
+    // Flat ground (a "pad") for a long run-up before each chasm and after its landing, and for each
+    // ramp from 420 px before its lip to the end of its landing slope. The pad lies at the height
+    // the hills have where it begins, so the road eases onto it instead of diving or climbing to it.
+    // (Ramps had no pad: on a climb, or at the foot of a steep drop, a ramp was a wall no driving
+    // got the egg over; about half the roads from delivery 11 had one. And the chasms' pads left
+    // the taller late-delivery hills in, so from delivery 9 a run-up was not flat, and from
+    // delivery 11 most chasms could not be jumped at all; their run-up was also 500 px shorter,
+    // too short for the widest chasms after a slow climb. Found by the benchmark, 17 Nov 2026.)
+    for (const rp of this.pads()) {
+      const c = this.padOf(rp, x);
+      if (!c) continue;
+      rp.level ??= this.wild(rp.x - (rp.flag ? 600 : rp.gap ? CHASM_PAD : 1120));
+      y += (rp.level - y) * c;
+      calm = Math.max(calm, c);
+    }
     for (const b of this.bumps) if (x > b.x0 && x < b.x1) {
       const w = Math.sin((x - b.x0) / (b.x1 - b.x0) * Math.PI) * b.k * (1 - calm);
       y += w * (5 * Math.sin(x * 0.085) + 3 * Math.sin(x * 0.19 + 1) + 2 * Math.sin(x * 0.31));
@@ -217,6 +267,50 @@ class Eggspress {
     return y;
   }
 
+  /** The hills without the ramps, laid a little ahead of the road itself (so a ramp can be fitted to
+   *  the hill under it before its first sample is laid). */
+  genHills(upto) {
+    const maxD = Math.min(0.62, 0.6 + this.d * 0.18) * STEP;
+    for (let x = this.X0 + this.hills.length * STEP; x < upto; x += STEP) {
+      let h = this.baseHeight(x, false);
+      if (this.hill !== undefined) {
+        h = clamp(h, this.hill - maxD, this.hill + maxD);
+        // on a pad the road is level, at whatever height it has got to (a steep hill before the pad
+        // is eased off, so the road can still be on its way to the planned height when it arrives)
+        if (this.pads().some((rp) => this.padOf(rp, x) >= 1)) h = this.hill;
+        // A climb may only stay steep for so long: after STEEP_RUN px at a grade over 0.45 the road
+        // eases off for STEEP_REST px before it may rear up again. (Climbs at the cap that ran on for
+        // 300–440 px could be driven with the egg only by near-perfect feathering of the gas; found
+        // by the benchmark, 17 Nov 2026.)
+        if (this.steepRest > 0) { h = Math.max(h, this.hill - 0.2 * STEP); this.steepRest -= STEP; this.steepRun = 0; }
+        else if (this.hill - h > 0.45 * STEP) { this.steepRun = (this.steepRun || 0) + STEP; if (this.steepRun >= STEEP_RUN) this.steepRest = STEEP_REST; }
+        else this.steepRun = 0;
+      }
+      this.hill = h;
+      this.hills.push(h);
+    }
+  }
+
+  /** Ramps stand on a level pad (see baseHeight and genHills). As a last check on the road as built:
+   *  a ramp whose hill is still steep (outside RAMP_HILL) in the 400 px before its lip is taken
+   *  out, and a gentle leftover slope lowers the kicker, so that kicker and hill together never get
+   *  steeper than RAMP_GRADE. */
+  fitRamps(upto) {
+    const at = (x) => this.hills[clamp(Math.round((x - this.X0) / STEP), 0, this.hills.length - 1)];
+    const grade = (x) => (at(x - STEP) - at(x)) / STEP;                         // the hill's own grade (+ = climbing)
+    const fits = (rp) => {
+      for (let u = -400; u <= 0; u += STEP) { const k = grade(rp.x + u); if (k < RAMP_HILL[0] || k > RAMP_HILL[1]) return false; }
+      return true;
+    };
+    if (!this.bonus) this.ramps = this.ramps.filter((rp) => rp.gap || rp.fit || rp.x > upto || fits(rp));
+    for (const rp of this.ramps) {
+      if (rp.gap || rp.fit || rp.x > upto) continue;
+      rp.fit = true;
+      // the kicker's grade at u is (2h/200)·(u+200)/200
+      for (let u = -190; u <= 0; u += STEP) rp.h = Math.min(rp.h, Math.max(0, RAMP_GRADE - Math.max(0, grade(rp.x + u))) * 100 * 200 / (u + 200));
+    }
+  }
+
   genChunk() {
     const r = this.s.rng, a = this.genX, b = a + 2000;
     this.placeFeatures(b + 1500);
@@ -227,20 +321,10 @@ class Eggspress {
     // sudden step at the lip — a wall up to 233 px high. And from delivery 8 the grade cap rose to
     // 0.70–0.78, steeper than any driving can keep the egg in the cup on: it slides over the back
     // past about 0.65. Both found by the benchmark, 30 Oct 2026.)
-    const maxD = Math.min(0.62, 0.6 + this.d * 0.18) * STEP;
+    this.genHills(b + 300);
+    this.fitRamps(b + 200);
     for (let x = a; x < b; x += STEP) {
-      let h = this.baseHeight(x, false);
-      if (this.hill !== undefined) {
-        h = clamp(h, this.hill - maxD, this.hill + maxD);
-        // A climb may only stay steep for so long: after STEEP_RUN px at a grade over 0.45 the road
-        // eases off for STEEP_REST px before it may rear up again. (Climbs at the cap that ran on for
-        // 300–440 px could be driven with the egg only by near-perfect feathering of the gas; found
-        // by the benchmark, 17 Nov 2026.)
-        if (this.steepRest > 0) { h = Math.max(h, this.hill - 0.2 * STEP); this.steepRest -= STEP; this.steepRun = 0; }
-        else if (this.hill - h > 0.45 * STEP) { this.steepRun = (this.steepRun || 0) + STEP; if (this.steepRun >= STEEP_RUN) this.steepRest = STEEP_REST; }
-        else this.steepRun = 0;
-      }
-      this.hill = h;
+      const h = this.hills[Math.round((x - this.X0) / STEP)];
       let y = h + this.rampLift(x);
       if (this.gaps.some((gp) => x >= gp.x0 && x < gp.x1)) y = 3000;      // the chasm
       Hs.push(y);
@@ -261,7 +345,7 @@ class Eggspress {
     }
     while (n.mush < b - 300) {
       const x = n.mush;
-      if (!this.ramps.some((rp) => Math.abs(rp.x - x) < 500) && !this.gaps.some((q) => x > q.x0 - 600 && x < q.x1 + 200) && !this.bumps.some((q) => x > q.x0 - 100 && x < q.x1 + 100) && Math.abs(this.slope(x)) < 0.35 && x < this.goalX - 600) this.mushrooms.push({ x, cd: 0 });
+      if (!this.ramps.some((rp) => Math.abs(rp.x - x) < 500) && !this.gaps.some((q) => x > q.x0 - CHASM_PAD && x < q.x1 + 760) && (this.bonus || Math.abs(x - this.checkX) > 400) && !this.bumps.some((q) => x > q.x0 - 100 && x < q.x1 + 100) && Math.abs(this.slope(x)) < 0.35 && x < this.goalX - 600) this.mushrooms.push({ x, cd: 0 });
       n.mush += this.bonus ? r.range(900, 1400) : r.range(1400, 2400);
     }
     // scenery: trees and rocks behind the road, posts and tufts in front
@@ -292,7 +376,17 @@ class Eggspress {
   slope(x) { return (this.ground(x + 6) - this.ground(x - 6)) / 12; }
   normal(x) { const d = clamp(this.slope(x), -8, 8), l = Math.hypot(d, 1); return [d / l, -1 / l]; }
   gravity(x) { return this.lowG.some((z) => x > z.x0 && x < z.x1) ? G * 0.42 : G; }
-  windAt(x) { const w = this.winds.find((z) => x > z.x0 && x < z.x1); return w ? w.f * Math.sin(Math.min(1, (x - w.x0) / 200, (w.x1 - x) / 200) * Math.PI / 2) : 0; }
+  windAt(x) {
+    const w = this.winds.find((z) => x > z.x0 && x < z.x1);
+    if (!w) return 0;
+    // A hillside gives shelter: a gust blowing down a slope dies away as the slope steepens (from
+    // grade 0.25, gone by 0.45). A headwind on a steep climb, or a tailwind on a steep drop, pushed
+    // the egg out of its cup whatever the driving: about half of those spots had no way through.
+    // Found by the benchmark, 17 Nov 2026.
+    const fall = (this.ground(x + 40) - this.ground(x - 40)) / 80;             // + = the road drops ahead
+    const shelter = clamp(((w.f < 0 ? -fall : fall) - WIND_SHELTER[0]) / (WIND_SHELTER[1] - WIND_SHELTER[0]), 0, 1);
+    return w.f * (1 - shelter) * Math.sin(Math.min(1, (x - w.x0) / 200, (w.x1 - x) / 200) * Math.PI / 2);
+  }
   oily(x) { return this.oils.some((z) => x > z.x0 && x < z.x1); }
   get T() { return THEMES[this.themeKey]; }
 
