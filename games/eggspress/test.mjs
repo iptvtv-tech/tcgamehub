@@ -27,6 +27,14 @@
 //     steep slope it rolled straight out of the cup (1 road in 4 if you did nothing, 1 in 25
 //     whatever you did), so every restart cost another life. The flag now stands on a flat pad
 //     with nothing on it, and a truck restarted there keeps its egg for 3 s untouched.
+//  8. Oil on a climb, mushrooms on the moon (19 Nov 2026): an oil patch could end up on a climb of
+//     the road as built (no grip: a wall), and a mushroom in a moon patch threw the truck so high
+//     and long that no driving kept the egg. Oil now lies only where the built road is flat or
+//     runs downhill, and no mushroom stands in or just before a moon patch.
+//  9. Whole deliveries (19 Nov 2026): routes.js keeps a worked-out drive from the start line to the
+//     farm for 3 roads of every delivery 1–19 (find-routes.mjs). Each is played here in the real
+//     game, key for key: the egg must arrive. Most arrive with their first egg; on a few roads one
+//     egg can't make it (too many mushrooms) and the drive lets it go at the checkpoint flag.
 // Ramp kickers (the 200–320 px run-up to each lip, meant to be jumped at speed) and the chasms are
 // left out of the climb check; everywhere else a climb stays within the cap, and nowhere does the
 // road jump in a single sample.
@@ -42,7 +50,7 @@ const STEP = 10, GRADE = 0.62, LIP = 20;            // game.js sample spacing; t
 const STEEP = 0.45, RUN = 160;                      // game.js STEEP_RUN: the longest a climb may stay over grade 0.45 (px)
 const RAMP_GRADE = 1.2, RAMP_HILL = [-0.4, 0.3];    // game.js: kicker + hill at most; the hill before a ramp's lip (drop, climb)
 const RUNUP = 0.15;                                 // the steepest the ground may be in the 980 px before a chasm's kicker
-let gusts = 0, worstGust = 0, restarts = 0;
+let gusts = 0, worstGust = 0, restarts = 0, oils = 0, wholeNote = '';
 let roads = 0, worstGrade = 0, worstStep = 0, longest = 0, ramps = 0, worstKick = 0, chasms = 0, worstRunUp = 0;
 for (let level = 1; level <= LEVELS; level++) {
   if (level % 5 === 0) continue;                      // the bonus runs are endless roads
@@ -60,6 +68,16 @@ for (let level = 1; level <= LEVELS; level++) {
       s2.run(3, () => s2.livesLost > 0);
       restarts++;
       if (s2.livesLost) { bad++; t.fail(`delivery ${level} seed ${seed}: restarting at the checkpoint flag (x=${g2.respawnX.toFixed(0)}, grade ${(-g2.slope(g2.respawnX)).toFixed(2)}) loses the fresh egg without touching the controls`); }
+    }
+    for (const z of g.oils) {
+      let up = 0;
+      for (let x = z.x0; x <= z.x1; x += STEP) up = Math.max(up, (g.ground(x - STEP) - g.ground(x)) / STEP);
+      oils++;
+      if (up > 0.2 && bad < 2) { bad++; t.fail(`delivery ${level} seed ${seed}: the oil patch at x=${z.x0.toFixed(0)} lies on a climb (grade ${up.toFixed(2)})`); }
+    }
+    for (const q of g.mushrooms) {
+      const z = g.lowG.find((k) => q.x > k.x0 - 250 && q.x < k.x1);
+      if (z && bad < 2) { bad++; t.fail(`delivery ${level} seed ${seed}: the mushroom at x=${q.x.toFixed(0)} stands in (or just before) the moon patch ${z.x0.toFixed(0)}–${z.x1.toFixed(0)}`); }
     }
     for (const z of g.winds) {
       if (z.x0 > g.goalX) continue;
@@ -112,4 +130,34 @@ for (let level = 1; level <= LEVELS; level++) {
     }
   }
 }
-t.done(`${roads} roads: no walls, steepest climb ${worstGrade.toFixed(2)} (cap ${GRADE}), longest steep climb ${longest} px (cap ${RUN}), biggest one-sample rise ${worstStep.toFixed(0)} px outside chasms; ${ramps} ramps on gentle ground, steepest kicker ${worstKick.toFixed(2)} (cap ${RAMP_GRADE}); ${chasms} chasms with a flat, clear run-up (steepest ${worstRunUp.toFixed(2)}); ${gusts} gusts, none on a steep slope against the truck; ${restarts} restarts at the flag keep their egg`);
+// ── 9 · whole deliveries, start line to farm ──
+{
+  const { ROUTES } = await import('./routes.js');
+  const unpack = (text) => text.replace(/(.)(\d+)/g, (_, ch, n) => ch.repeat(+n));
+  const byLevel = new Map();
+  for (const [key, parts] of Object.entries(ROUTES)) { const level = +key.split(':')[0]; if (!byLevel.has(level)) byLevel.set(level, []); byLevel.get(level).push([key, parts]); }
+  let drives = 0, twoEggs = 0;
+  for (let level = 1; level <= 19; level++) {
+    if (level % 5 === 0) continue;
+    const list = byLevel.get(level) || [];
+    t.check(list.length >= 3, `delivery ${level}: only ${list.length} worked-out drives in routes.js (run find-routes.mjs)`);
+    for (let seed = 1; seed <= 3; seed++) {
+      const s = EG.start({ seed: seed * 7919 + level * 31 + 1, level, unlimited: true }), g = s.game;
+      const parts = ROUTES[`${level}:${g.p.slice(0, 2).map((v) => v.toFixed(5)).join(',')}`];
+      if (!t.check(!!parts, `delivery ${level} seed ${seed}: no worked-out drive for this road in routes.js (run find-routes.mjs)`)) continue;
+      let part = unpack(parts.start), n = -1, lost = 0;
+      for (let i = 0; i < 400 / (1 / 120) && !s.cleared; i++) {
+        if (s.state === 'playing') {
+          if (s.livesLost > lost) { lost = s.livesLost; if (lost > 1 || !parts.flag || !g.flagged) break; part = unpack(parts.flag); n = 0; }
+          if (n < 0) { s.hold([]); n = 0; } else { const ch = part[Math.floor(n++ / 12)]; s.hold(ch === 'G' ? ['right'] : ch === 'B' ? ['left'] : []); }
+        } else s.hold([]);
+        s.tick();
+      }
+      drives++; if (parts.flag) twoEggs++;
+      t.check(s.cleared === 1 && s.livesLost === (parts.flag ? 1 : 0), `delivery ${level} seed ${seed}: the worked-out drive no longer arrives (${s.livesLost} eggs lost, stopped at x=${g.car.x.toFixed(0)} of ${g.goalX}); run find-routes.mjs`);
+    }
+  }
+  wholeNote = `; ${drives} whole deliveries driven start to farm (${twoEggs} need a second egg from the flag)`;
+}
+
+t.done(`${roads} roads: no walls, steepest climb ${worstGrade.toFixed(2)} (cap ${GRADE}), longest steep climb ${longest} px (cap ${RUN}), biggest one-sample rise ${worstStep.toFixed(0)} px outside chasms; ${ramps} ramps on gentle ground, steepest kicker ${worstKick.toFixed(2)} (cap ${RAMP_GRADE}); ${chasms} chasms with a flat, clear run-up (steepest ${worstRunUp.toFixed(2)}); ${gusts} gusts, none on a steep slope against the truck; ${restarts} restarts at the flag keep their egg; ${oils} oil patches, none on a climb${wholeNote}`);

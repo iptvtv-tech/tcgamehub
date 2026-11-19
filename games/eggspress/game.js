@@ -311,6 +311,19 @@ class Eggspress {
     }
   }
 
+  /** Oil lies only where the road as built is flat or runs downhill. (It was placed by the plan of
+   *  the hills, but a steep hill is eased off as it is built and can still be climbing where the plan
+   *  had levelled out: an oil patch on a climb is a wall, no grip at all. Found 19 Nov 2026.) */
+  fitOils(upto) {
+    const at = (x) => this.hills[clamp(Math.round((x - this.X0) / STEP), 0, this.hills.length - 1)] + this.rampLift(x);   // (a ramp's kicker is a climb too)
+    this.oils = this.oils.filter((z) => {
+      if (z.fit || z.x1 + 30 > upto) return true;
+      z.fit = true;
+      for (let x = z.x0 - 30; x <= z.x1 + 30; x += STEP) if ((at(x - STEP) - at(x)) / STEP > 0.1) return false;
+      return true;
+    });
+  }
+
   genChunk() {
     const r = this.s.rng, a = this.genX, b = a + 2000;
     this.placeFeatures(b + 1500);
@@ -323,6 +336,7 @@ class Eggspress {
     // past about 0.65. Both found by the benchmark, 30 Oct 2026.)
     this.genHills(b + 300);
     this.fitRamps(b + 200);
+    this.fitOils(b + 250);
     for (let x = a; x < b; x += STEP) {
       const h = this.hills[Math.round((x - this.X0) / STEP)];
       let y = h + this.rampLift(x);
@@ -345,7 +359,7 @@ class Eggspress {
     }
     while (n.mush < b - 300) {
       const x = n.mush;
-      if (!this.ramps.some((rp) => Math.abs(rp.x - x) < 500) && !this.gaps.some((q) => x > q.x0 - CHASM_PAD && x < q.x1 + 760) && (this.bonus || Math.abs(x - this.checkX) > 400) && !this.bumps.some((q) => x > q.x0 - 100 && x < q.x1 + 100) && Math.abs(this.slope(x)) < 0.35 && x < this.goalX - 600) this.mushrooms.push({ x, cd: 0 });
+      if (!this.ramps.some((rp) => Math.abs(rp.x - x) < 500) && !this.gaps.some((q) => x > q.x0 - CHASM_PAD && x < q.x1 + 760) && (this.bonus || Math.abs(x - this.checkX) > 400) && !this.lowG.some((z) => x > z.x0 - 250 && x < z.x1) && !this.bumps.some((q) => x > q.x0 - 100 && x < q.x1 + 100) && Math.abs(this.slope(x)) < 0.35 && x < this.goalX - 600) this.mushrooms.push({ x, cd: 0 });
       n.mush += this.bonus ? r.range(900, 1400) : r.range(1400, 2400);
     }
     // scenery: trees and rocks behind the road, posts and tufts in front

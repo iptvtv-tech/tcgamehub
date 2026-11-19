@@ -33,19 +33,22 @@ export function clone(m) {
  *  the roof). Returns true when the egg is lost. */
 export function mstep(m, th) {
   const h = STEP / 2;
+  m.t += STEP; m.time += STEP;
   for (let k = 0; k < 2; k++) { m.stepCar(h, th); if (m.stepEgg(h)) return true; }
   const c = m.car;
   for (let i = 0; i < m.mushrooms.length; i++) {
     const q = m.mushrooms[i];
-    if (Math.abs(q.x - c.x) > 200) continue;
     m.mcd[i] = Math.max(0, m.mcd[i] - STEP);
+    if (Math.abs(q.x - c.x) > 200) continue;
     if (m.mcd[i] > 0) continue;
     if (c.wheels.some((wh) => wh.on && Math.abs(wh.x - q.x) < 26)) { m.mcd[i] = 1.2; const boost = -720 - Math.max(0, c.vy); c.vy += boost; m.egg.vy += boost; }
   }
   const gp = m.gaps.find((q) => c.x > q.x0 - 30 && c.x < q.x1 + 30);
   if (gp && c.y > m.ground(gp.x0 - 15) + 200) return true;
   m.stuck = Math.cos(c.a) < -0.2 && Math.hypot(c.vx, c.vy) < 60 ? m.stuck + STEP : 0;
-  return m.stuck > 1.5 || !m.egg.alive;
+  if (m.stuck > 1.5 || !m.egg.alive) return true;
+  m.egg.crackCd = Math.max(0, m.egg.crackCd - STEP);            // (a crack can't follow a crack at once)
+  return false;
 }
 /** Where the egg is, seen from the truck (it rests in its cup at about (0, −27)). */
 export const eggLocal = (m) => { const c = m.car, cs = Math.cos(c.a), sn = Math.sin(c.a), dx = m.egg.x - c.x, dy = m.egg.y - c.y; return [dx * cs + dy * sn, -dx * sn + dy * cs]; };
@@ -55,9 +58,13 @@ export const eggLocal = (m) => { const c = m.car, cs = Math.cos(c.a), sn = Math.
  * cup and at most `maxCracks` new cracks. Returns { ok, t (seconds of driving), cracks, seq (one
  * letter per tenth of a second: G gas, B brake, - coast) } or { ok: false, why }.
  */
-export function findWay(g, toX, { width = 400, depth = 130, maxCracks = 0 } = {}) {
-  const BLOCK = 12, c0 = g.egg.cracks;
-  let beam = [{ m: model(g), seq: '' }];
+export function findWay(g, toX, { width = 400, depth = 130, maxCracks = 0, from = null, settled = false, maxSpeed = 0 } = {}) {
+  // (from: start from this private copy instead of the game; the answer then carries `end`, the copy
+  // as it stands at the end of the way, so a long road can be worked out a stretch at a time.
+  // settled: only stop where the egg sits still in its cup and the truck is not rocking.
+  // maxSpeed: …and is going no faster than this.)
+  const BLOCK = 12, c0 = (from || g).egg.cracks;
+  let beam = [{ m: from ? clone(from) : model(g), seq: '' }];
   for (let d = 0; d < depth; d++) {
     const next = new Map();
     for (const st of beam) for (const th of [1, 0, -1]) {
@@ -68,7 +75,8 @@ export function findWay(g, toX, { width = 400, depth = 130, maxCracks = 0 } = {}
       const c = m.car, [ex, ey] = eggLocal(m);
       if (Math.abs(ex) > 22 || ey > -8 || ey < -70) continue;           // the egg is out of its cup: as good as lost
       const v = c.vx * Math.cos(c.a) + c.vy * Math.sin(c.a), seq = st.seq + (th > 0 ? 'G' : th < 0 ? 'B' : '-');
-      if (c.x > toX && c.wheels[0].on && c.wheels[1].on && Math.abs(ex) < 10) return { ok: true, t: (d + 1) * BLOCK * STEP, cracks: m.egg.cracks - c0, seq };
+      if (c.x > toX && c.wheels[0].on && c.wheels[1].on && Math.abs(ex) < 10 && (!settled || (Math.hypot(m.egg.vx - c.vx, m.egg.vy - c.vy) < 70 && Math.abs(c.w) < 1.5 && ey < -20 && ey > -34)) && (!maxSpeed || v < maxSpeed))
+        return { ok: true, t: (d + 1) * BLOCK * STEP, cracks: m.egg.cracks - c0, seq, end: m };
       const key = `${Math.round(c.x / 10)},${Math.round(v / 25)},${Math.round(c.a / 0.12)},${Math.round(c.w / 0.8)},${Math.round(ex / 4)},${Math.round(ey / 6)},${m.egg.cracks}`;
       const f = c.x + 0.25 * v - 400 * m.egg.cracks - Math.abs(ex) * 3;
       const old = next.get(key);

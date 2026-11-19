@@ -18,6 +18,8 @@
 // more eggs on the jumps and loses them on the steep hills. The mistake: rock the truck (gas,
 // brake, gas…) and slam the brakes at speed until the egg rolls off — a real lost egg and life.
 import { STEP } from '../../tools/lib/headless.mjs';
+import { model as searchCopy, mstep as searchStep } from './road-search.mjs';
+import { ROUTES } from './routes.js';
 
 const drove = new WeakMap();
 
@@ -155,7 +157,7 @@ function features(g) {
 }
 const SPEEDS = { chasm: [300, 340, 380, 440, 520], ramp: [60, 90, 130, 200, 300, 420], mushroom: [50, 80, 120, 170, 240], moon: [60, 90, 130, 180], bumps: [80, 120, 170, 230], climb: [160, 230, 300, 380, 460, 560], drop: [50, 90, 140, 200] };
 
-function bot(g, s, b) {
+function byEye(g, s, b) {
   const m = b.mem, c = g.car, P = (m.P ??= PARAMS(b.skill));
   if (!g.egg.alive && !g.bonus) return s.hold([]);
   if (s.livesLost !== (m.lives ?? 0)) { m.lives = s.livesLost; m.over = null; m.planned = new Set(); m.until = null; m.duty = null; m.bestX = null; m.runup = null; m.tries = 0; }
@@ -234,8 +236,42 @@ function bot(g, s, b) {
   s.hold(th > 0 ? ['right'] : th < 0 ? ['left'] : []);
 }
 
+// ── the expert: a driver who has learned the road ────────────
+// 19 Nov 2026. Driving by eye (above) is not expert-grade: it still loses eggs on fair stretches.
+// A road is the same every time, so the expert plays a drive it has worked out beforehand:
+// find-routes.mjs searches the road a stretch at a time on copies of the truck and egg
+// (road-search.mjs) and keeps the drive in routes.js. Before using a kept drive the bot plays it
+// through on a copy; if it no longer arrives (the road rules or physics have changed) it drives by
+// eye instead. Where one egg can't make the whole road, the drive has two parts: to past the flag,
+// where the egg is let go, and from the restart at the flag to the farm.
+/** Which road this is: the delivery and the road's own shape numbers. */
+export const roadKey = (g) => `${g.level}:${g.p.slice(0, 2).map((v) => v.toFixed(5)).join(',')}`;
+const unpack = (text) => text.replace(/(.)(\d+)/g, (_, ch, n) => ch.repeat(+n));
+/** Does this part of a drive do its job from where the truck is now? (start → farm, or → egg let go past the flag; flag → farm) */
+function holdsUp(g, seq, mayLetGo) {
+  g.ensure(g.goalX + 3000);                                   // lay the whole road now (it comes out the same laid early or late)
+  const m = searchCopy(g);
+  for (let i = 0; i < seq.length * 12; i++) {
+    const ch = seq[Math.floor(i / 12)];
+    if (searchStep(m, ch === 'G' ? 1 : ch === 'B' ? -1 : 0)) return mayLetGo && m.car.x > g.checkX + 30;
+    if (m.car.x >= g.goalX) return true;
+  }
+  return false;
+}
+function bot(g, s, b) {
+  const m = b.mem;
+  if (g.bonus || b.skill < 0.9) return byEye(g, s, b);
+  if (g.time === 0) return s.hold([]);                       // a drive starts one engine step in (as a restart does)
+  if (m.dLives !== s.livesLost || m.dn === undefined) {
+    m.dLives = s.livesLost; m.dn = 0; m.drive = null;
+    const parts = ROUTES[roadKey(g)], text = parts && (g.flagged ? parts.flag : parts.start);
+    if (text) { const seq = unpack(text); if (holdsUp(g, seq, !g.flagged && !!parts.flag)) m.drive = seq; }
+  }
+  if (m.drive && m.dn < m.drive.length * 12) { const ch = m.drive[Math.floor(m.dn++ / 12)]; return s.hold(ch === 'G' ? ['right'] : ch === 'B' ? ['left'] : []); }
+  return byEye(g, s, b);
+}
+
 export default {
-  wip: 'the bot is not expert-grade yet (loses the egg on fair stretches, and is slow); the road fixes of 30 Oct are covered by games/eggspress/test.mjs',
   levels: 20,
   // delivery L is 380 + 55·L metres (L1 435 m … L19 1425 m); par is the distance at 13 m/s, and a
   // careful run is ~10 m/s: 45 s at L1 to ~150 s at L19, plus a restart from the flag for a lost egg
@@ -273,7 +309,7 @@ export default {
   mistake(g, s, b) {
     const m = b.mem;
     m.l0 ??= s.livesLost;
-    if (s.livesLost > m.l0) return true;                       // the egg is gone: back to driving properly
+    if (s.livesLost > m.l0) { bot(g, s, b); return true; }      // the egg is gone: back to driving properly, from this very step
     const t = (m.mt = (m.mt ?? 0) + STEP), c = g.car, v = c.vx * Math.cos(c.a) + c.vy * Math.sin(c.a);
     // rock the truck: 1.7 s of gas, 1.7 s of brake / reverse, over and over; every other 12 s
     // floor it and stamp on the brakes at speed instead — until the egg rolls off
