@@ -80,7 +80,7 @@ function play(G, B, level, seed, skill, withMistake) {
       if (!mistakeDone && playT > 2) {
         if (B.mistake(g, s, b)) { mistakeDone = true; livesAtMistake = s.livesLost; }
       } else B.bot(g, s, b);
-    } else s.hold([]);                       // a lost life or a banner: let go of the controls
+    } else if (B.letGo) s.hold([]);                     // a lost life or a banner: let go of the controls
     s.tick();
     if (s.cleared) return { cleared: true, secs: s.time, deaths: s.livesLost, mistakeCost: livesAtMistake == null ? null : s.livesLost - livesAtMistake };
     if (s.state === 'over') return { cleared: false, secs: s.time, deaths: s.livesLost, error: 'the run ended (game over) during the level' };

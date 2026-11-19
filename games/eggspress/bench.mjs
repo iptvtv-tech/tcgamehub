@@ -277,6 +277,7 @@ export default {
   // careful run is ~10 m/s: 45 s at L1 to ~150 s at L19, plus a restart from the flag for a lost egg
   limit: (level) => Math.round((380 + 55 * level) / 10 * 1.6 + 40),
   stuck: 30,                    // the truck gets 10 px further with this egg at least every 30 s
+  letGo: true,                  // the driver releases the controls between eggs (a stored drive starts from rest)
   // distance driven with the current egg: the furthest point since the last start / restart
   progress(g, s) {
     let r = drove.get(g);

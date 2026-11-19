@@ -32,7 +32,7 @@ export function botPlay(G, B, { level, seed = 1, skill = 1, mistake = true, each
       b.t = playT;
       if (todo && playT > 2) { if (B.mistake(g, s, b)) { todo = false; livesAtMistake = s.livesLost; } }
       else B.bot(g, s, b);
-    } else s.hold([]);                                          // a lost life or a banner: let go of the controls
+    } else if (B.letGo) s.hold([]);                                        // a lost life or a banner: let go of the controls
     s.tick();
     if (s.state !== 'playing') continue;
     playT += STEP;
