@@ -33,11 +33,13 @@ const ID = 'avalanche-run';
 const W = 480, H = 720;
 // The slope FALLS AWAY from you: the snow drops faster the further down you look, so about 195 m
 // ahead it rolls over a lip and is gone. Past the lip you look out over the valley far below.
-const SKYLINE = 148;                 // screen y of the far mountains' feet (the true horizon)
-const HORIZON = 262;                 // where a flat slope would have vanished; the lip sits a little below it
+// The camera looks DOWN the hill: the level horizon (the far mountains' feet) is high in the picture and
+// the lip far below it, and everything between is the drop: the valley floor and the rest of the run.
+const SKYLINE = 132;                 // screen y of the far mountains' feet (the true, level horizon)
+const HORIZON = 326;                 // where a flat slope would have vanished; the lip sits a little below it
 const CAM_H = 4.6;                   // the camera's height above the snow (m)
 const BACK = 9.5;                    // … and how far behind the sled it rides (m)
-const SLED_Y = 560;                  // screen y of the snow under the sled
+const SLED_Y = 592;                  // screen y of the snow under the sled
 const F = (SLED_Y - HORIZON) * BACK / CAM_H;   // projection scale: pixels per metre at 1 m from the camera
 const LIP = 195;                     // how far ahead the slope rolls over (m)
 const DROP = CAM_H / (LIP * LIP);    // the snow at d metres ahead lies DROP·d² below a flat slope
@@ -225,7 +227,7 @@ class AvalancheRun {
         s.fx.text(W / 2, SLED_Y - 140, 'INTO THE CREVASSE!', { color: '#bae6fd', size: 24 });
         return s.hurt();
       } else if (e.type === 'flag') {
-        s.sound.play('powerup'); s.fx.text(W / 2, 250, 'HALFWAY FLAG!', { color: '#fde047', size: 26, life: 1.3 });
+        s.sound.play('powerup'); s.fx.text(W / 2, 230, 'HALFWAY FLAG!', { color: '#fde047', size: 26, life: 1.3 });
       } else if (e.type === 'hut') {
         const lead = Math.round(e.gap);
         s.award(lead * 5 * L, W / 2, 260, { color: '#86efac', size: 24 });
@@ -277,38 +279,8 @@ class AvalancheRun {
   render(ctx) {
     const s = this.s, sim = this.sim, p = sim.p, sky = this.sky, band = s.bands?.bottom || 0;
     const top = -(s.bands?.top || 0), bottom = H + band;
-    // sky, the far range, and the valley you are riding down into
-    let g = ctx.createLinearGradient(0, top, 0, SKYLINE);
-    g.addColorStop(0, sky.sky[0]); g.addColorStop(0.6, sky.sky[1]); g.addColorStop(1, sky.sky[2]);
-    ctx.fillStyle = g; ctx.fillRect(0, top, W, SKYLINE - top + 2);
-    const pan = (bendAt(this.slope.bend, p.z) + this.camX) * 1.4;      // the view slides a little as the slope winds
-    for (let layer = 0; layer < 2; layer++) {
-      ctx.fillStyle = sky.peak[layer]; ctx.beginPath(); ctx.moveTo(0, SKYLINE + 2);
-      for (let i = -1; i <= 9; i++) {
-        const x = i * 70 - ((pan * (0.3 + layer * 0.3)) % 70) + layer * 30, h = 46 + hash(i * 7 + layer * 131 + Math.floor(pan * (0.3 + layer * 0.3) / 70) * 7) * (78 - layer * 34);
-        ctx.lineTo(x, SKYLINE + 2); ctx.lineTo(x + 35, SKYLINE - h + layer * 28);
-      }
-      ctx.lineTo(W, SKYLINE + 2); ctx.closePath(); ctx.fill();
-    }
-    g = ctx.createLinearGradient(0, SKYLINE, 0, LIP_Y);                 // the valley floor, hazy and far below
-    g.addColorStop(0, sky.haze); g.addColorStop(1, sky.vale[0]);
-    ctx.fillStyle = g; ctx.fillRect(0, SKYLINE, W, LIP_Y - SKYLINE + 2);
-    for (let layer = 0; layer < 3; layer++) {                            // forested ridges, nearer and darker each time
-      const y0 = SKYLINE + 22 + layer * 34, sp = 0.6 + layer * 0.45, step = 46;
-      ctx.fillStyle = sky.vale[1]; ctx.globalAlpha = 0.28 + layer * 0.22;
-      ctx.beginPath(); ctx.moveTo(0, LIP_Y + 2);
-      for (let i = -1; i <= 12; i++) { const k = Math.floor(pan * sp / step) + i, x = i * step - ((pan * sp) % step); ctx.lineTo(x, y0 + hash(k * 13 + layer * 57) * 22 + (layer === 2 ? Math.abs(x - W / 2) * -0.03 : 0)); }
-      ctx.lineTo(W, LIP_Y + 2); ctx.closePath(); ctx.fill();
-    }
-    ctx.globalAlpha = 0.5; ctx.fillStyle = sky.vale[2];                 // a frozen river winding along the valley
-    ctx.beginPath(); ctx.moveTo(W * 0.5 - pan * 0.5 - 90, SKYLINE + 30); ctx.bezierCurveTo(W * 0.5 - pan * 0.5 + 60, SKYLINE + 44, W * 0.5 - pan * 0.5 - 120, SKYLINE + 62, W * 0.5 - pan * 0.5 + 30, SKYLINE + 92);
-    ctx.lineTo(W * 0.5 - pan * 0.5 + 62, SKYLINE + 92); ctx.bezierCurveTo(W * 0.5 - pan * 0.5 - 86, SKYLINE + 64, W * 0.5 - pan * 0.5 + 84, SKYLINE + 46, W * 0.5 - pan * 0.5 - 78, SKYLINE + 30); ctx.closePath(); ctx.fill();
-    ctx.globalAlpha = 1;
-    // the snowfield, from the lip it rolls over down to your feet
-    g = ctx.createLinearGradient(0, LIP_Y, 0, H);
-    g.addColorStop(0, sky.snow[1]); g.addColorStop(0.07, sky.haze); g.addColorStop(0.3, sky.snow[0]); g.addColorStop(1, sky.snow[1]);
-    ctx.fillStyle = g; ctx.fillRect(0, LIP_Y, W, bottom - LIP_Y);
-    ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fillRect(0, LIP_Y - 1, W, 2.5);
+    let g;
+    this.drawBackdrop(ctx, top, bottom);
     this.drawSpeedLines(ctx);
     this.drawSnowMarks(ctx);
     for (const c of this.slope.crevasses) this.drawCrevasse(ctx, c);
@@ -377,6 +349,69 @@ class AvalancheRun {
     }
     this.drawHud(ctx);
     if (this.touchUI()) this.drawButtons(ctx);
+  }
+
+  /** The sky, the far range across the valley, and the long drop below you: the valley floor with its
+   *  frozen lake and a few lights, and the rest of your own mountainside running down to it. As the run
+   *  goes on the valley comes up to meet you. Then the snowfield, from its lip to your feet. */
+  drawBackdrop(ctx, top, bottom) {
+    const p = this.sim.p, sky = this.sky;
+    let g = ctx.createLinearGradient(0, top, 0, SKYLINE);
+    g.addColorStop(0, sky.sky[0]); g.addColorStop(0.6, sky.sky[1]); g.addColorStop(1, sky.sky[2]);
+    ctx.fillStyle = g; ctx.fillRect(0, top, W, SKYLINE - top + 2);
+    const pan = (bendAt(this.slope.bend, p.z) + this.camX) * 1.4;      // the view slides a little as the slope winds
+    const down = Number.isFinite(this.slope.len) ? clamp(p.z / this.slope.len, 0, 1) : 0.5;   // how far down the run you are
+    for (let layer = 0; layer < 2; layer++) {                           // the range on the far side of the valley
+      ctx.fillStyle = sky.peak[layer]; ctx.beginPath(); ctx.moveTo(0, SKYLINE + 2);
+      for (let i = -1; i <= 9; i++) {
+        const x = i * 70 - ((pan * (0.3 + layer * 0.3)) % 70) + layer * 30, h = 30 + hash(i * 7 + layer * 131 + Math.floor(pan * (0.3 + layer * 0.3) / 70) * 7) * (48 - layer * 20);
+        ctx.lineTo(x, SKYLINE + 2); ctx.lineTo(x + 35, SKYLINE - h + layer * 16);
+      }
+      ctx.lineTo(W, SKYLINE + 2); ctx.closePath(); ctx.fill();
+    }
+    // the drop: haze at the far side, deepening towards the valley floor under you
+    const depth = LIP_Y - SKYLINE;
+    g = ctx.createLinearGradient(0, SKYLINE, 0, LIP_Y);
+    g.addColorStop(0, sky.haze); g.addColorStop(0.45, sky.vale[0]); g.addColorStop(1, sky.vale[1]);
+    ctx.fillStyle = g; ctx.fillRect(0, SKYLINE, W, depth + 2);
+    for (let layer = 0; layer < 4; layer++) {                            // forested ridges stepping down into the valley
+      const y0 = SKYLINE + 14 + layer * depth * 0.2, sp = 0.5 + layer * 0.4, step = 52;
+      ctx.fillStyle = sky.vale[1]; ctx.globalAlpha = 0.2 + layer * 0.16;
+      ctx.beginPath(); ctx.moveTo(0, LIP_Y + 2);
+      for (let i = -1; i <= 11; i++) { const k = Math.floor(pan * sp / step) + i, x = i * step - ((pan * sp) % step); ctx.lineTo(x, y0 + hash(k * 13 + layer * 57) * 20 + Math.abs(x - W / 2) * -0.05 * layer); }
+      ctx.lineTo(W, LIP_Y + 2); ctx.closePath(); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    // the valley floor, seen from high above: it rises and widens as you come down the mountain
+    const cx = W / 2 - pan * 0.6, fy = SKYLINE + depth * (0.34 - 0.1 * down), sc = 0.8 + 0.5 * down;
+    ctx.fillStyle = sky.vale[2]; ctx.globalAlpha = 0.55;                // a frozen lake
+    ctx.beginPath(); ctx.ellipse(cx - 70 * sc, fy + 6 * sc, 62 * sc, 9 * sc, -0.05, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(cx - 20 * sc, fy + 8 * sc); ctx.bezierCurveTo(cx + 40 * sc, fy + 14 * sc, cx - 10 * sc, fy + 30 * sc, cx + 70 * sc, fy + 44 * sc);   // and the river out of it
+    ctx.lineTo(cx + 82 * sc, fy + 41 * sc); ctx.bezierCurveTo(cx + 6 * sc, fy + 28 * sc, cx + 56 * sc, fy + 12 * sc, cx - 14 * sc, fy + 4 * sc); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = 1;
+    for (let i = 0; i < 9; i++) {                                         // the village by the lake: a few warm windows
+      const a = hash(i * 3 + 11), b = hash(i * 5 + 2), x = cx + (20 + a * 70) * sc, y = fy + (-4 + b * 12) * sc;
+      ctx.fillStyle = '#3b2a22'; ctx.fillRect(x - 2.2 * sc, y - 2 * sc, 4.4 * sc, 3 * sc);
+      ctx.fillStyle = '#ffd166'; ctx.globalAlpha = 0.65 + 0.35 * Math.sin(this.t * 2 + i); ctx.fillRect(x - 0.8 * sc, y - 1.2 * sc, 1.6 * sc, 1.4 * sc); ctx.globalAlpha = 1;
+    }
+    // the rest of your own mountainside: the run goes on below the lip, far smaller, all the way to the village
+    const rx = W / 2 + (cx - W / 2) * 0.5, ry = fy + 20 * sc;
+    g = ctx.createLinearGradient(0, ry, 0, LIP_Y); g.addColorStop(0, sky.haze); g.addColorStop(1, sky.snow[0]);
+    ctx.fillStyle = g; ctx.globalAlpha = 0.9;
+    ctx.beginPath(); ctx.moveTo(rx - 5, ry); ctx.bezierCurveTo(rx - 30, ry + (LIP_Y - ry) * 0.4, W / 2 - 150, LIP_Y - 30, W / 2 - 200, LIP_Y + 2);
+    ctx.lineTo(W / 2 + 200, LIP_Y + 2); ctx.bezierCurveTo(W / 2 + 150, LIP_Y - 30, rx + 30, ry + (LIP_Y - ry) * 0.4, rx + 5, ry); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = 1; ctx.fillStyle = sky.pine[0];
+    for (let i = 0; i < 46; i++) {                                        // its forest, shrinking with the distance
+      const a = hash(i * 7 + 5), k = Math.pow(hash(i * 11 + 9), 0.7), y = ry + (LIP_Y - ry) * k, half = 6 + 190 * k * k, side = i % 2 ? 1 : -1;
+      const x = lerp(rx, W / 2, k) + side * (half + a * (10 + 60 * k)), hh = 2 + 12 * k;
+      ctx.globalAlpha = 0.35 + 0.5 * k; ctx.beginPath(); ctx.moveTo(x, y - hh); ctx.lineTo(x + hh * 0.35, y); ctx.lineTo(x - hh * 0.35, y); ctx.closePath(); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    // the snowfield you are on: in shadow where it rolls over, bright at your feet
+    g = ctx.createLinearGradient(0, LIP_Y, 0, H);
+    g.addColorStop(0, sky.snow[1]); g.addColorStop(0.04, sky.haze); g.addColorStop(0.16, sky.vale[0]); g.addColorStop(0.42, sky.snow[0]); g.addColorStop(1, sky.snow[1]);
+    ctx.fillStyle = g; ctx.fillRect(0, LIP_Y, W, bottom - LIP_Y);
+    ctx.fillStyle = 'rgba(255,255,255,0.95)'; ctx.fillRect(0, LIP_Y - 1.5, W, 3.5);
   }
 
   /** Streaks of snow rushing past from the middle of the view: more of them the faster you go. */
