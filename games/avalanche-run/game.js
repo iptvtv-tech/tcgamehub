@@ -126,6 +126,19 @@ class AvalancheRun {
     this.touchSeen = false; this.btnOn = { left: false, right: false, tuck: false, jump: false };
     this.layout();
     s.canvas.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse' && !this.touchSeen) { this.touchSeen = true; this.layout(); } });
+    // Phones: go by the finger list the phone sends with EVERY touch event, not by matching each press to
+    // its lift. iPhones sometimes drop or cancel a lift (a long press at the screen's edge is exactly what
+    // holding ◀ is), and a press whose lift never arrives would hold its button down for ever.
+    this.fingers = null;                                   // null until the first touch event: then the list of fingers on the canvas
+    const sync = (e) => {
+      this.syncTouches(Array.from(e.targetTouches, (q) => { const [x, y] = s.input.toLogical(q); return { x, y }; }));
+      if (!this.touchSeen) { this.touchSeen = true; this.layout(); }
+      if (e.cancelable && s.state === 'playing') e.preventDefault();      // no magnifier, no double-tap zoom, no page scroll under the thumbs
+    };
+    for (const type of ['touchstart', 'touchmove', 'touchend', 'touchcancel']) s.canvas.addEventListener(type, sync, { passive: false });
+    const letGo = () => { if (this.fingers) this.fingers = []; };
+    addEventListener('blur', letGo); addEventListener('pagehide', letGo);
+    document.addEventListener('visibilitychange', letGo);
     for (let i = 0; i < 70; i++) this.flakes.push({ x: Math.random() * W, y: Math.random() * H, r: 0.8 + Math.random() * 1.8, v: 0.4 + Math.random() });
     this.startLevel(1, false);
   }
@@ -145,13 +158,17 @@ class AvalancheRun {
   layout() {
     const band = this.s.bands?.bottom || 0, inBand = band >= 150;
     const cy = inBand ? H + band * 0.5 : H - PANEL / 2, r = inBand ? 46 : 40;
-    this.ctl = { left: { x: 58, y: cy, r }, right: { x: 58 + r * 2 + 16, y: cy, r }, tuck: { x: W - 58 - (r + 4) * 2 - 12, y: cy + 8, r: r - 4 }, jump: { x: W - 58, y: cy - 4, r: r + 4 } };
+    // kept 30 px clear of the screen's side edges: iPhones start their own swipes there
+    const lx = 30 + r, jx = W - 30 - (r + 4);
+    this.ctl = { left: { x: lx, y: cy, r }, right: { x: lx + r * 2 + 10, y: cy, r }, tuck: { x: jx - (r + 4) - (r - 4) - 10, y: cy + 8, r: r - 4 }, jump: { x: jx, y: cy - 4, r: r + 4 } };
   }
   onBandsChange() { this.layout(); }
+  /** The fingers on the canvas right now, as the phone reports them (see the constructor). */
+  syncTouches(list) { this.fingers = list; }
   /** Which buttons fingers rest on: each finger presses the button it is nearest to. */
   buttons() {
     const on = { left: false, right: false, tuck: false, jump: false }, C = this.ctl;
-    for (const q of this.s.input.pointers.values()) {
+    for (const q of this.fingers || this.s.input.pointers.values()) {
       let best = null, bd = 1e9;
       for (const k of ['left', 'right', 'tuck', 'jump']) { const b = C[k], d = Math.hypot(q.x - b.x, q.y - b.y); if (d < b.r + 24 && d - b.r < bd) { bd = d - b.r; best = k; } }
       if (best) on[best] = true;

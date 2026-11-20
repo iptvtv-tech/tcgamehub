@@ -24,6 +24,11 @@
 //  11 · rolling boulders: a tumble if you meet one, clear snow ahead of it and behind it
 //  12 · mercy: a tree you crashed into does not knock you down a second time; every life lost on
 //       a run puts the avalanche 15 m further back at the restart; a wolf pack does not return
+//  13 · phone buttons (bug, 20 Nov 2026: on an iPhone ◀ ▶ "glitch and get stuck"): the buttons go
+//       by the list of fingers the phone reports with every touch, so a finger whose lift was
+//       never reported cannot keep a button held; a finger that slides from ◀ to ▶ steers the
+//       other way at once; two thumbs work together; a cancelled touch lets go; and no button
+//       sits in the strips at the screen's side edges where iPhones start their own swipes
 import { loadGame, reporter, STEP } from '../../tools/lib/headless.mjs';
 import { botPlay, why } from '../../tools/lib/bot-play.mjs';
 import { HALF, PR, START_GAP, MERCY_GAP, SAFE_T, TUMBLE_V, BITE, BITE_SAFE, lineAt, flight, BONUS_LEVELS, FINAL_LEVEL } from './world.js';
@@ -259,6 +264,37 @@ for (const level of [7, 12]) {
   for (let k = 0; k < 3; k++) { g.sim.az = g.sim.p.z - 1; s.hold([]); s.run(1, () => s.livesLost > k); s.run(4, () => s.state === 'playing'); gaps.push(g.sim.gap); }
   t.check(gaps.every((d, k) => Math.abs(d - Math.min(90, START_GAP + MERCY_GAP * (k + 1))) < 3), `run 12: the avalanche restarted ${gaps.map((d) => d.toFixed(0)).join(', ')} m behind after 1, 2, 3 lives lost (should be ${[1, 2, 3].map((k) => Math.min(90, START_GAP + MERCY_GAP * k)).join(', ')})`);
   t.check(g.slope.packs.every((q) => !q.met || q.out), 'run 12: a wolf pack that was met is waiting again after a lost life');
+}
+
+// ── 13 · phone buttons ──
+{
+  const s = G.start({ seed: 1, level: 1 }), g = s.game;
+  g.touchSeen = true; g.layout();
+  const C = g.ctl, at = (k) => ({ x: C[k].x, y: C[k].y });
+  if (t.check(typeof g.syncTouches === 'function', 'the game has no finger list of its own (syncTouches): it can only trust lift events, which iPhones sometimes do not send')) {
+    // a finger went down on ▶ and its lift was never reported: the old pointer record is still there
+    s.input.pointers?.set?.(7, { ...at('right'), t: 0 });
+    g.syncTouches([]);
+    t.check(g.readInput().dir === 0, `with no finger on the screen the sled still steers ${g.readInput().dir > 0 ? 'right' : 'left'} (a stuck button)`);
+    g.syncTouches([at('left')]);
+    t.check(g.readInput().dir === -1, 'a finger on ◀ does not steer left');
+    g.syncTouches([{ x: C.right.x - 4, y: C.right.y + 6 }]);
+    t.check(g.readInput().dir === 1, 'a finger that slid from ◀ onto ▶ does not steer right');
+    g.syncTouches([at('left'), at('jump')]);
+    const two = g.readInput();
+    t.check(two.dir === -1 && two.jump && !two.tuck, `two thumbs on ◀ and JUMP read as ${JSON.stringify(two)}`);
+    g.syncTouches([at('right'), at('tuck')]);
+    const tk = g.readInput();
+    t.check(tk.dir === 1 && tk.tuck && !tk.jump, `two thumbs on ▶ and TUCK read as ${JSON.stringify(tk)}`);
+    g.syncTouches([{ x: (C.left.x + C.right.x) / 2 - 1, y: C.left.y }]);
+    t.check(g.readInput().dir === -1, 'a thumb between ◀ and ▶, nearer ◀, does not steer left');
+    g.syncTouches([]);                                  // a cancelled touch reports no fingers
+    const none = g.readInput();
+    t.check(none.dir === 0 && !none.jump && !none.tuck, `after a cancelled touch the buttons read ${JSON.stringify(none)}`);
+    s.input.pointers?.delete?.(7);
+  }
+  for (const k of ['left', 'right', 'tuck', 'jump']) t.check(C[k].x - C[k].r >= 26 && C[k].x + C[k].r <= 480 - 26, `the ${k} button reaches to ${Math.round(Math.min(C[k].x - C[k].r, 480 - C[k].x - C[k].r))} px from the screen's side edge (iPhones start their own swipes there; keep 26 clear)`);
+  t.check(C.right.x - C.right.r - (C.left.x + C.left.r) >= 8 && C.jump.x - C.jump.r - (C.tuck.x + C.tuck.r) >= 8, 'two buttons touch or overlap');
 }
 
 t.done(`${runs} runs finished after a real tumble (${tumbles} tumbles in all); a tumble costs ground, not a life; the avalanche costs one life and restarts you on clear snow ${START_GAP} m ahead of it; crystal rushes cannot be lost; ramps throw the sled as the rules say, a full spin lands clean and half a spin tumbles; crevasses cost one life and are crossed by ramp or by a timed jump; a jump clears rocks; wolf bites slow but never tumble, wolves can be knocked down or dodged; yeti boulders can be stepped around and yetis flattened; a run gets kinder each time it beats you`);
