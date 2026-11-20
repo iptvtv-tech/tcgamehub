@@ -682,6 +682,27 @@ export const GAMES = [
       { id: 'score10k', icon: '🏅', title: 'Ten Grand',       desc: 'Score 10,000 in one game' },
     ],
   },
+  {
+    id: 'avalanche-run',
+    genres: ['racing', 'action'],
+    is3d: true,
+    gold: 'Golden Iceman',          // golden character, unlocked by the Zone 6 egg (once Zone 6's Legends game exists) — never sold
+    title: 'Avalanche Run',
+    tagline: 'The Iceman is out of the volcano, and now the mountain is coming down behind him. Sled down the frozen slope, weave through the trees and reach the hut before the avalanche reaches you.',
+    controls: '← → steer (spin in the air) · ↓ tuck for speed (grab in the air) · ↑ or Space jump (touch: ◀ ▶, TUCK and JUMP)',
+    color: '#7dd3fc',
+    isNew: true,
+    achievements: [
+      { id: 'first',    icon: '🛷', title: 'First Descent',  desc: 'Reach the hut at the bottom of run 1' },
+      { id: 'clean',    icon: '❄️', title: 'Clean Sweep',    desc: 'Reach a hut without a single tumble' },
+      { id: 'outrun',   icon: '🏔️', title: 'Outrun',         desc: 'Reach the hut on run 15 and outrun the mountain' },
+      { id: 'trickster', icon: '🌀', title: 'Trickster',     desc: 'Land a triple spin off one ramp' },
+      { id: 'yeti',     icon: '🦶', title: 'Yeti Hopper',    desc: 'Come down on a yeti from the air and flatten it' },
+      { id: 'wolves',   icon: '🐺', title: 'Wolf Tamer',     desc: 'Knock down 5 ice wolves in one run' },
+      { id: 'level10',  icon: '🌲', title: 'Deep Forest',    desc: 'Reach run 10' },
+      { id: 'score10k', icon: '🏅', title: 'Ten Grand',      desc: 'Score 10,000 in one game' },
+    ],
+  },
 ];
 
 // Badges that any game can earn (unlocked automatically by the engine).
@@ -738,8 +759,8 @@ export const ZONES = [
   { n: 5, name: 'Zone 5 · Beyond', blurb: 'Ultra difficulty, out past the Earth. Vault of Stars is this zone\'s Legends game.',
     legendGame: 'vault-of-stars',
     slots: ['lunar-delivery', 'orbit-hopper', 'station-defense', 'dock-master', 'astro-explorer', 'vault-of-stars'] },
-  { n: 6, name: 'Zone 6 · Inferno', blurb: 'Beyond Ultra, into the fire. Magma Escape is open now; five more games are on their way.',
-    slots: ['magma-escape', null, null, null, null, null] },
+  { n: 6, name: 'Zone 6 · Inferno', blurb: 'Beyond Ultra, into the fire and the ice. Magma Escape and Avalanche Run are open now; four more games are on their way.',
+    slots: ['magma-escape', 'avalanche-run', null, null, null, null] },
   { n: 7, name: 'Zone 7 · Coming soon', blurb: 'A whole new zone is being built. Check back soon!',
     slots: [null, null, null, null, null, null] },
 ];

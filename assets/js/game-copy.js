@@ -188,4 +188,10 @@ export const COPY = {
     how: ['Climb from ledge to ledge up to the cold air of the vent at the top, before the rising lava catches you.', 'Your size is your health: every burn melts you smaller, and a smaller Iceman jumps lower. Ice crystals freeze you back up.', 'Slash the magma creatures that drip from above. A slash while falling is a jump-stab that bounces you up.', 'Levels 5, 10 and 15 are boss fights: your blade only hurts a boss while it is dazed and glowing white.'],
     tip: 'Hold JUMP for a higher jump; a quick tap is a short hop that still clears a ledge.',
   },
+  'avalanche-run': {
+    kind: 'downhill sled game',
+    blurb: 'Sled down a frozen mountain with an avalanche right behind you. Weave through the trees, tuck for speed and reach the hut at the bottom.',
+    how: ['Steer left and right between the trees and rocks. The sled picks up speed by itself.', 'Hold tuck to go faster. You steer less while tucked, so use it where the snow is open.', 'Snow ramps throw you into the air. Hold left or right to spin, let go before you land, and a clean landing gives a burst of speed. Jump hops over rocks and, timed well, over crevasses.', 'Hitting something is a tumble: you lose no life, but the avalanche gains on you. The bar at the top shows how far ahead you are.', 'Ice wolves crouch, then lunge: swerve into one first to knock it down. Yetis throw snow boulders at the red ring on the snow, so steer off it.', 'If the avalanche catches you, you lose a life and start again from the flag halfway down. Reach the hut to finish the run.'],
+    tip: 'Skim close past a tree for extra points, and look far down the slope: the gaps show up early.',
+  },
 };
