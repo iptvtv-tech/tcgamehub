@@ -356,7 +356,7 @@ export class SlopeSim {
       if (w.state === 'down' || w.state === 'away') { w.dz -= (w.state === 'down' ? 14 : 5) * dt; w.x += w.side * 6 * dt; if (w.dz < -14 || Math.abs(w.x) > HALF + 5) w.state = 'gone'; continue; }
       if (crevNear || w.lunges >= 2 && w.state === 'run' || this.done) { w.state = 'away'; continue; }
       if (w.state === 'in') { toward(home, 9); w.dz += (0.4 - w.dz) * Math.min(1, 1.6 * dt); if (w.t > 0 && Math.abs(w.x - home) < 0.6 && w.dz < 1.5) { w.state = 'run'; w.t = 0; } }
-      else if (w.state === 'run') { toward(home, 5); w.dz += (0.4 - w.dz) * Math.min(1, 3 * dt); if (w.t > (w.lunges ? 1.7 : 1.1) && Math.abs(w.x - home) < 1 && this.wolfTurn <= 0) { w.state = 'crouch'; w.t = 0; this.wolfTurn = WOLF_CROUCH + WOLF_LUNGE + 0.6; } }   // (one wolf of a pack at a time)
+      else if (w.state === 'run') { toward(home, 5); w.dz += (0.4 - w.dz) * Math.min(1, 3 * dt); if (w.t > (w.lunges ? 1.7 : 1.1) && Math.abs(w.x - home) < 1 && this.wolfTurn <= 0) { w.state = 'crouch'; w.t = 0; this.wolfTurn = WOLF_CROUCH + WOLF_LUNGE + 0.6; ev.push({ type: 'crouch', w }); } }   // (one wolf of a pack at a time)
       else if (w.state === 'crouch') { if (w.t > WOLF_CROUCH) { w.state = 'lunge'; w.t = 0; w.lunges++; } }
       else if (w.state === 'lunge') { w.x -= w.side * 10 * dt; if (w.t > WOLF_LUNGE) { w.state = 'run'; w.t = 0; } }
       // touching the sled

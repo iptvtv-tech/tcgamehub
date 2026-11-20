@@ -21,7 +21,8 @@
 //  one gate (from run 8), torches on the night runs, a blizzard on runs 13 and 14 (you see about half
 //  as far), frost gusts that throw the avalanche back, and on run 15 the giant yeti.
 //
-//  SECTIONS 1–4 (this file so far). Still to come: its own music and sounds (5).
+//  Its own music and sounds are in sfx.js (Section 5): three tunes, and the tempo rises as the
+//  avalanche closes in.
 //
 //  The rules live in world.js (pure, shared with check.mjs, test.mjs and bench.mjs). This file is
 //  input, camera, drawing, sound and points.
@@ -29,6 +30,7 @@
 import { runGame, roundRect, clamp } from '../../assets/js/engine.js';
 import { SlopeSim, makeSlope, bendAt, HALF, MAX_GAP, BONUS_LEVELS, FINAL_LEVEL } from './world.js';
 import { drawIcemanSled, drawIcemanFront, drawSled, drawWolf, drawYeti, PAL } from './art.js';
+import { MUSIC, tuneFor, makeSfx } from './sfx.js';
 
 const ID = 'avalanche-run';
 const W = 480, H = 720;
@@ -76,6 +78,8 @@ const LEVEL_INFO = {
   15: 'The giant yeti is coming down after you. Get out from under its shadow.',
 };
 
+let tune = MUSIC.slope;              // the tune of the run in play (sfx.js)
+
 runGame({
   id: ID,
   width: W, height: H,
@@ -88,7 +92,7 @@ runGame({
   comboWindow: 3,
   comboStep: 3,
   maxMultiplier: 5,
-  music: { bpm: 138, style: 'minor', lead: 'triangle' },      // the game's own tune comes with Section 5
+  get music() { return tune; },                             // (the engine re-applies this after a pause, so it follows the run's tune)
   levelName: 'Run',
   levelTitle: (level) => `Run ${level}`,
   clearText: 'SAFE IN THE HUT!',
@@ -130,7 +134,8 @@ class AvalancheRun {
     this.layout();
     s.canvas.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse' && !this.touchSeen) { this.touchSeen = true; this.layout(); } });
     for (let i = 0; i < 70; i++) this.flakes.push({ x: Math.random() * W, y: Math.random() * H, r: 0.8 + Math.random() * 1.8, v: 0.4 + Math.random() });
-    this.startLevel(1, false);
+    this.sfx = makeSfx(s.sound);
+    this.boot = true; this.startLevel(1, false); this.boot = false;      // (the title screen does not start the tune)
   }
 
   startLevel(level, bonus) {
@@ -141,6 +146,9 @@ class AvalancheRun {
     this.blizzard = !bonus && this.slope.R.blizzard; this.night = !bonus && this.sky === SKIES.night;
     this.sight = this.blizzard ? 84 : FAR;             // how far down the slope things are drawn (m)
     this.paid = 0; this.camX = this.sim.p.x; this.chunks = []; this.livesAtStart = this.s.lives; this.arrive = 0; this.arrived = false;
+    // the run's tune (it starts here on every run but the title screen's)
+    tune = tuneFor(level, bonus); this.bpm = 0; this.loopT = 0; this.lastDir = 0;
+    if (!this.boot && this.s.sound.musicOn) this.s.sound.startMusic(tune);
   }
   onLifeLost() { this.sim.reset(); this.camX = this.sim.p.x; this.paid = Math.floor(this.sim.p.z / 100); this.chunks = []; }
   onAction() { /* the controls are read each step (keys and touch) */ }
@@ -185,76 +193,80 @@ class AvalancheRun {
     this.camX += (p.x - this.camX) * Math.min(1, 9 * dt);
     for (const e of events) {
       if (e.type === 'tumble') {
-        s.resetCombo(); s.sound.play('hit'); s.fx.shake(7, 0.25);
+        s.resetCombo(); this.sfx.tumble(); s.fx.shake(7, 0.25);
         s.fx.text(W / 2, SLED_Y - 120, e.bad ? 'BAD LANDING!' : e.by === 'boulder' ? 'BOULDER!' : e.by === 'giant' ? 'FLATTENED!' : 'TUMBLE!', { color: '#fca5a5', size: 26 });
         s.fx.burst(W / 2, SLED_Y - 20, { colors: ['#ffffff', '#dbeafe'], count: 22, speed: 220 });
       } else if (e.type === 'near') {
         s.award(5 * L, W / 2 + (e.o.x > p.x ? 60 : -60), SLED_Y - 70, { chain: true, color: '#7dd3fc', size: 18 });
-        s.sound.play('flap', s.comboCount);
+        this.sfx.near(e.o.x > p.x ? 0.8 : -0.8);
       } else if (e.type === 'crystal') {
         s.award(10 * L, W / 2, SLED_Y - 60, { chain: true, color: '#a5f3fc', size: 18 });
-        s.sound.play('gem', s.comboCount);
+        this.sfx.crystal(s.comboCount);
       } else if (e.type === 'ice') {
-        s.sound.play('flap', 8); s.fx.text(W / 2, SLED_Y - 120, 'ICE!', { color: '#bae6fd', size: 22 });
+        this.sfx.ice(); s.fx.text(W / 2, SLED_Y - 120, 'ICE!', { color: '#bae6fd', size: 22 });
       } else if (e.type === 'drift') {
-        s.sound.play('brick', 0); s.fx.text(W / 2, SLED_Y - 120, 'DEEP SNOW', { color: '#e0f2fe', size: 20 });
+        this.sfx.drift(); s.fx.text(W / 2, SLED_Y - 120, 'DEEP SNOW', { color: '#e0f2fe', size: 20 });
         s.fx.burst(W / 2, SLED_Y - 10, { colors: ['#ffffff', '#dbeafe'], count: 24, speed: 200 });
       } else if (e.type === 'gust') {
         s.award(100 * L, W / 2, SLED_Y - 110, { color: '#a5f3fc', size: 22 });
         s.fx.text(W / 2, 250, 'FROST GUST!  Avalanche thrown back', { color: '#cffafe', size: 20, life: 1.5 });
-        s.fx.flash('#cffafe'); s.sound.play('powerup');
+        s.fx.flash('#cffafe'); this.sfx.gust();
       } else if (e.type === 'roar') {
-        s.sound.tone?.({ freq: 150, to: 70, dur: 0.9, type: 'sawtooth', vol: 0.12 }); s.fx.shake(4, 0.4);
+        this.sfx.roar(true); s.fx.shake(4, 0.4);
         s.fx.text(W / 2, 250, 'THE GIANT!', { color: '#fecaca', size: 28, life: 1.2 });
       } else if (e.type === 'slam') {
-        s.sound.play('boom'); s.fx.shake(14, 0.5);
+        this.sfx.slam(); s.fx.shake(14, 0.5);
         const q = this.project(e.G.x, 0.5, e.G.z); if (q) s.fx.burst(q[0], q[1], { colors: ['#ffffff', '#dbeafe'], count: 40, speed: 60 + q[2] * 6 });
       } else if (e.type === 'gstomp') {
         s.award(500 * L, W / 2, SLED_Y - 140, { color: '#fde047', size: 28 });
         s.fx.text(W / 2, SLED_Y - 185, 'GIANT DAZED!', { color: '#fef9c3', size: 24, life: 1.4 });
-        s.sound.play('golden'); s.fx.shake(8, 0.3); s.unlock('yeti');
+        this.sfx.stomp(); this.sfx.dazed(); s.fx.shake(8, 0.3); s.unlock('giant');
       } else if (e.type === 'howl') {
-        s.sound.tone?.({ freq: 420, to: 760, dur: 0.7, type: 'sine', vol: 0.08 });
+        this.sfx.howl(e.n);
         s.fx.text(W / 2, 250, e.n > 1 ? 'WOLVES!' : 'A WOLF!', { color: '#e0f2fe', size: 24, life: 1.1 });
       } else if (e.type === 'bite') {
-        s.resetCombo(); s.sound.play('hit', 3); s.fx.shake(5, 0.2);
+        s.resetCombo(); this.sfx.bite(); s.fx.shake(5, 0.2);
         s.fx.text(W / 2, SLED_Y - 120, 'BITTEN!', { color: '#fca5a5', size: 24 });
       } else if (e.type === 'knock') {
         s.award(40 * L, W / 2 + e.w.side * 70, SLED_Y - 80, { chain: true, color: '#fde047', size: 22 });
-        s.sound.play('bounce', 5); s.fx.burst(W / 2 + e.w.side * 60, SLED_Y - 30, { colors: ['#ffffff', '#c9d6e6'], count: 16, speed: 220 });
+        this.sfx.yelp(e.w.side * 0.8); s.fx.burst(W / 2 + e.w.side * 60, SLED_Y - 30, { colors: ['#ffffff', '#c9d6e6'], count: 16, speed: 220 });
         if (sim.knocks >= 5) s.unlock('wolves');
       } else if (e.type === 'stomp') {
         s.award(150 * L, W / 2, SLED_Y - 130, { chain: true, color: '#fde047', size: 26 });
         s.fx.text(W / 2, SLED_Y - 170, 'YETI FLATTENED!', { color: '#fef9c3', size: 22, life: 1.2 });
-        s.sound.play('boom'); s.fx.shake(6, 0.2); s.unlock('yeti');
+        this.sfx.stomp(); s.fx.shake(6, 0.2); s.unlock('yeti');
       } else if (e.type === 'throw') {
-        s.sound.play('flap', 1);
+        this.sfx.roar(false); this.sfx.throwIt();
       } else if (e.type === 'thud') {
-        s.sound.play('brick', 2);
+        this.sfx.thud();
         const q = this.project(e.b.x, 0.5, e.b.z); if (q) s.fx.burst(q[0], q[1], { colors: ['#ffffff', '#dbeafe'], count: 18, speed: 30 + q[2] * 3 });
       } else if (e.type === 'rumble') {
-        s.sound.play('metal', 1); s.fx.text(e.q.side > 0 ? W - 70 : 70, 300, 'BOULDER!', { color: '#fecaca', size: 18, life: 0.9 });
+        this.sfx.roller(e.q.side * 0.9); s.fx.text(e.q.side > 0 ? W - 70 : 70, 300, 'BOULDER!', { color: '#fecaca', size: 18, life: 0.9 });
       } else if (e.type === 'launch') {
-        s.sound.play('flap', 6); this.airBest = 0;
+        this.sfx.launch();
       } else if (e.type === 'hop') {
-        s.sound.play('flap', 2);
+        this.sfx.hop();
       } else if (e.type === 'cleared') {
+        this.sfx.cleared();
         s.award(8 * L, W / 2, SLED_Y - 90, { chain: true, color: '#7dd3fc', size: 18 });
       } else if (e.type === 'trick') {
         const pts = (e.spins * 60 + (e.grab ? 40 : 0)) * L, name = `${e.spins >= 3 ? 'TRIPLE SPIN' : e.spins === 2 ? 'DOUBLE SPIN' : e.spins === 1 ? 'SPIN' : ''}${e.spins && e.grab ? ' + ' : ''}${e.grab ? 'GRAB' : ''}`;
         s.award(pts, W / 2, SLED_Y - 110, { chain: true, color: '#fde047', size: 24 });
         s.fx.text(W / 2, SLED_Y - 150, `${name}!  CLEAN LANDING`, { color: '#fef9c3', size: 20, life: 1.2 });
         s.fx.burst(W / 2, SLED_Y - 10, { colors: ['#ffffff', '#fde047'], count: 26, speed: 260 });
-        s.sound.play('powerup');
+        this.sfx.land(); this.sfx.trick(e.spins);
         if (e.spins >= 3) s.unlock('trickster');
+      } else if (e.type === 'crouch') {
+        this.sfx.growl(e.w.side * 0.8);
       } else if (e.type === 'land') {
+        this.sfx.land();
         s.fx.burst(W / 2, SLED_Y - 6, { colors: ['#ffffff', '#dbeafe'], count: 12, speed: 160 });
       } else if (e.type === 'fell') {
-        s.fx.flash('#0b1b3a'); s.fx.shake(10, 0.4); s.sound.play('boom');
+        s.fx.flash('#0b1b3a'); s.fx.shake(10, 0.4); this.sfx.fell();
         s.fx.text(W / 2, SLED_Y - 140, 'INTO THE CREVASSE!', { color: '#bae6fd', size: 24 });
         return s.hurt();
       } else if (e.type === 'flag') {
-        s.sound.play('powerup'); s.fx.text(W / 2, 230, 'HALFWAY FLAG!', { color: '#fde047', size: 26, life: 1.3 });
+        this.sfx.flag(); s.fx.text(W / 2, 230, 'HALFWAY FLAG!', { color: '#fde047', size: 26, life: 1.3 });
       } else if (e.type === 'hut') {
         const lead = Math.round(e.gap);
         s.award(lead * 5 * L, W / 2, 260, { color: '#86efac', size: 24 });
@@ -262,17 +274,18 @@ class AvalancheRun {
         if (sim.tumbles === 0 && s.lives >= this.livesAtStart) { s.award(300 * L, W / 2, 310, { color: '#fde047', size: 22 }); s.unlock('clean'); }
         s.unlock('first');
         if (L >= FINAL_LEVEL) s.unlock('outrun');
-        s.sound.play('golden');
+        this.sfx.hut();
         this.arrive = ARRIVE_T; this.arrived = true;      // he steps off and turns round; the run is cleared when that is over
         return;
       } else if (e.type === 'caught') {
-        s.fx.flash('#ffffff'); s.fx.shake(12, 0.5); s.sound.play('boom');
+        s.fx.flash('#ffffff'); s.fx.shake(12, 0.5); this.sfx.caught();
         return s.hurt();
       }
     }
     // a little for every 100 m ridden
     const hundreds = Math.floor(p.z / 100);
     if (hundreds > this.paid) { this.paid = hundreds; s.award(10 * L, W - 70, 120, { color: '#e0f2fe', size: 16 }); }
+    this.soundscape(dt);
     // the avalanche's breath on your neck
     if (!this.bonus) {
       const near = clamp(1 - sim.gap / 40, 0, 1);
@@ -280,6 +293,26 @@ class AvalancheRun {
       if (near > 0.55 && Math.random() < 0.08) s.fx.shake(2 + near * 4, 0.15);
     }
     this.drift(dt, p.v);
+  }
+  /** The sounds that never stop: runners on the snow, the wind, the avalanche behind you, the storm;
+   *  and the tune's tempo, which rises as the avalanche closes in. */
+  soundscape(dt) {
+    const s = this.s, sim = this.sim, p = sim.p, k = clamp(p.v / 50, 0, 1), near = this.bonus ? 0 : clamp(1 - sim.gap / 45, 0, 1);
+    this.loopT += dt;
+    const beat = Math.floor(this.loopT / 0.13), was = Math.floor((this.loopT - dt) / 0.13);
+    if (beat !== was) {
+      if (!p.air && p.tumble <= 0) this.sfx.runners(k);
+      if (beat % 2 === 0 && (p.tuck || p.boost > 0 || p.air)) this.sfx.wind(k);
+      if (beat % 3 === 0 && near > 0.05) this.sfx.rumble(near);
+      if (this.blizzard && beat % 9 === 0) this.sfx.blizzard();
+      // the tune: a little faster each run, and up to a fifth faster with the avalanche close (the engine's own
+      // per-level climb would have the storm tune at 190 beats a minute before the avalanche is even near)
+      const bpm = tune.bpm * (1 + (this.level - 1) * 0.012) * (1 + 0.2 * near);
+      if (Math.abs(bpm - this.bpm) > 1.5) { this.bpm = bpm; s.sound.setTempo(bpm); }
+    }
+    // a hard turn bites into the snow
+    const dir = Math.sign(Math.round(p.vx / 6));
+    if (dir !== this.lastDir) { if (dir && !p.air && p.tumble <= 0) this.sfx.carve(dir * 0.7); this.lastDir = dir; }
   }
   idle(dt) { this.t += dt; this.drift(dt, 6); }
   /** Falling snow and flying chunks (for the eye only). */

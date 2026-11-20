@@ -688,7 +688,7 @@ export const GAMES = [
     is3d: true,
     gold: 'Golden Iceman',          // golden character, unlocked by the Zone 6 egg (once Zone 6's Legends game exists) — never sold
     title: 'Avalanche Run',
-    tagline: 'The Iceman is out of the volcano, and now the mountain is coming down behind him. Sled down the frozen slope, weave through the trees and reach the hut before the avalanche reaches you.',
+    tagline: 'The Iceman is out of the volcano, and now the mountain is coming down behind him. Sled down the frozen slope past wolves, yetis and the ruins of the ice kingdom, and reach the hut before the avalanche reaches you.',
     controls: '← → steer (spin in the air) · ↓ tuck for speed (grab in the air) · ↑ or Space jump (touch: ◀ ▶, TUCK and JUMP)',
     color: '#7dd3fc',
     isNew: true,
@@ -699,6 +699,7 @@ export const GAMES = [
       { id: 'trickster', icon: '🌀', title: 'Trickster',     desc: 'Land a triple spin off one ramp' },
       { id: 'yeti',     icon: '🦶', title: 'Yeti Hopper',    desc: 'Come down on a yeti from the air and flatten it' },
       { id: 'wolves',   icon: '🐺', title: 'Wolf Tamer',     desc: 'Knock down 5 ice wolves in one run' },
+      { id: 'giant',    icon: '👣', title: 'Giant Dazed',    desc: 'Jump onto the giant yeti’s head on run 15' },
       { id: 'level10',  icon: '🌲', title: 'Deep Forest',    desc: 'Reach run 10' },
       { id: 'score10k', icon: '🏅', title: 'Ten Grand',      desc: 'Score 10,000 in one game' },
     ],
