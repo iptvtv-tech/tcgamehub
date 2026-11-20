@@ -35,6 +35,11 @@
 //     farm for 3 roads of every delivery 1–19 (find-routes.mjs). Each is played here in the real
 //     game, key for key: the egg must arrive. Most arrive with their first egg; on a few roads one
 //     egg can't make it (too many mushrooms) and the drive lets it go at the checkpoint flag.
+// 10. Mushrooms (19 Nov 2026): a bounce throws the truck about 340 px up, and the landing knocked the
+//     egg hard enough to crack it nearly every time (9 bounces in 10 ended with a crack or a lost
+//     egg, even for a careful driver), then sprang it out of its cup. For 2.5 s after a bounce the
+//     egg now does not spring back off the truck, and the first hard knock (the landing) cannot
+//     crack it. Keeping the truck level in the air is still up to the driver.
 // Ramp kickers (the 200–320 px run-up to each lip, meant to be jumped at speed) and the chasms are
 // left out of the climb check; everywhere else a climb stays within the cap, and nowhere does the
 // road jump in a single sample.
@@ -160,4 +165,34 @@ for (let level = 1; level <= LEVELS; level++) {
   wholeNote = `; ${drives} whole deliveries driven start to farm (${twoEggs} need a second egg from the flag)`;
 }
 
-t.done(`${roads} roads: no walls, steepest climb ${worstGrade.toFixed(2)} (cap ${GRADE}), longest steep climb ${longest} px (cap ${RUN}), biggest one-sample rise ${worstStep.toFixed(0)} px outside chasms; ${ramps} ramps on gentle ground, steepest kicker ${worstKick.toFixed(2)} (cap ${RAMP_GRADE}); ${chasms} chasms with a flat, clear run-up (steepest ${worstRunUp.toFixed(2)}); ${gusts} gusts, none on a steep slope against the truck; ${restarts} restarts at the flag keep their egg; ${oils} oil patches, none on a climb${wholeNote}`);
+// ── 10 · mushrooms: the landing after a bounce does not crack the egg ──
+let softNote = '';
+{
+  let bounces = 0, cracked = 0;
+  for (const level of [3, 4, 6, 7, 8, 9]) for (let seed = 1; seed <= 3; seed++) {
+    const gameSeed = seed * 7919 + level * 31 + 1;
+    const s0 = EG.start({ seed: gameSeed, level, unlimited: true }); s0.game.ensure(s0.game.goalX);
+    for (const mx of s0.game.mushrooms.map((m) => m.x).filter((x) => x > 600 && x < s0.game.goalX - 800).slice(0, 4)) {
+      const s = EG.start({ seed: gameSeed, level, unlimited: true }), g = s.game;
+      s.hold([]); s.tick(); g.ensure(g.goalX);
+      g.spawn(mx - 280);                                       // drive at it from 280 px back, then let go
+      const m = g.mushrooms.find((q) => q.x === mx), lives = s.livesLost;
+      let at = -1, air = 0, down = -1, c0 = 0;
+      for (let i = 0; i < 8 * 120 && s.livesLost === lives; i++) {
+        if (at < 0 && m.cd > 1) { at = i; c0 = g.egg.cracks; }
+        s.hold(at < 0 ? ['right'] : []); s.tick();
+        if (at < 0 || s.state !== 'playing') continue;
+        const on = g.car.wheels.some((w) => w.on);
+        if (down < 0) { if (!on) air++; else if (air > 36) down = i; }
+        if (down >= 0 && i - down > 36) break;                 // 0.3 s after the wheels touch down
+      }
+      if (down < 0) continue;
+      bounces++;
+      if (s.livesLost === lives && g.egg.cracks > c0) { cracked++; if (cracked <= 2) t.fail(`delivery ${level} seed ${seed}: the landing after the mushroom at x=${mx.toFixed(0)} cracked the egg (a bounce's landing is cushioned)`); }
+    }
+  }
+  t.check(bounces >= 10, `only ${bounces} mushroom bounces could be tried (expected 10 or more)`);
+  softNote = `; ${bounces} mushroom bounces landed without a crack`;
+}
+
+t.done(`${roads} roads: no walls, steepest climb ${worstGrade.toFixed(2)} (cap ${GRADE}), longest steep climb ${longest} px (cap ${RUN}), biggest one-sample rise ${worstStep.toFixed(0)} px outside chasms; ${ramps} ramps on gentle ground, steepest kicker ${worstKick.toFixed(2)} (cap ${RAMP_GRADE}); ${chasms} chasms with a flat, clear run-up (steepest ${worstRunUp.toFixed(2)}); ${gusts} gusts, none on a steep slope against the truck; ${restarts} restarts at the flag keep their egg; ${oils} oil patches, none on a climb${wholeNote}${softNote}`);

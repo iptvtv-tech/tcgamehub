@@ -9,6 +9,8 @@
 //       up on the way is needed, so they still work when a floor is replayed after a catch
 //   3 · a catch costs one life and puts everything back: you, the guards, the crown, the gate
 //   4 · the Treasure Vaults (5, 10) and the Empty Throne (16) have nothing that can catch you
+//   5 · floors 6–9, 12 and 13 are eased (19 Nov 2026): their guards move 15% slower, because an
+//       average player lost 4–9 lives on each of them (floor 14 is not: slower guards block it)
 // If a way stops working after a change to the game, run `node games/crown-heist/find-routes.mjs`
 // (slow: it works every floor out again); a floor it can't find a way for is a floor to look at.
 import { loadGame, reporter, STEP } from '../../tools/lib/headless.mjs';
@@ -77,4 +79,22 @@ for (const level of [5, 10, 16]) {
   t.check(s.cleared === 1 && s.livesLost === 0, `floor ${level}: ${s.cleared ? '' : 'not finished; '}${s.livesLost} lives lost on a floor with nothing that can catch you`);
 }
 
-t.done(`${floors} floors each have a flawless way out that plays in the real game (the longest takes ${longest.toFixed(0)} s); a catch puts everything back; vaults and the Empty Throne are safe`);
+// ── 5 · the eased floors: guards on 6–9, 12 and 13 walk 15% slower than their kind does elsewhere ──
+{
+  const WALK = { skeleton: 0.80, knight: 0.92 };
+  const pace = (level) => {                         // the fastest any calm guard walks, as a share of its kind's walk
+    const s = G.start({ seed: 1, level, unlimited: true }), g = s.game;
+    let top = 0;
+    for (let i = 0; i < 6 / STEP; i++) {
+      const was = g.guards.map((o) => [o.x, o.y]);
+      s.hold([]); s.tick();
+      if (s.state !== 'playing') continue;
+      g.guards.forEach((o, k) => { if (!o.dead && o.state === 'patrol' && !o.alert) top = Math.max(top, Math.hypot(o.x - was[k][0], o.y - was[k][1]) / STEP / WALK[o.kind]); });
+    }
+    return top;
+  };
+  for (const level of [6, 7, 8, 9, 12, 13]) { const v = pace(level); t.check(v > 0.8 && v < 0.86, `floor ${level}: calm guards walk at ${(v * 100).toFixed(0)}% of their usual pace (should be 85%)`); }
+  for (const level of [4, 11, 14, 15]) { const v = pace(level); t.check(v > 0.99 && v < 1.01, `floor ${level}: calm guards walk at ${(v * 100).toFixed(0)}% of their usual pace (should be 100%)`); }
+}
+
+t.done(`${floors} floors each have a flawless way out that plays in the real game (the longest takes ${longest.toFixed(0)} s); a catch puts everything back; vaults and the Empty Throne are safe; guards are 15% slower on floors 6–9, 12 and 13`);

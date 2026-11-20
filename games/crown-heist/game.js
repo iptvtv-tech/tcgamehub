@@ -52,6 +52,12 @@ const GUARD = {
   skeleton: { walk: 0.80, alert: 1.08, run: 1.48, range: 4.1, cone: 0.55, light: [1.15, 0.6, 0.24], rad: 4.4 },
   knight:   { walk: 0.92, alert: 1.24, run: 1.96, range: 5.0, cone: 0.6,  light: [1.3, 0.85, 0.35], rad: 5.0 },
 };
+// Floors 6–9, 12 and 13 forgave almost no hesitation (an average player lost 4–9 lives on each): their
+// guards walk, hurry and run 15% slower. Eyes and ears are unchanged. Floor 14 is left alone: with
+// slower guards its corridors stay blocked for longer and no flawless way out was found. (19 Nov 2026)
+const EASED_FLOORS = new Set([6, 7, 8, 9, 12, 13]), EASE = 0.85;
+const eased = (T) => ({ ...T, walk: T.walk * EASE, alert: T.alert * EASE, run: T.run * EASE });
+const GUARD_EASED = { skeleton: eased(GUARD.skeleton), knight: eased(GUARD.knight) };
 
 runGame({
   id: ID,
@@ -165,6 +171,7 @@ class CrownHeist {
   startLevel(level, bonus) {
     const s = this.s;
     this.level = level; this.bonus = bonus;
+    this.guardT = EASED_FLOORS.has(level) && !bonus ? GUARD_EASED : GUARD;
     this.f = buildFloor(level);
     this.secret = level === SECRET;
     this.look3 = this.f.treasure ? (level === 5 ? 'sand' : 'marble') : this.f.theme;
@@ -540,7 +547,7 @@ class CrownHeist {
   }
 
   canSee(g) {
-    const p = this.p, T = GUARD[g.kind], dx = p.x - g.x, dy = p.y - g.y, d = Math.hypot(dx, dy);
+    const p = this.p, T = this.guardT[g.kind], dx = p.x - g.x, dy = p.y - g.y, d = Math.hypot(dx, dy);
     if (this.hidden) return d < 0.8;
     const range = T.range + (g.alert ? 1.2 : 0) + (this.has ? 1.0 : 0); // crown-carry range bonus reduced (was 1.5)
     if (d > range) return false;
@@ -552,7 +559,7 @@ class CrownHeist {
     const s = this.s, p = this.p, L = this.level;
     for (const g of this.guards) {
       if (g.dead) { g.deadT += dt; continue; }
-      const T = GUARD[g.kind];
+      const T = this.guardT[g.kind];
       g.moved = false;
       if (g.stun > 0) { g.stun -= dt; g.a += dt * 3; continue; }
       // ── look
@@ -902,7 +909,7 @@ class CrownHeist {
     if (this.has) dyn.push({ x: this.p.x, y: this.p.y, r: 1.15, g: 0.82, b: 0.32, rad: 3.4 + Math.sin(t * 5) * 0.15 });
     for (const g of this.guards) {
       if (g.dead || Math.hypot(g.x - this.p.x, g.y - this.p.y) > 15) continue;
-      const T = GUARD[g.kind], k = g.state === 'chase' ? 1.25 : 1;
+      const T = this.guardT[g.kind], k = g.state === 'chase' ? 1.25 : 1;
       dyn.push({ x: g.x, y: g.y, r: T.light[0] * k, g: T.light[1] * k, b: T.light[2] * k, rad: T.rad + (g.alert ? 0.6 : 0), dir: g.a, cone: T.cone + 0.12 + (g.alert ? 0.15 : 0) });
       dyn.push({ x: g.x, y: g.y, r: 0.5, g: 0.26, b: 0.1, rad: 1.4 });                   // the torch itself
     }
@@ -1214,7 +1221,7 @@ class CrownHeist {
       if (gd.dead) continue;
       const d = Math.hypot(gd.x - p.x, gd.y - p.y), vis = d < 3.2 || (d < 9 && this.lineClear(p.x, p.y, gd.x, gd.y));
       if (!vis && !this.bonus) continue;
-      const T = GUARD[gd.kind], rr = (T.range + (gd.alert ? 1.2 : 0)) * cs, cone = T.cone + (gd.alert ? 0.15 : 0);
+      const T = this.guardT[gd.kind], rr = (T.range + (gd.alert ? 1.2 : 0)) * cs, cone = T.cone + (gd.alert ? 0.15 : 0);
       ctx.fillStyle = gd.state === 'chase' ? 'rgba(239,68,68,.3)' : 'rgba(251,191,36,.22)';
       ctx.beginPath(); ctx.moveTo(ox + gd.x * cs, oy + gd.y * cs); ctx.arc(ox + gd.x * cs, oy + gd.y * cs, rr, gd.a - cone, gd.a + cone); ctx.closePath(); ctx.fill();
       dot(gd.x, gd.y, gd.state === 'chase' ? '#ef4444' : gd.kind === 'knight' ? '#fbbf24' : '#f5f5f4', 0.42);

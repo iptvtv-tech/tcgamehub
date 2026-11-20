@@ -1,5 +1,6 @@
 // Crypt of Crowns — the hand-built crypts. See sim.js for the map key.
-// par: seconds to beat for a time bonus (about twice the solver's perfect run) — raised ~20% across the board.
+// par: seconds to beat for a time bonus. Generous on purpose: 4–5 times a perfect run (level 1: perfect 6 s, par 31 s), so a first
+// escape that finds its way without dawdling still earns a bonus. Kept as it is (19 Nov 2026) so old and new scores compare.
 // dir: which way you face at the start (0 E, 1 S, 2 W, 3 N). skel: ticks per skeleton step (lower = faster).
 export const LEVELS = [];
 const L = (n, def) => { LEVELS[n] = def; };

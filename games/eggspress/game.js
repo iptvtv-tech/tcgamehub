@@ -22,6 +22,7 @@ const STEEP_RUN = 160, STEEP_REST = 100;   // the longest steep climb (grade ove
 const CHASM_PAD = 1650;          // a chasm's pad starts this far before its lip: after a 350 px lead-in, 980 px of flat run-up, then the kicker
 const WIND_SHELTER = [0.25, 0.45]; // a gust blowing down a slope fades from this grade and is gone by this one
 const RAMP_GRADE = 1.2;          // the steepest a ramp's kicker may get, the hill under it included
+const SOFT_LANDING = 2.5;        // seconds after a mushroom bounce in which the first hard knock (the landing) cannot crack the egg
 const RAMP_HILL = [-0.4, 0.3];   // the hill's grade allowed over the 400 px before a ramp's lip (steepest drop, steepest climb)
 const PX_PER_M = 20;             // 20 px = 1 metre
 const G = 980;                   // gravity (px/s²)
@@ -492,7 +493,7 @@ class Eggspress {
       if (c.wheels.some((wh) => wh.on && Math.abs(wh.x - m.x) < 26)) {
         m.cd = 1.2; m.squash = 1;
         const boost = -720 - Math.max(0, c.vy);
-        c.vy += boost; this.egg.vy += boost; c.launched = true;
+        c.vy += boost; this.egg.vy += boost; c.launched = true; this.egg.softT = SOFT_LANDING; this.egg.softCrack = true;
         s.sound.play('bounce', 8); s.sound.tone({ freq: 200, to: 900, dur: 0.25, type: 'sine', vol: 0.15 });
         const [sx, sy] = this.scr(m.x, this.ground(m.x) - 40);
         s.fx.text(sx, sy - 40, 'BOING!', { color: '#fb7185', size: 26 });
@@ -667,7 +668,7 @@ class Eggspress {
           if (vn < 0) {
             if (-vn > impact) impact = -vn;
             const rn = cross(rex, rey, nx, ny);
-            const j = -(1 + (vn < -50 ? 0.4 : 0)) * vn / (1 / EGG_M + rn * rn / EGG_I);
+            const j = -(1 + (vn < -50 && !(e.softT > 0) ? 0.4 : 0)) * vn / (1 / EGG_M + rn * rn / EGG_I);
             e.vx += nx * j / EGG_M; e.vy += ny * j / EGG_M; e.w += rn * j / EGG_I;
             vrx = e.vx - e.w * rey - svx; vry = e.vy + e.w * rex - svy;
             const tx = -ny, ty = nx, vt = vrx * tx + vry * ty;
@@ -683,7 +684,14 @@ class Eggspress {
     // fell off and dropped far behind / below the truck
     if (Math.hypot(e.x - c.x, e.y - c.y) > 600) { this.breakEgg(e.x, e.y, true); return true; }
     const crackSpeed = 205 - this.d * 25;
-    if (impact > crackSpeed && e.crackCd <= 0) {
+    // a mushroom bounce is a free thrill: the egg does not spring back out of its cup while it lasts,
+    // and the first hard knock after it (the landing) cannot crack it
+    e.softT = Math.max(0, (e.softT || 0) - dt);
+    if (impact > crackSpeed && e.crackCd <= 0 && e.softT > 0 && e.softCrack) {
+      e.softCrack = false; e.softT = Math.min(e.softT, 0.4); e.crackCd = 0.35;
+      const [sx, sy] = this.scr(e.x, e.y);
+      s.fx.text(sx, sy - 40, 'Soft landing!', { color: '#86efac', size: 18 });
+    } else if (impact > crackSpeed && e.crackCd <= 0) {
       e.crackCd = 0.35;
       e.cracks++; this.cracksLevel++;
       e.crackSeeds.push(Math.random() * 2 - 1);

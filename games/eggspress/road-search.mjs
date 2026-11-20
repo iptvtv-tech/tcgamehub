@@ -41,7 +41,7 @@ export function mstep(m, th) {
     m.mcd[i] = Math.max(0, m.mcd[i] - STEP);
     if (Math.abs(q.x - c.x) > 200) continue;
     if (m.mcd[i] > 0) continue;
-    if (c.wheels.some((wh) => wh.on && Math.abs(wh.x - q.x) < 26)) { m.mcd[i] = 1.2; const boost = -720 - Math.max(0, c.vy); c.vy += boost; m.egg.vy += boost; }
+    if (c.wheels.some((wh) => wh.on && Math.abs(wh.x - q.x) < 26)) { m.mcd[i] = 1.2; const boost = -720 - Math.max(0, c.vy); c.vy += boost; m.egg.vy += boost; m.egg.softT = 2.5; m.egg.softCrack = true; }
   }
   const gp = m.gaps.find((q) => c.x > q.x0 - 30 && c.x < q.x1 + 30);
   if (gp && c.y > m.ground(gp.x0 - 15) + 200) return true;

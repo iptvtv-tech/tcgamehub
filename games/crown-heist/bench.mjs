@@ -90,7 +90,7 @@ function losCache(g) {
 function forecast(g, gd, n, tau, fields) {
   const out = [];
   if (gd.dead) return out;
-  const T = GUARD[gd.kind], P = g.p;
+  const T = (g.guardT || GUARD)[gd.kind], P = g.p;
   let x = gd.x, y = gd.y, a = gd.a, stun = gd.stun;
   const follow = (tx, ty, speed, t) => {
     // walk along the guard's own BFS field to (tx, ty) for t seconds
@@ -369,7 +369,7 @@ function raceLoser(g, b, sk) {
   let worst = null;
   for (const gd of g.guards) {
     if (gd.dead) continue;
-    const T = GUARD[gd.kind];
+    const T = (g.guardT || GUARD)[gd.kind];
     const toCrown = bfs(g.g, [f.crown], (x, y) => g.guardWalk(x, y) && (g.g.at(x, y) !== C.GATE));
     const gp = walkDown(toCrown, Math.floor(gd.y) * w + Math.floor(gd.x), w) || [Math.floor(gd.y) * w + Math.floor(gd.x)];
     const range = T.range + 1.2 + 1.0, near = gd.kind === 'knight' ? 3.6 : 1.9;
