@@ -214,7 +214,7 @@ for (const level of [7, 12]) {
       let keys = [];
       if (plan === 'dodge' && b) keys = [b.x >= p.x ? 'left' : 'right'];
       if (plan === 'into' || plan === 'stomp') { const dx = o.x - p.x; keys = Math.abs(dx) < 0.3 ? [] : [dx > 0 ? 'right' : 'left']; if (b && o.z - p.z > 30) keys = [b.x >= p.x ? 'left' : 'right']; }
-      if (plan === 'stomp' && o.z - p.z < 5 && o.z > p.z) keys.push('up');
+      if (plan === 'stomp' && o.z - p.z < p.v * 0.28 && o.z > p.z) keys.push('up');
       const t0 = sim.tumbles;
       s.hold(keys); s.tick();
       if (sim.tumbles > t0 && !by) by = Math.abs(p.z - o.z) < 2.5 ? 'yeti' : 'boulder';

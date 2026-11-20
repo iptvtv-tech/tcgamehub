@@ -35,10 +35,10 @@
 // ─────────────────────────────────────────────────────────────
 export const HALF = 13;              // half the width of the slope (m)
 export const PR = 0.55;              // the sled's half-width for bumping into things (m)
-export const STEER = 10;             // sideways speed at full steer (m/s)
-export const STEER_TUCK = 6;         // … while tucked
-export const STEER_ACC = 48;         // how fast the sled answers the steering (m/s²)
-export const ACC = 7;                // how fast it picks up speed again on run 1 (m/s²); it grows with the run's speed, so a tumble
+export const STEER = 12.5;           // sideways speed at full steer (m/s)
+export const STEER_TUCK = 7.5;        // … while tucked
+export const STEER_ACC = 60;         // how fast the sled answers the steering (m/s²)
+export const ACC = 9;                // how fast it picks up speed again on run 1 (m/s²); it grows with the run's speed, so a tumble
                                      // always costs about the same time
 export const TUCK = 1.3;             // a tuck is this much faster
 export const TUMBLE_T = 0.8;         // seconds of tumbling after a hit (no steering)
@@ -76,15 +76,15 @@ export const FINAL_LEVEL = 15;
 /** The numbers of one run. */
 export function runFor(level) {
   const n = Math.max(1, level);
-  const cruise = Math.min(31, 18 * Math.pow(1.038, n - 1));        // m/s without tucking
+  const cruise = Math.min(39, 23 * Math.pow(1.038, n - 1));        // m/s without tucking (83 km/h on run 1, 140 on run 15)
   return {
     level: n,
-    len: 700 + 60 * n,                                              // metres to the hut
+    len: 900 + 75 * n,                                              // metres to the hut
     cruise,
     top: cruise * TUCK,                                             // the fastest the sled ever goes
-    acc: ACC * cruise / 18,                                         // picking up speed again takes as long on every run
+    acc: ACC * cruise / 23,                                         // picking up speed again takes as long on every run
     avalanche: cruise * Math.min(0.94, 0.78 + 0.011 * n),           // the avalanche's steady pace
-    perHundred: Math.min(52, 9 + 2.9 * n),                          // trees and rocks per 100 m of slope
+    perHundred: Math.min(41, 7 + 2.3 * n),                          // trees and rocks per 100 m of slope
     corridor: Math.max(1.7, 2.7 - 0.07 * n),                        // clear snow either side of the safe line, beyond the sled
     rocks: n >= 2 ? Math.min(0.4, 0.1 + 0.03 * n) : 0,              // share of obstacles that are rocks
     ramps: Math.min(6, 1 + Math.floor(n / 2)),                      // snow ramps beside the safe line

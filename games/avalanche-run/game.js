@@ -27,16 +27,23 @@
 // ─────────────────────────────────────────────────────────────
 import { runGame, roundRect, clamp } from '../../assets/js/engine.js';
 import { SlopeSim, makeSlope, bendAt, HALF, MAX_GAP, BONUS_LEVELS, FINAL_LEVEL } from './world.js';
-import { drawIcemanSled, drawWolf, drawYeti, PAL } from './art.js';
+import { drawIcemanSled, drawIcemanFront, drawSled, drawWolf, drawYeti, PAL } from './art.js';
 
 const ID = 'avalanche-run';
 const W = 480, H = 720;
-const HORIZON = 232;                 // screen y of the far end of the slope
+// The slope FALLS AWAY from you: the snow drops faster the further down you look, so about 195 m
+// ahead it rolls over a lip and is gone. Past the lip you look out over the valley far below.
+const SKYLINE = 148;                 // screen y of the far mountains' feet (the true horizon)
+const HORIZON = 262;                 // where a flat slope would have vanished; the lip sits a little below it
 const CAM_H = 4.6;                   // the camera's height above the snow (m)
 const BACK = 9.5;                    // … and how far behind the sled it rides (m)
 const SLED_Y = 560;                  // screen y of the snow under the sled
 const F = (SLED_Y - HORIZON) * BACK / CAM_H;   // projection scale: pixels per metre at 1 m from the camera
-const FAR = 175;                     // how far down the slope you can see (m)
+const LIP = 195;                     // how far ahead the slope rolls over (m)
+const DROP = CAM_H / (LIP * LIP);    // the snow at d metres ahead lies DROP·d² below a flat slope
+const LIP_Y = HORIZON + 2 * F * CAM_H / LIP;   // screen y of the lip
+const FAR = 172;                     // how far down the slope things are drawn (m)
+const ARRIVE_T = 1.7;                // seconds at the hut: the Iceman steps off and turns to face you
 const PANEL = 96;                    // height of the touch buttons when they sit on the picture
 
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -44,9 +51,9 @@ const hash = (n) => { n = (n ^ 61) ^ (n >>> 16); n = n + (n << 3); n ^= n >>> 4;
 
 // The time of day changes down the mountain (full themes come with Section 4).
 const SKIES = {
-  day:   { sky: ['#3f86d8', '#9fd0f5', '#e6f4ff'], snow: ['#dcebf8', '#ffffff'], haze: '#dcecf9', peak: ['#9db7d1', '#c9dcee'], pine: ['#1f5132', '#2f6b43'], shade: 'rgba(60,90,130,0.22)' },
-  dusk:  { sky: ['#3b3f7a', '#c9739a', '#ffc38a'], snow: ['#e7cfd8', '#fff1e6'], haze: '#f0cdbf', peak: ['#7d6590', '#b98aa5'], pine: ['#27413a', '#35584a'], shade: 'rgba(80,50,90,0.25)' },
-  night: { sky: ['#070b1f', '#152552', '#2d4a86'], snow: ['#7f95c2', '#c9d8f2'], haze: '#5f78ad', peak: ['#22305a', '#34497d'], pine: ['#10261f', '#173529'], shade: 'rgba(10,20,50,0.35)' },
+  day:   { sky: ['#3f86d8', '#9fd0f5', '#e6f4ff'], snow: ['#dcebf8', '#ffffff'], haze: '#dcecf9', vale: ['#8fb0cf', '#2f5878', '#e6f4ff'], peak: ['#9db7d1', '#c9dcee'], pine: ['#1f5132', '#2f6b43'], shade: 'rgba(60,90,130,0.22)' },
+  dusk:  { sky: ['#3b3f7a', '#c9739a', '#ffc38a'], snow: ['#e7cfd8', '#fff1e6'], haze: '#f0cdbf', vale: ['#9a7896', '#3f3560', '#ffd9b8'], peak: ['#7d6590', '#b98aa5'], pine: ['#27413a', '#35584a'], shade: 'rgba(80,50,90,0.25)' },
+  night: { sky: ['#070b1f', '#152552', '#2d4a86'], snow: ['#7f95c2', '#c9d8f2'], haze: '#5f78ad', vale: ['#2c3f73', '#0b1533', '#7f95c2'], peak: ['#22305a', '#34497d'], pine: ['#10261f', '#173529'], shade: 'rgba(10,20,50,0.35)' },
 };
 const skyFor = (level) => (level >= 11 ? SKIES.night : level >= 6 ? SKIES.dusk : SKIES.day);
 
@@ -126,7 +133,7 @@ class AvalancheRun {
     this.slope = makeSlope(level, this.s.rng, bonus);
     this.sim = new SlopeSim(this.slope);
     this.sky = bonus ? SKIES.dusk : skyFor(level);
-    this.paid = 0; this.camX = this.sim.p.x; this.chunks = []; this.livesAtStart = this.s.lives;
+    this.paid = 0; this.camX = this.sim.p.x; this.chunks = []; this.livesAtStart = this.s.lives; this.arrive = 0; this.arrived = false;
   }
   onLifeLost() { this.sim.reset(); this.camX = this.sim.p.x; this.paid = Math.floor(this.sim.p.z / 100); this.chunks = []; }
   onAction() { /* the controls are read each step (keys and touch) */ }
@@ -159,6 +166,11 @@ class AvalancheRun {
   update(dt) {
     const s = this.s, sim = this.sim, p = sim.p, L = this.level;
     this.t += dt;
+    if (this.arrived) {                                   // at the hut
+      this.drift(dt, 4);
+      if (this.arrive > 0 && (this.arrive -= dt) <= 0) s.completeLevel();
+      return;
+    }
     const events = sim.step(this.readInput(), dt);
     this.camX += (p.x - this.camX) * Math.min(1, 9 * dt);
     for (const e of events) {
@@ -222,7 +234,8 @@ class AvalancheRun {
         s.unlock('first');
         if (L >= FINAL_LEVEL) s.unlock('outrun');
         s.sound.play('golden');
-        return s.completeLevel();
+        this.arrive = ARRIVE_T; this.arrived = true;      // he steps off and turns round; the run is cleared when that is over
+        return;
       } else if (e.type === 'caught') {
         s.fx.flash('#ffffff'); s.fx.shake(12, 0.5); s.sound.play('boom');
         return s.hurt();
@@ -253,7 +266,7 @@ class AvalancheRun {
     const p = this.sim.p, d = z - (p.z - BACK);
     if (d < 1.2) return null;
     const sc = F / d, bend = this.slope.bend;
-    return [W / 2 + (x + bendAt(bend, z) - this.camX - bendAt(bend, p.z)) * sc, HORIZON + (CAM_H - y) * sc, sc, d];
+    return [W / 2 + (x + bendAt(bend, z) - this.camX - bendAt(bend, p.z)) * sc, HORIZON + (CAM_H + DROP * d * d - y) * sc, sc, d];
   }
   pine(v) {
     const key = this.sky.pine[0] + v;
@@ -264,24 +277,39 @@ class AvalancheRun {
   render(ctx) {
     const s = this.s, sim = this.sim, p = sim.p, sky = this.sky, band = s.bands?.bottom || 0;
     const top = -(s.bands?.top || 0), bottom = H + band;
-    // sky
-    let g = ctx.createLinearGradient(0, top, 0, HORIZON);
+    // sky, the far range, and the valley you are riding down into
+    let g = ctx.createLinearGradient(0, top, 0, SKYLINE);
     g.addColorStop(0, sky.sky[0]); g.addColorStop(0.6, sky.sky[1]); g.addColorStop(1, sky.sky[2]);
-    ctx.fillStyle = g; ctx.fillRect(0, top, W, HORIZON - top + 2);
-    // far peaks (they slide a little as the slope winds)
-    const pan = (bendAt(this.slope.bend, p.z) + this.camX) * 1.4;
+    ctx.fillStyle = g; ctx.fillRect(0, top, W, SKYLINE - top + 2);
+    const pan = (bendAt(this.slope.bend, p.z) + this.camX) * 1.4;      // the view slides a little as the slope winds
     for (let layer = 0; layer < 2; layer++) {
-      ctx.fillStyle = sky.peak[layer]; ctx.beginPath(); ctx.moveTo(0, HORIZON + 2);
+      ctx.fillStyle = sky.peak[layer]; ctx.beginPath(); ctx.moveTo(0, SKYLINE + 2);
       for (let i = -1; i <= 9; i++) {
-        const x = i * 70 - ((pan * (0.5 + layer * 0.5)) % 70) + layer * 30, h = 40 + hash(i * 7 + layer * 131 + Math.floor(pan * (0.5 + layer * 0.5) / 70) * 7) * (70 - layer * 30);
-        ctx.lineTo(x, HORIZON + 2); ctx.lineTo(x + 35, HORIZON - h + layer * 26);
+        const x = i * 70 - ((pan * (0.3 + layer * 0.3)) % 70) + layer * 30, h = 46 + hash(i * 7 + layer * 131 + Math.floor(pan * (0.3 + layer * 0.3) / 70) * 7) * (78 - layer * 34);
+        ctx.lineTo(x, SKYLINE + 2); ctx.lineTo(x + 35, SKYLINE - h + layer * 28);
       }
-      ctx.lineTo(W, HORIZON + 2); ctx.closePath(); ctx.fill();
+      ctx.lineTo(W, SKYLINE + 2); ctx.closePath(); ctx.fill();
     }
-    // the snowfield
-    g = ctx.createLinearGradient(0, HORIZON, 0, H);
-    g.addColorStop(0, sky.haze); g.addColorStop(0.25, sky.snow[0]); g.addColorStop(1, sky.snow[1]);
-    ctx.fillStyle = g; ctx.fillRect(0, HORIZON, W, bottom - HORIZON);
+    g = ctx.createLinearGradient(0, SKYLINE, 0, LIP_Y);                 // the valley floor, hazy and far below
+    g.addColorStop(0, sky.haze); g.addColorStop(1, sky.vale[0]);
+    ctx.fillStyle = g; ctx.fillRect(0, SKYLINE, W, LIP_Y - SKYLINE + 2);
+    for (let layer = 0; layer < 3; layer++) {                            // forested ridges, nearer and darker each time
+      const y0 = SKYLINE + 22 + layer * 34, sp = 0.6 + layer * 0.45, step = 46;
+      ctx.fillStyle = sky.vale[1]; ctx.globalAlpha = 0.28 + layer * 0.22;
+      ctx.beginPath(); ctx.moveTo(0, LIP_Y + 2);
+      for (let i = -1; i <= 12; i++) { const k = Math.floor(pan * sp / step) + i, x = i * step - ((pan * sp) % step); ctx.lineTo(x, y0 + hash(k * 13 + layer * 57) * 22 + (layer === 2 ? Math.abs(x - W / 2) * -0.03 : 0)); }
+      ctx.lineTo(W, LIP_Y + 2); ctx.closePath(); ctx.fill();
+    }
+    ctx.globalAlpha = 0.5; ctx.fillStyle = sky.vale[2];                 // a frozen river winding along the valley
+    ctx.beginPath(); ctx.moveTo(W * 0.5 - pan * 0.5 - 90, SKYLINE + 30); ctx.bezierCurveTo(W * 0.5 - pan * 0.5 + 60, SKYLINE + 44, W * 0.5 - pan * 0.5 - 120, SKYLINE + 62, W * 0.5 - pan * 0.5 + 30, SKYLINE + 92);
+    ctx.lineTo(W * 0.5 - pan * 0.5 + 62, SKYLINE + 92); ctx.bezierCurveTo(W * 0.5 - pan * 0.5 - 86, SKYLINE + 64, W * 0.5 - pan * 0.5 + 84, SKYLINE + 46, W * 0.5 - pan * 0.5 - 78, SKYLINE + 30); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = 1;
+    // the snowfield, from the lip it rolls over down to your feet
+    g = ctx.createLinearGradient(0, LIP_Y, 0, H);
+    g.addColorStop(0, sky.snow[1]); g.addColorStop(0.07, sky.haze); g.addColorStop(0.3, sky.snow[0]); g.addColorStop(1, sky.snow[1]);
+    ctx.fillStyle = g; ctx.fillRect(0, LIP_Y, W, bottom - LIP_Y);
+    ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fillRect(0, LIP_Y - 1, W, 2.5);
+    this.drawSpeedLines(ctx);
     this.drawSnowMarks(ctx);
     for (const c of this.slope.crevasses) this.drawCrevasse(ctx, c);
 
@@ -298,7 +326,7 @@ class AvalancheRun {
     for (const rp of this.slope.ramps) if (rp.z > z0 && rp.z < z1) list.push({ z: rp.z - 0.01, kind: 'ramp', rp });
     if (!this.bonus) {
       if (this.slope.flagZ > z0 && this.slope.flagZ < z1) list.push({ z: this.slope.flagZ, kind: 'flag' });
-      if (this.slope.len > z0 && this.slope.len < z1 + 40) list.push({ z: this.slope.len + 6, kind: 'hut' });
+      if (this.slope.len > z0 && this.slope.len < z1 + 40) list.push({ z: this.slope.len + 18, kind: 'hut' });
     }
     for (const w of sim.wolves) if (w.state !== 'gone') list.push({ z: p.z + w.dz + 0.02, kind: 'wolf', w });
     for (const b of sim.boulders) list.push({ z: b.z, kind: 'boulder', b });
@@ -340,7 +368,7 @@ class AvalancheRun {
         for (const side of [0, 1]) {
           g = ctx.createLinearGradient(side ? W : 0, 0, side ? W - 90 * near : 90 * near, 0);
           g.addColorStop(0, `rgba(255,255,255,${0.7 * near})`); g.addColorStop(1, 'rgba(255,255,255,0)');
-          ctx.fillStyle = g; ctx.fillRect(side ? W - 90 : 0, HORIZON, 90, bottom - HORIZON);
+          ctx.fillStyle = g; ctx.fillRect(side ? W - 90 : 0, LIP_Y, 90, bottom - LIP_Y);
         }
       }
       ctx.fillStyle = '#ffffff';
@@ -349,6 +377,22 @@ class AvalancheRun {
     }
     this.drawHud(ctx);
     if (this.touchUI()) this.drawButtons(ctx);
+  }
+
+  /** Streaks of snow rushing past from the middle of the view: more of them the faster you go. */
+  drawSpeedLines(ctx) {
+    const p = this.sim.p, k = clamp((p.v - 14) / 40, 0, 1);
+    if (k <= 0) return;
+    ctx.strokeStyle = '#ffffff'; ctx.lineCap = 'round';
+    const n = Math.round(10 + k * 34), cx = W / 2, cy = LIP_Y + 30;
+    for (let i = 0; i < n; i++) {
+      const a = hash(i * 17 + 3) * Math.PI * 2, ph = (this.t * (1.2 + k * 2.6) + hash(i * 5 + 1)) % 1, r0 = 60 + ph * ph * 620, len = (14 + k * 70) * (0.3 + ph);
+      const dx = Math.cos(a), dy = Math.sin(a) * 0.8 + 0.25;
+      if (cy + dy * r0 < LIP_Y + 6) continue;
+      ctx.globalAlpha = (0.1 + k * 0.3) * ph; ctx.lineWidth = 1 + ph * 2;
+      ctx.beginPath(); ctx.moveTo(cx + dx * r0, cy + dy * r0); ctx.lineTo(cx + dx * (r0 + len), cy + dy * (r0 + len)); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
   }
 
   /** Soft marks in the snow that rush towards you: they are what makes the speed visible. */
@@ -377,10 +421,10 @@ class AvalancheRun {
   }
   /** The hut at the bottom, with its finish banner. */
   drawHut(ctx, z) {
-    this.drawGate(ctx, this.slope.len, '#86efac', 'SAFE');
+    if (!this.arrived) this.drawGate(ctx, this.slope.len, '#86efac', 'SAFE');
     const q = this.project(0, 0, z);
     if (!q) return;
-    const [x, y, sc] = q, w = 9 * sc, hh = 5 * sc;
+    const [x, y, sc] = q, w = 8 * sc, hh = 4.2 * sc;
     ctx.globalAlpha = clamp((FAR + 40 - q[3]) / 45, 0, 1);
     ctx.fillStyle = '#6b4226'; ctx.fillRect(x - w / 2, y - hh, w, hh);
     ctx.fillStyle = '#4a2c17'; for (let i = 1; i < 5; i++) ctx.fillRect(x - w / 2, y - hh + i * hh / 5, w, Math.max(1, 0.08 * sc));
@@ -402,9 +446,9 @@ class AvalancheRun {
   drawWolfAt(ctx, w) {
     const q = this.project(w.x, 0, this.sim.p.z + w.dz);
     if (!q) return;
-    const u = q[2] / 34 * 1.15;
+    const u = q[2] * 1.0 / 40;            // a wolf is about a metre across the haunches here, a little larger than life so it reads
     ctx.fillStyle = this.sky.shade; ctx.beginPath(); ctx.ellipse(q[0], q[1] + 1, 0.8 * q[2], 0.16 * q[2], 0, 0, Math.PI * 2); ctx.fill();
-    if (w.state === 'crouch') { const g = this.s.glowSprite('rgba(239,68,68,0.9)'), r = 1.3 * q[2]; ctx.globalAlpha = 0.5 + 0.4 * Math.sin(this.t * 30); ctx.drawImage(g, q[0] - r, q[1] - 1.6 * q[2] - r, r * 2, r * 2); ctx.globalAlpha = 1; }
+    if (w.state === 'crouch') { const g = this.s.glowSprite('rgba(239,68,68,0.9)'), r = 1.3 * q[2]; ctx.globalAlpha = 0.5 + 0.4 * Math.sin(this.t * 30); ctx.drawImage(g, q[0] - w.side * 0.25 * q[2] - r, q[1] - 1.35 * q[2] - r, r * 2, r * 2); ctx.globalAlpha = 1; }
     ctx.save(); ctx.translate(q[0], q[1]); ctx.scale(u, u);
     drawWolf(ctx, { t: this.t + w.side, state: w.state, side: w.side });
     ctx.restore();
@@ -412,7 +456,7 @@ class AvalancheRun {
   drawYetiAt(ctx, o) {
     const q = this.project(o.x, 0, o.z);
     if (!q) return;
-    const u = q[2] * 3.6 / 124;          // a yeti stands 3.6 m tall
+    const u = q[2] * 3.6 / 136;          // a yeti stands 3.6 m tall
     ctx.globalAlpha = clamp((FAR - q[3]) / 45, 0, 1);
     ctx.fillStyle = this.sky.shade; ctx.beginPath(); ctx.ellipse(q[0], q[1] + 1, 1.5 * q[2], 0.3 * q[2], 0, 0, Math.PI * 2); ctx.fill();
     ctx.save(); ctx.translate(q[0], q[1]); ctx.scale(u, u);
@@ -481,7 +525,15 @@ class AvalancheRun {
   drawSled(ctx) {
     const p = this.sim.p, q = this.project(p.x, 0, p.z);
     if (!q) return;
-    const [x, y, sc] = q, u = sc / 70, up = p.y * sc, lean = clamp(p.vx / 10, -1, 1);
+    const [x, y, sc] = q, u = sc / 70 * 1.35, up = p.y * sc, lean = clamp(p.vx / 12.5, -1, 1);   // (drawn a third larger than life, so he reads)
+    if (this.arrived) {                                   // at the hut: the sled stands empty and he faces you
+      const k = 1 - Math.max(0, this.arrive) / ARRIVE_T, pal = this.s.gold ? PAL.gold : PAL.ice;
+      ctx.fillStyle = this.sky.shade; ctx.beginPath(); ctx.ellipse(x - 46 * u, y + 2, 44 * u, 8 * u, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.save(); ctx.translate(x - 46 * u, y); ctx.scale(u, u); drawSled(ctx, pal); ctx.restore();
+      ctx.fillStyle = this.sky.shade; ctx.beginPath(); ctx.ellipse(x + 34 * u, y + 2, 34 * u, 7 * u, 0, 0, Math.PI * 2); ctx.fill();
+      drawIcemanFront(ctx, x + 34 * u, y, 104 * u, 0.5 + k * 1.5, k, this.s.gold, this.s.glowSprite('rgba(255,255,255,0.9)'));
+      return;
+    }
     const shrink = 1 / (1 + p.y * 0.25);
     ctx.fillStyle = this.sky.shade; ctx.beginPath(); ctx.ellipse(x, y + 2, 46 * u * shrink, 9 * u * shrink, 0, 0, Math.PI * 2); ctx.fill();
     // snow spray from the runners
