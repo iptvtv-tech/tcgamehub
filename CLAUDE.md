@@ -21,7 +21,7 @@ publisher. Supabase holds the leaderboard (players enter a name only). GoatCount
 - Zones of 6 games, difficulty rising; the order lives in `ZONES` in `assets/js/games.js`
   (the source of truth for zones, slots and genres). The 6th game of each zone is a
   LEGENDS game. Zones 1–5 are full; Zone 6 (*Inferno*) opened on 30 Oct 2026 with Magma
-  Escape; Avalanche Run joined on 20 Nov 2026 (being built in sections), leaving four
+  Escape; Avalanche Run joined on 20 Nov 2026 (sections 1–4 built; its own music is still to come), leaving four
   "coming soon" slots. A zone with no game yet (Zone 7) stays in `ZONES`
   but is not shown on the home page until its first game is registered.
 - **Every game is open to everyone.** Zones are a recommended order; playing all six
@@ -72,6 +72,12 @@ pages, and the "N free browser games" counts in the home page title/meta. Change
   bands (`shell.bands`); draw touch controls in the band (see Eggspress `drawPedals`,
   the racers' cockpit `drop()`), gated on `bands.bottom >= 150` so desktops are
   unchanged. Use `shell.coarse` for touch checks and `input.pointers` for multi-touch.
+- On-screen buttons: read fingers from `shell.input.pointers` (or follow a pointer id and release on
+  `pointerup`/`pointercancel`). Phones do not always report a finger lifting, so the engine compares
+  its list with the phone's own after every touch event and lets lost fingers go, sending a
+  `pointercancel` for each (`assets/js/touch.js`, checked by `tools/check-touch.mjs`). Never keep
+  a private "finger is down" flag that only a `pointerup` can clear. Keep buttons 26 px clear of
+  the screen's side edges (iPhones start their own swipes there).
 - Astro Blaster fires only on Space or mouse button.
 - Run the level checkers after changing levels: `tools/check-*.mjs` and
   `games/*/check.mjs`.

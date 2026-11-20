@@ -9,6 +9,7 @@
 //  A game only has to describe itself and draw — see games/_template/game.js
 // ─────────────────────────────────────────────────────────────
 import { CONFIG } from './config.js';
+import { staleFingers } from './touch.js';
 import { GAMES, GLOBAL_ACHIEVEMENTS, gameById, zoneOf, legendZones, crownZones, CROWN_EGGS, jewelZones, crownEggsText } from './games.js';
 import { eggSVG, eggName, crownSVG } from './eggs.js';
 import { Store } from './storage.js';
@@ -162,10 +163,39 @@ class Input {
     addEventListener('pointermove', (e) => this.onPointer(e, 'move'));
     addEventListener('pointerup', (e) => this.onPointer(e, 'up'));
     addEventListener('pointercancel', (e) => { this.pointer.down = false; this.swipe = null; this.pointers.delete(e.pointerId); });
-    addEventListener('blur', () => this.pointers.clear());
+    addEventListener('blur', () => this.letGo());
+    addEventListener('pagehide', () => this.letGo());
+    document.addEventListener('visibilitychange', () => { if (document.hidden) this.letGo(); });
+    // Phones: a finger's "up" does not always arrive (an iPhone can drop or cancel it during a long press
+    // near the screen's edge, and holding an on-screen button is a long press). Every touch event carries
+    // the phone's own list of fingers on the canvas, so a moment after each one the two are compared and
+    // any finger the phone no longer lists is let go (touch.js). The moment's wait lets a pointer "up"
+    // that is merely late arrive first, so taps are never lost.
+    this.touches = null; this.touchTimer = 0;
+    const onTouch = (e) => {
+      this.touches = Array.from(e.targetTouches, (q) => { const [x, y] = this.toLogical(q); return { x, y }; });
+      if (e.cancelable && shell.state === 'playing') e.preventDefault();     // no magnifier, double-tap zoom or scroll under the thumbs
+      clearTimeout(this.touchTimer); this.touchTimer = setTimeout(() => this.reconcile(), 90);
+    };
+    for (const type of ['touchstart', 'touchmove', 'touchend', 'touchcancel']) el.addEventListener(type, onTouch, { passive: false });
     el.addEventListener('contextmenu', (e) => e.preventDefault());
   }
   isDown(action) { return this.down.has(action); }
+  /** Let go of every finger (the page lost focus or was hidden: no "up" will come). */
+  letGo() { for (const id of [...this.pointers.keys()]) this.drop(id); this.pointer.down = false; this.swipe = null; }
+  /** Let go of the fingers the phone no longer lists (see the constructor). */
+  reconcile() {
+    if (!this.touches) return;
+    const held = [];
+    for (const [id, q] of this.pointers) if (q.touch) held.push({ id, x: q.x, y: q.y });
+    for (const id of staleFingers(held, this.touches)) this.drop(id);
+  }
+  /** One finger is gone without an "up": tell everyone who follows fingers themselves (the engine's own
+   *  list, and the games that keep a stick or a drag by pointer id) with a cancel. */
+  drop(id) {
+    this.pointers.delete(id);
+    try { dispatchEvent(new PointerEvent('pointercancel', { pointerId: id, pointerType: 'touch', bubbles: true })); } catch { this.pointer.down = false; this.swipe = null; }
+  }
 
   onKey(e) {
     const s = this.shell;
@@ -200,7 +230,7 @@ class Input {
     if (type === 'up') this.pointers.delete(e.pointerId);
     else if (type === 'down' || this.pointers.has(e.pointerId)) {
       const [px, py] = this.toLogical(e);
-      const q = this.pointers.get(e.pointerId) || { t: performance.now() };
+      const q = this.pointers.get(e.pointerId) || { t: performance.now(), touch: e.pointerType === 'touch' };
       q.x = px; q.y = py; this.pointers.set(e.pointerId, q);
     }
     if (type !== 'down' && !p.down && e.pointerType !== 'mouse') return;
