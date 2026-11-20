@@ -20,8 +20,12 @@
 //       obstacle), never before a crevasse or where a flight lands; wolf packs and rolling
 //       boulders never come out near a crevasse or on the clear snow after the flag; each run
 //       has the wolves, yetis and boulders its number calls for
+//  10 · the mountain: ice and deep snow lie beside the safe line, never on it, with nothing
+//       standing in them; every ruin is one unbroken wall with one gate, on the safe line and
+//       wider than its clear snow (the way down in (1) goes through it); frost gusts lie on open
+//       snow within reach of the safe line
 import { makeRng } from '../../assets/js/rng.js';
-import { makeSlope, runFor, lineAt, flight, rampClear, HALF, PR, STEER, TUMBLE_V, HOP_VY, GRAV, BOOST, CREV_CLEAR, START_GAP, CLEAR_START, BONUS_LEVELS, FINAL_LEVEL } from './world.js';
+import { makeSlope, runFor, lineAt, flight, rampClear, HALF, PR, STEER, TUMBLE_V, PILLAR_R, HOP_VY, GRAV, BOOST, CREV_CLEAR, START_GAP, CLEAR_START, BONUS_LEVELS, FINAL_LEVEL } from './world.js';
 
 const arg = process.argv.find((a) => a.startsWith('--seeds='));
 const SEEDS = arg ? +arg.slice(8) : 40;
@@ -65,7 +69,7 @@ function wayDown(slope, x0, z0) {
   return 0;
 }
 
-let slopes = 0, obstacles = 0, narrow = 99, crevs = 0, ramps = 0, yetiN = 0, packN = 0, rollN = 0, short = 0;
+let slopes = 0, obstacles = 0, narrow = 99, crevs = 0, ramps = 0, yetiN = 0, packN = 0, rollN = 0, short = 0, zoneN = 0, wallN = 0, gustN = 0;
 for (let level = 1; level <= FINAL_LEVEL; level++) {
   const R = runFor(level);
   if (BONUS_LEVELS.includes(level)) {
@@ -95,7 +99,7 @@ for (let level = 1; level <= FINAL_LEVEL; level++) {
     }
     for (let i = 0; i < sl.obstacles.length; i++) {
       const o = sl.obstacles[i];
-      if (Math.abs(o.x) > HALF || o.z > sl.len - 10 || o.z < 0) fail(`${tag}: a ${o.kind} at (${o.x.toFixed(1)}, ${o.z.toFixed(0)}) is off the slope or in front of the hut`);
+      if (Math.abs(o.x) > HALF + (o.kind === 'pillar' ? 2.6 : 0) || o.z > sl.len - 10 || o.z < 0) fail(`${tag}: a ${o.kind} at (${o.x.toFixed(1)}, ${o.z.toFixed(0)}) is off the slope or in front of the hut`);
       for (let j = i + 1; j < sl.obstacles.length && sl.obstacles[j].z - o.z < 2.4; j++) { const q = sl.obstacles[j]; if (Math.abs(q.x - o.x) < o.r + q.r) fail(`${tag}: two obstacles overlap at z=${o.z.toFixed(0)}`); }
     }
     // crevasses and ramps
@@ -139,6 +143,26 @@ for (let level = 1; level <= FINAL_LEVEL; level++) {
       if (q.z < CLEAR_START + 50) fail(`${tag}: wolves or a boulder come out at z=${Math.round(q.z)}, too close to the start`);
     }
     packN += sl.packs.length; rollN += sl.rollers.length;
+    // the mountain
+    for (const q of sl.zones) {
+      for (let d = 0; d <= q.len; d += 2) if (Math.abs(q.x - lineAt(sl.knots, q.z + d)) < R.corridor + PR + q.w) { fail(`${tag}: the ${q.kind === 'ice' ? 'ice patch' : 'drift'} at z=${Math.round(q.z)} lies across the safe line`); break; }
+      if (Math.abs(q.x) + q.w > HALF) fail(`${tag}: the ${q.kind} zone at z=${Math.round(q.z)} hangs over the slope's edge`);
+      if (sl.obstacles.some((o) => o.z > q.z && o.z < q.z + q.len && Math.abs(o.x - q.x) < q.w)) fail(`${tag}: something stands in the ${q.kind} zone at z=${Math.round(q.z)}`);
+      zoneN++;
+    }
+    for (const w of sl.walls) {
+      const row = sl.obstacles.filter((o) => o.kind === 'pillar' && Math.abs(o.z - w.z) < 0.1).map((o) => o.x).sort((a, b) => a - b);
+      const gaps = row.slice(1).map((x, i) => [x - row[i], (x + row[i]) / 2]).filter(([d]) => d > PILLAR_R * 2 + 0.6);
+      if (gaps.length !== 1) fail(`${tag}: the ruin at z=${Math.round(w.z)} has ${gaps.length} gaps (it should have exactly one gate)`);
+      else if (Math.abs(gaps[0][1] - lineAt(sl.knots, w.z)) > 0.3 || gaps[0][0] / 2 - PILLAR_R < R.corridor + PR + 1) fail(`${tag}: the gate of the ruin at z=${Math.round(w.z)} is ${(gaps[0][0] - PILLAR_R * 2).toFixed(1)} m wide, ${Math.abs(gaps[0][1] - lineAt(sl.knots, w.z)).toFixed(1)} m off the safe line`);
+      if (row[0] - PILLAR_R > -HALF + PR * 2 || row[row.length - 1] + PILLAR_R < HALF - PR * 2) fail(`${tag}: a sled can slip round the end of the ruin at z=${Math.round(w.z)}`);
+      wallN++;
+    }
+    for (const q of sl.gusts) {
+      if (Math.abs(q.x) > HALF - PR || sl.obstacles.some((o) => Math.abs(o.z - q.z) < 4 && Math.abs(o.x - q.x) < o.r + PR + 0.8)) fail(`${tag}: the frost gust at z=${Math.round(q.z)} is off the slope or behind a tree`);
+      if (Math.abs(q.x - lineAt(sl.knots, q.z)) > R.corridor + PR + 3) fail(`${tag}: the frost gust at z=${Math.round(q.z)} is too far from the safe line to fetch`);
+      gustN++;
+    }
     // the tightest gate on the safe line, for the summary
     for (let z = CLEAR_START; z < sl.len; z += 2) {
       const x = lineAt(sl.knots, z);
@@ -147,4 +171,4 @@ for (let level = 1; level <= FINAL_LEVEL; level++) {
   }
 }
 if (problems.length) { console.log(`✗ avalanche-run levels: ${problems.length} problem(s)`); for (const p of problems) console.log('    ' + p); process.exit(1); }
-console.log(`✓ avalanche-run levels — ${slopes} slopes (${FINAL_LEVEL - BONUS_LEVELS.length} runs × ${SEEDS} seeds, ${obstacles} trees and rocks): a clear way down from the start and from the flag on every one, at cruising speed with a quarter of the steering to spare; restarts begin on clear snow; at least ${narrow.toFixed(1)} m free either side of the sled on the widest line; the avalanche can always be outrun; ${crevs} crevasses each crossed by their ramp after a bare run-up; ${ramps} ramps with a clear landing lane; ${yetiN} yetis, ${packN} wolf packs and ${rollN} rolling boulders, none near a crevasse`);
+console.log(`✓ avalanche-run levels — ${slopes} slopes (${FINAL_LEVEL - BONUS_LEVELS.length} runs × ${SEEDS} seeds, ${obstacles} trees and rocks): a clear way down from the start and from the flag on every one, at cruising speed with a quarter of the steering to spare; restarts begin on clear snow; at least ${narrow.toFixed(1)} m free either side of the sled on the widest line; the avalanche can always be outrun; ${crevs} crevasses each crossed by their ramp after a bare run-up; ${ramps} ramps with a clear landing lane; ${yetiN} yetis, ${packN} wolf packs and ${rollN} rolling boulders, none near a crevasse; ${zoneN} ice and deep-snow patches beside the safe line; ${wallN} ruins each with one gate on it; ${gustN} frost gusts in reach`);

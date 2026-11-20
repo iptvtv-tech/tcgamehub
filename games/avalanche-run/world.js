@@ -26,6 +26,16 @@
 //    ROLLING BOULDERS (from run 11) come out of the forest and roll across the slope.
 //  None of them can take a life: only the avalanche and the crevasses do.
 //
+//  From Section 4, the mountain itself:
+//    ICE (from run 3): glassy patches beside the safe line where the sled hardly answers the steering.
+//    DEEP SNOW (from run 6): drifts beside the safe line that drag you down to 60% of your speed.
+//    RUINS (from run 8): a wall of old pillars right across the slope, with one gate, on the safe line.
+//    FROST GUSTS (from run 6): a swirl of cold off the safe line; ride through it and the avalanche is
+//    thrown 30 m back.
+//    THE GIANT YETI (run 15): it leaps down the mountain after you. Its shadow shows where it will land
+//    a second and a half ahead; it stands there until you are past. Under its feet, or into its legs,
+//    is a tumble; come down on its head and it is dazed for a long while.
+//
 //  Mercy: a tree or rock you crash into stays down for the rest of the run, a wolf pack you have
 //  met does not come back after a lost life, and each life lost on a run sets the avalanche 15 m
 //  further back at the restart. So a run gets a little kinder every time it beats you.
@@ -70,6 +80,14 @@ export const THROW_T = 1.15;          // seconds a yeti's boulder is in the air 
 export const BOULDER_R = 1.1;
 export const STOMP_Y = 0.6;           // come down on a yeti from at least this high (m) to flatten it
 export const ROLLER_V = 6;            // a rolling boulder's speed across the slope (m/s)
+export const ICE_GRIP = 0.22;         // on ice the sled answers the steering this much
+export const DRIFT_SPEED = 0.6;       // deep snow holds you to this much of your speed
+export const PILLAR_R = 0.9;          // a ruin's pillar (m)
+export const GUST_BACK = 30;          // a frost gust throws the avalanche this far back (m)
+export const GIANT_R = 2.2;           // the giant yeti's radius once it stands on the slope (m)
+export const GIANT_LAND = 1.9;        // … and how near its landing knocks you over
+export const GIANT_T = 1.5;           // seconds its shadow warns you before it lands
+export const GIANT_EVERY = 6;         // seconds between its leaps (2 more for every life lost on the run)
 export const BONUS_LEVELS = [5, 10];
 export const FINAL_LEVEL = 15;
 
@@ -95,6 +113,12 @@ export function runFor(level) {
     yetis: n >= 11 ? 3 : n >= 8 ? 2 : n >= 7 ? 1 : 0,
     throwEvery: Math.max(1.3, 2.1 - 0.05 * n),                      // seconds between a yeti's throws
     rollers: n >= 11 ? n - 8 : 0,                                   // rolling boulders
+    ice: n >= 3 ? Math.min(6, 1 + Math.floor(n / 3)) : 0,           // ice patches
+    drifts: n >= 6 ? Math.min(5, Math.floor(n / 3)) : 0,            // deep-snow drifts
+    walls: n >= 13 ? 3 : n >= 11 ? 2 : n >= 8 ? 1 : 0,              // ruined walls with a gate
+    gusts: n >= 11 ? 2 : n >= 6 ? 1 : 0,                            // frost gusts
+    giant: n >= 15,                                                 // the giant yeti
+    blizzard: n === 13 || n === 14,                                 // short sight (for the eye: the rules never read it)
   };
 }
 
@@ -155,7 +179,7 @@ export function makeSlope(level, rng, bonus = false) {
       crystals.push(...arc(R, rp.x, rp.z));
     }
     crystals.sort((a, b) => a.z - b.z);
-    return { level, bonus: true, R, len: Infinity, flagZ: Infinity, knots: [{ z: 0, x: 0 }, { z: 1e9, x: 0 }], obstacles: [], crystals, ramps, crevasses: [], packs: [], rollers: [], bend };
+    return { level, bonus: true, R, len: Infinity, flagZ: Infinity, knots: [{ z: 0, x: 0 }, { z: 1e9, x: 0 }], obstacles: [], crystals, ramps, crevasses: [], packs: [], rollers: [], zones: [], walls: [], gusts: [], bend };
   }
   const knots = safeLine(R.len, rng), obstacles = [];
   const flagZ = Math.round(R.len * 0.5);
@@ -179,6 +203,18 @@ export function makeSlope(level, rng, bonus = false) {
     taken.push([z - 25, z + rampClear(R) + 10]); i++;
   }
   ramps.sort((a, b) => a.z - b.z); crevasses.sort((a, b) => a.z - b.z);
+  // ── ruins: a wall of pillars across the slope with one gate, on the safe line
+  const walls = [];
+  for (let i = 0, tries = 0; i < R.walls && tries < 300; tries++) {
+    const z = rng.range(CLEAR_START + 120, R.len - 150);
+    if (!fits(z, 45, 35) || ramps.some((rp) => z > rp.z - 12 && z < rp.z + rampClear(R) + 8)) continue;      // (never where any ramp's flight comes down)
+    const gx = lineAt(knots, z), half = R.corridor + PR + 1.1;       // the gate: wider than the clear snow of the safe line
+    walls.push({ z, x: gx, half });
+    // pillars out to both edges; a gate always has both its posts, even when one stands in the forest's edge
+    for (const side of [-1, 1]) for (let x = gx + side * (half + PILLAR_R), k = 0; k === 0 || Math.abs(x) < HALF + 1; x += side * 2.05, k++) obstacles.push({ x, z, r: PILLAR_R, kind: 'pillar', v: k === 0 ? 3 : rng.int(0, 2), hit: 0 });
+    taken.push([z - 45, z + 35]); i++;
+  }
+  walls.sort((a, b) => a.z - b.z);
   const count = Math.round((R.len - CLEAR_START) / 100 * R.perHundred);
   for (let i = 0; i < count; i++) {
     const rock = rng.chance(R.rocks), r = rock ? rng.range(0.9, 1.3) : rng.range(0.6, 0.9);
@@ -190,6 +226,7 @@ export function makeSlope(level, rng, bonus = false) {
     // not before or behind a crevasse, not on a ramp, not in the lane where a ramp's flight comes down
     if (free) for (const c of crevasses) if (z > c.z - CREV_CLEAR && z < c.z + c.len + 30) { free = false; break; }
     if (free) for (const rp of ramps) if (z > rp.z - 8 && z < rp.z + rampClear(R) && Math.abs(x - rp.x) < rp.w + PR + r + 0.4) { free = false; break; }
+    if (free) for (const w of walls) if (z > w.z - 16 && z < w.z + 5) { free = false; break; }          // a clear look at a ruin's gate
     if (free) for (const o of obstacles) if (Math.abs(o.z - z) < 2.4 && Math.abs(o.x - x) < o.r + r + 0.3) { free = false; break; }
     if (free) obstacles.push({ x, z, r, kind: rock ? 'rock' : 'tree', v: rng.int(0, 2), hit: 0 });
   }
@@ -200,6 +237,7 @@ export function makeSlope(level, rng, bonus = false) {
     if (free) for (const c of crevasses) if (z > c.z - CREV_CLEAR - 110 && z < c.z + c.len + 40) { free = false; break; }
     if (free) for (const rp of ramps) if (z > rp.z - 8 && z < rp.z + rampClear(R) && Math.abs(x - rp.x) < rp.w + PR + YETI_R + 0.4) { free = false; break; }
     if (free) for (const o of obstacles) if (o.kind === 'yeti' && Math.abs(o.z - z) < 140) { free = false; break; }
+    if (free) for (const w of walls) if (z > w.z - 8 && z < w.z + 150) { free = false; break; }           // never throwing at a sled lining up for a gate
     if (!free) continue;
     for (let k = obstacles.length - 1; k >= 0; k--) { const o = obstacles[k]; if (Math.abs(o.z - z) < 3 && Math.abs(o.x - x) < o.r + YETI_R + 0.5) obstacles.splice(k, 1); }
     obstacles.push({ x, z, r: YETI_R, kind: 'yeti', v: 0, hit: 0, flat: false, next: 0 }); i++;
@@ -207,7 +245,7 @@ export function makeSlope(level, rng, bonus = false) {
   obstacles.sort((a, b) => a.z - b.z);
   // ── wolf packs and rolling boulders: where along the run they come out of the forest
   const packs = [], rollers = [];
-  const calm = (z, far) => z > CLEAR_START + 60 && z < R.len - 80 && !(z > flagZ - far && z < flagZ + CLEAR_START + 10) && !crevasses.some((c) => z > c.z - far - 30 && z < c.z + c.len + 20);
+  const calm = (z, far) => z > CLEAR_START + 60 && z < R.len - 80 && !(z > flagZ - far && z < flagZ + CLEAR_START + 10) && !crevasses.some((c) => z > c.z - far - 30 && z < c.z + c.len + 20) && !walls.some((w) => z > w.z - far - 30 && z < w.z + 20);
   for (let i = 0, tries = 0; i < R.packs && tries < 300; tries++) {
     const z = rng.range(CLEAR_START + 60, R.len - 200);
     if (!calm(z, 220) || packs.some((q) => Math.abs(q.z - z) < 260)) continue;
@@ -219,6 +257,35 @@ export function makeSlope(level, rng, bonus = false) {
     rollers.push({ z, side: rng.chance(0.5) ? 1 : -1 }); i++;
   }
   packs.sort((a, b) => a.z - b.z); rollers.sort((a, b) => a.z - b.z);
+  // ── ice and deep snow: patches beside the safe line (never on it), cleared of trees and rocks
+  const zones = [];
+  const place = (kind, want) => {
+    for (let i = 0, tries = 0; i < want && tries < 300; tries++) {
+      const len = rng.range(12, 22), w = rng.range(2.2, 3.6), z = rng.range(CLEAR_START + 40, R.len - 80), x = rng.range(-HALF + w + 0.5, HALF - w - 0.5);
+      let free = !(z + len > flagZ - 5 && z < flagZ + CLEAR_START) && !zones.some((q) => z < q.z + q.len + 15 && z + len > q.z - 15 && Math.abs(x - q.x) < w + q.w + 1);
+      for (let d = -3; d <= len + 3 && free; d += 3) if (Math.abs(x - lineAt(knots, z + d)) < R.corridor + PR + w + 0.4) free = false;
+      if (free) for (const c of crevasses) if (z + len > c.z - CREV_CLEAR && z < c.z + c.len + 30) { free = false; break; }
+      if (free) for (const rp of ramps) if (z + len > rp.z - 10 && z < rp.z + rampClear(R) && Math.abs(x - rp.x) < rp.w + w + 1) { free = false; break; }
+      if (free) for (const q of walls) if (z + len > q.z - 20 && z < q.z + 10) { free = false; break; }
+      if (free) for (const o of obstacles) if (o.kind === 'yeti' && o.z > z - 4 && o.z < z + len + 4 && Math.abs(o.x - x) < w + o.r + 1) { free = false; break; }
+      if (!free) continue;
+      for (let k = obstacles.length - 1; k >= 0; k--) { const o = obstacles[k]; if (o.z > z - 1.5 && o.z < z + len + 1.5 && Math.abs(o.x - x) < w + o.r + 0.3) obstacles.splice(k, 1); }
+      zones.push({ kind, x, z, w, len }); i++;
+    }
+  };
+  place('ice', R.ice); place('drift', R.drifts);
+  zones.sort((a, b) => a.z - b.z);
+  // ── frost gusts: a little way off the safe line, on open snow
+  const gusts = [];
+  for (let i = 0, tries = 0; i < R.gusts && tries < 300; tries++) {
+    const z = rng.range(CLEAR_START + 150, R.len - 150), side = rng.chance(0.5) ? 1 : -1, x = lineAt(knots, z) + side * (R.corridor + PR + 2.4);
+    if (!calm(z, 40) || Math.abs(x) > HALF - 1.5 || gusts.some((q) => Math.abs(q.z - z) < 300)) continue;
+    if (zones.some((q) => z > q.z - 6 && z < q.z + q.len + 6 && Math.abs(x - q.x) < q.w + 2) || ramps.some((rp) => z > rp.z - 10 && z < rp.z + rampClear(R) && Math.abs(x - rp.x) < rp.w + 2)) continue;
+    if (obstacles.some((o) => o.kind === 'yeti' && Math.abs(o.z - z) < 8 && Math.abs(o.x - x) < 4)) continue;
+    for (let k = obstacles.length - 1; k >= 0; k--) { const o = obstacles[k]; if (o.kind !== 'pillar' && Math.abs(o.z - z) < 7 && Math.abs(o.x - x) < o.r + 2.2) obstacles.splice(k, 1); }
+    gusts.push({ x, z, got: false }); i++;
+  }
+  gusts.sort((a, b) => a.z - b.z);
   // ── crystals: a line of seven on the safe line every 110 m or so, and an arc in the air behind each ramp
   const crystals = [];
   for (let z = CLEAR_START + 20; z < R.len - 60; z += rng.range(90, 130)) {
@@ -227,7 +294,7 @@ export function makeSlope(level, rng, bonus = false) {
   }
   for (const rp of ramps) crystals.push(...arc(R, rp.x, rp.z));
   crystals.sort((a, b) => a.z - b.z);
-  return { level, bonus: false, R, len: R.len, flagZ, knots, obstacles, crystals, ramps, crevasses, packs, rollers, bend };
+  return { level, bonus: false, R, len: R.len, flagZ, knots, obstacles, crystals, ramps, crevasses, packs, rollers, zones, walls, gusts, bend };
 }
 
 /** Knock the sled over (a tumble), unless it is still safe from the last one. */
@@ -251,7 +318,7 @@ export class SlopeSim {
   reset() {
     const s = this.slope, z = this.flagged ? s.flagZ : 0;
     this.p = { x: lineAt(s.knots, z), z, v: this.R.cruise * 0.6, vx: 0, tumble: 0, safe: 0, tuck: false, spin: 0,
-      y: 0, vy: 0, air: '', rot: 0, grab: 0, boost: 0, airT: 0, bitten: 0 };
+      y: 0, vy: 0, air: '', rot: 0, grab: 0, boost: 0, airT: 0, bitten: 0, on: '' };
     this.jumpWas = false;
     this.lost++;                       // lives lost on this run so far
     this.az = z - Math.min(MAX_GAP - 5, START_GAP + MERCY_GAP * this.lost);   // the avalanche's front
@@ -259,6 +326,8 @@ export class SlopeSim {
     while (this.i0 < s.obstacles.length && s.obstacles[this.i0].z < z - 3) this.i0++;
     for (const o of s.obstacles) { o.passed = o.z < z; if (o.kind === 'yeti') { o.flat = false; o.next = 0; o.arm = 0; } }
     this.wolves = []; this.boulders = []; this.knocks = this.knocks || 0; this.wolfTurn = 0;
+    for (const q of s.gusts) if (q.z >= z) q.got = false;
+    this.giant = this.R.giant && !s.bonus ? { state: 'wait', t: GIANT_EVERY, x: 0, z: 0 } : null;
     for (const q of s.packs) q.out = !!q.met || q.z < z + 40;      // a pack you have met once does not come back after a lost life
     for (const q of s.rollers) q.out = q.z < z + 20;
     for (const c of s.crystals) if (c.z >= z) c.got = false;
@@ -269,7 +338,8 @@ export class SlopeSim {
   /** Wolves, yetis' boulders and rolling boulders: one step. */
   creatures(dt, ev) {
     const s = this.slope, R = this.R, p = this.p;
-    const crevNear = s.crevasses.some((c) => c.z > p.z - 5 && c.z - p.z < 70);
+    // near a crevasse or a ruin's gate the creatures hold off: you have enough to do
+    const crevNear = s.crevasses.some((c) => c.z > p.z - 5 && c.z - p.z < 70) || s.walls.some((w) => w.z > p.z - 3 && w.z - p.z < 70);
     this.wolfTurn = Math.max(0, (this.wolfTurn || 0) - dt);
     // ── wolf packs come out of the forest
     for (const q of s.packs) {
@@ -335,6 +405,39 @@ export class SlopeSim {
       if (Math.abs(b.x) > HALF + 3 || b.z < p.z - 12) b.life = 0;
     }
     if (this.boulders.length) this.boulders = this.boulders.filter((b) => b.life > 0);
+    // ── frost gusts
+    for (const q of s.gusts) {
+      if (q.got || q.z < p.z - 3) continue;
+      if (q.z > p.z + 3) break;
+      if (Math.abs(q.x - p.x) < 2 && Math.abs(q.z - p.z) < 2) { q.got = true; this.az -= GUST_BACK; ev.push({ type: 'gust', q }); }
+    }
+    // ── the giant yeti
+    const G = this.giant;
+    if (G) {
+      G.t -= dt;
+      if (G.state === 'wait') {
+        const rampAhead = s.ramps.some((rp) => rp.z > p.z - 2 && rp.z - p.z < 90 && Math.abs(rp.x - p.x) < rp.w + 3);
+        if (G.t <= 0 && !crevNear && !p.air && p.tumble <= 0 && p.z > 150 && p.z < s.len - 220 && !rampAhead && p.z + 60 < (s.flagZ > p.z ? s.flagZ - 10 : 1e9)) {
+          G.state = 'shadow'; G.t = GIANT_T;
+          G.x = Math.max(-HALF + 2.5, Math.min(HALF - 2.5, p.x + p.vx * 0.4)); G.z = p.z + Math.max(p.v, 10) * GIANT_T + 8;
+          ev.push({ type: 'roar' });
+        }
+      } else if (G.state === 'shadow') {
+        if (G.t <= 0) {
+          G.state = 'stand'; ev.push({ type: 'slam', G });
+          for (const o of s.obstacles) { if (o.z > G.z + 5) break; if (o.kind !== 'yeti' && o.kind !== 'pillar' && Math.abs(o.z - G.z) < 5 && Math.abs(o.x - G.x) < 4.5) o.hit = 1; }   // the trees round it go down
+          if (!p.air && Math.abs(G.z - p.z) < 2.6 && Math.abs(G.x - p.x) < GIANT_LAND + PR) knockOver(this, ev, 'giant');
+        }
+      } else if (G.state === 'stand') {
+        if (Math.abs(G.z - p.z) < 1.5 && Math.abs(G.x - p.x) < GIANT_R + PR) {
+          if (p.air && p.y > STOMP_Y) { G.state = 'dazed'; G.t = 2; G.rest = GIANT_EVERY * 2.5; p.air = 'hop'; p.vy = 8; p.rot = 0; p.grab = 0; ev.push({ type: 'gstomp', G }); }
+          else if (knockOver(this, ev, 'giant')) p.vx = (p.x >= G.x ? 1 : -1) * 6;
+        }
+        if (p.z > G.z + 7) { G.state = 'wait'; G.t = GIANT_EVERY + 2 * this.lost; }
+      } else if (G.state === 'dazed') {
+        if (p.z > G.z + 7) { G.state = 'wait'; G.t = G.rest; }
+      }
+    }
   }
 
   step(inp, dt) {
@@ -355,11 +458,15 @@ export class SlopeSim {
       p.tuck = !!inp.tuck; if (p.tuck) p.grab += dt;
     } else {
       p.tuck = !!inp.tuck;
-      const grip = p.air ? 0.5 : 1;
+      // what the sled is riding on: ice hardly answers the steering, deep snow drags
+      let on = '';
+      if (!p.air) for (const q of s.zones) { if (q.z > p.z) break; if (p.z < q.z + q.len && Math.abs(p.x - q.x) < q.w) { on = q.kind; break; } }
+      if (on !== p.on) { p.on = on; if (on) ev.push({ type: on }); }
+      const grip = p.air ? 0.5 : on === 'ice' ? ICE_GRIP : 1;
       const want = (inp.dir || 0) * (p.tuck ? STEER_TUCK : STEER) * grip, d = want - p.vx, lim = STEER_ACC * grip * dt;
       p.vx += Math.max(-lim, Math.min(lim, d));
-      const top = (p.tuck ? R.top : R.cruise) * (p.boost > 0 ? BOOST : 1);
-      if (!p.air) p.v += Math.max(-R.acc * 1.5 * dt, Math.min(R.acc * (p.boost > 0 ? 2.5 : 1) * dt, top - p.v));
+      const top = (p.tuck ? R.top : R.cruise) * (p.boost > 0 ? BOOST : 1) * (on === 'drift' ? DRIFT_SPEED : 1);
+      if (!p.air) p.v += Math.max(-R.acc * (on === 'drift' ? 4 : 1.5) * dt, Math.min(R.acc * (p.boost > 0 ? 2.5 : 1) * dt, top - p.v));
       if (jump && !p.air) { p.air = 'hop'; p.vy = HOP_VY; p.airT = 0; ev.push({ type: 'hop' }); }
     }
     p.x += p.vx * dt; p.z += p.v * dt;

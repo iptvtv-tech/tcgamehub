@@ -17,10 +17,11 @@
 //  down. Yetis (from run 7) throw snow boulders at the ring on the snow; land on a yeti to flatten
 //  it. Boulders roll out of the forest from run 11.
 //
-//  SECTIONS 1–3 (this file so far): the slope in 3D, steering, tucking, the avalanche, trees and
-//  rocks, the flag, the hut, phone buttons; the Iceman on his sled (art.js), ramps, tricks, hops,
-//  crevasses, crystals; wolves, yetis, boulders. Still to come: ruins, night torches and blizzard
-//  runs (4), music and the last badges (5).
+//  The mountain itself (Section 4): ice patches and deep snow beside the best line, ruined walls with
+//  one gate (from run 8), torches on the night runs, a blizzard on runs 13 and 14 (you see about half
+//  as far), frost gusts that throw the avalanche back, and on run 15 the giant yeti.
+//
+//  SECTIONS 1–4 (this file so far). Still to come: its own music and sounds (5).
 //
 //  The rules live in world.js (pure, shared with check.mjs, test.mjs and bench.mjs). This file is
 //  input, camera, drawing, sound and points.
@@ -55,22 +56,24 @@ const hash = (n) => { n = (n ^ 61) ^ (n >>> 16); n = n + (n << 3); n ^= n >>> 4;
 const SKIES = {
   day:   { sky: ['#3f86d8', '#9fd0f5', '#e6f4ff'], snow: ['#dcebf8', '#ffffff'], haze: '#dcecf9', vale: ['#8fb0cf', '#2f5878', '#e6f4ff'], peak: ['#9db7d1', '#c9dcee'], pine: ['#1f5132', '#2f6b43'], shade: 'rgba(60,90,130,0.22)' },
   dusk:  { sky: ['#3b3f7a', '#c9739a', '#ffc38a'], snow: ['#e7cfd8', '#fff1e6'], haze: '#f0cdbf', vale: ['#9a7896', '#3f3560', '#ffd9b8'], peak: ['#7d6590', '#b98aa5'], pine: ['#27413a', '#35584a'], shade: 'rgba(80,50,90,0.25)' },
+  storm: { sky: ['#5c6b82', '#8f9db3', '#c7d0dc'], snow: ['#c9d3e0', '#eef2f7'], haze: '#c2ccd9', vale: ['#aab5c5', '#7c899c', '#dfe6ee'], peak: ['#8c98ab', '#a9b4c4'], pine: ['#22392f', '#2e4a3c'], shade: 'rgba(60,72,95,0.28)' },
   night: { sky: ['#070b1f', '#152552', '#2d4a86'], snow: ['#7f95c2', '#c9d8f2'], haze: '#5f78ad', vale: ['#2c3f73', '#0b1533', '#7f95c2'], peak: ['#22305a', '#34497d'], pine: ['#10261f', '#173529'], shade: 'rgba(10,20,50,0.35)' },
 };
-const skyFor = (level) => (level >= 11 ? SKIES.night : level >= 6 ? SKIES.dusk : SKIES.day);
+const skyFor = (level) => (level === 13 || level === 14 ? SKIES.storm : level >= 11 ? SKIES.night : level >= 6 ? SKIES.dusk : SKIES.day);
 
 const LEVEL_INFO = {
   1: 'Steer between the trees and reach the hut. The avalanche is right behind you.',
   2: 'Snow ramps! In the air hold ◀ or ▶ to spin, and let go before you land.',
-  3: 'Rocks: JUMP hops over them. Tuck (↓) to go faster, but you steer less.',
+  3: 'Rocks: JUMP hops over them. Ice patches: you hardly steer on ice.',
   4: 'An ice wolf! It crouches, then lunges. Swerve into it first to knock it down.',
-  6: 'Crevasses! Take the ramp at the edge, or JUMP at the last moment.',
+  6: 'Crevasses! Take the ramp at the edge, or JUMP. Ride through a frost gust to throw the avalanche back.',
   7: 'A yeti! Steer off the ring where its boulder will land. Jump on its head to flatten it.',
-  8: 'Wolves hunt in pairs now, and there are two crevasses.',
+  8: 'Ruins! Each wall has one gate. Wolves hunt in pairs now.',
   9: 'Tuck in the air to grab the sled: a grab is a trick too.',
   11: 'Night run. Boulders roll out of the forest: go ahead of them or behind.',
-  13: 'Packs of three. Everything the mountain has.',
-  15: 'The long slope. Outrun the mountain.',
+  13: 'Blizzard! You see half as far. Packs of three.',
+  14: 'The storm is not done. Everything the mountain has.',
+  15: 'The giant yeti is coming down after you. Get out from under its shadow.',
 };
 
 runGame({
@@ -126,19 +129,6 @@ class AvalancheRun {
     this.touchSeen = false; this.btnOn = { left: false, right: false, tuck: false, jump: false };
     this.layout();
     s.canvas.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse' && !this.touchSeen) { this.touchSeen = true; this.layout(); } });
-    // Phones: go by the finger list the phone sends with EVERY touch event, not by matching each press to
-    // its lift. iPhones sometimes drop or cancel a lift (a long press at the screen's edge is exactly what
-    // holding ◀ is), and a press whose lift never arrives would hold its button down for ever.
-    this.fingers = null;                                   // null until the first touch event: then the list of fingers on the canvas
-    const sync = (e) => {
-      this.syncTouches(Array.from(e.targetTouches, (q) => { const [x, y] = s.input.toLogical(q); return { x, y }; }));
-      if (!this.touchSeen) { this.touchSeen = true; this.layout(); }
-      if (e.cancelable && s.state === 'playing') e.preventDefault();      // no magnifier, no double-tap zoom, no page scroll under the thumbs
-    };
-    for (const type of ['touchstart', 'touchmove', 'touchend', 'touchcancel']) s.canvas.addEventListener(type, sync, { passive: false });
-    const letGo = () => { if (this.fingers) this.fingers = []; };
-    addEventListener('blur', letGo); addEventListener('pagehide', letGo);
-    document.addEventListener('visibilitychange', letGo);
     for (let i = 0; i < 70; i++) this.flakes.push({ x: Math.random() * W, y: Math.random() * H, r: 0.8 + Math.random() * 1.8, v: 0.4 + Math.random() });
     this.startLevel(1, false);
   }
@@ -148,6 +138,8 @@ class AvalancheRun {
     this.slope = makeSlope(level, this.s.rng, bonus);
     this.sim = new SlopeSim(this.slope);
     this.sky = bonus ? SKIES.dusk : skyFor(level);
+    this.blizzard = !bonus && this.slope.R.blizzard; this.night = !bonus && this.sky === SKIES.night;
+    this.sight = this.blizzard ? 84 : FAR;             // how far down the slope things are drawn (m)
     this.paid = 0; this.camX = this.sim.p.x; this.chunks = []; this.livesAtStart = this.s.lives; this.arrive = 0; this.arrived = false;
   }
   onLifeLost() { this.sim.reset(); this.camX = this.sim.p.x; this.paid = Math.floor(this.sim.p.z / 100); this.chunks = []; }
@@ -163,12 +155,11 @@ class AvalancheRun {
     this.ctl = { left: { x: lx, y: cy, r }, right: { x: lx + r * 2 + 10, y: cy, r }, tuck: { x: jx - (r + 4) - (r - 4) - 10, y: cy + 8, r: r - 4 }, jump: { x: jx, y: cy - 4, r: r + 4 } };
   }
   onBandsChange() { this.layout(); }
-  /** The fingers on the canvas right now, as the phone reports them (see the constructor). */
-  syncTouches(list) { this.fingers = list; }
-  /** Which buttons fingers rest on: each finger presses the button it is nearest to. */
+  /** Which buttons fingers rest on: each finger presses the button it is nearest to. (The engine keeps
+   *  its finger list honest on phones: a finger whose lift was never reported is let go. See touch.js.) */
   buttons() {
     const on = { left: false, right: false, tuck: false, jump: false }, C = this.ctl;
-    for (const q of this.fingers || this.s.input.pointers.values()) {
+    for (const q of this.s.input.pointers.values()) {
       let best = null, bd = 1e9;
       for (const k of ['left', 'right', 'tuck', 'jump']) { const b = C[k], d = Math.hypot(q.x - b.x, q.y - b.y); if (d < b.r + 24 && d - b.r < bd) { bd = d - b.r; best = k; } }
       if (best) on[best] = true;
@@ -195,7 +186,7 @@ class AvalancheRun {
     for (const e of events) {
       if (e.type === 'tumble') {
         s.resetCombo(); s.sound.play('hit'); s.fx.shake(7, 0.25);
-        s.fx.text(W / 2, SLED_Y - 120, e.bad ? 'BAD LANDING!' : e.by === 'boulder' ? 'BOULDER!' : 'TUMBLE!', { color: '#fca5a5', size: 26 });
+        s.fx.text(W / 2, SLED_Y - 120, e.bad ? 'BAD LANDING!' : e.by === 'boulder' ? 'BOULDER!' : e.by === 'giant' ? 'FLATTENED!' : 'TUMBLE!', { color: '#fca5a5', size: 26 });
         s.fx.burst(W / 2, SLED_Y - 20, { colors: ['#ffffff', '#dbeafe'], count: 22, speed: 220 });
       } else if (e.type === 'near') {
         s.award(5 * L, W / 2 + (e.o.x > p.x ? 60 : -60), SLED_Y - 70, { chain: true, color: '#7dd3fc', size: 18 });
@@ -203,6 +194,25 @@ class AvalancheRun {
       } else if (e.type === 'crystal') {
         s.award(10 * L, W / 2, SLED_Y - 60, { chain: true, color: '#a5f3fc', size: 18 });
         s.sound.play('gem', s.comboCount);
+      } else if (e.type === 'ice') {
+        s.sound.play('flap', 8); s.fx.text(W / 2, SLED_Y - 120, 'ICE!', { color: '#bae6fd', size: 22 });
+      } else if (e.type === 'drift') {
+        s.sound.play('brick', 0); s.fx.text(W / 2, SLED_Y - 120, 'DEEP SNOW', { color: '#e0f2fe', size: 20 });
+        s.fx.burst(W / 2, SLED_Y - 10, { colors: ['#ffffff', '#dbeafe'], count: 24, speed: 200 });
+      } else if (e.type === 'gust') {
+        s.award(100 * L, W / 2, SLED_Y - 110, { color: '#a5f3fc', size: 22 });
+        s.fx.text(W / 2, 250, 'FROST GUST!  Avalanche thrown back', { color: '#cffafe', size: 20, life: 1.5 });
+        s.fx.flash('#cffafe'); s.sound.play('powerup');
+      } else if (e.type === 'roar') {
+        s.sound.tone?.({ freq: 150, to: 70, dur: 0.9, type: 'sawtooth', vol: 0.12 }); s.fx.shake(4, 0.4);
+        s.fx.text(W / 2, 250, 'THE GIANT!', { color: '#fecaca', size: 28, life: 1.2 });
+      } else if (e.type === 'slam') {
+        s.sound.play('boom'); s.fx.shake(14, 0.5);
+        const q = this.project(e.G.x, 0.5, e.G.z); if (q) s.fx.burst(q[0], q[1], { colors: ['#ffffff', '#dbeafe'], count: 40, speed: 60 + q[2] * 6 });
+      } else if (e.type === 'gstomp') {
+        s.award(500 * L, W / 2, SLED_Y - 140, { color: '#fde047', size: 28 });
+        s.fx.text(W / 2, SLED_Y - 185, 'GIANT DAZED!', { color: '#fef9c3', size: 24, life: 1.4 });
+        s.sound.play('golden'); s.fx.shake(8, 0.3); s.unlock('yeti');
       } else if (e.type === 'howl') {
         s.sound.tone?.({ freq: 420, to: 760, dur: 0.7, type: 'sine', vol: 0.08 });
         s.fx.text(W / 2, 250, e.n > 1 ? 'WOLVES!' : 'A WOLF!', { color: '#e0f2fe', size: 24, life: 1.1 });
@@ -300,10 +310,12 @@ class AvalancheRun {
     this.drawBackdrop(ctx, top, bottom);
     this.drawSpeedLines(ctx);
     this.drawSnowMarks(ctx);
+    for (const q of this.slope.zones) this.drawZone(ctx, q);
     for (const c of this.slope.crevasses) this.drawCrevasse(ctx, c);
+    if (sim.giant && sim.giant.state === 'shadow') this.drawGiantShadow(ctx, sim.giant);
 
     // everything standing on the slope, far to near
-    const list = [], z0 = p.z - BACK + 1.5, z1 = p.z + FAR, obs = this.slope.obstacles;
+    const list = [], z0 = p.z - BACK + 1.5, z1 = p.z + this.sight, obs = this.slope.obstacles;
     for (let i = sim.i0; i < obs.length && obs[i].z < z1; i++) list.push({ z: obs[i].z, kind: obs[i].kind, o: obs[i] });
     for (let i = sim.i0 - 1; i >= 0 && obs[i].z > z0; i--) list.push({ z: obs[i].z, kind: obs[i].kind, o: obs[i] });
     for (let k = Math.ceil(z0 / 4); k * 4 < z1; k++) for (const side of [-1, 1]) {           // the forest either side
@@ -317,6 +329,10 @@ class AvalancheRun {
       if (this.slope.flagZ > z0 && this.slope.flagZ < z1) list.push({ z: this.slope.flagZ, kind: 'flag' });
       if (this.slope.len > z0 && this.slope.len < z1 + 40) list.push({ z: this.slope.len + 18, kind: 'hut' });
     }
+    for (const q of this.slope.gusts) if (!q.got && q.z > z0 && q.z < z1) list.push({ z: q.z, kind: 'gust', q });
+    for (const w of this.slope.walls) if (w.z > z0 && w.z < z1) list.push({ z: w.z - 0.02, kind: 'arch', w });
+    if (this.night) for (let k = Math.ceil(z0 / 26); k * 26 < z1; k++) for (const side of [-1, 1]) list.push({ z: k * 26, kind: 'torch', x: side * (HALF + 0.4) });
+    if (sim.giant && sim.giant.state !== 'wait' && sim.giant.z > z0 && sim.giant.z < z1 + 30) list.push({ z: sim.giant.z, kind: 'giant' });
     for (const w of sim.wolves) if (w.state !== 'gone') list.push({ z: p.z + w.dz + 0.02, kind: 'wolf', w });
     for (const b of sim.boulders) list.push({ z: b.z, kind: 'boulder', b });
     list.push({ z: p.z, kind: 'sled' });
@@ -330,11 +346,16 @@ class AvalancheRun {
       if (it.kind === 'wolf') { this.drawWolfAt(ctx, it.w); continue; }
       if (it.kind === 'boulder') { this.drawBoulder(ctx, it.b); continue; }
       if (it.kind === 'yeti') { this.drawYetiAt(ctx, it.o); continue; }
+      if (it.kind === 'gust') { this.drawGust(ctx, it.q); continue; }
+      if (it.kind === 'arch') { this.drawArch(ctx, it.w); continue; }
+      if (it.kind === 'torch') { this.drawTorch(ctx, it.x, it.z, 2.6); continue; }
+      if (it.kind === 'giant') { this.drawGiant(ctx, sim.giant); continue; }
+      if (it.kind === 'pillar') { this.drawPillar(ctx, it.o); continue; }
       const o = it.o || it, q = this.project(o.x, 0, it.z);
       if (!q) continue;
       const [x, y, sc, d] = q;
       if (x < -160 || x > W + 160) continue;
-      ctx.globalAlpha = clamp((FAR - d) / 45, 0, 1);
+      ctx.globalAlpha = clamp((this.sight - d) / 45, 0, 1) * clamp((d - 4.5) / 4, 0, 1);      // (what you have just passed fades out of the way of the sled)
       ctx.fillStyle = sky.shade; ctx.beginPath(); ctx.ellipse(x + o.r * sc * 0.5, y, o.r * sc * 1.5, o.r * sc * 0.36, 0, 0, Math.PI * 2); ctx.fill();
       if (it.kind === 'rock') { const w = o.r * 2.5 * sc * (o.hit ? 0.6 : 1), hh = w * (o.hit ? 0.45 : 0.78); ctx.drawImage(this.rocks[o.v], x - w / 2, y - hh * 0.96, w, hh); }
       else {
@@ -363,6 +384,12 @@ class AvalancheRun {
       ctx.fillStyle = '#ffffff';
       for (const c of this.chunks) { ctx.globalAlpha = clamp(c.life * 1.6, 0, 1); ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2); ctx.fill(); }
       ctx.globalAlpha = 1;
+    }
+    if (this.blizzard) this.drawBlizzard(ctx, bottom);
+    if (this.night) {                                      // the dark closes in at the edges of the picture
+      g = ctx.createRadialGradient(W / 2, SLED_Y - 60, 150, W / 2, SLED_Y - 60, 520);
+      g.addColorStop(0, 'rgba(4,8,24,0)'); g.addColorStop(1, 'rgba(4,8,24,0.55)');
+      ctx.fillStyle = g; ctx.fillRect(0, top, W, bottom - top);
     }
     this.drawHud(ctx);
     if (this.touchUI()) this.drawButtons(ctx);
@@ -431,6 +458,20 @@ class AvalancheRun {
     ctx.fillStyle = 'rgba(255,255,255,0.95)'; ctx.fillRect(0, LIP_Y - 1.5, W, 3.5);
   }
 
+  /** The blizzard: the far slope lost in white, and snow driving across the picture. */
+  drawBlizzard(ctx, bottom) {
+    const g = ctx.createLinearGradient(0, LIP_Y - 40, 0, LIP_Y + 170);
+    g.addColorStop(0, 'rgba(238,242,247,0.96)'); g.addColorStop(0.35, 'rgba(238,242,247,0.8)'); g.addColorStop(1, 'rgba(238,242,247,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, LIP_Y - 40, W, 210);
+    ctx.fillStyle = 'rgba(238,242,247,0.55)'; ctx.fillRect(0, SKYLINE - 10, W, LIP_Y - 30 - SKYLINE);
+    ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineCap = 'round';
+    for (let i = 0; i < 60; i++) {
+      const h = hash(i * 13 + 7), sp = 500 + h * 700, x = ((this.t * sp + h * 3000) % (W + 200)) - 100, y = ((hash(i * 29 + 3) * (bottom + 100) + this.t * (120 + h * 160)) % (bottom + 100)) - 50;
+      ctx.lineWidth = 1 + h * 2; ctx.globalAlpha = 0.3 + h * 0.5; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 26 + h * 40, y + 7 + h * 8); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+
   /** Streaks of snow rushing past from the middle of the view: more of them the faster you go. */
   drawSpeedLines(ctx) {
     const p = this.sim.p, k = clamp((p.v - 14) / 40, 0, 1);
@@ -465,7 +506,7 @@ class AvalancheRun {
     const a = this.project(-HALF + 1, 0, z), b = this.project(HALF - 1, 0, z);
     if (!a || !b) return;
     const hh = 5.2 * a[2];
-    ctx.globalAlpha = clamp((FAR - a[3]) / 45, 0, 1);
+    ctx.globalAlpha = clamp((this.sight - a[3]) / 45, 0, 1);
     ctx.fillStyle = '#7c2d12'; ctx.fillRect(a[0] - 0.12 * a[2], a[1] - hh, 0.24 * a[2], hh); ctx.fillRect(b[0] - 0.12 * a[2], b[1] - hh, 0.24 * a[2], hh);
     ctx.fillStyle = col; ctx.fillRect(a[0], a[1] - hh, b[0] - a[0], 1.1 * a[2]);
     if (a[2] > 5) { ctx.fillStyle = '#1f2937'; ctx.font = `800 ${Math.round(0.8 * a[2])}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(word, (a[0] + b[0]) / 2, a[1] - hh + 0.56 * a[2]); }
@@ -477,7 +518,7 @@ class AvalancheRun {
     const q = this.project(0, 0, z);
     if (!q) return;
     const [x, y, sc] = q, w = 8 * sc, hh = 4.2 * sc;
-    ctx.globalAlpha = clamp((FAR + 40 - q[3]) / 45, 0, 1);
+    ctx.globalAlpha = clamp((this.sight + 40 - q[3]) / 45, 0, 1);
     ctx.fillStyle = '#6b4226'; ctx.fillRect(x - w / 2, y - hh, w, hh);
     ctx.fillStyle = '#4a2c17'; for (let i = 1; i < 5; i++) ctx.fillRect(x - w / 2, y - hh + i * hh / 5, w, Math.max(1, 0.08 * sc));
     ctx.fillStyle = '#f8fbff'; ctx.beginPath(); ctx.moveTo(x - w * 0.62, y - hh); ctx.lineTo(x, y - hh - 3.4 * sc); ctx.lineTo(x + w * 0.62, y - hh); ctx.closePath(); ctx.fill();
@@ -489,10 +530,112 @@ class AvalancheRun {
     const q = this.project(c.x, (c.y || 0.9) + Math.sin(this.t * 4 + c.z) * 0.15, c.z);
     if (!q) return;
     const [x, y, sc, d] = q, r = 0.34 * sc;
-    ctx.globalAlpha = clamp((FAR - d) / 45, 0, 1);
+    ctx.globalAlpha = clamp((this.sight - d) / 45, 0, 1);
     ctx.fillStyle = '#67e8f9'; ctx.beginPath(); ctx.moveTo(x, y - r * 1.5); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r * 1.5); ctx.lineTo(x - r, y); ctx.closePath(); ctx.fill();
     ctx.fillStyle = '#ecfeff'; ctx.beginPath(); ctx.moveTo(x, y - r * 1.5); ctx.lineTo(x + r * 0.45, y - r * 0.1); ctx.lineTo(x - r * 0.3, y); ctx.closePath(); ctx.fill();
     ctx.globalAlpha = 1;
+  }
+
+  /** A patch of glassy ice, or a drift of deep snow, lying on the slope. */
+  drawZone(ctx, q) {
+    const p = this.sim.p;
+    if (q.z + q.len < p.z - BACK + 1.6 || q.z > p.z + this.sight) return;
+    const zn = Math.max(q.z, p.z - BACK + 1.6), n = 7, near = [], far = [];
+    for (let i = 0; i <= n; i++) {                       // a rounded outline: narrow at both ends
+      const k = i / n, z = lerp(zn, q.z + q.len, k), kk = (z - q.z) / q.len, half = q.w * Math.sqrt(Math.max(0.05, 1 - Math.pow(kk * 2 - 1, 4)));
+      const a = this.project(q.x - half, 0, z), b = this.project(q.x + half, 0, z);
+      if (a && b) { near.push(a); far.push(b); }
+    }
+    if (near.length < 2) return;
+    const last = near[near.length - 1];
+    ctx.globalAlpha = clamp((this.sight - last[3]) / 45, 0, 1);
+    ctx.beginPath(); near.forEach((a, i) => (i ? ctx.lineTo(a[0], a[1]) : ctx.moveTo(a[0], a[1]))); for (let i = far.length - 1; i >= 0; i--) ctx.lineTo(far[i][0], far[i][1]); ctx.closePath();
+    if (q.kind === 'ice') {
+      const g = ctx.createLinearGradient(0, last[1], 0, near[0][1]); g.addColorStop(0, '#bfe6fb'); g.addColorStop(1, '#7cc4ee');
+      ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 1.5;                 // the shine
+      for (let i = 1; i < near.length - 1; i += 2) { const a = near[i], b = far[i]; ctx.beginPath(); ctx.moveTo(lerp(a[0], b[0], 0.2), a[1]); ctx.lineTo(lerp(a[0], b[0], 0.55), a[1] - (a[1] - near[i + 1][1]) * 0.8); ctx.stroke(); }
+    } else {
+      ctx.fillStyle = 'rgba(255,255,255,0.95)'; ctx.fill(); ctx.strokeStyle = this.sky.shade; ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = this.sky.shade;                                                // lumps of soft snow
+      for (let i = 0; i < near.length - 1; i++) for (let j = 0; j < 3; j++) { const a = near[i], b = far[i], h = hash(i * 9 + j * 5 + Math.round(q.z)), x = lerp(a[0], b[0], 0.15 + 0.3 * j + h * 0.12), sc = a[2]; ctx.beginPath(); ctx.ellipse(x, a[1] - h * 3, 0.7 * sc, 0.16 * sc, 0, 0, Math.PI, true); ctx.fill(); }
+    }
+    ctx.globalAlpha = 1;
+  }
+  /** A pillar of the old kingdom: grey stone, a cap of snow, most of them broken off short. */
+  drawPillar(ctx, o) {
+    const q = this.project(o.x, 0, o.z);
+    if (!q) return;
+    const [x, y, sc, d] = q, w = o.r * 2 * sc, hM = o.hit ? 0.7 : o.v === 3 ? 5.2 : 2.4 + o.v * 0.9, hh = hM * sc;
+    if (x < -120 || x > W + 120) return;
+    ctx.globalAlpha = clamp((this.sight - d) / 45, 0, 1) * clamp((d - 4.5) / 4, 0, 1);
+    ctx.fillStyle = this.sky.shade; ctx.beginPath(); ctx.ellipse(x + w * 0.3, y, w * 0.9, w * 0.2, 0, 0, Math.PI * 2); ctx.fill();
+    const g = ctx.createLinearGradient(x - w / 2, 0, x + w / 2, 0); g.addColorStop(0, '#9aa5b5'); g.addColorStop(0.45, '#7b8697'); g.addColorStop(1, '#4f5969');
+    ctx.fillStyle = g; ctx.fillRect(x - w / 2, y - hh, w, hh);
+    ctx.fillStyle = '#5d6777'; ctx.fillRect(x - w * 0.6, y - 0.35 * sc, w * 1.2, 0.35 * sc);          // the foot
+    ctx.strokeStyle = 'rgba(40,48,62,0.5)'; ctx.lineWidth = Math.max(1, 0.05 * sc);                 // the joints between its drums
+    for (let k = 1; k * 0.9 < hM; k++) { ctx.beginPath(); ctx.moveTo(x - w / 2, y - k * 0.9 * sc); ctx.lineTo(x + w / 2, y - k * 0.9 * sc); ctx.stroke(); }
+    ctx.fillStyle = '#f8fbff'; ctx.beginPath();                                                      // snow on its broken top
+    ctx.moveTo(x - w * 0.56, y - hh + 0.1 * sc); ctx.lineTo(x - w * 0.3, y - hh - 0.35 * sc); ctx.lineTo(x + w * 0.1, y - hh - 0.2 * sc); ctx.lineTo(x + w * 0.35, y - hh - 0.45 * sc); ctx.lineTo(x + w * 0.56, y - hh + 0.1 * sc); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  /** The gate of a ruin: a broken arch over the gap, and a torch on each post. */
+  drawArch(ctx, w) {
+    const a = this.project(w.x - w.half - 0.9, 5.2, w.z), b = this.project(w.x + w.half + 0.9, 5.2, w.z);
+    if (!a || !b) return;
+    ctx.globalAlpha = clamp((this.sight - a[3]) / 45, 0, 1);
+    const sc = a[2], th = 0.8 * sc;
+    ctx.fillStyle = '#6c7788'; ctx.beginPath();
+    ctx.moveTo(a[0] - 0.9 * sc, a[1]); ctx.quadraticCurveTo((a[0] + b[0]) / 2, a[1] - 3.2 * sc, b[0] + 0.9 * sc, b[1]);
+    ctx.lineTo(b[0] + 0.9 * sc, b[1] + th); ctx.quadraticCurveTo((a[0] + b[0]) / 2, a[1] - 3.2 * sc + th * 1.8, a[0] - 0.9 * sc, a[1] + th); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#f8fbff'; ctx.beginPath(); ctx.moveTo(a[0] - 0.9 * sc, a[1]); ctx.quadraticCurveTo((a[0] + b[0]) / 2, a[1] - 3.2 * sc, b[0] + 0.9 * sc, b[1]); ctx.quadraticCurveTo((a[0] + b[0]) / 2, a[1] - 3.75 * sc, a[0] - 0.9 * sc, a[1]); ctx.fill();
+    ctx.globalAlpha = 1;
+    this.drawTorch(ctx, w.x - w.half - 0.9, w.z - 0.05, 3.2, true); this.drawTorch(ctx, w.x + w.half + 0.9, w.z - 0.05, 3.2, true);
+  }
+  /** A burning torch: on a pole at the forest's edge on the night runs, or on a gate post. */
+  drawTorch(ctx, x, z, h, onPost) {
+    const q = this.project(x, h, z), f = this.project(x, 0, z);
+    if (!q || !f || q[0] < -60 || q[0] > W + 60) return;
+    const sc = q[2], fl = 0.8 + 0.2 * Math.sin(this.t * 17 + z);
+    ctx.globalAlpha = clamp((this.sight - q[3]) / 45, 0, 1);
+    if (!onPost) { ctx.fillStyle = '#3b2a1f'; ctx.fillRect(q[0] - 0.07 * sc, q[1], 0.14 * sc, f[1] - q[1]); }
+    const r = 2.6 * sc * fl, g = this.s.glowSprite('rgba(255,170,60,0.9)');
+    ctx.globalAlpha *= 0.75; ctx.drawImage(g, q[0] - r, q[1] - 0.3 * sc - r, r * 2, r * 2); ctx.globalAlpha /= 0.75;
+    ctx.fillStyle = '#ffb347'; ctx.beginPath(); ctx.ellipse(q[0], q[1] - 0.3 * sc, 0.22 * sc, 0.45 * sc * fl, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff3c4'; ctx.beginPath(); ctx.ellipse(q[0], q[1] - 0.22 * sc, 0.1 * sc, 0.24 * sc * fl, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  /** A frost gust: a ring of turning snowflakes with a cold glow. */
+  drawGust(ctx, q) {
+    const c = this.project(q.x, 1.3, q.z);
+    if (!c) return;
+    const sc = c[2], g = this.s.glowSprite('rgba(165,243,252,0.9)'), r = 2.4 * sc;
+    ctx.globalAlpha = clamp((this.sight - c[3]) / 45, 0, 1) * (0.7 + 0.3 * Math.sin(this.t * 5));
+    ctx.drawImage(g, c[0] - r, c[1] - r, r * 2, r * 2);
+    ctx.globalAlpha = clamp((this.sight - c[3]) / 45, 0, 1); ctx.strokeStyle = '#ecfeff'; ctx.lineWidth = Math.max(1.2, 0.1 * sc);
+    for (let i = 0; i < 3; i++) { const a = this.t * 3 + i * 2.1; ctx.beginPath(); ctx.ellipse(c[0], c[1], (0.6 + i * 0.35) * sc, (0.35 + i * 0.2) * sc, 0, a, a + 2.2); ctx.stroke(); }
+    ctx.fillStyle = '#ffffff';
+    for (let i = 0; i < 6; i++) { const a = this.t * 4 + i * 1.047; ctx.beginPath(); ctx.arc(c[0] + Math.cos(a) * 1.1 * sc, c[1] + Math.sin(a) * 0.6 * sc, 0.12 * sc, 0, Math.PI * 2); ctx.fill(); }
+    ctx.globalAlpha = 1;
+  }
+  /** Where the giant yeti is about to land: a shadow that darkens and closes in. */
+  drawGiantShadow(ctx, G) {
+    const q = this.project(G.x, 0, G.z);
+    if (!q) return;
+    const k = clamp(1 - G.t / 1.5, 0, 1), r = (5 - 2.6 * k) * q[2];
+    ctx.fillStyle = `rgba(10,16,40,${0.2 + 0.45 * k})`; ctx.beginPath(); ctx.ellipse(q[0], q[1], r, r * 0.27, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = `rgba(239,68,68,${0.5 + 0.5 * k})`; ctx.lineWidth = Math.max(2, 0.14 * q[2]); ctx.beginPath(); ctx.ellipse(q[0], q[1], 2.45 * q[2], 2.45 * q[2] * 0.27, 0, 0, Math.PI * 2); ctx.stroke();
+  }
+  /** The giant yeti: coming down out of the sky onto its shadow, then standing on the slope, 8 m of it. */
+  drawGiant(ctx, G) {
+    const fall = G.state === 'shadow' ? Math.pow(clamp(G.t / 1.5, 0, 1), 2) * 46 : 0;       // metres above its landing place
+    const q = this.project(G.x, fall, G.z), f = this.project(G.x, 0, G.z);
+    if (!q || !f) return;
+    const u = q[2] * 8.2 / 136;
+    if (G.state !== 'shadow') { ctx.fillStyle = this.sky.shade; ctx.beginPath(); ctx.ellipse(f[0], f[1] + 1, 3.4 * f[2], 0.7 * f[2], 0, 0, Math.PI * 2); ctx.fill(); }
+    ctx.save(); ctx.translate(q[0], q[1]); ctx.scale(u, u);
+    drawYeti(ctx, { t: this.t, arm: 0.14, flat: G.state === 'dazed' });
+    ctx.restore();
   }
 
   drawWolfAt(ctx, w) {
@@ -509,7 +652,7 @@ class AvalancheRun {
     const q = this.project(o.x, 0, o.z);
     if (!q) return;
     const u = q[2] * 3.6 / 136;          // a yeti stands 3.6 m tall
-    ctx.globalAlpha = clamp((FAR - q[3]) / 45, 0, 1);
+    ctx.globalAlpha = clamp((this.sight - q[3]) / 45, 0, 1);
     ctx.fillStyle = this.sky.shade; ctx.beginPath(); ctx.ellipse(q[0], q[1] + 1, 1.5 * q[2], 0.3 * q[2], 0, 0, Math.PI * 2); ctx.fill();
     ctx.save(); ctx.translate(q[0], q[1]); ctx.scale(u, u);
     drawYeti(ctx, { t: this.t + o.z, arm: clamp((o.arm || 0) * 2, 0, 1), flat: o.flat });
@@ -540,10 +683,10 @@ class AvalancheRun {
   /** A crack right across the slope: dark depths, a pale ice wall on the far side, red poles at the near edge. */
   drawCrevasse(ctx, c) {
     const p = this.sim.p;
-    if (c.z + c.len < p.z - BACK + 1.6 || c.z > p.z + FAR) return;
+    if (c.z + c.len < p.z - BACK + 1.6 || c.z > p.z + this.sight) return;
     const zn = Math.max(c.z, p.z - BACK + 1.6), a = this.project(-HALF - 12, 0, zn), b = this.project(HALF + 12, 0, zn), e = this.project(-HALF - 12, 0, c.z + c.len), f = this.project(HALF + 12, 0, c.z + c.len);
     if (!a || !e) return;
-    ctx.globalAlpha = clamp((FAR - e[3]) / 45, 0, 1);
+    ctx.globalAlpha = clamp((this.sight - e[3]) / 45, 0, 1);
     const g = ctx.createLinearGradient(0, e[1], 0, a[1]);
     g.addColorStop(0, '#7fb6dd'); g.addColorStop(0.3, '#1e4a7a'); g.addColorStop(1, '#06122a');
     ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.lineTo(f[0], f[1]); ctx.lineTo(e[0], e[1]); ctx.closePath(); ctx.fill();
@@ -559,7 +702,7 @@ class AvalancheRun {
   drawRamp(ctx, rp) {
     const a = this.project(rp.x - rp.w, 0, rp.z - 6), b = this.project(rp.x + rp.w, 0, rp.z - 6), c = this.project(rp.x + rp.w, 1.25, rp.z), d = this.project(rp.x - rp.w, 1.25, rp.z), g0 = this.project(rp.x - rp.w, 0, rp.z), g1 = this.project(rp.x + rp.w, 0, rp.z);
     if (!a || !c || !g0) return;
-    ctx.globalAlpha = clamp((FAR - c[3]) / 45, 0, 1);
+    ctx.globalAlpha = clamp((this.sight - c[3]) / 45, 0, 1);
     ctx.fillStyle = this.sky.shade; ctx.beginPath(); ctx.moveTo(g0[0], g0[1]); ctx.lineTo(g1[0], g1[1]); ctx.lineTo(g1[0] + 1.2 * c[2], g1[1] + 0.1 * c[2]); ctx.lineTo(g0[0] + 1.2 * c[2], g0[1] + 0.1 * c[2]); ctx.closePath(); ctx.fill();
     ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.lineTo(c[0], c[1]); ctx.lineTo(d[0], d[1]); ctx.closePath(); ctx.fill();
     ctx.strokeStyle = rp.crev ? '#ef4444' : '#38bdf8'; ctx.lineWidth = Math.max(1, 0.16 * c[2]);

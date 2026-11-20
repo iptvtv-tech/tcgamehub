@@ -33,6 +33,15 @@ function clearTo(g, tx, ahead, steer, margin) {
     if (c < margin) return -1;
     if (c < least) least = c;
   }
+  // the giant yeti: its shadow (it lands there) or the giant itself standing on the slope
+  const G = g.sim.giant;
+  if (G && (G.state === 'shadow' || G.state === 'stand') && G.z > p.z - 2 && G.z - p.z < ahead + 10) {
+    const t = Math.max(0, G.z - p.z - 2.6) / Math.max(6, p.v), reach = steer * t;
+    const x = Math.abs(tx - p.x) <= reach ? tx : p.x + Math.sign(tx - p.x) * reach;
+    const c = Math.abs(x - G.x) - 2.2 - PR - 0.4;
+    if (c < margin) return -1;
+    if (c < least) least = c;
+  }
   return least;
 }
 
