@@ -31,20 +31,20 @@ import { drawIcemanSled, drawIcemanFront, drawSled, drawWolf, drawYeti, PAL } fr
 
 const ID = 'avalanche-run';
 const W = 480, H = 720;
-// The slope FALLS AWAY from you: the snow drops faster the further down you look, so about 195 m
+// The slope FALLS AWAY from you: the snow drops faster the further down you look, so about 160 m
 // ahead it rolls over a lip and is gone. Past the lip you look out over the valley far below.
 // The camera looks DOWN the hill: the level horizon (the far mountains' feet) is high in the picture and
 // the lip far below it, and everything between is the drop: the valley floor and the rest of the run.
 const SKYLINE = 132;                 // screen y of the far mountains' feet (the true, level horizon)
-const HORIZON = 326;                 // where a flat slope would have vanished; the lip sits a little below it
-const CAM_H = 4.6;                   // the camera's height above the snow (m)
+const HORIZON = 346;                 // where a flat slope would have vanished; the lip sits a little below it
+const CAM_H = 5.2;                   // the camera's height above the snow (m): high, looking down the hill
 const BACK = 9.5;                    // … and how far behind the sled it rides (m)
-const SLED_Y = 592;                  // screen y of the snow under the sled
+const SLED_Y = 608;                  // screen y of the snow under the sled
 const F = (SLED_Y - HORIZON) * BACK / CAM_H;   // projection scale: pixels per metre at 1 m from the camera
-const LIP = 195;                     // how far ahead the slope rolls over (m)
+const LIP = 160;                     // how far ahead the slope rolls over (m)
 const DROP = CAM_H / (LIP * LIP);    // the snow at d metres ahead lies DROP·d² below a flat slope
 const LIP_Y = HORIZON + 2 * F * CAM_H / LIP;   // screen y of the lip
-const FAR = 172;                     // how far down the slope things are drawn (m)
+const FAR = 142;                     // how far down the slope things are drawn (m)
 const ARRIVE_T = 1.7;                // seconds at the hut: the Iceman steps off and turns to face you
 const PANEL = 96;                    // height of the touch buttons when they sit on the picture
 
@@ -560,7 +560,7 @@ class AvalancheRun {
   drawSled(ctx) {
     const p = this.sim.p, q = this.project(p.x, 0, p.z);
     if (!q) return;
-    const [x, y, sc] = q, u = sc / 70 * 1.35, up = p.y * sc, lean = clamp(p.vx / 12.5, -1, 1);   // (drawn a third larger than life, so he reads)
+    const [x, y, sc] = q, u = sc / 70 * 1.6, up = p.y * sc, lean = clamp(p.vx / 12.5, -1, 1);   // (drawn a third larger than life, so he reads)
     if (this.arrived) {                                   // at the hut: the sled stands empty and he faces you
       const k = 1 - Math.max(0, this.arrive) / ARRIVE_T, pal = this.s.gold ? PAL.gold : PAL.ice;
       ctx.fillStyle = this.sky.shade; ctx.beginPath(); ctx.ellipse(x - 46 * u, y + 2, 44 * u, 8 * u, 0, 0, Math.PI * 2); ctx.fill();

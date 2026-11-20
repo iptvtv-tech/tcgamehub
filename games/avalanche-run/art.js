@@ -43,9 +43,13 @@ function spike(ctx, s, mirror, pal) {
 export function drawSled(ctx, pal = PAL.ice) {
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
   shape(ctx, [-31, 4, -22, 4, -22, -8, -31, -8], pal.runner, 2); shape(ctx, [22, 4, 31, 4, 31, -8, 22, -8], pal.runner, 2);
+  // tipped nose-down the hill, so you see the top of the deck running away from you, and the runners' curled tips beyond it
+  for (const x of [-22, 22]) { ctx.strokeStyle = INK; ctx.lineWidth = 5.4; ctx.beginPath(); ctx.moveTo(x, -44); ctx.quadraticCurveTo(x * 0.98, -56, x * 0.8, -55); ctx.stroke(); ctx.strokeStyle = pal.runner; ctx.lineWidth = 3; ctx.stroke(); }
+  shape(ctx, [-33, -22, 33, -22, 25, -47, -25, -47], pal.deckLit, 2.4);
+  ctx.strokeStyle = pal.deck; ctx.lineWidth = 1.4; ctx.beginPath(); for (const x of [-17, 0, 17]) { ctx.moveTo(x, -22); ctx.lineTo(x * 0.76, -47); } ctx.stroke();
+  ctx.strokeStyle = INK; ctx.lineWidth = 1; ctx.globalAlpha *= 0.5; ctx.beginPath(); ctx.moveTo(-30, -32); ctx.lineTo(30, -32); ctx.stroke(); ctx.globalAlpha /= 0.5;
   shape(ctx, [-35, -6, 35, -6, 33, -22, -33, -22], pal.deck, 2.4);
-  tint(ctx, [-33, -22, 33, -22, 32.5, -18, -32.5, -18], pal.deckLit, 1);
-  ctx.strokeStyle = INK; ctx.lineWidth = 1.2; ctx.beginPath(); for (const x of [-17, 0, 17]) { ctx.moveTo(x, -7); ctx.lineTo(x, -18); } ctx.stroke();
+  ctx.strokeStyle = INK; ctx.lineWidth = 1.2; ctx.beginPath(); for (const x of [-17, 0, 17]) { ctx.moveTo(x, -7); ctx.lineTo(x, -21); } ctx.stroke();
 }
 
 /** The Iceman on his sled, from behind. Art units: the sled is 70 wide and the snow is at y = 0.
@@ -55,7 +59,8 @@ export function drawIcemanSled(ctx, st, pal = PAL.ice) {
   const low = st.tuck || st.grab ? 0.74 : 1;
   ctx.save();
   // his own drawing is 104 units from feet to crown; seated, his hips are on the deck
-  ctx.translate(st.lean * 2, -15); ctx.scale(0.74, 0.74 * low);
+  // … and he leans forward into the drop, so from behind he is a little foreshortened, his head sunk towards his shoulders
+  ctx.translate(st.lean * 2, -24); ctx.scale(0.74, 0.66 * low);
   ctx.lineJoin = 'round'; ctx.lineCap = 'round';
   // the scarf, streaming back up the hill towards you
   {
