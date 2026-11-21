@@ -18,7 +18,7 @@
 //  input, camera, drawing, sound and points. Tunes and sounds are in sfx.js.
 // ─────────────────────────────────────────────────────────────
 import { runGame, roundRect, clamp } from '../../assets/js/engine.js';
-import { SlopeSim, makeSlope, snowAt, gradeAt, MAX_GAP, SLASH_T, YETI_H, BONUS_LEVELS, FINAL_LEVEL } from './world.js';
+import { SlopeSim, makeSlope, snowAt, gradeAt, MAX_GAP, SLASH_T, YETI_H, LETTERS, BONUS_LEVELS, FINAL_LEVEL } from './world.js';
 import { drawIcemanFront, drawYeti, PAL } from './art.js';
 import { drawIceman, drawSlashArc } from '../magma-escape/art.js';
 import { MUSIC, tuneFor, makeSfx } from './sfx.js';
@@ -48,11 +48,11 @@ const skyFor = (level) => (level === 13 || level === 14 ? SKIES.storm : level >=
 
 const LEVEL_INFO = {
   1: 'Ride the kickers into the air. Hold ◀ to backflip, and let go before you land.',
-  2: 'Rocks: JUMP hops over them. Hold TUCK to go faster. Bigger kickers, more air.',
-  3: 'A crevasse! The kicker at its edge carries you over. Keep your speed up.',
+  2: 'Rocks: JUMP hops over them. Grab a rocket for a burst of top speed, and look for the letters S, L, E, D.',
+  3: 'A crevasse! The kicker at its edge carries you over. In the air, TUCK + JUMP is a superman: let go before you land.',
   4: 'A yeti! Swing your sword at it (SWORD, or X), or land on its head. Cut its snowballs out of the air too.',
   6: 'Cracks in the snow: JUMP them, or you are gone.',
-  7: 'Two flips off one kicker score far more than two single flips. Try the huge kickers.',
+  7: 'Land tricks off three kickers in a row for a BLIZZARD RUSH. Swing the sword in the air for a sword spin.',
   9: 'Rocks come in pairs now: jump, land, jump.',
   11: 'Night run. The avalanche is faster than ever.',
   13: 'Storm on the mountain. Land your tricks for speed.',
@@ -193,11 +193,20 @@ class AvalancheRun {
     for (const e of events) {
       if (e.type === 'tumble') {
         s.resetCombo(); this.sfx.tumble(); s.fx.shake(7, 0.25);
-        s.fx.text(sx + 40, sy - 50, e.bad ? 'BAD LANDING!' : e.by === 'ball' ? 'SNOWBALL!' : e.by === 'yeti' ? 'YETI!' : 'TUMBLE!', { color: '#fca5a5', size: 26 });
+        s.fx.text(sx + 40, sy - 50, e.sup ? 'LET GO BEFORE YOU LAND!' : e.bad ? 'BAD LANDING!' : e.by === 'ball' ? 'SNOWBALL!' : e.by === 'yeti' ? 'YETI!' : 'TUMBLE!', { color: '#fca5a5', size: 26 });
         s.fx.burst(sx, sy + 20, { colors: ['#ffffff', '#dbeafe'], count: 22, speed: 220 });
       } else if (e.type === 'crystal') {
-        s.award(6 * L, this.X(e.c.x), this.Y(e.c.y) - 14, { chain: true, color: '#a5f3fc', size: 16 });
-        this.sfx.crystal(s.comboCount);
+        if (e.c.gold) { s.award(60 * L, this.X(e.c.x), this.Y(e.c.y) - 14, { chain: true, color: '#fde047', size: 22 }); s.fx.burst(this.X(e.c.x), this.Y(e.c.y), { colors: ['#fde047', '#fff7c2'], count: 18, speed: 220 }); this.sfx.crystal(12); this.sfx.crystal(s.comboCount); }
+        else { s.award(6 * L, this.X(e.c.x), this.Y(e.c.y) - 14, { chain: true, color: '#a5f3fc', size: 16 }); this.sfx.crystal(s.comboCount); }
+      } else if (e.type === 'rocket') {
+        s.award(20 * L, sx, sy - 40, { chain: true, color: '#fdba74', size: 20 });
+        s.fx.text(W / 2, 230, 'ROCKET!', { color: '#fed7aa', size: 26, life: 1.1 }); s.fx.flash('#fdba74', 0.2); this.sfx.launch(); this.sfx.gust();
+      } else if (e.type === 'letter') {
+        s.award(50 * L, this.X(e.q.x), this.Y(e.q.y) - 16, { chain: true, color: '#f0abfc', size: 20 }); this.sfx.flag();
+        if (e.all) { s.award(500 * L, W / 2, 280, { color: '#f0abfc', size: 28 }); s.fx.text(W / 2, 230, 'S · L · E · D !', { color: '#f5d0fe', size: 30, life: 1.6 }); s.fx.flash('#f0abfc', 0.3); this.sfx.hut(); s.unlock('letters'); }
+      } else if (e.type === 'rush') {
+        s.award(200 * L, W / 2, 300, { color: '#fde047', size: 26 });
+        s.fx.text(W / 2, 270, 'BLIZZARD RUSH!  Avalanche thrown back', { color: '#cffafe', size: 20, life: 1.6 }); s.fx.flash('#cffafe', 0.3); this.sfx.gust();
       } else if (e.type === 'slash') {
         this.sfx.slash();
       } else if (e.type === 'slain') {
@@ -225,10 +234,15 @@ class AvalancheRun {
         this.sfx.cleared();
         s.award(8 * L, sx, sy - 30, { chain: true, color: '#7dd3fc', size: 18 });
       } else if (e.type === 'trick') {
-        const n = e.flips, pts = (n * 80 + n * (n - 1) * 40 + (e.grab ? 40 : 0)) * L, flip = e.back ? 'BACKFLIP' : 'FRONT FLIP';
-        const name = `${n >= 4 ? 'QUAD ' + flip : n === 3 ? 'TRIPLE ' + flip : n === 2 ? 'DOUBLE ' + flip : n === 1 ? flip : ''}${n && e.grab ? ' + ' : ''}${e.grab ? 'GRAB' : ''}`;
+        const n = e.flips, pts = (n * 80 + n * (n - 1) * 40 + (e.grab ? 40 : 0) + (e.superman ? 90 : 0) + (e.spin ? 50 : 0)) * L, flip = e.back ? 'BACKFLIP' : 'FRONT FLIP';
+        const parts = [];
+        if (n) parts.push(`${n >= 4 ? 'QUAD ' : n === 3 ? 'TRIPLE ' : n === 2 ? 'DOUBLE ' : ''}${flip}`);
+        if (e.superman) parts.push('SUPERMAN'); else if (e.grab) parts.push('GRAB');
+        if (e.spin) parts.push('SWORD SPIN');
+        const name = parts.join(' + ');
         s.award(pts, sx, sy - 40, { chain: true, color: '#fde047', size: 24 });
-        s.fx.text(W / 2, 230, `${name}!`, { color: '#fef9c3', size: 24, life: 1.2 });
+        s.fx.text(W / 2, 230, `${name}!`, { color: '#fef9c3', size: name.length > 24 ? 18 : 24, life: 1.2 });
+        s.fx.text(W / 2, 258, e.tier >= 3 ? 'MEGA BOOST' : e.tier === 2 ? 'BIG BOOST' : 'BOOST', { color: '#a5f3fc', size: 15, life: 1.1 });
         s.fx.burst(sx, sy + 26, { colors: ['#ffffff', '#fde047'], count: 26, speed: 260 });
         this.sfx.land(); this.sfx.trick(n);
         if (n >= 2) s.unlock('trickster');
@@ -367,6 +381,7 @@ class AvalancheRun {
     for (const y of sl.yetis) if (y.x > x0 - 3 && y.x < x1 + 3) this.drawYetiAt(ctx, y);
     for (const b of sim.balls) { const X = this.X(b.x), Y = this.Y(b.y), r = 0.75 * Z; ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(X, Y, r, 0, TAU); ctx.fill(); ctx.fillStyle = '#cfe0f0'; ctx.beginPath(); ctx.arc(X + r * 0.25, Y + r * 0.25, r * 0.55, 0, TAU); ctx.fill(); ctx.strokeStyle = '#7f9cc0'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(X, Y, r, 0, TAU); ctx.stroke(); }
     for (const c of sl.crystals) if (!c.got && c.x > x0 && c.x < x1) this.drawCrystal(ctx, c);
+    for (const q of sl.items) if (!q.got && q.x > x0 && q.x < x1) this.drawItem(ctx, q);
 
     ctx.fillStyle = '#ffffff';
     for (const c of this.spray) { ctx.globalAlpha = clamp(c.life * 2.2, 0, 1); ctx.beginPath(); ctx.arc(this.X(c.x), this.Y(c.y), c.r * Z, 0, TAU); ctx.fill(); }
@@ -377,7 +392,7 @@ class AvalancheRun {
     // falling snow, streaming back up the hill
     ctx.fillStyle = 'rgba(255,255,255,0.8)';
     for (const f of this.flakes) { ctx.beginPath(); ctx.arc(f.x, f.y * bottom / H, f.r, 0, TAU); ctx.fill(); }
-    if (p.boost > 0 || p.tuck) this.drawSpeedLines(ctx);
+    if (p.boost > 0 || p.tuck || p.rush > 0 || p.rocket > 0) this.drawSpeedLines(ctx);
     if (this.night) {                                      // the dark closes in at the edges of the picture
       g = ctx.createRadialGradient(OX + 60, this.oy, 150, OX + 60, this.oy, 520);
       g.addColorStop(0, 'rgba(4,8,24,0)'); g.addColorStop(1, 'rgba(4,8,24,0.55)');
@@ -503,8 +518,34 @@ class AvalancheRun {
     ctx.font = '900 15px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = 4; ctx.strokeStyle = '#ffffff'; ctx.strokeText(word, x, y);
     ctx.fillStyle = '#dc2626'; ctx.fillText(word, x, y);
   }
+  /** A rocket to grab, or one of the four letters. */
+  drawItem(ctx, q) {
+    const X = this.X(q.x), Y = this.Y(q.y) + Math.sin(this.t * 3 + q.x) * 3, Z = this.zoom;
+    if (q.kind === 'letter') {
+      const r = 1.25 * Z;
+      ctx.fillStyle = 'rgba(240,171,252,0.35)'; ctx.beginPath(); ctx.arc(X, Y, r * 1.35, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#a21caf'; ctx.beginPath(); ctx.arc(X, Y, r, 0, TAU); ctx.fill(); ctx.strokeStyle = '#fdf4ff'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = '#ffffff'; ctx.font = `900 ${Math.round(r * 1.3)}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(q.ch, X, Y + 1);
+      return;
+    }
+    const u = Z / 7.5;
+    ctx.fillStyle = 'rgba(253,186,116,0.35)'; ctx.beginPath(); ctx.arc(X, Y, 20 * u, 0, TAU); ctx.fill();
+    ctx.save(); ctx.translate(X, Y); ctx.rotate(-0.5);
+    ctx.fillStyle = '#fb923c'; ctx.beginPath(); ctx.moveTo(-16 * u, 0); ctx.lineTo(-26 * u - Math.sin(this.t * 30) * 4 * u, -4 * u); ctx.lineTo(-22 * u, 0); ctx.lineTo(-26 * u - Math.cos(this.t * 30) * 4 * u, 4 * u); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#e2e8f0'; ctx.strokeStyle = '#05050a'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(-15 * u, -6 * u); ctx.lineTo(8 * u, -6 * u); ctx.quadraticCurveTo(20 * u, 0, 8 * u, 6 * u); ctx.lineTo(-15 * u, 6 * u); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.moveTo(-15 * u, -6 * u); ctx.lineTo(-21 * u, -12 * u); ctx.lineTo(-8 * u, -6 * u); ctx.closePath(); ctx.fill(); ctx.beginPath(); ctx.moveTo(-15 * u, 6 * u); ctx.lineTo(-21 * u, 12 * u); ctx.lineTo(-8 * u, 6 * u); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#38bdf8'; ctx.beginPath(); ctx.arc(3 * u, 0, 3 * u, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
   drawCrystal(ctx, c) {
-    const X = this.X(c.x), Y = this.Y(c.y) + Math.sin(this.t * 4 + c.x) * 2, r = 0.62 * this.zoom;
+    const X = this.X(c.x), Y = this.Y(c.y) + Math.sin(this.t * 4 + c.x) * 2, r = (c.gold ? 1.05 : 0.62) * this.zoom;
+    if (c.gold) {
+      ctx.fillStyle = 'rgba(253,224,71,0.35)'; ctx.beginPath(); ctx.arc(X, Y, r * 1.7, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#f59e0b'; ctx.beginPath(); ctx.moveTo(X, Y - r * 1.35); ctx.lineTo(X + r, Y); ctx.lineTo(X, Y + r * 1.35); ctx.lineTo(X - r, Y); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#fef08a'; ctx.beginPath(); ctx.moveTo(X, Y - r * 1.35); ctx.lineTo(X + r, Y); ctx.lineTo(X, Y - r * 0.2); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#92400e'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(X, Y - r * 1.35); ctx.lineTo(X + r, Y); ctx.lineTo(X, Y + r * 1.35); ctx.lineTo(X - r, Y); ctx.closePath(); ctx.stroke();
+      return;
+    }
     ctx.fillStyle = '#22d3ee'; ctx.beginPath(); ctx.moveTo(X, Y - r * 1.35); ctx.lineTo(X + r, Y); ctx.lineTo(X, Y + r * 1.35); ctx.lineTo(X - r, Y); ctx.closePath(); ctx.fill();
     ctx.fillStyle = '#cffafe'; ctx.beginPath(); ctx.moveTo(X, Y - r * 1.35); ctx.lineTo(X + r, Y); ctx.lineTo(X, Y - r * 0.2); ctx.closePath(); ctx.fill();
     ctx.strokeStyle = '#0e7490'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(X, Y - r * 1.35); ctx.lineTo(X + r, Y); ctx.lineTo(X, Y + r * 1.35); ctx.lineTo(X - r, Y); ctx.closePath(); ctx.stroke();
@@ -531,11 +572,14 @@ class AvalancheRun {
     const low = p.tuck ? 0.8 : 1;
     this.sledShape(ctx, u, pal);
     ctx.save(); ctx.translate(-2 * u, -7 * u); ctx.scale(1, low);
+    if (p.air && p.sup > 0 && p.tumble <= 0) { ctx.translate(-26 * u, -4 * u); ctx.rotate(1.25); }         // the superman: stretched out flat behind the sled, holding on
+    if (p.air && p.swordSpin && p.atk > 0) ctx.scale(Math.cos((1 - p.atk / SLASH_T) * TAU), 1);          // the sword spin: he whirls right round
     drawIceman(ctx, { x: 0, y: 0, k: 0.86 * u, stage: 3, face: 1, mode: p.air ? (p.vy > 0 ? 'jump' : 'fall') : 'idle', phase: 0, t: this.t, slash: p.atk > 0 ? { kind: 'side', k: 1 - p.atk / SLASH_T } : null, hurt: p.tumble > 0 ? 1 : 0, blinkOut: false, heat: 0, land: 0 }, this.s.gold ? PAL.gold : PAL.ice, null);
     if (p.atk > 0) drawSlashArc(ctx, 0, 0, 1, { slash: { kind: 'side', k: 1 - p.atk / SLASH_T } }, 0.86 * u * 1.5);
     ctx.restore();
     if (p.air && p.grab > 0 && p.tumble <= 0) { ctx.strokeStyle = '#fde047'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(0, -4 * u, 34 * u, -2.4, -0.7); ctx.stroke(); }
     ctx.restore();
+    if (p.rocket > 0 || p.rush > 0) { const c = Math.cos(p.rot), sn = -Math.sin(p.rot), len = (26 + Math.sin(this.t * 40) * 8) * u; ctx.fillStyle = p.rocket > 0 ? '#fb923c' : '#a5f3fc'; ctx.beginPath(); ctx.moveTo(x - 24 * u * c - 5 * u * sn, y - 8 * u - 24 * u * sn + 5 * u * c); ctx.lineTo(x - (24 * u + len) * c, y - 8 * u - (24 * u + len) * sn); ctx.lineTo(x - 24 * u * c + 5 * u * sn, y - 8 * u - 24 * u * sn - 5 * u * c); ctx.closePath(); ctx.fill(); }
     if (p.boost > 0) { ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 2; const c = Math.cos(p.rot), s = -Math.sin(p.rot); for (let i = 0; i < 5; i++) { const a = hash(i + Math.floor(this.t * 20) * 3), o = (a - 0.5) * 36 * u, len = 30 + a * 50; ctx.beginPath(); ctx.moveTo(x - 30 * u * c + o * s, y - 14 * u - 30 * u * s - o * c); ctx.lineTo(x - (30 * u + len) * c + o * s, y - 14 * u - (30 * u + len) * s - o * c); ctx.stroke(); } }
   }
   /** The sled alone: two runners curled up at the front, struts, a plank deck. Drawn at the origin, pointing right. */
@@ -621,7 +665,11 @@ class AvalancheRun {
     ctx.fillStyle = '#e0f2fe'; ctx.textAlign = 'left'; ctx.font = '700 12px system-ui, sans-serif';
     ctx.fillText(`Hut ${Math.max(0, Math.round(sl.len - p.x))} m`, x0 + 2, 42);
     ctx.textAlign = 'right'; ctx.fillStyle = danger ? '#fca5a5' : '#e0f2fe';
-    ctx.fillText(`${Math.round(p.v * 3.6)} km/h${p.tuck && !p.air ? ' · TUCK' : ''}${p.boost > 0 ? ' · BOOST' : ''}`, x0 + w - 2, 42);
+    ctx.fillText(`${Math.round(p.v * 3.6)} km/h${p.tuck && !p.air ? ' · TUCK' : ''}${p.rush > 0 ? ' · RUSH' : p.rocket > 0 ? ' · ROCKET' : p.boost > 0 ? ' · BOOST' : ''}`, x0 + w - 2, 42);
+    // the four letters, lit as they are found; and the pips of the trick streak (three is a rush)
+    ctx.textAlign = 'center'; ctx.font = '900 13px system-ui, sans-serif';
+    [...LETTERS].forEach((ch, i) => { const got = sl.items.some((q) => q.kind === 'letter' && q.ch === ch && q.got); ctx.fillStyle = got ? '#f0abfc' : 'rgba(8,16,36,0.45)'; ctx.beginPath(); ctx.arc(W / 2 - 30 + i * 20, 42, 9, 0, TAU); ctx.fill(); ctx.fillStyle = got ? '#4a044e' : 'rgba(255,255,255,0.55)'; ctx.fillText(ch, W / 2 - 30 + i * 20, 43); });
+    for (let i = 0; i < 3; i++) { ctx.fillStyle = p.rush > 0 || i < p.streak ? '#fde047' : 'rgba(8,16,36,0.45)'; ctx.beginPath(); ctx.arc(W / 2 - 12 + i * 12, 60, 4, 0, TAU); ctx.fill(); }
   }
 
   drawButtons(ctx) {

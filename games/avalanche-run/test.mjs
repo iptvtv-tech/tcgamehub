@@ -24,6 +24,11 @@
 //  12 · yetis (from run 4) and the sword: riding into a yeti is a tumble, never a life, and it does
 //       not knock you down twice; a swing in reach cuts it down, a swing from far away does not;
 //       landing on its head flattens it; a snowball left alone is a tumble, one met with the sword is not
+//  13 · a double flip's boost is bigger and longer than a single's; a swing of the sword in the air
+//       is a sword spin; TUCK and JUMP held in the air and let go is a superman, held all the way
+//       down is a tumble; tricks off three kickers in a row are a rush (top speed, the avalanche
+//       thrown back); a rocket gives top speed; every run has a golden crystal; a rider who just
+//       rides the kickers picks up all four letters
 //  10 · mercy: every life lost on a run gives 4 m more room ahead of the avalanche at the restart
 //  11 · phone buttons (bug, 20 Nov 2026: on an iPhone ◀ ▶ "glitch and get stuck"): each finger
 //       presses the button nearest to it; a finger that slides from ◀ to ▶ changes over at once;
@@ -252,10 +257,10 @@ for (const level of [4, 9, 15]) {
   const ball = (parry) => {
     // (a yeti with plain snow before it, so the sled is on the snow when it throws)
     let r, y;
-    for (let seed = 1; seed < 40 && !y; seed++) { r = begin(level, seed); y = r.sl.yetis.find((q, i) => i === 0 && !r.sl.kickers.some((k) => k.x > q.x - 85 && k.x < q.x) && !r.sl.rocks.some((k) => k.x > q.x - 85 && k.x < q.x) && !r.sl.gaps.some((k) => k.x > q.x - 85 && k.x < q.x)); }
+    for (let seed = 1; seed < 300 && !y; seed++) { r = begin(level, seed); const free = (q, list) => !list.some((k) => k.x > q.x - 76 && k.x < q.x); y = r.sl.yetis.find((q) => free(q, r.sl.kickers) && free(q, r.sl.rocks) && free(q, r.sl.gaps) && free(q, r.sl.yetis) && free(q, r.sl.items)); }
     const { s, g, sim, p } = r;
     sim.R = { ...sim.R, avalanche: sim.R.cruise * 0.8 };
-    sim.place(y.x - 80); sim.quiet = 0;
+    sim.place(y.x - 74); sim.quiet = 0;
     for (let i = 0; i < 3 / STEP && !r.saw('tumble').length && !r.saw('parry').length && p.x < y.x - 8; i++) {
       const b = sim.balls[0];
       if (parry && b && b.x - p.x < 5 && p.cool <= 0) g.swing = true;
@@ -267,6 +272,63 @@ for (const level of [4, 9, 15]) {
   t.check(left.saw('throw').length >= 1, `run ${level}: the yeti never threw a snowball at a sled riding at it`);
   t.check(left.saw('tumble')[0]?.by === 'ball' && left.s.livesLost === 0, `run ${level}: a snowball left alone did not knock the sled down (${left.sim.tumbles} tumbles)`);
   t.check(cutIt.saw('parry').length === 1 && cutIt.sim.tumbles === 0, `run ${level}: a snowball met with the sword still knocked the sled down (${cutIt.sim.tumbles} tumbles, ${cutIt.saw('parry').length} cut)`);
+}
+
+// ── 13 · boosts, the rush, more tricks, things to collect ──
+for (const level of [3, 8, 14]) {
+  /** Ride a kicker of a size from 8 m before its run-up; in the air, act(p, airT) gives the keys, and may swing. */
+  const jump = (size, act, setup) => {
+    const r = begin(level, 4), { s, g, sim, p, sl } = r, k = sl.kickers.find((q) => !q.big && q.size === size);
+    sim.R = { ...sim.R, avalanche: sim.R.cruise * 0.8 };
+    sim.place(k.x - k.L - 8); sim.quiet = 99; setup?.(r, k);
+    let flew = false, airT = 0;
+    for (let i = 0; i < 8 / STEP; i++) {
+      const out = p.air ? act(p, airT) || {} : {};
+      if (out.swing) g.swing = true;
+      s.hold(out.keys || []); s.tick();
+      if (p.air) { flew = true; airT += STEP; } else if (flew) break;
+    }
+    s.hold([]);
+    return { ...r, k, trick: r.saw('trick')[0], boost: p.boost, boostK: p.boostK };
+  };
+  const flipFor = (n) => (p, a) => ({ keys: a < n * TAU / SPIN - 0.03 ? ['left'] : [] });
+  const one = jump('big', flipFor(1)), two = jump('big', flipFor(2));
+  t.check(one.trick?.tier === 1 && two.trick?.tier === 2 && two.boost > one.boost + 0.5 && two.boostK > one.boostK, `run ${level}: a double flip's boost (${two.boostK} for ${two.boost.toFixed(1)} s) is no bigger than a single's (${one.boostK} for ${one.boost.toFixed(1)} s)`);
+  const spin = jump('mid', (p, a) => ({ swing: a > 0.2 && a < 0.25 }));
+  t.check(spin.trick?.spin && spin.trick.flips === 0 && spin.sim.tumbles === 0 && spin.boost > 0, `run ${level}: a swing of the sword in the air did not land as a sword spin (${JSON.stringify(spin.trick || null)})`);
+  const sup = jump('mid', (p, a) => ({ keys: a < 0.5 ? ['down', 'up'] : [] }));
+  t.check(sup.trick?.superman && !sup.trick.grab && sup.sim.tumbles === 0, `run ${level}: TUCK and JUMP held in the air, then let go, did not land as a superman (${JSON.stringify(sup.trick || null)})`);
+  const held = jump('mid', () => ({ keys: ['down', 'up'] }));
+  t.check(held.sim.tumbles === 1 && held.saw('tumble')[0]?.sup && held.s.livesLost === 0, `run ${level}: a superman held all the way down: ${held.sim.tumbles} tumbles, ${held.s.livesLost} lives lost`);
+  const both = jump('big', (p, a) => ({ keys: a < TAU / SPIN - 0.03 ? ['left'] : [], swing: a > 0.2 && a < 0.25 }));
+  t.check(both.trick?.tier === 2 && both.trick.flips === 1 && both.trick.spin, `run ${level}: a flip with a sword spin is not a two-trick landing (${JSON.stringify(both.trick || null)})`);
+  // a rush: tricks off three kickers in a row
+  {
+    const r = begin(level, 6), { s, sim, p, sl, saw } = r, fast = sim.R.cruise * 0.8;
+    sim.R = { ...sim.R, avalanche: fast }; sl.rocks.length = 0; sl.yetis.length = 0; sl.gaps.length = 0;      // (only the kickers matter here)
+    const run = (keysInAir) => { for (let i = 0; i < 60 / STEP && saw('trick').length + saw('land').length < 3 && !sim.done; i++) { s.hold(p.air && p.from === 'kicker' && p.airT < 0.45 ? keysInAir : []); s.tick(); } };
+    run(['down']);
+    t.check(saw('trick').length === 3 && saw('rush').length === 1, `run ${level}: grabs landed off three kickers in a row gave ${saw('rush').length} rushes (${saw('trick').length} tricks, ${sim.tumbles} tumbles)`);
+    t.check(p.rush > 0 && Math.abs(sim.gap - (MAX_GAP + sim.room)) < 0.5, `run ${level}: in a rush the avalanche is ${sim.gap.toFixed(1)} m behind (thrown back to ${MAX_GAP + sim.room})`);
+    s.hold([]); s.run(0.6, () => p.air);
+    if (!p.air) t.check(p.v > sim.R.cruise * 1.3, `run ${level}: 0.6 s into a rush the sled rides at ${p.v.toFixed(1)} m/s (cruising is ${sim.R.cruise.toFixed(1)})`);
+  }
+  // a rocket, a golden crystal and the four letters
+  {
+    const r = begin(level, 6), { s, sim, p, sl, saw } = r, rocket = sl.items.find((q) => q.kind === 'rocket');
+    sim.R = { ...sim.R, avalanche: sim.R.cruise * 0.8 };
+    sim.place(rocket.x - 6); sim.quiet = 99; s.hold([]); s.run(0.8, () => p.air);
+    t.check(rocket.got && saw('rocket').length === 1 && p.rocket > 0, `run ${level}: riding over a rocket did not pick it up`);
+    if (!p.air) t.check(p.v > sim.R.cruise * 1.25, `run ${level}: with a rocket the sled rides at ${p.v.toFixed(1)} m/s (cruising is ${sim.R.cruise.toFixed(1)})`);
+    t.check(sl.crystals.some((c) => c.gold), `run ${level}: there is no golden crystal on the run`);
+  }
+  {
+    // (the whole run, by the expert rider, who does no tricks: every letter is on a plain flight's way)
+    const { s, g, sl, saw } = begin(level, 6), b = expert(level);
+    for (let i = 0; i < 200 / STEP && !s.cleared; i++) { if (s.state === 'playing') B.bot(g, s, b); s.tick(); }
+    const got = sl.items.filter((q) => q.kind === 'letter' && q.got).length;
+    t.check(got === 4 && saw('letter').filter((e) => e.all).length === 1, `run ${level}: a rider who just rides the kickers picked up ${got} of the 4 letters`);
+  }
 }
 
 // ── 10 · mercy ──
@@ -304,4 +366,4 @@ for (const level of [4, 9, 15]) {
   t.check(C.right.x - C.right.r - (C.left.x + C.left.r) >= 8 && C.jump.x - C.jump.r - (C.tuck.x + C.tuck.r) >= 8 && ['tuck', 'jump'].every((k) => Math.hypot(C.sword.x - C[k].x, C.sword.y - C[k].y) - C.sword.r - C[k].r >= 8), 'two buttons touch or overlap');
 }
 
-t.done(`${runs} runs finished after a real tumble (${tumbles} tumbles in all); a tumble costs ground, not a life; the avalanche costs one life and restarts you on plain snow ahead of it; it is never more than ${MAX_GAP} m behind and always in the picture, on every run; caught, it covers the whole picture before you are put back; crystal rushes cannot be lost; flips and grabs land clean with a burst of speed, upside down is a tumble; kickers come in sizes and a big one has room for a double; crevasses, cracks and rocks do what the rules say; a yeti is a tumble to ride into, is cut down by the sword in reach or flattened from above, and its snowballs can be cut out of the air; phone buttons read each finger`);
+t.done(`${runs} runs finished after a real tumble (${tumbles} tumbles in all); a tumble costs ground, not a life; the avalanche costs one life and restarts you on plain snow ahead of it; it is never more than ${MAX_GAP} m behind and always in the picture, on every run; caught, it covers the whole picture before you are put back; crystal rushes cannot be lost; flips and grabs land clean with a burst of speed, upside down is a tumble; kickers come in sizes and a big one has room for a double; crevasses, cracks and rocks do what the rules say; a yeti is a tumble to ride into, is cut down by the sword in reach or flattened from above, and its snowballs can be cut out of the air; phone buttons read each finger; bigger tricks give bigger boosts, three kickers of tricks running is a rush, sword spins and supermen count, rockets and letters can be picked up`);

@@ -688,7 +688,7 @@ export const GAMES = [
     gold: 'Golden Iceman',          // golden character, unlocked by the Zone 6 egg (once Zone 6's Legends game exists) — never sold
     title: 'Avalanche Run',
     tagline: 'The Iceman is out of the volcano, and now the mountain is coming down behind him. Sled down the steep frozen slope, flip off the kickers, cut down the yetis, jump the crevasses, and reach the hut before the avalanche swallows you.',
-    controls: '← backflip · → front flip (in the air) · ↓ tuck for speed (grab in the air) · ↑ or Space jump · X, J or click to swing the sword (touch: ↺ ↻, TUCK, JUMP and SWORD)',
+    controls: '← backflip · → front flip (in the air) · ↓ tuck for speed (grab in the air; with jump, a superman) · ↑ or Space jump · X, J or click to swing the sword (touch: ↺ ↻, TUCK, JUMP and SWORD)',
     color: '#7dd3fc',
     isNew: true,
     achievements: [
@@ -699,6 +699,7 @@ export const GAMES = [
       { id: 'yeti',     icon: '🦶', title: 'Yeti Hopper',    desc: 'Come down on a yeti from the air and flatten it' },
       { id: 'wolves',   icon: '⚔️', title: 'Yeti Slayer',    desc: 'Cut down 3 yetis with your sword in one run' },
       { id: 'giant',    icon: '🚀', title: 'Giant Air',      desc: 'Land a triple flip off one kicker' },
+      { id: 'letters',  icon: '🔤', title: 'Spell It Out',   desc: 'Collect the letters S, L, E and D on one run' },
       { id: 'level10',  icon: '🌲', title: 'Deep Forest',    desc: 'Reach run 10' },
       { id: 'score10k', icon: '🏅', title: 'Ten Grand',      desc: 'Score 10,000 in one game' },
     ],

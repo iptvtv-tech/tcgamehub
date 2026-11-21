@@ -19,10 +19,11 @@
 //   9 · a careful rider (jumps rocks and cracks, rides the kickers, does no tricks, tucks) gets from
 //       the start line to the hut, and from the flag to the hut, without a tumble or a fall and
 //       ahead of the avalanche; and a tucked sled is faster than the avalanche on every run
-//  10 · crystals hang over the snow (never under it or inside a rock), and the crystal rushes
+//  10 · every run has the letters S, L, E and D once each, each within reach of a sled that
+//       just rides its kicker (slow, cruising or fast), a golden crystal, and two or more rockets from run 2, none just before something to hit; crystals hang over the snow (never under it or inside a rock), and the crystal rushes
 //       (runs 5 and 10) have nothing to hit and plenty to collect
 import { makeRng } from '../../assets/js/rng.js';
-import { makeSlope, SlopeSim, snowAt, gapAt, launch, fly, TUCK, BOOST, ROCK_R, ROCK_H, HOP, GRAV, LIP_MAX, YETI_R, SLASH_REACH, CLEAR_START, BONUS_LEVELS, FINAL_LEVEL } from './world.js';
+import { makeSlope, SlopeSim, snowAt, gapAt, launch, fly, TUCK, BOOST, ROCK_R, ROCK_H, HOP, GRAV, LIP_MAX, YETI_R, SLASH_REACH, LETTERS, REACH, CLEAR_START, BONUS_LEVELS, FINAL_LEVEL } from './world.js';
 
 const arg = process.argv.find((a) => a.startsWith('--seeds='));
 const SEEDS = arg ? +arg.slice(8) : 40;
@@ -56,7 +57,7 @@ function hopHeight(sl, x, v, t) {
   return snowAt(sl, x) + q.vy * t - GRAV * t * t / 2 - snowAt(sl, X);
 }
 
-let airMin = 9, airMax = 0, yetis = 0, slopes = 0, kickers = 0, crevs = 0, cracks = 0, rocks = 0, crystals = 0, tight = 99;
+let items = 0, airMin = 9, airMax = 0, yetis = 0, slopes = 0, kickers = 0, crevs = 0, cracks = 0, rocks = 0, crystals = 0, tight = 99;
 for (let level = 1; level <= FINAL_LEVEL; level++) {
   const bonus = BONUS_LEVELS.includes(level);
   for (let seed = 1; seed <= SEEDS; seed++) {
@@ -143,8 +144,28 @@ for (let level = 1; level <= FINAL_LEVEL; level++) {
       if (h < 0.4 && !gapAt(sl, c.x)) fail(`${tag}: a crystal at x=${Math.round(c.x)} is under the snow`);
       if (h < ROCK_H + 0.3 && sl.rocks.some((r) => Math.abs(r.x - c.x) < ROCK_R + 0.6)) fail(`${tag}: a crystal at x=${Math.round(c.x)} is inside a rock`);
     }
+    // (10 again: the four letters and the rockets)
+    const letters = sl.items.filter((q) => q.kind === 'letter'), rockets = sl.items.filter((q) => q.kind === 'rocket');
+    if (letters.map((q) => q.ch).sort().join('') !== [...LETTERS].sort().join('')) fail(`${tag}: its letters are "${letters.map((q) => q.ch).join('')}" (it should have each of ${LETTERS} once)`);
+    if (!sl.crystals.some((c) => c.gold)) fail(`${tag}: no golden crystal`);
+    if (level >= 2 && rockets.length < 2) fail(`${tag}: ${rockets.length} rockets (two or more from run 2)`);
+    for (const q of sl.items) {
+      const h = q.y - snowAt(sl, q.x);
+      if (h < 0.5 || h > 60 || q.x < CLEAR_START || q.x > sl.len - 40) fail(`${tag}: the ${q.kind} at x=${Math.round(q.x)} is ${h.toFixed(1)} m over the snow, or off the run`);
+      if (q.kind === 'rocket' && (gapAt(sl, q.x) || hard.some(([a, b]) => q.x > a - 10 && q.x < b + 3))) fail(`${tag}: the rocket at x=${Math.round(q.x)} is on or just before something to hit`);
+    }
+    // every letter can be picked up by a cruising sled that just rides its kicker
+    for (const q of letters) {
+      const k = sl.kickers.filter((w) => w.x < q.x).pop();
+      for (const speed of [slow, R.cruise, lipTop]) {
+      const v = launch(sl, k.x, speed);
+      let best = 99; for (let t = 0; t < 3; t += 1 / 60) { const X = k.x + v.vx * t, Y = snowAt(sl, k.x) + v.vy * t - GRAV * t * t / 2 + 0.9; if (Math.abs(X - q.x) < REACH) best = Math.min(best, Math.abs(Y - q.y)); }
+      if (best > REACH + 1.2) fail(`${tag}: the letter ${q.ch} at x=${Math.round(q.x)} is ${best.toFixed(1)} m from the flight of a sled at ${speed.toFixed(0)} m/s`);
+      }
+    }
+    items += sl.items.length;
     void HOP; void BOOST;
   }
 }
 if (problems.length) { console.log(`✗ avalanche-run levels: ${problems.length} problem(s)`); for (const p of problems) console.log('    ' + p); process.exit(1); }
-console.log(`✓ avalanche-run levels — ${slopes} runs built (${FINAL_LEVEL} runs × ${SEEDS} seeds): ${kickers} kickers, in four sizes, throwing a cruising sled for ${airMin.toFixed(1)}–${airMax.toFixed(1)} s, and none landing it on a rock or in a crack at any speed; ${crevs} crevasses, each carried by its kicker from 70% of cruising speed up (at least ${tight.toFixed(1)} m to spare); ${cracks} cracks, each cleared by a jump and a fall without one; ${rocks} rocks, each cleared by a jump; ${yetis} yetis, none where a flight lands; restarts begin on plain snow; a careful rider reaches the hut from the start line and from the flag on every run; ${crystals} crystals over the snow`);
+console.log(`✓ avalanche-run levels — ${slopes} runs built (${FINAL_LEVEL} runs × ${SEEDS} seeds): ${kickers} kickers, in four sizes, throwing a cruising sled for ${airMin.toFixed(1)}–${airMax.toFixed(1)} s, and none landing it on a rock or in a crack at any speed; ${crevs} crevasses, each carried by its kicker from 70% of cruising speed up (at least ${tight.toFixed(1)} m to spare); ${cracks} cracks, each cleared by a jump and a fall without one; ${rocks} rocks, each cleared by a jump; ${yetis} yetis, none where a flight lands; restarts begin on plain snow; a careful rider reaches the hut from the start line and from the flag on every run; ${crystals} crystals over the snow; ${items} letters and rockets, every letter within reach of a sled that just rides its kicker, slow or fast`);
