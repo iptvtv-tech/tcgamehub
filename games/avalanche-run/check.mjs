@@ -6,7 +6,8 @@
 //       before the hut too, so a restart never begins with a tumble
 //   3 · nothing overlaps: a rock or a crack never stands on a kicker or within 12 m of another
 //       rock, crack or crevasse
-//   4 · every kicker throws a cruising sled for between 0.7 and 2 seconds
+//   4 · every kicker throws a cruising sled for between 0.6 and 3.3 seconds, and on every run the
+//       biggest throws it at least half as long again as the smallest; every run has the yetis its number calls for
 //   5 · every crevasse has a kicker at its edge that carries the sled over with 2 m to spare at
 //       any speed from 70% of cruising (a sled that has just tumbled and picked itself up) to
 //       flat out; ridden at a crawl it does not (the crevasse is real)
@@ -21,7 +22,7 @@
 //  10 · crystals hang over the snow (never under it or inside a rock), and the crystal rushes
 //       (runs 5 and 10) have nothing to hit and plenty to collect
 import { makeRng } from '../../assets/js/rng.js';
-import { makeSlope, SlopeSim, snowAt, gapAt, launch, fly, TUCK, BOOST, ROCK_R, ROCK_H, HOP, GRAV, KICK_L, CLEAR_START, BONUS_LEVELS, FINAL_LEVEL } from './world.js';
+import { makeSlope, SlopeSim, snowAt, gapAt, launch, fly, TUCK, BOOST, ROCK_R, ROCK_H, HOP, GRAV, LIP_MAX, YETI_R, SLASH_REACH, CLEAR_START, BONUS_LEVELS, FINAL_LEVEL } from './world.js';
 
 const arg = process.argv.find((a) => a.startsWith('--seeds='));
 const SEEDS = arg ? +arg.slice(8) : 40;
@@ -38,7 +39,9 @@ function ride(sl, x0) {
     const rock = sl.rocks.find((r) => r.x > p.x), crack = sl.gaps.find((c) => c.crack && c.x > p.x);
     const want = !p.air && ((rock && rock.x - p.x < Math.max(2.4, p.v * 0.3)) || (crack && crack.x - p.x < Math.max(1.2, p.v * 0.1)));
     const jump = want && !pressed; pressed = !!want;
-    for (const e of sim.step({ dir: 0, tuck: true, jump }, DT)) {
+    const yeti = sl.yetis.find((y) => !y.down && y.x > p.x - 1), ball = sim.balls.find((b) => b.x - p.x < SLASH_REACH + 1 + p.v * 0.08 && b.x > p.x - 1);
+    const slash = ((yeti && yeti.x - p.x < SLASH_REACH + p.v * 0.12) || !!ball) && i % 2 === 0;
+    for (const e of sim.step({ dir: 0, tuck: true, jump, slash }, DT)) {
       if (e.type === 'tumble') return `a tumble at x=${Math.round(p.x)}`;
       if (e.type === 'fell') return `a fall at x=${Math.round(p.x)}`;
       if (e.type === 'caught') return `caught by the avalanche at x=${Math.round(p.x)}`;
@@ -53,12 +56,12 @@ function hopHeight(sl, x, v, t) {
   return snowAt(sl, x) + q.vy * t - GRAV * t * t / 2 - snowAt(sl, X);
 }
 
-let slopes = 0, kickers = 0, crevs = 0, cracks = 0, rocks = 0, crystals = 0, tight = 99;
+let airMin = 9, airMax = 0, yetis = 0, slopes = 0, kickers = 0, crevs = 0, cracks = 0, rocks = 0, crystals = 0, tight = 99;
 for (let level = 1; level <= FINAL_LEVEL; level++) {
   const bonus = BONUS_LEVELS.includes(level);
   for (let seed = 1; seed <= SEEDS; seed++) {
     const sl = makeSlope(level, makeRng(seed * 7919 + level * 31), bonus), R = sl.R, tag = `run ${level} seed ${seed}`;
-    const top = R.top, slow = R.cruise * 0.7;
+    const top = R.top, slow = R.cruise * 0.7, lipTop = R.cruise * LIP_MAX;      // (a kicker throws the sled no faster than lipTop)
     slopes++; kickers += sl.kickers.length; crystals += sl.crystals.length;
     if (bonus) {
       if (sl.rocks.length || sl.gaps.length) fail(`${tag} (crystal rush): there is something to hit`);
@@ -70,9 +73,14 @@ for (let level = 1; level <= FINAL_LEVEL; level++) {
     // 1
     if (big.length !== R.crevasses) fail(`${tag}: ${big.length} crevasses (the run calls for ${R.crevasses})`);
     if (small.length !== R.cracks) fail(`${tag}: ${small.length} cracks (the run calls for ${R.cracks})`);
+    yetis += sl.yetis.length;
+    if (sl.yetis.length !== R.yetis) fail(`${tag}: ${sl.yetis.length} yetis (the run calls for ${R.yetis})`);
+    // kickers of different sizes on every run: the biggest throws a cruising sled at least half as long again as the smallest
+    { const airs = sl.kickers.map((k) => { const q = launch(sl, k.x, R.cruise); return fly(sl, k.x, snowAt(sl, k.x), q.vx, q.vy, false).t; });
+      if (Math.max(...airs) < Math.min(...airs) * 1.5) fail(`${tag}: its kickers are all much the same size (they throw the sled for ${Math.min(...airs).toFixed(1)}–${Math.max(...airs).toFixed(1)} s)`); }
     if (sl.rocks.length < R.rocks) fail(`${tag}: ${sl.rocks.length} rocks (the run calls for ${R.rocks})`);
     // 2
-    const things = [...sl.rocks.map((r) => [r.x - ROCK_R, r.x + ROCK_R, 'rock']), ...sl.gaps.map((c) => [c.x, c.x + c.w, c.crack ? 'crack' : 'crevasse']), ...sl.kickers.map((k) => [k.x - KICK_L, k.x, 'kicker'])];
+    const things = [...sl.rocks.map((r) => [r.x - ROCK_R, r.x + ROCK_R, 'rock']), ...sl.gaps.map((c) => [c.x, c.x + c.w, c.crack ? 'crack' : 'crevasse']), ...sl.yetis.map((y) => [y.x - YETI_R, y.x + YETI_R, 'yeti']), ...sl.kickers.map((k) => [k.x - k.L, k.x, 'kicker'])];
     for (const [a, b, what] of things) {
       if (b > 0 && a < CLEAR_START) fail(`${tag}: a ${what} at x=${Math.round(a)}, on the plain snow after the start line`);
       if (b > sl.flagX - 2 && a < sl.flagX + CLEAR_START) fail(`${tag}: a ${what} at x=${Math.round(a)}, on the plain snow after the flag (${sl.flagX})`);
@@ -81,22 +89,23 @@ for (let level = 1; level <= FINAL_LEVEL; level++) {
     // 3
     const hard = things.filter((q) => q[2] !== 'kicker');
     for (let i = 0; i < hard.length; i++) {
-      for (const k of sl.kickers) if (hard[i][2] !== 'crevasse' && hard[i][1] > k.x - KICK_L - 2 && hard[i][0] < k.x + 2) fail(`${tag}: a ${hard[i][2]} at x=${Math.round(hard[i][0])} stands on the kicker at ${k.x}`);
+      for (const k of sl.kickers) if (hard[i][2] !== 'crevasse' && hard[i][1] > k.x - k.L - 2 && hard[i][0] < k.x + 2) fail(`${tag}: a ${hard[i][2]} at x=${Math.round(hard[i][0])} stands on the kicker at ${k.x}`);
       for (let j = i + 1; j < hard.length; j++) if (hard[i][1] + 12 > hard[j][0] && hard[j][1] + 12 > hard[i][0]) fail(`${tag}: a ${hard[i][2]} at x=${Math.round(hard[i][0])} and a ${hard[j][2]} at x=${Math.round(hard[j][0])} are within 12 m of each other`);
     }
     for (const k of sl.kickers) {
       const at = (v) => { const q = launch(sl, k.x, v); return fly(sl, k.x, snowAt(sl, k.x), q.vx, q.vy); };
       // 4
       const f = at(R.cruise);
-      if (f.t < 0.7 || f.t > 2) fail(`${tag}: the kicker at ${k.x} throws a cruising sled for ${f.t.toFixed(2)} s`);
+      airMin = Math.min(airMin, f.t); airMax = Math.max(airMax, f.t);
+      if (f.t < 0.6 || f.t > 3.3) fail(`${tag}: the kicker at ${k.x} throws a cruising sled for ${f.t.toFixed(2)} s`);
       // 5
       if (k.big) {
         const c = k.gap;
-        for (const v of [slow, R.cruise, top]) { const q = at(v); if (q.fell || q.x < c.x + c.w + 2) fail(`${tag}: at ${v.toFixed(0)} m/s the kicker at ${k.x} does not carry the sled over its crevasse (${c.w} m) with 2 m to spare`); else tight = Math.min(tight, q.x - (c.x + c.w)); }
+        for (const v of [slow, R.cruise, lipTop]) { const q = at(v); if (q.fell || q.x < c.x + c.w + 2) fail(`${tag}: at ${v.toFixed(0)} m/s the kicker at ${k.x} does not carry the sled over its crevasse (${c.w} m) with 2 m to spare`); else tight = Math.min(tight, q.x - (c.x + c.w)); }
         if (!at(R.cruise * 0.15).fell) fail(`${tag}: a sled at a crawl gets over the crevasse at ${c.x}`);
       }
       // 6
-      for (let v = slow; v <= top + 0.01; v += (top - slow) / 12) {
+      for (let v = slow; v <= lipTop + 0.01; v += (lipTop - slow) / 12) {
         const q = at(v);
         if (q.fell) { fail(`${tag}: a flight at ${v.toFixed(0)} m/s off the kicker at ${k.x} comes down in a crevasse`); break; }
         const bad = hard.find(([a, b]) => q.x > a - 10 && q.x < b + 1 && !(k.gap && a === k.gap.x));
@@ -118,7 +127,7 @@ for (let level = 1; level <= FINAL_LEVEL; level++) {
       for (const dx of [-ROCK_R - 0.5, 0, ROCK_R + 0.5]) { const t = (r.x + dx - x) / launch(sl, x, v, true).vx; if (hopHeight(sl, x, v, t) < ROCK_H + 0.15) fail(`${tag}: a jump a third of a second before the rock at ${r.x} at ${v.toFixed(0)} m/s does not clear it`); }
     }
     // (6 again, for jumps: a jump over a rock or a crack at full speed never comes down in or just before the next thing)
-    for (const [a, , what] of hard.filter((q) => q[2] !== 'crevasse')) {
+    for (const [a, , what] of hard.filter((q) => q[2] !== 'crevasse' && q[2] !== 'yeti')) {
       for (const from of what === 'rock' ? [a + ROCK_R - top * 0.3, a + ROCK_R - 3] : [a - 1.5, a - 0.1]) {
         const q = launch(sl, from, top, true), f = fly(sl, from, snowAt(sl, from), q.vx, q.vy, false);
         const bad = hard.find(([c, d]) => c > a + 2 && f.x > c - 10 && f.x < d + 1);
@@ -138,4 +147,4 @@ for (let level = 1; level <= FINAL_LEVEL; level++) {
   }
 }
 if (problems.length) { console.log(`✗ avalanche-run levels: ${problems.length} problem(s)`); for (const p of problems) console.log('    ' + p); process.exit(1); }
-console.log(`✓ avalanche-run levels — ${slopes} runs built (${FINAL_LEVEL} runs × ${SEEDS} seeds): ${kickers} kickers, each throwing a cruising sled for 0.7–2 s and none landing it on a rock or in a crack at any speed; ${crevs} crevasses, each carried by its kicker from 70% of cruising speed up (at least ${tight.toFixed(1)} m to spare); ${cracks} cracks, each cleared by a jump and a fall without one; ${rocks} rocks, each cleared by a jump; restarts begin on plain snow; a careful rider reaches the hut from the start line and from the flag on every run; ${crystals} crystals over the snow`);
+console.log(`✓ avalanche-run levels — ${slopes} runs built (${FINAL_LEVEL} runs × ${SEEDS} seeds): ${kickers} kickers, in four sizes, throwing a cruising sled for ${airMin.toFixed(1)}–${airMax.toFixed(1)} s, and none landing it on a rock or in a crack at any speed; ${crevs} crevasses, each carried by its kicker from 70% of cruising speed up (at least ${tight.toFixed(1)} m to spare); ${cracks} cracks, each cleared by a jump and a fall without one; ${rocks} rocks, each cleared by a jump; ${yetis} yetis, none where a flight lands; restarts begin on plain snow; a careful rider reaches the hut from the start line and from the flag on every run; ${crystals} crystals over the snow`);

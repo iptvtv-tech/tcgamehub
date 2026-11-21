@@ -13,13 +13,14 @@ values ('magma-escape', 'Magma Escape', 3000)
 on conflict (id) do update set title = excluded.title, max_points_per_second = excluded.max_points_per_second;
 
 -- Game 32 · Avalanche Run joins the leaderboard.
--- (Rebuilt side-on on 21 Nov 2026.) Points: crystals (6 × run), tricks (40 × run a flip, 25 × run
--- a grab), a rock jumped (8 × run), all in the x5 combo; 10 × run per 100 m; and at the hut
--- 100 × run plus 300 × run for no tumbles. A run 15 with every kicker flipped as many times as the
--- air allows, a grab each time and every crystal pays about 2,700 points a second at x5, so the
--- ceiling stays at 4,000.
+-- (Rebuilt side-on on 21 Nov 2026.) Points: crystals (6 × run); tricks (80 × run a flip, a double
+-- 240, a triple 480, plus 40 × run for a grab); a yeti cut down (150 × run) or flattened (200 × run);
+-- a snowball cut out of the air (30 × run); a rock jumped (8 × run), all in the x5 combo; 10 × run
+-- per 100 m; and at the hut 100 × run plus 300 × run for no tumbles. A run 15 with every kicker
+-- flipped as many times as the air allows, a grab each time and every crystal pays about 6,800
+-- points a second at x5, so the ceiling is 12,000 (it was 4,000: run this file again).
 insert into public.games (id, title, max_points_per_second)
-values ('avalanche-run', 'Avalanche Run', 4000)
+values ('avalanche-run', 'Avalanche Run', 12000)
 on conflict (id) do update set title = excluded.title, max_points_per_second = excluded.max_points_per_second;
 
 -- Check: two rows should come back.

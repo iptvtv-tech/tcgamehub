@@ -25,7 +25,8 @@ export const SPIN = 8.6;             // flip speed, radians a second (a full fli
 export const RIGHTING = 5;           // with the buttons let go, the sled levels itself this fast (rad/s)
 export const LAND_OK = 0.8;          // land within this of the snow's angle (about 46°)
 export const TUCK = 1.15;            // tucked: this much faster
-export const BOOST = 1.22;           // after a landed trick: this much faster …
+export const BOOST = 1.3;            // after a landed trick: this much faster …
+export const TOP = 1.4;              // however it adds up, never faster than this share of cruising speed
 export const BOOST_T = 1.8;          // … for this long (s)
 export const GRAB_T = 0.25;          // hold a grab this long for it to count (s)
 export const TUMBLE_T = 0.7;         // seconds of tumbling
@@ -37,7 +38,18 @@ export const MAX_GAP = 22;           // … and it is never further behind than 
 export const MERCY_GAP = 4;          // each life lost on a run: this much more room at the restart
 export const CLEAR_START = 50;       // plain snow after the start line and the flag (m)
 export const GAP_CLEAR = 40;         // nothing to trip on for this far before a crevasse
-export const KICK_L = 7;             // a kicker's length (m)
+/** Kickers come in four sizes: how long the kicker is (m), and how long it throws a cruising sled, as a share of the run's usual flight. */
+export const KICKS = { small: { L: 6, air: 0.8 }, mid: { L: 8, air: 1.1 }, big: { L: 11, air: 1.7 }, huge: { L: 14, air: 2.35 } };
+export const LIP_MAX = 1.25;         // a kicker throws the sled no faster than this share of cruising speed (so no flight is endless)
+export const SLASH_T = 0.28;         // a swing of the sword lasts this long (s) …
+export const SLASH_COOL = 0.42;      // … and the next can start this long after it began
+export const SLASH_REACH = 4;        // it reaches this far ahead of the sled (m)
+export const YETI_R = 1.3;           // a yeti: half its width …
+export const YETI_H = 2.8;           // … and its height (m)
+export const THROW_EVERY = 1.7;      // a yeti throws a snowball this often (s) …
+export const THROW_T = 0.95;         // … and it takes this long to reach the sled
+export const BALL_R = 1.3;           // a snowball hits the sled this close (m)
+export const STOMP_UP = 7;           // landing on a yeti's head bounces the sled up (m/s)
 export const ROCK_R = 0.9;           // a rock: half its length …
 export const ROCK_H = 1.0;           // … and its height (m)
 export const REACH = 1.7;            // the sled picks up a crystal this close (m)
@@ -51,18 +63,19 @@ export const wrap = (a) => { a = (a + Math.PI) % TAU; return (a < 0 ? a + TAU : 
 
 /** What a run asks for. */
 export function runFor(level) {
-  const n = level, cruise = Math.min(25, 16 * Math.pow(1.032, n - 1));
+  const n = level, cruise = Math.min(28, 18 * Math.pow(1.032, n - 1));
   return {
     level: n,
     cruise,                                           // m/s along the snow
-    top: cruise * TUCK * BOOST * 1.12,                 // the fastest it can ride (tucked, boosted, on a steep pitch)
+    top: cruise * TOP,                                // the fastest it can ride (tucked, boosted, on a steep pitch)
     acc: cruise * 0.75,                               // picking up speed takes the same time on every run
-    len: 850 + 65 * n,                                // metres along to the hut
+    len: 950 + 75 * n,                                // metres along to the hut
     avalanche: cruise * (0.88 + 0.014 * n),            // from run 10 it is faster than a sled that only cruises: tuck, and land tricks
     grade: 0.42 + 0.011 * n,                          // how steep (fall per metre along)
     every: 60 - n,                                    // metres between things, about
     rocks: n < 2 ? 0 : Math.min(5, 1 + Math.floor(n / 3)),
     cracks: n < 6 ? 0 : Math.min(3, Math.floor((n - 3) / 3)),            // narrow: jump them
+    yetis: n < 4 ? 0 : Math.min(4, 1 + Math.floor((n - 4) / 3)),         // swing the sword, or land on its head
     crevasses: n < 3 ? 0 : Math.min(3, 1 + Math.floor((n - 3) / 4)),     // wide: a kicker at the edge
   };
 }
@@ -80,6 +93,8 @@ export function gradeAt(sl, x) {
 }
 /** How the snow lies around x, taken over the length of the sled (so a kicker's lip is not a cliff to land on). */
 export function lieAt(sl, x) { return (snowAt(sl, x + 1.5) - snowAt(sl, x - 1.5)) / 3; }
+/** The pitch of the mountainside itself at x: no kickers, no drops. */
+export function pitchAt(sl, x) { return sl.P[Math.floor(clamp(x + BACK, 0, sl.P.length - 1))]; }
 /** The crevasse or crack x is over, or null. */
 export function gapAt(sl, x) {
   for (const c of sl.gaps) if (x > c.x && x < c.x + c.w) return c;
@@ -105,7 +120,7 @@ export function launch(sl, x, v, hop = false) {
 }
 
 /** Build a run. All the dice are the seeded rng's. */
-export function makeSlope(level, dice, bonus = false) {
+export function makeSlope(level, dice, bonus = false, squeeze = 0) {
   const rng = dice.next;
   const R = runFor(level), len = bonus ? 1400 : R.len, N = Math.ceil(BACK + len + AHEAD) + 2;
   const H = new Float32Array(N);
@@ -117,8 +132,9 @@ export function makeSlope(level, dice, bonus = false) {
     if (x > len - 40) g = lerp(g, 0.1, clamp((x - (len - 40)) / 40, 0, 1));
     return g;
   };
-  for (let i = 1; i < N; i++) H[i] = H[i - 1] - pitch(i - BACK);
-  const sl = { level, bonus, R, len, H, kickers: [], gaps: [], rocks: [], crystals: [], flagX: Math.round(len / 2) };
+  const P = new Float32Array(N);                      // the pitch of the mountainside itself, before anything is built on it
+  for (let i = 1; i < N; i++) { P[i] = -pitch(i - BACK); H[i] = H[i - 1] + P[i]; }
+  const sl = { level, bonus, R, len, H, P, kickers: [], gaps: [], rocks: [], yetis: [], crystals: [], flagX: Math.round(len / 2) };
 
   // What stands where: mostly kickers; a few crevasses, cracks and rocks, never more than two of
   // those in a row. They are dealt out as the run is laid, so that every one of them finds a place.
@@ -127,36 +143,57 @@ export function makeSlope(level, dice, bonus = false) {
     for (let i = 0; i < R.crevasses; i++) todo.push('crevasse');
     for (let i = 0; i < R.cracks; i++) todo.push('crack');
     for (let i = 0; i < R.rocks; i++) todo.push('rock');
+    for (let i = 0; i < R.yetis; i++) todo.push('yeti');
     for (let i = todo.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [todo[i], todo[j]] = [todo[j], todo[i]]; }
   }
   // Placed one after another down the run. A rock, crack or crevasse never stands where a flight
   // off the kicker before it can come down, however fast the sled was (tucked, boosted), and
   // leaves room after that landing to see it and jump.
-  const vmax = R.cruise * TUCK * BOOST * 1.12;
-  // a kicker is as tall as it takes to throw a cruising sled for `secs` seconds
-  const kicker = (x, secs, big) => {
-    const snow = []; for (let k = 1; k <= KICK_L; k++) snow.push(H[x - KICK_L + k + BACK]);
-    const build = (h) => { for (let k = 1; k <= KICK_L; k++) H[x - KICK_L + k + BACK] = snow[k - 1] + h * (k / KICK_L) ** 2; };
+  const vmax = R.top;
+  // A kicker is as tall as it takes to throw a cruising sled for its size's time in the air, but never
+  // so steep that it throws the sled more up than along. Where that is not enough (the big ones), the
+  // mountainside steps down behind its lip: a drop, so the sled flies far out over lower snow.
+  const kicker = (x, size, big) => {
+    const L = KICKS[size].L, secs = (big ? 1.25 : KICKS[size].air) * (0.94 + rng() * 0.12);
+    const snow = []; for (let k = 1; k <= L; k++) snow.push(H[x - L + k + BACK]);
+    const build = (h) => { for (let k = 1; k <= L; k++) H[x - L + k + BACK] = snow[k - 1] + h * (k / L) ** 2; };
     const air = (v) => { const q = launch(sl, x, v); return fly(sl, x, snowAt(sl, x), q.vx, q.vy, false); };
-    let lo = 0.5, hi = 5;
-    for (let i = 0; i < 12; i++) { const h = (lo + hi) / 2; build(h); if (air(R.cruise).t < secs) lo = h; else hi = h; }
-    const kk = { x, h: hi, big, far: air(vmax).far };
+    const steep = Math.max(0.6, L * (pitch(x) + 0.1) / 2);      // (at this height the lip points a little above level)
+    let lo = 0.4, hi = big ? 12 : steep;
+    for (let i = 0; i < 14; i++) { const h = (lo + hi) / 2; build(h); if (air(R.cruise).t < secs) lo = h; else hi = h; }
+    build(hi);
+    let drop = 0;
+    if (!big && air(R.cruise).t < secs - 0.03) {
+      const rest = H.slice(x + 1 + BACK), lower = (d) => { for (let i = 0; i < rest.length; i++) H[x + 1 + BACK + i] = rest[i] - d; };
+      let a0 = 0, a1 = 45;
+      for (let i = 0; i < 14; i++) { const d = (a0 + a1) / 2; lower(d); if (air(R.cruise).t < secs) a0 = d; else a1 = d; }
+      drop = a1; lower(drop);
+    }
+    const kk = { x, L, size, h: hi, drop, big, far: air(R.cruise * LIP_MAX).far };
     sl.kickers.push(kk); return kk;
   };
+  const sizes = level < 2 ? ['small', 'mid', 'mid', 'big'] : level < 4 ? ['small', 'mid', 'big', 'big'] : ['small', 'mid', 'big', 'big', 'huge'];
   // where a jump taken at x at full speed comes down
   const hopLands = (at) => { const q = launch(sl, at, vmax, true); return fly(sl, at, snowAt(sl, at), q.vx, q.vy, false).x; };
-  const every = bonus ? 40 : R.every;
-  let x = CLEAR_START + 14 + rng() * 10, lands = 0, passedFlag = false, inRow = 0, farAvg = vmax * 2;
+  const every = (bonus ? 40 : R.every) * (1 - 0.15 * squeeze);
+  // (the sizes are dealt like cards, so every run has all of them)
+  let deck = [];
+  const deal = () => { if (!deck.length) { deck = [...sizes]; for (let i = deck.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [deck[i], deck[j]] = [deck[j], deck[i]]; } } return deck.pop(); };
+  let x = CLEAR_START + 18 + rng() * 10, lands = 0, ends = 0, passedFlag = false, inRow = 0, farAvg = vmax * 2;
   for (let i = 0; x < len - 85; i++) {
     // deal them out at random while there is room to spare, and one after another once there is not
     // (after a kicker, a rock, crack or crevasse has to wait for the whole of that kicker's longest flight)
-    const each = every * 1.15 + farAvg * 0.5 + 38, room = len - 95 - x - (passedFlag ? 0 : CLEAR_START + 60);
+    const each = every * 1.15 + farAvg * 0.5 + 55, room = len - 95 - x - (passedFlag ? 0 : CLEAR_START + 60);
     let kind = 'kicker';
-    if (i > 0 && inRow < 2 && todo.length && (room <= (todo.length + 1) * each || rng() < todo.length * each * 1.3 / Math.max(1, room))) kind = todo.pop();
+    if (i > 0 && inRow < 2 && todo.length && (room <= (todo.length + 1) * each * 1.25 || rng() < todo.length * each * 1.3 / Math.max(1, room))) kind = todo.pop();
     inRow = kind === 'kicker' ? 0 : inRow + 1;
-    if (kind !== 'kicker') x = Math.max(x, lands + (kind === 'crevasse' ? 22 : 15));
-    if (!passedFlag && x > sl.flagX - 45) { passedFlag = true; x = Math.max(x, sl.flagX + CLEAR_START + 12 + rng() * 8); }
-    if (x >= len - 85) break;
+    // (where the run is getting short of room for what is still to come, the kickers are the smaller ones)
+    const tight = todo.length && room <= (todo.length + 1) * each * 1.6;
+    const size = kind === 'crevasse' ? 'big' : tight ? deal().replace('huge', 'small') : deal();
+    if (kind !== 'kicker') x = Math.max(x, lands + (kind === 'crevasse' ? 22 + KICKS.big.L : 15));
+    else x = Math.max(x, ends + KICKS[size].L + 6);         // (room for its run-up after the thing before it)
+    if (!passedFlag && x > sl.flagX - 45) { passedFlag = true; x = Math.max(x, sl.flagX + CLEAR_START + 18 + rng() * 8); }
+    if (x >= len - 85) { if (kind !== 'kicker') todo.push(kind); break; }
     x = Math.round(x);
     let next = x;
     if (kind === 'rock') {
@@ -164,11 +201,14 @@ export function makeSlope(level, dice, bonus = false) {
       const second = Math.round(Math.max(hopLands(x - vmax * 0.3), hopLands(x)) + 20);
       if (level >= 9 && rng() < 0.5 && second < len - 90 && (second < sl.flagX - 45 || x > sl.flagX)) { next = second; sl.rocks.push({ x: next, v: Math.floor(rng() * 3) }); }   // a second, a jump and a landing later
       lands = Math.max(hopLands(next), hopLands(next - vmax * 0.3));
+    } else if (kind === 'yeti') {
+      sl.yetis.push({ x });
+      lands = Math.max(hopLands(x), hopLands(x - vmax * 0.3));
     } else if (kind === 'crack') {
       sl.gaps.push({ x, w: 5 + Math.round(rng() * 2) * 0.5, crack: true });
       lands = hopLands(x) + 4;
     } else {
-      const big = kind === 'crevasse', k = kicker(x, (0.95 + 0.02 * level) * (big ? 1.25 : 0.85 + rng() * 0.35), big);
+      const big = kind === 'crevasse', k = kicker(x, size, big);
       if (big) {
         // as wide as a slow sled (one that has just tumbled and picked itself up) still clears with room
         const slow = launch(sl, x, R.cruise * 0.7), f = fly(sl, x, snowAt(sl, x), slow.vx, slow.vy, false);
@@ -177,8 +217,11 @@ export function makeSlope(level, dice, bonus = false) {
       }
       lands = x + k.far; farAvg = k.far;
     }
+    ends = Math.max(next, kind === 'crevasse' ? x + 16 : next) + 2;
     x = next + every * (0.9 + rng() * 0.45);
   }
+  // (not everything found a place: lay the run again, a little closer together)
+  if (todo.length && squeeze < 3) return makeSlope(level, dice, bonus, squeeze + 1);
   sl.gaps.sort((a, b) => a.x - b.x);
 
   // crystals: an arc along each kicker's flight, a hop's arc over each crack, lines on the snow between
@@ -190,7 +233,7 @@ export function makeSlope(level, dice, bonus = false) {
   for (const c of sl.gaps) if (c.crack) arc(c.x - 1.5, R.cruise, true, 3);
   for (const k of sl.kickers) {                       // a line on the snow leading up to some kickers
     if (!bonus && rng() < 0.5) continue;
-    for (let j = 0; j < 4; j++) { const cx = k.x - KICK_L - 5 - j * 3.2; if (cx > 30 && !gapAt(sl, cx) && !sl.rocks.some((r) => Math.abs(r.x - cx) < 6)) sl.crystals.push({ x: cx, y: snowAt(sl, cx) + 0.9 }); }
+    for (let j = 0; j < 4; j++) { const cx = k.x - k.L - 5 - j * 3.2; if (cx > 30 && !gapAt(sl, cx) && !sl.rocks.some((r) => Math.abs(r.x - cx) < 6) && !sl.yetis.some((r) => Math.abs(r.x - cx) < 6)) sl.crystals.push({ x: cx, y: snowAt(sl, cx) + 0.9 }); }
   }
   for (let k = 0; k < 6; k++) { const x = 20 + k * 4; sl.crystals.push({ x, y: snowAt(sl, x) + 0.9 }); }
   sl.crystals.sort((a, b) => a.x - b.x);
@@ -202,17 +245,19 @@ export function makeSlope(level, dice, bonus = false) {
 export class SlopeSim {
   constructor(slope) {
     this.sl = slope; this.R = slope.R; this.bonus = slope.bonus;
-    this.flagged = false; this.lost = 0; this.tumbles = 0; this.flips = 0; this.t = 0;
+    this.flagged = false; this.lost = 0; this.tumbles = 0; this.flips = 0; this.slain = 0; this.t = 0; this.balls = [];
     this.p = {}; this.place(0);
   }
   /** Put the sled on the snow at x at cruising speed, the avalanche START_GAP behind (more after lost lives). */
   place(x) {
     const sl = this.sl;
     Object.assign(this.p, { x, y: snowAt(sl, x), v: this.R.cruise, vx: 0, vy: 0, air: false, from: '', airT: 0, rot: Math.atan(gradeAt(sl, x)),
-      turned: 0, grab: 0, tumble: 0, safe: 0, boost: 0, tuck: false, sunk: false, buf: 0, spin: 0, g0: null });
+      turned: 0, grab: 0, tumble: 0, safe: 0, boost: 0, tuck: false, sunk: false, buf: 0, spin: 0 });
     this.room = Math.min(3, this.lost) * MERCY_GAP;
     this.az = x - START_GAP - this.room; this.gap = START_GAP + this.room;
-    this.done = false; this.jumpHeld = false;
+    this.done = false; this.jumpHeld = false; this.slashHeld = false; this.balls = []; this.quiet = 1.5;
+    Object.assign(this.p, { atk: 0, cool: 0 });
+    for (const y of this.sl.yetis) y.wait = 0.25;
   }
   /** After a lost life: back to the start line, or the flag once passed. */
   reset() {
@@ -225,7 +270,46 @@ export class SlopeSim {
     this.tumbles++; ev.push({ type: 'tumble', ...why });
   }
 
-  /** One step. inp = { dir: −1 (◀) | 0 | 1 (▶), tuck, jump }. Returns what happened. */
+  /** Yetis and their snowballs. */
+  creatures(dt, ev, x0) {
+    const sl = this.sl, p = this.p, up = p.y - snowAt(sl, p.x), swing = p.atk > 0;
+    let first = true;                                  // (only the nearest yeti still standing throws: one thing to answer at a time)
+    for (const y of sl.yetis) {
+      if (y.down || y.x < x0 - 3) continue;
+      const d = y.x - p.x, nearest = first; first = false;
+      if (d > 110) break;
+      // the sword: anything within its reach while it swings
+      if (swing && d > -1 && d < SLASH_REACH + YETI_R && up < YETI_H + 1.5) { y.down = true; y.slain = true; this.slain++; ev.push({ type: 'slain', y }); continue; }
+      if (Math.abs(d) < YETI_R + 0.5 && up < YETI_H) {
+        if (p.air && p.vy < 0 && up > YETI_H * 0.55) {                      // down onto its head
+          y.down = true; y.flat = true; p.vy = STOMP_UP; p.turned = 0; p.grab = 0; p.airT = 0; p.from = 'hop'; ev.push({ type: 'stomp', y });
+        } else if (p.safe <= 0 && p.tumble <= 0) { y.down = true; this.tumbleNow(ev, { by: 'yeti', y }); }
+        else y.down = true;                                                 // (bowled over by a sled that cannot be hurt just now)
+        continue;
+      }
+      // it throws at where the sled will be, unless the sled is flying, down, or only just put back
+      y.arm = Math.max(0, (y.arm || 0) - dt);
+      // (never so late that the snowball and the yeti arrive together: the sword needs a moment between swings)
+      const soon = (p.x - x0) / dt * (THROW_T + 0.65);
+      if (!nearest || d < soon || d > soon + 36 || this.quiet > 0 || this.balls.length) continue;
+      y.wait -= dt;
+      if (y.wait > 0 || p.air || p.tumble > 0 || p.safe > 0) continue;
+      y.wait = THROW_EVERY; y.arm = 0.5;
+      const bx = y.x - 1, by = snowAt(sl, y.x) + YETI_H, tx = p.x + (p.x - x0) / dt * THROW_T, ty = snowAt(sl, tx) + 1;
+      const b = { x: bx, y: by, vx: (tx - bx) / THROW_T, vy: (ty - by) / THROW_T + GRAV * THROW_T / 2 };
+      this.balls.push(b); ev.push({ type: 'throw', y, b });
+    }
+    for (const b of this.balls) {
+      b.vy -= GRAV * dt; b.x += b.vx * dt; b.y += b.vy * dt;
+      const dx = b.x - p.x, dy = b.y - (p.y + 0.9);
+      if (swing && dx > -1.5 && dx < SLASH_REACH + 1 && Math.abs(dy) < 3) { b.gone = true; ev.push({ type: 'parry', b }); }
+      else if (Math.hypot(dx, dy) < BALL_R) { b.gone = true; if (p.safe <= 0 && p.tumble <= 0) this.tumbleNow(ev, { by: 'ball', b }); else ev.push({ type: 'thud', b }); }
+      else if (b.y < snowAt(sl, b.x) || dx < -25) { b.gone = true; ev.push({ type: 'thud', b }); }
+    }
+    if (this.balls.some((b) => b.gone)) this.balls = this.balls.filter((b) => !b.gone);
+  }
+
+  /** One step. inp = { dir: −1 (◀) | 0 | 1 (▶), tuck, jump, slash }. Returns what happened. */
   step(inp, dt) {
     const ev = [], sl = this.sl, R = this.R, p = this.p;
     if (this.done) return ev;
@@ -235,13 +319,19 @@ export class SlopeSim {
     if (p.tumble > 0) { p.tumble -= dt; p.spin += dt * 13; }
     if (inp.jump && !this.jumpHeld) p.buf = 0.12; else if (p.buf > 0) p.buf -= dt;      // (a press a moment early still counts)
     this.jumpHeld = !!inp.jump;
+    if (p.atk > 0) p.atk -= dt;
+    if (p.cool > 0) p.cool -= dt;
+    if (inp.slash && !this.slashHeld && p.cool <= 0 && p.tumble <= 0) { p.atk = SLASH_T; p.cool = SLASH_COOL; ev.push({ type: 'slash' }); }
+    this.slashHeld = !!inp.slash;
+    if (this.quiet > 0) this.quiet -= dt;
     p.tuck = !!inp.tuck && p.tumble <= 0;
     const x0 = p.x;
 
     if (!p.air) {
       // (over a lip the snow turns down sharply: the sled keeps the heading it had on the way up)
-      const here = gradeAt(sl, p.x), lip = p.g0 != null && here < p.g0 - 0.25, g = lip ? p.g0 : here, n = Math.hypot(1, g);
+      const here = gradeAt(sl, p.x), was = gradeAt(sl, p.x - 0.7), lip = here < was - 0.25, g = lip ? was : here, n = Math.hypot(1, g);
       let want = R.cruise * (p.tuck ? TUCK : 1) * (p.boost > 0 ? BOOST : 1) * clamp(1 + 0.5 * (-g - R.grade), 0.9, 1.12);
+      want = Math.min(want, R.top);
       if (p.tumble > 0) want = R.cruise * TUMBLE_V;
       p.v = p.v < want ? Math.min(want, p.v + R.acc * dt) : Math.max(want, p.v - (p.tumble > 0 ? 40 : 12) * dt);
       const vx = p.v / n, vy = p.v * g / n, nx = p.x + vx * dt, over = gapAt(sl, nx), g1 = snowAt(sl, nx);
@@ -249,15 +339,17 @@ export class SlopeSim {
         p.buf = 0; p.air = true; p.from = 'hop'; p.vx = vx + HOP * -g / n; p.vy = vy + HOP / n;
         ev.push({ type: 'hop' });
       } else if (lip || over || p.y + vy * dt - GRAV * dt * dt / 2 - g1 > 0.05) {      // the snow drops away faster than the sled falls
-        const k = sl.kickers.find((q) => Math.abs(q.x - p.x) < 1.5);
-        p.air = true; p.from = k ? 'kicker' : 'drop'; p.vx = vx; p.vy = vy;
+        const k = sl.kickers.find((q) => p.x > q.x - q.L && p.x < q.x + 1.5);
+        const cap = k ? Math.min(1, R.cruise * LIP_MAX / p.v) : 1;      // (a kicker throws the sled no faster than LIP_MAX)
+        p.air = true; p.from = k ? 'kicker' : 'drop'; p.vx = vx * cap; p.vy = vy * cap;
         if (k) ev.push({ type: 'launch', k });
-      } else { p.x = nx; p.y = g1; p.rot = Math.atan(gradeAt(sl, nx)); p.g0 = here; }
-      if (p.air) { p.g0 = null; p.airT = 0; p.turned = 0; p.grab = 0; p.sunk = false; }
+      } else { p.x = nx; p.y = g1; p.rot = Math.atan(gradeAt(sl, nx)); }
+      if (p.air) { p.airT = 0; p.turned = 0; p.grab = 0; p.sunk = false; }
     }
     if (p.air) {
       p.vy -= GRAV * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.airT += dt;
-      const g = snowAt(sl, p.x), ang = Math.atan(lieAt(sl, p.x));
+      // the sled levels itself to the mountainside as a whole; it may land flat to that, or flat to the snow right under it
+      const g = snowAt(sl, p.x), ang = Math.atan(pitchAt(sl, p.x)), near = Math.atan(lieAt(sl, p.x));
       if (p.tumble <= 0) {
         if (inp.dir) { const d = -inp.dir * SPIN * dt; p.rot += d; p.turned += d; }
         else { const off = wrap(p.rot - ang); p.rot -= Math.sign(off) * Math.min(Math.abs(off), RIGHTING * dt); }
@@ -269,16 +361,17 @@ export class SlopeSim {
         if (p.y < g - 3) { this.done = true; ev.push({ type: 'fell', gap: over }); return ev; }
       } else if (p.y <= g) {
         if (p.sunk) { this.done = true; ev.push({ type: 'fell' }); return ev; }
-        const n = Math.hypot(1, Math.tan(ang)), along = (p.vx + p.vy * Math.tan(ang)) / n;
-        const flips = Math.floor((Math.abs(p.turned) + LAND_OK) / TAU), grab = p.grab >= GRAB_T, off = wrap(p.rot - ang);
+        // (a skip off the snow keeps its speed; a real landing keeps what runs along the snow it lands on)
+        const n = Math.hypot(1, Math.tan(near)), along = p.airT < 0.12 ? Math.hypot(p.vx, p.vy) : (p.vx + p.vy * Math.tan(near)) / n;
+        const flips = Math.floor((Math.abs(p.turned) + LAND_OK) / TAU), grab = p.grab >= GRAB_T, off = Math.min(Math.abs(wrap(p.rot - ang)), Math.abs(wrap(p.rot - near)));
         p.air = false; p.y = g; p.v = clamp(along, R.cruise * TUMBLE_V, R.top);
-        if (p.tumble > 0) { /* still tumbling: it just comes down */ }
-        else if (Math.abs(off) > LAND_OK) this.tumbleNow(ev, { bad: true });
+        if (p.tumble > 0 || p.airT < 0.12) { /* still tumbling, or only a skip off the snow: it just comes down */ }
+        else if (off > LAND_OK) this.tumbleNow(ev, { bad: true });
         else if ((flips > 0 || grab) && p.airT > 0.3) {
           p.boost = BOOST_T; this.flips += flips;
           ev.push({ type: 'trick', flips, back: p.turned > 0, grab, airT: p.airT });
         } else if (p.airT > 0.25) ev.push({ type: 'land', airT: p.airT });
-        p.rot = ang; p.turned = 0; p.grab = 0;
+        p.rot = near; p.turned = 0; p.grab = 0;
       }
     }
 
@@ -290,6 +383,7 @@ export class SlopeSim {
         if (p.safe <= 0 && p.tumble <= 0) { r.hit = true; if (p.air) { p.vy = Math.max(p.vy, 3); } this.tumbleNow(ev, { by: 'rock', r }); }
       } else if (!r.passed && p.x > r.x + ROCK_R + 0.5) { r.passed = true; if (p.air) ev.push({ type: 'cleared', r }); }
     }
+    this.creatures(dt, ev, x0);
     for (const c of sl.crystals) {
       if (c.got || c.x < x0 - REACH) continue;
       if (c.x > p.x + REACH) break;

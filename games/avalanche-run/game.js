@@ -18,9 +18,9 @@
 //  input, camera, drawing, sound and points. Tunes and sounds are in sfx.js.
 // ─────────────────────────────────────────────────────────────
 import { runGame, roundRect, clamp } from '../../assets/js/engine.js';
-import { SlopeSim, makeSlope, snowAt, gradeAt, MAX_GAP, KICK_L, BACK, BONUS_LEVELS, FINAL_LEVEL } from './world.js';
-import { drawIcemanFront, PAL } from './art.js';
-import { drawIceman } from '../magma-escape/art.js';
+import { SlopeSim, makeSlope, snowAt, gradeAt, MAX_GAP, SLASH_T, YETI_H, BONUS_LEVELS, FINAL_LEVEL } from './world.js';
+import { drawIcemanFront, drawYeti, PAL } from './art.js';
+import { drawIceman, drawSlashArc } from '../magma-escape/art.js';
 import { MUSIC, tuneFor, makeSfx } from './sfx.js';
 
 const ID = 'avalanche-run';
@@ -30,6 +30,7 @@ const ARRIVE_T = 1.7;                // seconds at the hut: the Iceman steps off
 const SWALLOW_T = 0.6;               // seconds for the avalanche to roll over the whole picture (the engine puts you back 0.9 s after a lost life)
 const PANEL = 96;                    // height of the touch buttons when they sit on the picture
 const TAU = Math.PI * 2;
+const SLASH_KEYS = new Set(['KeyX', 'KeyJ', 'KeyK', 'KeyC']);      // (the same keys as Magma Escape)
 
 const lerp = (a, b, t) => a + (b - a) * t;
 const hash = (n) => { n = (n ^ 61) ^ (n >>> 16); n = n + (n << 3); n ^= n >>> 4; n = Math.imul(n, 0x27d4eb2d); return ((n ^ (n >>> 15)) >>> 0) / 4294967296; };
@@ -47,11 +48,11 @@ const skyFor = (level) => (level === 13 || level === 14 ? SKIES.storm : level >=
 
 const LEVEL_INFO = {
   1: 'Ride the kickers into the air. Hold ◀ to backflip, and let go before you land.',
-  2: 'Rocks: JUMP hops over them. Hold TUCK to go faster.',
+  2: 'Rocks: JUMP hops over them. Hold TUCK to go faster. Bigger kickers, more air.',
   3: 'A crevasse! The kicker at its edge carries you over. Keep your speed up.',
-  4: 'Hold TUCK in the air to grab the sled: a grab is a trick too.',
+  4: 'A yeti! Swing your sword at it (SWORD, or X), or land on its head. Cut its snowballs out of the air too.',
   6: 'Cracks in the snow: JUMP them, or you are gone.',
-  7: 'Try a front flip (▶). Two flips off one kicker scores double.',
+  7: 'Two flips off one kicker score far more than two single flips. Try the huge kickers.',
   9: 'Rocks come in pairs now: jump, land, jump.',
   11: 'Night run. The avalanche is faster than ever.',
   13: 'Storm on the mountain. Land your tricks for speed.',
@@ -111,9 +112,17 @@ class AvalancheRun {
     this.s = s;
     this.t = 0; this.flakes = []; this.chunks = []; this.spray = [];
     this.sprites = new Map(); this.rockArt = [0, 1, 2].map(rockSprite);
-    this.touchSeen = false; this.btnOn = { left: false, right: false, tuck: false, jump: false };
+    this.touchSeen = false; this.btnOn = { left: false, right: false, tuck: false, jump: false, sword: false }; this.swing = false;
     this.layout();
-    s.canvas.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse' && !this.touchSeen) { this.touchSeen = true; this.layout(); } });
+    const playing = () => s.state === 'playing';
+    s.canvas.addEventListener('pointerdown', (e) => {
+      if (e.pointerType !== 'mouse' && !this.touchSeen) { this.touchSeen = true; this.layout(); }
+      if (e.pointerType === 'mouse' && e.button === 0 && playing()) this.swing = true;       // a mouse click swings the sword
+    });
+    addEventListener('keydown', (e) => {
+      if (e.target instanceof HTMLInputElement || !SLASH_KEYS.has(e.code) || !playing()) return;
+      e.preventDefault(); if (!e.repeat) this.swing = true;
+    });
     for (let i = 0; i < 60; i++) this.flakes.push({ x: Math.random() * W, y: Math.random() * H, r: 0.8 + Math.random() * 1.8, v: 0.4 + Math.random() });
     this.sfx = makeSfx(s.sound); this.swallowT = SWALLOW_T;
     this.boot = true; this.startLevel(1, false); this.boot = false;      // (the title screen does not start the tune)
@@ -146,23 +155,26 @@ class AvalancheRun {
     // kept 30 px clear of the screen's side edges: iPhones start their own swipes there
     const lx = 30 + r, jx = W - 30 - (r + 4);
     this.ctl = { left: { x: lx, y: cy, r }, right: { x: lx + r * 2 + 10, y: cy, r }, tuck: { x: jx - (r + 4) - (r - 4) - 10, y: cy + 8, r: r - 4 }, jump: { x: jx, y: cy - 4, r: r + 4 } };
+    // the sword sits above TUCK and JUMP, between the two, on the bottom of the picture
+    this.ctl.sword = { x: jx - r - 2, y: cy - 4 - (r + 4) - (r - 6) - 12, r: r - 6 };
   }
   onBandsChange() { this.layout(); }
   /** Which buttons fingers rest on: each finger presses the button it is nearest to. (The engine keeps
    *  its finger list honest on phones: a finger whose lift was never reported is let go. See touch.js.) */
   buttons() {
-    const on = { left: false, right: false, tuck: false, jump: false }, C = this.ctl;
+    const on = { left: false, right: false, tuck: false, jump: false, sword: false }, C = this.ctl;
     for (const q of this.s.input.pointers.values()) {
       let best = null, bd = 1e9;
-      for (const k of ['left', 'right', 'tuck', 'jump']) { const b = C[k], d = Math.hypot(q.x - b.x, q.y - b.y); if (d < b.r + 24 && d - b.r < bd) { bd = d - b.r; best = k; } }
+      for (const k of ['left', 'right', 'tuck', 'jump', 'sword']) { const b = C[k], d = Math.hypot(q.x - b.x, q.y - b.y); if (d < b.r + 24 && d - b.r < bd) { bd = d - b.r; best = k; } }
       if (best) on[best] = true;
     }
     return on;
   }
   readInput() {
-    const i = this.s.input, tb = this.btnOn = this.touchUI() ? this.buttons() : { left: false, right: false, tuck: false, jump: false };
+    const i = this.s.input, tb = this.btnOn = this.touchUI() ? this.buttons() : { left: false, right: false, tuck: false, jump: false, sword: false };
     const left = i.isDown('left') || tb.left, right = i.isDown('right') || tb.right;
-    return { dir: (right ? 1 : 0) - (left ? 1 : 0), tuck: i.isDown('down') || tb.tuck, jump: i.isDown('up') || i.isDown('action') || tb.jump };
+    const slash = this.swing || tb.sword; this.swing = false;         // (a key or a click is one swing; a finger swings once per press)
+    return { dir: (right ? 1 : 0) - (left ? 1 : 0), tuck: i.isDown('down') || tb.tuck, jump: i.isDown('up') || i.isDown('action') || tb.jump, slash };
   }
 
   // ── Play ─────────────────────────────────────────────────────
@@ -181,11 +193,30 @@ class AvalancheRun {
     for (const e of events) {
       if (e.type === 'tumble') {
         s.resetCombo(); this.sfx.tumble(); s.fx.shake(7, 0.25);
-        s.fx.text(sx + 40, sy - 50, e.bad ? 'BAD LANDING!' : 'TUMBLE!', { color: '#fca5a5', size: 26 });
+        s.fx.text(sx + 40, sy - 50, e.bad ? 'BAD LANDING!' : e.by === 'ball' ? 'SNOWBALL!' : e.by === 'yeti' ? 'YETI!' : 'TUMBLE!', { color: '#fca5a5', size: 26 });
         s.fx.burst(sx, sy + 20, { colors: ['#ffffff', '#dbeafe'], count: 22, speed: 220 });
       } else if (e.type === 'crystal') {
         s.award(6 * L, this.X(e.c.x), this.Y(e.c.y) - 14, { chain: true, color: '#a5f3fc', size: 16 });
         this.sfx.crystal(s.comboCount);
+      } else if (e.type === 'slash') {
+        this.sfx.slash();
+      } else if (e.type === 'slain') {
+        s.award(150 * L, this.X(e.y.x), this.Y(snowAt(this.slope, e.y.x)) - 60, { chain: true, color: '#fde047', size: 26 });
+        s.fx.text(W / 2, 230, 'YETI CUT DOWN!', { color: '#fef9c3', size: 24, life: 1.2 });
+        s.fx.burst(this.X(e.y.x), this.Y(snowAt(this.slope, e.y.x)) - 30, { colors: ['#ffffff', '#dbeafe', '#a5f3fc'], count: 30, speed: 280 });
+        this.sfx.stomp(); s.fx.shake(6, 0.2);
+        if (sim.slain >= 3) s.unlock('wolves');
+      } else if (e.type === 'stomp') {
+        s.award(200 * L, sx, sy - 40, { chain: true, color: '#fde047', size: 26 });
+        s.fx.text(W / 2, 230, 'YETI FLATTENED!', { color: '#fef9c3', size: 24, life: 1.2 });
+        this.sfx.stomp(); s.fx.shake(6, 0.2); s.unlock('yeti');
+      } else if (e.type === 'parry') {
+        s.award(30 * L, this.X(e.b.x), this.Y(e.b.y) - 10, { chain: true, color: '#a5f3fc', size: 18 });
+        s.fx.burst(this.X(e.b.x), this.Y(e.b.y), { colors: ['#ffffff', '#dbeafe'], count: 16, speed: 240 }); this.sfx.parry();
+      } else if (e.type === 'throw') {
+        this.sfx.roar(false); this.sfx.throwIt();
+      } else if (e.type === 'thud') {
+        this.sfx.thud(); s.fx.burst(this.X(e.b.x), this.Y(e.b.y), { colors: ['#ffffff', '#dbeafe'], count: 10, speed: 120 });
       } else if (e.type === 'launch') {
         this.sfx.launch();
       } else if (e.type === 'hop') {
@@ -194,13 +225,14 @@ class AvalancheRun {
         this.sfx.cleared();
         s.award(8 * L, sx, sy - 30, { chain: true, color: '#7dd3fc', size: 18 });
       } else if (e.type === 'trick') {
-        const n = e.flips, pts = (n * 40 + (e.grab ? 25 : 0)) * L, flip = e.back ? 'BACKFLIP' : 'FRONT FLIP';
-        const name = `${n >= 3 ? 'TRIPLE ' + flip : n === 2 ? 'DOUBLE ' + flip : n === 1 ? flip : ''}${n && e.grab ? ' + ' : ''}${e.grab ? 'GRAB' : ''}`;
+        const n = e.flips, pts = (n * 80 + n * (n - 1) * 40 + (e.grab ? 40 : 0)) * L, flip = e.back ? 'BACKFLIP' : 'FRONT FLIP';
+        const name = `${n >= 4 ? 'QUAD ' + flip : n === 3 ? 'TRIPLE ' + flip : n === 2 ? 'DOUBLE ' + flip : n === 1 ? flip : ''}${n && e.grab ? ' + ' : ''}${e.grab ? 'GRAB' : ''}`;
         s.award(pts, sx, sy - 40, { chain: true, color: '#fde047', size: 24 });
         s.fx.text(W / 2, 230, `${name}!`, { color: '#fef9c3', size: 24, life: 1.2 });
         s.fx.burst(sx, sy + 26, { colors: ['#ffffff', '#fde047'], count: 26, speed: 260 });
         this.sfx.land(); this.sfx.trick(n);
         if (n >= 2) s.unlock('trickster');
+        if (n >= 3) s.unlock('giant');
       } else if (e.type === 'land') {
         this.sfx.land();
         s.fx.burst(sx, sy + 28, { colors: ['#ffffff', '#dbeafe'], count: 12, speed: 160 });
@@ -266,7 +298,7 @@ class AvalancheRun {
   /** The camera rides with the sled: it pulls back as the sled speeds up and when it is in the air. */
   camera(dt) {
     const p = this.sim.p, snow = snowAt(this.slope, p.x), up = Math.max(0, p.y - snow);
-    const want = clamp(13.2 - (p.v - 14) * 0.13 - Math.min(2.2, up * 0.3), 8.6, 13.2);
+    const want = clamp(13.2 - (p.v - 14) * 0.11 - Math.min(4.5, up * 0.3), 6.6, 13.2);
     this.zoom += (want - this.zoom) * Math.min(1, 2.5 * dt);
     this.cx = p.x;
     this.cy += (snow + up * 0.55 - this.cy) * Math.min(1, 9 * dt);
@@ -328,10 +360,12 @@ class AvalancheRun {
     // the sled's track in the snow behind it
     if (!p.air) { ctx.strokeStyle = 'rgba(120,150,190,0.5)'; ctx.lineWidth = 2; ctx.beginPath(); for (let x = Math.max(x0, p.x - 14); x <= p.x; x += 1) { const X = this.X(x), Y = this.Y(snowAt(sl, x)) + 3; if (x <= Math.max(x0, p.x - 14)) ctx.moveTo(X, Y); else ctx.lineTo(X, Y); } ctx.stroke(); }
 
-    for (const k of sl.kickers) if (k.x > x0 - 2 && k.x - KICK_L < x1) this.drawKicker(ctx, k);
+    for (const k of sl.kickers) if (k.x > x0 - 2 && k.x - k.L < x1) this.drawKicker(ctx, k);
     if (sl.flagX > x0 && sl.flagX < x1) this.drawFlag(ctx, sl.flagX, sim.flagged);
     if (!this.bonus && sl.len > x0 - 12 && sl.len < x1 + 12) this.drawHut(ctx, sl.len + 5);
     for (const r of sl.rocks) if (r.x > x0 && r.x < x1) this.drawRock(ctx, r);
+    for (const y of sl.yetis) if (y.x > x0 - 3 && y.x < x1 + 3) this.drawYetiAt(ctx, y);
+    for (const b of sim.balls) { const X = this.X(b.x), Y = this.Y(b.y), r = 0.75 * Z; ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(X, Y, r, 0, TAU); ctx.fill(); ctx.fillStyle = '#cfe0f0'; ctx.beginPath(); ctx.arc(X + r * 0.25, Y + r * 0.25, r * 0.55, 0, TAU); ctx.fill(); ctx.strokeStyle = '#7f9cc0'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(X, Y, r, 0, TAU); ctx.stroke(); }
     for (const c of sl.crystals) if (!c.got && c.x > x0 && c.x < x1) this.drawCrystal(ctx, c);
 
     ctx.fillStyle = '#ffffff';
@@ -417,12 +451,12 @@ class AvalancheRun {
   drawKicker(ctx, k) {
     const sl = this.slope, Z = this.zoom, col = k.big ? '#ef4444' : '#38bdf8';
     ctx.strokeStyle = col; ctx.lineWidth = Math.max(2, Z * 0.22); ctx.lineCap = 'round';
-    for (const u of [0.35, 0.6, 0.85]) {
-      const x = k.x - KICK_L * (1 - u), X = this.X(x), Y = this.Y(snowAt(sl, x)), a = -Math.atan(gradeAt(sl, x));
+    for (const u of k.L > 12 ? [0.2, 0.36, 0.52, 0.68, 0.84] : k.L > 9 ? [0.25, 0.45, 0.65, 0.85] : k.L > 7 ? [0.35, 0.6, 0.85] : [0.45, 0.8]) {
+      const x = k.x - k.L * (1 - u), X = this.X(x), Y = this.Y(snowAt(sl, x)), a = -Math.atan(gradeAt(sl, x));
       ctx.save(); ctx.translate(X, Y + Z * 0.7); ctx.rotate(a);
       ctx.beginPath(); ctx.moveTo(-Z * 0.45, -Z * 0.3); ctx.lineTo(0, 0); ctx.lineTo(-Z * 0.45, Z * 0.3); ctx.stroke(); ctx.restore();
     }
-    const X = this.X(k.x), Y = this.Y(snowAt(sl, k.x)), h = 2.4 * Z;
+    const X = this.X(k.x), Y = this.Y(snowAt(sl, k.x)), h = (1.6 + k.L * 0.14) * Z;
     // the lip's drop, in shade
     ctx.fillStyle = 'rgba(70,110,160,0.35)'; ctx.beginPath(); ctx.moveTo(X, Y); ctx.lineTo(this.X(k.x + 1), this.Y(snowAt(sl, k.x + 1))); ctx.lineTo(X, this.Y(snowAt(sl, k.x + 1)) + 4); ctx.closePath(); ctx.fill();
     ctx.fillStyle = '#7c2d12'; ctx.fillRect(X - 1.5, Y - h, 3, h);
@@ -456,9 +490,18 @@ class AvalancheRun {
     ctx.globalAlpha = 1;
     if (!r.hit && r.x - this.sim.p.x > 0 && r.x - this.sim.p.x < 30 && this.level <= 3) this.jumpSign(ctx, X, Y - h - 12);
   }
-  jumpSign(ctx, x, y) {
-    ctx.font = '900 15px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = 4; ctx.strokeStyle = '#ffffff'; ctx.strokeText('JUMP!', x, y);
-    ctx.fillStyle = '#dc2626'; ctx.fillText('JUMP!', x, y);
+  /** A yeti standing on the run (art.js). Cut down, it is a heap of fur. */
+  drawYetiAt(ctx, y) {
+    const Z = this.zoom, X = this.X(y.x), Y = this.Y(snowAt(this.slope, y.x)) + 4, u = Z * YETI_H * 1.65 / 116;
+    ctx.fillStyle = 'rgba(40,70,120,0.25)'; ctx.beginPath(); ctx.ellipse(X, Y, 1.6 * Z, 0.35 * Z, 0, 0, TAU); ctx.fill();
+    ctx.save(); ctx.translate(X, Y); ctx.scale(u, u);
+    drawYeti(ctx, { t: this.t + y.x, arm: clamp((y.arm || 0) * 2, 0, 1), flat: !!y.down });
+    ctx.restore();
+    if (!y.down && y.x - this.sim.p.x > 0 && y.x - this.sim.p.x < 32 && this.level <= 7) this.jumpSign(ctx, X, Y - YETI_H * 1.65 * Z - 14, "SWORD!");
+  }
+  jumpSign(ctx, x, y, word = 'JUMP!') {
+    ctx.font = '900 15px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = 4; ctx.strokeStyle = '#ffffff'; ctx.strokeText(word, x, y);
+    ctx.fillStyle = '#dc2626'; ctx.fillText(word, x, y);
   }
   drawCrystal(ctx, c) {
     const X = this.X(c.x), Y = this.Y(c.y) + Math.sin(this.t * 4 + c.x) * 2, r = 0.62 * this.zoom;
@@ -488,7 +531,8 @@ class AvalancheRun {
     const low = p.tuck ? 0.8 : 1;
     this.sledShape(ctx, u, pal);
     ctx.save(); ctx.translate(-2 * u, -7 * u); ctx.scale(1, low);
-    drawIceman(ctx, { x: 0, y: 0, k: 0.86 * u, stage: 3, face: 1, mode: p.air ? (p.vy > 0 ? 'jump' : 'fall') : 'idle', phase: 0, t: this.t, slash: null, hurt: p.tumble > 0 ? 1 : 0, blinkOut: false, heat: 0, land: 0 }, this.s.gold ? PAL.gold : PAL.ice, null);
+    drawIceman(ctx, { x: 0, y: 0, k: 0.86 * u, stage: 3, face: 1, mode: p.air ? (p.vy > 0 ? 'jump' : 'fall') : 'idle', phase: 0, t: this.t, slash: p.atk > 0 ? { kind: 'side', k: 1 - p.atk / SLASH_T } : null, hurt: p.tumble > 0 ? 1 : 0, blinkOut: false, heat: 0, land: 0 }, this.s.gold ? PAL.gold : PAL.ice, null);
+    if (p.atk > 0) drawSlashArc(ctx, 0, 0, 1, { slash: { kind: 'side', k: 1 - p.atk / SLASH_T } }, 0.86 * u * 1.5);
     ctx.restore();
     if (p.air && p.grab > 0 && p.tumble <= 0) { ctx.strokeStyle = '#fde047'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(0, -4 * u, 34 * u, -2.4, -0.7); ctx.stroke(); }
     ctx.restore();
@@ -583,11 +627,11 @@ class AvalancheRun {
   drawButtons(ctx) {
     const C = this.ctl, on = this.btnOn;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    for (const [k, label] of [['left', '↺'], ['right', '↻'], ['tuck', 'TUCK'], ['jump', 'JUMP']]) {
+    for (const [k, label] of [['left', '↺'], ['right', '↻'], ['tuck', 'TUCK'], ['jump', 'JUMP'], ['sword', 'SWORD']]) {
       const b = C[k];
       ctx.fillStyle = on[k] ? 'rgba(56,189,248,0.85)' : 'rgba(30,58,95,0.6)'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fill();
       ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 2; ctx.stroke();
-      ctx.fillStyle = '#ffffff'; ctx.font = k === 'tuck' || k === 'jump' ? `800 ${k === 'jump' ? 17 : 14}px system-ui, sans-serif` : '800 32px system-ui, sans-serif'; ctx.fillText(label, b.x, b.y + 1);
+      ctx.fillStyle = '#ffffff'; ctx.font = k === 'tuck' || k === 'jump' || k === 'sword' ? `800 ${k === 'jump' ? 17 : k === 'sword' ? 12 : 14}px system-ui, sans-serif` : '800 32px system-ui, sans-serif'; ctx.fillText(label, b.x, b.y + 1);
     }
   }
 }

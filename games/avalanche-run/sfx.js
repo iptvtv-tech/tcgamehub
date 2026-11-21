@@ -29,6 +29,8 @@ export function makeSfx(S) {
     runners: play((k) => n({ dur: 0.16, vol: 0.012 + 0.03 * k, freq: 700 + 2600 * k, to: 500 + 1500 * k, type: 'bandpass' })),          // the hiss of snow under the runners, by speed (0..1)
     wind: play((k) => n({ dur: 0.32, vol: 0.02 + 0.035 * k, freq: 500 + 900 * k, to: 1500 + 1600 * k, type: 'bandpass' })),             // the air in a tuck or a boost
     carve: play((pan) => n({ dur: 0.12, vol: 0.05, freq: 2600, to: 900, type: 'bandpass', pan })),                                       // a hard turn
+    slash: play(() => { n({ dur: 0.14, vol: 0.12, freq: 1800, to: 6200, type: 'bandpass' }); t({ freq: 1400, to: 2600, dur: 0.1, type: 'sine', vol: 0.05 }); }),               // the ice blade through the air
+    parry: play(() => { n({ dur: 0.12, vol: 0.16, freq: 2400, to: 500 }); t({ freq: 880, to: 1320, dur: 0.1, type: 'triangle', vol: 0.08 }); }),            // a snowball cut in two
     hop: play(() => { t({ freq: 300, to: 620, dur: 0.1, type: 'sine', vol: 0.07 }); n({ dur: 0.07, vol: 0.06, freq: 2400, to: 900 }); }),
     launch: play(() => { n({ dur: 0.34, vol: 0.12, freq: 600, to: 3600, type: 'bandpass' }); t({ freq: 220, to: 660, dur: 0.3, type: 'triangle', vol: 0.06 }); }),
     land: play(() => { n({ dur: 0.14, vol: 0.14, freq: 1400, to: 260 }); t({ freq: 150, to: 70, dur: 0.12, type: 'sine', vol: 0.1 }); }),
