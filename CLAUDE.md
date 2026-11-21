@@ -21,7 +21,8 @@ publisher. Supabase holds the leaderboard (players enter a name only). GoatCount
 - Zones of 6 games, difficulty rising; the order lives in `ZONES` in `assets/js/games.js`
   (the source of truth for zones, slots and genres). The 6th game of each zone is a
   LEGENDS game. Zones 1–5 are full; Zone 6 (*Inferno*) opened on 30 Oct 2026 with Magma
-  Escape; Avalanche Run joined on 20 Nov 2026 (all five sections built), leaving four
+  Escape; Avalanche Run joined on 20 Nov 2026 and was rebuilt side-on on 21 Nov 2026 (flips, jumps,
+  an avalanche always in the picture; Section 1 of the rebuild is live, creatures to come), leaving four
   "coming soon" slots. A zone with no game yet (Zone 7) stays in `ZONES`
   but is not shown on the home page until its first game is registered.
 - **Every game is open to everyone.** Zones are a recommended order; playing all six

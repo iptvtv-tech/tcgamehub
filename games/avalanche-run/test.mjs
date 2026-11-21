@@ -1,49 +1,46 @@
 // node games/avalanche-run/test.mjs
-// Plays the real Avalanche Run headless (tools/lib/headless.mjs) and proves:
-//   1 · every run can be finished after a real mistake: the benchmark's rider steers into a tree
-//       (a tumble), carries on and reaches the hut, with the rules checked after every step
-//       (on the slope, under top speed, the avalanche never ahead of the sled)
-//   2 · a tumble costs ground, never a life: straight after one the sled is slow, cannot steer
-//       for a moment, and nothing else can knock it down for 1.5 s
-//   3 · the avalanche costs exactly one life, and puts you back on clear snow 55 m ahead of it:
-//       at the start line, or at the flag once you have passed it
-//   4 · a rider who aims at every tree is caught by the avalanche again and again (it is a real
-//       threat), and after three lives lost that way a careful rider still reaches the hut
-//   5 · the crystal rushes (runs 5 and 10) cannot be lost and end on their timer
-//   6 · ramps and tricks: a ramp throws the sled as far as the rules say; one full spin, let go,
-//       lands clean with a burst of speed; half a spin lands sideways and is a tumble (no life
-//       lost); a grab counts as a trick
-//   7 · crevasses: riding into one costs exactly one life; the ramp at its edge carries the sled
-//       over; so does a jump at the last moment
-//   8 · a jump clears a rock that would otherwise be a tumble (and never a tree)
-//   9 · ice wolves: a bite takes speed, never a tumble or a life, and no second bite follows
-//       within 2.5 s; steering into a wolf that is not lunging knocks it down; steering away
-//       from a crouching wolf dodges its lunge
-//  10 · yetis: riding straight on under a thrown boulder is a tumble, stepping off the ring is
-//       not; riding into a yeti is a tumble; jumping onto one flattens it and bounces the sled
-//  11 · rolling boulders: a tumble if you meet one, clear snow ahead of it and behind it
-//  12 · mercy: a tree you crashed into does not knock you down a second time; every life lost on
-//       a run puts the avalanche 15 m further back at the restart; a wolf pack does not return
-//  14 · ice and deep snow: on ice the sled answers the steering about a fifth as fast; a drift
-//       drags it to 60% of its speed and lets go again; neither is a tumble
-//  15 · ruins: the gate is on the safe line and a sled on that line rides through; the pillars
-//       either side are a tumble; the wall has no other gap
-//  16 · a frost gust throws the avalanche 30 m back, once
-//  17 · the giant yeti (run 15): its shadow warns 1.5 s ahead; staying under it is a tumble (never
-//       a life), stepping aside is not; riding into its legs is a tumble; landing on its head dazes
-//       it; it never leaps at a sled in mid-flight off a ramp
-//  13 · phone buttons (bug, 20 Nov 2026: on an iPhone ◀ ▶ "glitch and get stuck"): each finger
-//       presses the button nearest to it; a finger that slides from ◀ to ▶ steers the other way
-//       at once; two thumbs work together; and no button sits in the strips at the screen's side
-//       edges where iPhones start their own swipes. (A finger whose lift was never reported is
-//       let go by the engine for every game: tools/check-touch.mjs.)
+// Plays the real Avalanche Run (side-on) headless (tools/lib/headless.mjs) and proves:
+//   1 · every run can be finished after a real mistake: the benchmark's rider rides into a rock or
+//       lands a jump on its head (a tumble), carries on and reaches the hut, with the rules checked
+//       after every step
+//   2 · a tumble costs ground, never a life: straight after one the sled is slow, and nothing else
+//       can knock it down until 1.5 s after it is up again
+//   3 · the avalanche costs exactly one life, and puts you back on plain snow ahead of it: at the
+//       start line, or at the flag once you have passed it
+//   4 · THE AVALANCHE IS ALWAYS THERE (owner, 21 Nov 2026: "the avalanche doesn't come near the
+//       player after 11 levels"): on every run, however well the rider does, it is never more than
+//       22 m behind and its front is inside the picture at every step
+//   5 · CAUGHT = THE WHOLE PICTURE (owner, 21 Nov 2026: "when the avalanche catches the player it
+//       swallows up the entire screen"): being caught starts the swallow, the picture is fully
+//       white before you are put back, and it clears once you are
+//   6 · the crystal rushes (runs 5 and 10) cannot be lost and end on their timer
+//   7 · tricks: a kicker throws the sled; with the buttons let go it lands clean; one backflip or
+//       front flip, let go, lands clean with a burst of speed; held upside down it is a tumble (no
+//       life lost); a grab counts as a trick
+//   8 · crevasses and cracks: a wide crevasse is carried by its kicker; ridden at a crawl it costs
+//       exactly one life; a crack costs one life without a jump and none with one
+//   9 · rocks: riding into one is a tumble; a jump clears it; a rock you crashed into does not
+//       knock you down a second time
+//  10 · mercy: every life lost on a run gives 4 m more room ahead of the avalanche at the restart
+//  11 · phone buttons (bug, 20 Nov 2026: on an iPhone ◀ ▶ "glitch and get stuck"): each finger
+//       presses the button nearest to it; a finger that slides from ◀ to ▶ changes over at once;
+//       two thumbs work together; and no button sits in the strips at the screen's side edges
+//       where iPhones start their own swipes. (A finger whose lift was never reported is let go
+//       by the engine for every game: tools/check-touch.mjs.)
 import { loadGame, reporter, STEP } from '../../tools/lib/headless.mjs';
 import { botPlay, why } from '../../tools/lib/bot-play.mjs';
-import { HALF, PR, START_GAP, MERCY_GAP, SAFE_T, TUMBLE_V, BITE, BITE_SAFE, ICE_GRIP, DRIFT_SPEED, GUST_BACK, GIANT_T, PILLAR_R, lineAt, flight, BONUS_LEVELS, FINAL_LEVEL } from './world.js';
+import { snowAt, START_GAP, MAX_GAP, MERCY_GAP, SAFE_T, TUMBLE_T, TUMBLE_V, SPIN, TAU, BONUS_LEVELS, FINAL_LEVEL } from './world.js';
 
 const G = await loadGame('avalanche-run');
 const B = (await import('./bench.mjs')).default;
 const t = reporter('avalanche-run');
+const expert = (level) => ({ skill: 1, rand: () => 0.5, t: 0, level, mem: {} });
+/** Start a run and keep a list of everything the rules report. */
+const begin = (level, seed = 3) => {
+  const s = G.start({ seed, level }), g = s.game, events = [], step = g.sim.step.bind(g.sim);
+  g.sim.step = (inp, dt) => { const ev = step(inp, dt); events.push(...ev); return ev; };
+  return { s, g, sim: g.sim, p: g.sim.p, sl: g.slope, events, saw: (type) => events.filter((e) => e.type === type) };
+};
 
 // ── 1 · every run, after a real mistake ──
 let runs = 0, tumbles = 0;
@@ -53,360 +50,202 @@ for (let level = 1; level <= FINAL_LEVEL; level++) {
     const r = botPlay(G, B, { level, seed });
     runs++; tumbles += r.shell.game.sim.tumbles;
     t.check(r.cleared, `run ${level} seed ${seed}: ${why(r)}`);
-    t.check(r.mistakeMade, `run ${level} seed ${seed}: the rider never managed to hit a tree (no mistake was made)`);
+    t.check(r.mistakeMade, `run ${level} seed ${seed}: the rider never managed to tumble (no mistake was made)`);
   }
 }
 
 // ── 2 · a tumble costs ground, not a life ──
+for (const level of [2, 9, 15]) {
+  const { s, sim, p, sl, saw } = begin(level), rock = sl.rocks[0];
+  sim.place(rock.x - 12); s.hold([]);
+  s.run(3, () => p.tumble > 0);
+  if (!t.check(p.tumble > 0 && saw('tumble').length === 1, `run ${level}: riding into a rock was not a tumble`)) continue;
+  t.check(s.livesLost === 0, `run ${level}: a tumble cost a life`);
+  t.check(p.v <= sim.R.cruise * TUMBLE_V + 1e-6, `run ${level}: just after a tumble the sled still rides at ${p.v.toFixed(1)} m/s`);
+  const gap0 = sim.gap;
+  s.run(TUMBLE_T + 0.05);
+  t.check(sim.gap < gap0 - 2, `run ${level}: a tumble cost no ground (the avalanche was ${gap0.toFixed(1)} m behind, then ${sim.gap.toFixed(1)})`);
+  // put a fresh rock right in front of the sled: within the safe time it cannot knock him down again
+  sl.rocks.push({ x: p.x + 4, v: 0 }); sl.rocks.sort((a, b) => a.x - b.x);
+  s.run(SAFE_T * 0.5);
+  t.check(saw('tumble').length === 1, `run ${level}: a second rock knocked the sled down ${(TUMBLE_T + SAFE_T * 0.5).toFixed(1)} s after the first`);
+}
+
+// ── 3 · the avalanche costs one life and restarts you ahead of it ──
 for (const level of [1, 8, 15]) {
-  const s = G.start({ seed: 3, level }), g = s.game, b = { skill: 1, rand: () => 0.5, t: 0, level, mem: {} };
-  let hit = false;
-  for (let i = 0; i < 60 / STEP && !hit; i++) { if (s.state === 'playing') hit = B.mistake(g, s, b); s.tick(); }
-  if (!t.check(hit && g.sim.tumbles === 1, `run ${level}: steering at the nearest tree for 60 s never caused a tumble`)) continue;
-  t.check(s.livesLost === 0 && s.state === 'playing', `run ${level}: a tumble cost a life`);
-  const p = g.sim.p, x0 = p.x;
-  s.hold(['left']); s.run(0.3);
-  t.check(p.v < TUMBLE_V + 2, `run ${level}: 0.3 s into a tumble the sled still rides at ${p.v.toFixed(1)} m/s`);
-  t.check(p.tumble > 0, `run ${level}: the tumble was over after 0.3 s`);
-  // for the rest of the safe time nothing else knocks it down, wherever it slides
-  s.run(SAFE_T - 0.4);
-  t.check(g.sim.tumbles === 1, `run ${level}: a second tumble followed within ${SAFE_T} s of the first`);
-  void x0;
-}
-
-// ── 3 · the avalanche takes one life and sets you back on clear snow ──
-for (const [level, pastFlag] of [[1, false], [6, true], [15, true]]) {
-  const s = G.start({ seed: 2, level, unlimited: true }), g = s.game, sim = g.sim, b = { skill: 1, rand: () => 0.5, t: 0, level, mem: {} };
-  if (pastFlag) { for (let i = 0; i < 200 / STEP && !sim.flagged; i++) { if (s.state === 'playing') B.bot(g, s, b); s.tick(); } t.check(sim.flagged, `run ${level}: the rider never reached the flag`); }
-  // stop steering and let the snow come: tumble into things until it arrives
-  const lost0 = s.livesLost;
-  for (let i = 0; i < 240 / STEP && s.livesLost === lost0; i++) { if (s.state === 'playing') B.mistake(g, s, b); s.tick(); }
-  if (!t.check(s.livesLost === lost0 + 1, `run ${level}: riding into every tree for 240 s, the avalanche never came`)) continue;
-  s.hold([]); s.run(4, () => s.state === 'playing');
-  const p = g.sim.p, z0 = pastFlag ? g.slope.flagZ : 0;
-  t.check(s.state === 'playing' && s.livesLost === lost0 + 1, `run ${level}: after the avalanche the game is ${s.state} with ${s.livesLost - lost0} lives lost (should be playing, 1)`);
-  t.check(Math.abs(p.z - z0) < 2 && Math.abs(p.x - lineAt(g.slope.knots, z0)) < 0.5, `run ${level}: restarted at z=${p.z.toFixed(0)}, not at ${pastFlag ? 'the flag' : 'the start line'} (z=${z0})`);
-  t.check(g.sim.gap > START_GAP - 3, `run ${level}: restarted only ${g.sim.gap.toFixed(0)} m ahead of the avalanche (should be ${START_GAP})`);
-  // and 3 s of riding straight on from there hits nothing
-  const before = g.sim.tumbles; s.hold([]); s.run(1.2);
-  t.check(g.sim.tumbles === before, `run ${level}: a tree stands right where you restart`);
-}
-
-// ── 4 · a rider who aims at every tree is caught again and again, and can still finish afterwards ──
-{
-  const s = G.start({ seed: 5, level: 9, unlimited: true }), g = s.game, b = { skill: 1, rand: () => 0.5, t: 0, level: 9, mem: {} };
-  let bad = null;
-  for (let i = 0; i < 600 / STEP && !s.cleared && !bad; i++) {
-    if (s.state === 'playing') { if (s.livesLost < 3) B.mistake(g, s, b); else B.bot(g, s, b); }
-    s.tick();
-    if (s.state === 'playing') bad = B.invariants(g, s);
+  for (const past of [false, true]) {
+    const { s, g, sim, p, sl } = begin(level);
+    if (past) { sim.place(sl.flagX + 30); s.run(0.2); }
+    const tag = `run ${level}${past ? ' (past the flag)' : ''}`;
+    if (past) t.check(sim.flagged, `${tag}: riding past the flag did not count`);
+    sim.R = { ...sim.R, avalanche: sim.R.cruise * 3 };            // let it catch him
+    s.hold([]); s.run(6, () => s.livesLost > 0);
+    t.check(s.livesLost === 1, `${tag}: caught by the avalanche cost ${s.livesLost} lives`);
+    sim.R = sl.R;
+    s.run(4, () => s.state === 'playing');
+    t.check(s.state === 'playing' && Math.abs(g.sim.p.x - (past ? sl.flagX : 0)) < 1, `${tag}: after the avalanche the sled restarts at x=${p.x.toFixed(0)} (${past ? 'the flag is at ' + sl.flagX : 'the start line is at 0'})`);
+    t.check(Math.abs(sim.gap - (START_GAP + MERCY_GAP)) < 0.5, `${tag}: at the restart the avalanche is ${sim.gap.toFixed(1)} m behind (${START_GAP + MERCY_GAP} with one life lost)`);
+    s.run(1.5);
+    t.check(s.livesLost === 1 && sim.tumbles === 0, `${tag}: the restart began with ${sim.tumbles} tumbles, ${s.livesLost} lives lost`);
   }
-  t.check(!bad, `run 9, a rider who aims at every tree: rule broken — ${bad}`);
-  t.check(s.livesLost >= 3, `run 9: a rider who aims at every tree lost only ${s.livesLost} lives in 600 s (the avalanche is no threat)`);
-  t.check(s.cleared === 1, `run 9: after three lives lost to the avalanche, a careful rider could not reach the hut (${s.livesLost} lives lost, z=${g.sim.p.z.toFixed(0)} of ${g.slope.len})`);
 }
 
-// ── 5 · the crystal rushes ──
+// ── 4 · the avalanche is always there ──
+{
+  let far = 0, out = 0, steps = 0;
+  for (let level = 1; level <= FINAL_LEVEL; level++) {
+    if (BONUS_LEVELS.includes(level)) continue;
+    const { s, g, sim } = begin(level, 5), b = expert(level);
+    for (let i = 0; i < 200 / STEP && !s.cleared; i++) {
+      if (s.state === 'playing') B.bot(g, s, b);
+      s.tick();
+      if (s.state !== 'playing' || sim.done) continue;
+      steps++; far = Math.max(far, sim.gap);
+      const fx = g.frontX();
+      if (!(fx >= -30 && fx < 480 * 0.34)) out++;
+    }
+    t.check(s.cleared === 1, `run ${level}: the expert rider did not reach the hut`);
+  }
+  t.check(far <= MAX_GAP + 1e-6, `the avalanche fell ${far.toFixed(1)} m behind an expert rider (it should never be more than ${MAX_GAP})`);
+  t.check(out === 0, `the avalanche's front was outside the picture, or ahead of the sled, on ${out} of ${steps} steps`);
+}
+
+// ── 5 · caught: it swallows the whole picture ──
+for (const level of [1, 12]) {
+  const { s, g, sim, sl } = begin(level);
+  t.check(g.swallow < 0, `run ${level}: the swallow is running before anything happened`);
+  sim.R = { ...sim.R, avalanche: sim.R.cruise * 3 };
+  s.hold([]); s.run(6, () => s.livesLost > 0);
+  t.check(g.swallow >= 0, `run ${level}: caught by the avalanche, but it does not roll over the picture`);
+  let full = 0;                                           // how long the picture is fully white before the restart
+  s.run(4, () => { if (g.swallow >= g.swallowT) full += STEP; return g.swallow < 0; });
+  t.check(full > 0.05, `run ${level}: the sled was put back before the avalanche had covered the picture`);
+  sim.R = sl.R;
+  t.check(g.swallow < 0 && g.clearing > 0, `run ${level}: after the restart the white does not clear off the picture`);
+  s.run(3, () => s.state === 'playing'); s.run(1);
+  t.check(g.clearing <= 0, `run ${level}: a second after play began again the picture is still white`);
+}
+
+// ── 6 · the crystal rushes ──
 for (const level of BONUS_LEVELS) {
-  const s = G.start({ seed: 1, level }), g = s.game, b = { skill: 1, rand: () => 0.5, t: 0, level, mem: {} };
+  const { s, g } = begin(level, 1), b = expert(level);
   let bad = null;
-  for (let i = 0; i < 40 / STEP && !s.cleared && !bad; i++) { if (s.state === 'playing') B.bot(g, s, b); s.tick(); if (s.state === 'playing') bad = B.invariants(g, s) || (Math.abs(g.sim.p.x) > HALF - PR + 1e-6 ? 'off the slope' : null); }
+  for (let i = 0; i < 40 / STEP && !s.cleared && !bad; i++) { if (s.state === 'playing') B.bot(g, s, b); s.tick(); if (s.state === 'playing') bad = B.invariants(g, s); }
   t.check(!bad, `run ${level} (crystal rush): rule broken — ${bad}`);
   t.check(s.cleared === 1 && s.livesLost === 0, `run ${level} (crystal rush): ${s.cleared ? '' : 'did not end on its timer; '}${s.livesLost} lives lost`);
-  t.check(g.slope.crystals.filter((c) => c.got).length >= 60, `run ${level} (crystal rush): the rider collected only ${g.slope.crystals.filter((c) => c.got).length} crystals in 20 s`);
+  const got = g.slope.crystals.filter((c) => c.got).length;
+  t.check(got >= 40, `run ${level} (crystal rush): the rider collected only ${got} crystals in 20 s`);
 }
 
-// Put the sled somewhere on the slope at cruising speed (a rules test: the ride there is covered above).
-const place = (g, x, z) => { const sim = g.sim, p = sim.p; Object.assign(p, { x, z, v: sim.R.cruise, vx: 0, tumble: 0, safe: 0, y: 0, vy: 0, air: '', rot: 0, grab: 0, boost: 0 }); sim.az = z - START_GAP; sim.i0 = 0; };
-
-// ── 6 · ramps and tricks ──
-for (const level of [2, 9, 14]) {
-  const fly = (keys, secs) => {            // ride over the first plain ramp; hold `keys` for `secs` once in the air
-    const s = G.start({ seed: 4, level }), g = s.game, rp = g.slope.ramps.find((r) => !r.crev);
-    place(g, rp.x, rp.z - 6);
-    const p = g.sim.p; let t = 0, flew = false, far = 0, top = 0, landed = false;
-    for (let i = 0; i < 6 / STEP && !landed; i++) {
-      s.hold(p.air === 'ramp' && t < secs ? keys : []);
+// ── 7 · tricks ──
+for (const level of [1, 8, 14]) {
+  /** Ride the first plain kicker; in the air, keys(p, airT) says what to hold. */
+  const jump = (keys) => {
+    const r = begin(level, 4), { s, sim, p, sl } = r, k = sl.kickers.find((q) => !q.big && q.x > 60);
+    sim.place(k.x - 14); let flew = false, top = 0, airT = 0;
+    for (let i = 0; i < 6 / STEP; i++) {
+      s.hold(p.air ? keys(p, airT) : []);
       s.tick();
-      if (p.air === 'ramp') { flew = true; t += STEP; top = Math.max(top, p.y); far = p.z - rp.z; } else if (flew) landed = true;
+      if (p.air) { flew = true; airT += STEP; top = Math.max(top, p.y - snowAt(sl, p.x)); } else if (flew) break;
     }
-    s.hold([]); s.run(0.6);
-    return { s, g, p, rp, flew, far, top, boost: p.boost, tumbles: g.sim.tumbles };
+    s.hold([]);
+    return { ...r, flew, top, airT, trick: r.saw('trick')[0], boost: p.boost };
   };
-  const plain = fly([], 0), want = flight(plain.g.sim.R.cruise);
-  if (!t.check(plain.flew, `run ${level}: riding over a ramp did not throw the sled`)) continue;
-  t.check(Math.abs(plain.far - want) < 3 && plain.top > 3, `run ${level}: the ramp threw the sled ${plain.far.toFixed(0)} m and ${plain.top.toFixed(1)} m high (the rules say ${want.toFixed(0)} m)`);
-  t.check(plain.tumbles === 0 && plain.boost === 0 && plain.s.livesLost === 0, `run ${level}: a plain flight ended with ${plain.tumbles} tumbles, boost ${plain.boost.toFixed(1)}`);
-  const spin = fly(['right'], 0.49);
-  t.check(spin.tumbles === 0 && spin.boost > 0, `run ${level}: one full spin, let go, did not land clean (${spin.tumbles} tumbles, boost ${spin.boost.toFixed(1)})`);
-  t.check(spin.p.v > spin.g.sim.R.cruise * 1.05, `run ${level}: 0.6 s after a clean trick landing the sled rides at ${spin.p.v.toFixed(1)} m/s, no faster than cruising (${spin.g.sim.R.cruise.toFixed(1)})`);
-  const half = fly(['left'], 0.24);
-  t.check(half.tumbles === 1 && half.s.livesLost === 0 && half.boost === 0, `run ${level}: half a spin should land sideways: ${half.tumbles} tumbles, ${half.s.livesLost} lives lost`);
-  const grab = fly(['down'], 0.7);
-  t.check(grab.tumbles === 0 && grab.boost > 0, `run ${level}: a grab did not count as a trick (${grab.tumbles} tumbles, boost ${grab.boost.toFixed(1)})`);
+  const plain = jump(() => []);
+  if (!t.check(plain.flew && plain.top > 1.5, `run ${level}: a kicker threw the sled only ${plain.top.toFixed(1)} m high`)) continue;
+  t.check(plain.airT > 0.7, `run ${level}: a cruising sled was in the air for only ${plain.airT.toFixed(2)} s (a flip takes ${(TAU / SPIN).toFixed(2)})`);
+  t.check(plain.sim.tumbles === 0 && !plain.trick && plain.boost <= 0 && plain.s.livesLost === 0, `run ${level}: a plain flight ended with ${plain.sim.tumbles} tumbles, boost ${plain.boost.toFixed(1)}`);
+  for (const [key, back] of [['left', true], ['right', false]]) {
+    const flip = jump((p, a) => (a < TAU / SPIN - 0.03 ? [key] : []));
+    t.check(flip.sim.tumbles === 0 && flip.trick && flip.trick.flips === 1 && flip.trick.back === back, `run ${level}: one ${back ? 'backflip' : 'front flip'}, let go, did not land as one clean ${back ? 'backflip' : 'front flip'} (${flip.sim.tumbles} tumbles, ${JSON.stringify(flip.trick || null)})`);
+    t.check(flip.boost > 0, `run ${level}: a landed flip gave no burst of speed`);
+  }
+  const head = jump((p) => [p.turned < Math.PI ? 'left' : p.turned > Math.PI + 0.2 ? 'right' : 'left']);   // held upside down
+  t.check(head.sim.tumbles === 1 && head.saw('tumble')[0]?.bad && head.s.livesLost === 0 && !head.trick, `run ${level}: landing upside down: ${head.sim.tumbles} tumbles, ${head.s.livesLost} lives lost`);
+  const grab = jump((p, a) => (a < 0.5 ? ['down'] : []));
+  t.check(grab.sim.tumbles === 0 && grab.trick?.grab && grab.trick.flips === 0 && grab.boost > 0, `run ${level}: a grab did not count as a trick (${JSON.stringify(grab.trick || null)})`);
 }
 
-// ── 7 · crevasses ──
-for (const level of [6, 11, 15]) {
-  const cross = (how) => {
-    const s = G.start({ seed: 3, level, unlimited: true }), g = s.game, c = g.slope.crevasses[0], rp = g.slope.ramps.find((r) => r.crev && Math.abs(r.z - c.z) < 2);
-    place(g, how === 'ramp' ? rp.x : rp.x + (rp.x > 0 ? -1 : 1) * (rp.w + 2.5), c.z - 25);
-    const p = g.sim.p;
-    for (let i = 0; i < 5 / STEP && s.livesLost === 0 && p.z < c.z + c.len + 20; i++) { s.hold(how === 'jump' && c.z - p.z < 1.2 && c.z > p.z ? ['up'] : []); s.tick(); }
-    return { s, g, p, c };
+// ── 8 · crevasses and cracks ──
+for (const level of [3, 9, 15]) {
+  const big = (crawl) => {
+    const r = begin(level), { s, sim, p, sl } = r, c = sl.gaps.find((q) => !q.crack);
+    sim.place(c.x - 20);
+    if (crawl) sim.R = { ...sim.R, cruise: sim.R.cruise * 0.15, avalanche: 0 };
+    p.v = sim.R.cruise; s.hold([]);
+    s.run(25, () => s.livesLost > 0 || (p.x > c.x + c.w + 1 && !p.air));
+    return { ...r, c };
   };
-  const fall = cross('ride');
-  t.check(fall.s.livesLost === 1, `run ${level}: riding straight into a crevasse cost ${fall.s.livesLost} lives (should be 1)`);
-  fall.s.hold([]); fall.s.run(4, () => fall.s.state === 'playing');
-  t.check(fall.s.state === 'playing' && fall.g.sim.p.z < fall.c.z - 40 && fall.g.sim.gap > START_GAP - 3, `run ${level}: after a fall into a crevasse the restart is at z=${fall.g.sim.p.z.toFixed(0)}, ${fall.g.sim.gap.toFixed(0)} m ahead of the avalanche`);
-  for (const how of ['ramp', 'jump']) { const r = cross(how); t.check(r.s.livesLost === 0 && r.p.z > r.c.z + r.c.len, `run ${level}: crossing a crevasse by ${how === 'ramp' ? 'its ramp' : 'a jump at the edge'} failed (${r.s.livesLost} lives lost, z=${r.p.z.toFixed(0)}, crevasse ${r.c.z.toFixed(0)}–${(r.c.z + r.c.len).toFixed(0)})`); }
+  const over = big(false);
+  t.check(over.s.livesLost === 0 && over.p.x > over.c.x + over.c.w, `run ${level}: the kicker did not carry a cruising sled over the crevasse at ${over.c.x} (${over.c.w} m)`);
+  const fall = big(true);
+  t.check(fall.s.livesLost === 1 && fall.saw('fell').length === 1, `run ${level}: a sled at a crawl at the crevasse: ${fall.s.livesLost} lives lost`);
 }
-
-// ── 8 · a jump clears a rock, never a tree ──
-for (const level of [3, 12]) {
-  const over = (kind, jump) => {
-    const s = G.start({ seed: 6, level }), g = s.game;
-    const o = g.slope.obstacles.find((q) => q.kind === kind && q.z > 80 && !g.slope.obstacles.some((w) => w !== q && Math.abs(w.z - q.z) < 14 && Math.abs(w.x - q.x) < 2.5) && !g.slope.ramps.some((r) => Math.abs(r.z - q.z) < 20));
-    place(g, o.x, o.z - 12);
-    for (let i = 0; i < 1.2 / STEP && g.sim.p.z < o.z + 2; i++) { s.hold(jump && o.z - g.sim.p.z < 6 && o.z > g.sim.p.z ? ['up'] : []); s.tick(); }
-    return g.sim.tumbles;
-  };
-  t.check(over('rock', false) === 1, `run ${level}: riding straight into a rock was not a tumble`);
-  t.check(over('rock', true) === 0, `run ${level}: a jump 6 m before a rock did not clear it`);
-  t.check(over('tree', true) === 1, `run ${level}: a jump carried the sled over a tree`);
-}
-
-// An empty slope with only the creatures on it (rules tests: everything else is covered above).
-const bare = (level, seed, keep = () => false) => {
-  const s = G.start({ seed, level, unlimited: true }), g = s.game, sl = g.slope;
-  sl.obstacles = sl.obstacles.filter(keep); sl.ramps.length = 0; sl.crevasses.length = 0; sl.crystals.length = 0;
-  sl.zones.length = 0; sl.walls.length = 0; sl.gusts.length = 0; g.sim.giant = null;
-  return { s, g, sim: g.sim, p: g.sim.p, sl };
-};
-
-// ── 9 · ice wolves ──
-for (const level of [4, 9, 14]) {
-  const meet = (steer) => {               // ride to the first pack; steer(w, p) → keys once a wolf is beside the sled
-    const { s, g, sim, p, sl } = bare(level, 7);
-    sl.rollers.length = 0;
-    place(g, 0, sl.packs[0].z - 5);
-    const out = { bites: 0, vBefore: 0, vAfter: 0, gapBites: 9, lunges: 0, s, sim };
-    let lastBite = -9, was = 0;
-    for (let i = 0; i < 14 / STEP; i++) {
-      const live = sim.wolves.filter((q) => q.state !== 'gone' && q.state !== 'down' && q.state !== 'away'), w = live.find((q) => q.state === 'crouch' || q.state === 'lunge') || live.find((q) => Math.abs(q.dz) < 1.6) || live[0], v = p.v;
-      s.hold(w ? steer(w, p) : []);
-      s.tick();
-      if (p.bitten > was + 1) { out.bites++; if (out.bites === 1) { out.vBefore = v; out.vAfter = p.v; } out.gapBites = Math.min(out.gapBites, i * STEP - lastBite); lastBite = i * STEP; }
-      was = p.bitten;
+for (const level of [6, 12, 15]) {
+  const crack = (jumps) => {
+    const r = begin(level), { s, sim, p, sl } = r, c = sl.gaps.find((q) => q.crack);
+    sim.place(c.x - 15); let pressed = false;
+    for (let i = 0; i < 4 / STEP && s.livesLost === 0 && !(p.x > c.x + c.w + 1 && !p.air); i++) {
+      const now = jumps && !pressed && c.x - p.x < 1.2; if (now) pressed = true;
+      s.hold(now ? ['up'] : []); s.tick();
     }
-    out.lunges = sim.wolves.reduce((n, q) => n + q.lunges, 0) + 0;
-    return out;
+    return { ...r, c };
   };
-  const still = meet(() => []);
-  if (!t.check(still.bites >= 1, `run ${level}: a sled that never steers was not bitten by the wolves in 14 s`)) continue;
-  t.check(still.sim.tumbles === 0 && still.s.livesLost === 0, `run ${level}: wolf bites cost ${still.sim.tumbles} tumbles and ${still.s.livesLost} lives (should be none)`);
-  t.check(still.vAfter < still.vBefore * 0.75 && still.vAfter >= Math.min(still.vBefore * BITE, still.sim.R.cruise * 0.5) - 0.5, `run ${level}: a bite took the sled from ${still.vBefore.toFixed(1)} to ${still.vAfter.toFixed(1)} m/s`);
-  t.check(still.gapBites >= BITE_SAFE - 0.05, `run ${level}: two bites came ${still.gapBites.toFixed(2)} s apart (no bite within ${BITE_SAFE} s of the last)`);
-  const knock = meet((w, p) => (w.state !== 'lunge' && Math.abs(w.dz) < 1.6 ? [w.x > p.x ? 'right' : 'left'] : []));
-  t.check(knock.sim.knocks >= 1, `run ${level}: steering into the wolves knocked none of them down`);
-  const dodge = meet((w, p) => (w.state === 'crouch' || w.state === 'lunge' ? [w.x > p.x ? 'left' : 'right'] : Math.abs(p.x) < 1 ? [] : [p.x > 0 ? 'left' : 'right']));   // away from a crouching wolf, back to the middle between lunges
-  t.check(dodge.bites === 0, `run ${level}: steering away from every crouching wolf, the sled was still bitten ${dodge.bites} times`);
+  const no = crack(false), yes = crack(true);
+  t.check(no.s.livesLost === 1 && no.saw('fell').length === 1, `run ${level}: riding into the crack at ${no.c.x} without a jump cost ${no.s.livesLost} lives`);
+  t.check(yes.s.livesLost === 0 && yes.sim.tumbles === 0 && yes.p.x > yes.c.x + yes.c.w, `run ${level}: a jump at the edge did not clear the crack at ${yes.c.x} (${yes.c.w} m)`);
 }
 
-// ── 10 · yetis ──
-for (const level of [7, 12]) {
-  const visit = (plan) => {
-    const { s, g, sim, p, sl } = bare(level, 9, (o) => o.kind === 'yeti');
-    sl.packs.length = 0; sl.rollers.length = 0;
-    const o = sl.obstacles[0];
-    place(g, plan === 'into' || plan === 'stomp' ? o.x : Math.max(-HALF + 2, Math.min(HALF - 2, o.x + (o.x > 0 ? -5 : 5))), o.z - 75);
-    if (plan === 'into' || plan === 'stomp') o.next = 99;      // (these two are about touching the yeti itself: no boulders)
-    let by = '', thrown = 0;
-    const seen = new Set();
-    for (let i = 0; i < 6 / STEP && p.z < o.z + 8; i++) {
-      const b = sim.boulders.find((q) => q.kind === 'snow' && q.t > 0);
-      for (const q of sim.boulders) if (!seen.has(q)) { seen.add(q); thrown++; }
-      let keys = [];
-      if (plan === 'dodge' && b) keys = [b.x >= p.x ? 'left' : 'right'];
-      if (plan === 'into' || plan === 'stomp') { const dx = o.x - p.x; keys = Math.abs(dx) < 0.3 ? [] : [dx > 0 ? 'right' : 'left']; if (b && o.z - p.z > 30) keys = [b.x >= p.x ? 'left' : 'right']; }
-      if (plan === 'stomp' && o.z - p.z < p.v * 0.28 && o.z > p.z) keys.push('up');
-      const t0 = sim.tumbles;
-      s.hold(keys); s.tick();
-      if (sim.tumbles > t0 && !by) by = Math.abs(p.z - o.z) < 2.5 ? 'yeti' : 'boulder';
+// ── 9 · rocks ──
+for (const level of [2, 10 + 1, 15]) {
+  const rock = (jumps) => {
+    const r = begin(level), { s, sim, p, sl } = r, k = sl.rocks[0];
+    sim.place(k.x - 15); let pressed = false;
+    for (let i = 0; i < 3 / STEP && !(p.x > k.x + 6 && !p.air); i++) {
+      const now = jumps && !pressed && k.x - p.x < p.v * 0.3; if (now) pressed = true;
+      s.hold(now ? ['up'] : []); s.tick();
     }
-    return { by, thrown, o, sim, p, s };
+    return { ...r, k };
   };
-  const straight = visit('straight');
-  if (!t.check(straight.thrown >= 1, `run ${level}: the yeti threw nothing at a sled riding past`)) continue;
-  t.check(straight.by === 'boulder', `run ${level}: riding straight on under a yeti's boulders ended with ${straight.by || 'no tumble'}`);
-  const dodge = visit('dodge');
-  t.check(dodge.sim.tumbles === 0, `run ${level}: stepping off every ring, the sled still tumbled (${dodge.by})`);
-  const into = visit('into');
-  t.check(into.by === 'yeti' && into.s.livesLost === 0, `run ${level}: riding into a yeti: ${into.by || 'no tumble'}, ${into.s.livesLost} lives lost`);
-  const stomp = visit('stomp');
-  t.check(stomp.o.flat && stomp.by !== 'yeti', `run ${level}: jumping onto a yeti did not flatten it (${stomp.by || 'no tumble'})`);
+  const hit = rock(false), hop = rock(true);
+  t.check(hit.sim.tumbles === 1 && hit.s.livesLost === 0 && hit.k.hit, `run ${level}: riding into a rock: ${hit.sim.tumbles} tumbles, ${hit.s.livesLost} lives lost`);
+  t.check(hop.sim.tumbles === 0 && hop.saw('cleared').length === 1, `run ${level}: a jump did not clear the rock at ${hop.k.x} (${hop.sim.tumbles} tumbles)`);
+  // the rock he crashed into stays down: ride at it again
+  hit.sim.place(hit.k.x - 15); hit.s.hold([]); hit.s.run(1.5);
+  t.check(hit.sim.tumbles === 1, `run ${level}: a rock already crashed into knocked the sled down again`);
 }
 
-// ── 11 · rolling boulders ──
+// ── 10 · mercy ──
 {
-  let hit = 0, clean = 0;
-  for (let x = -10; x <= 10; x += 2) {
-    const { s, g, sim, p, sl } = bare(12, 11);
-    sl.packs.length = 0; sl.rollers.length = 1;
-    place(g, x, sl.rollers[0].z - 100);
-    for (let i = 0; i < 6 / STEP && p.z < sl.rollers[0].z + 40; i++) { s.hold([]); s.tick(); }
-    if (sim.tumbles) hit++; else clean++;
-    t.check(s.livesLost === 0, 'run 12: a rolling boulder cost a life');
+  const { s, sim, sl } = begin(12), room = [];
+  for (let n = 1; n <= 4; n++) {
+    sim.R = { ...sim.R, avalanche: sim.R.cruise * 3 };
+    s.hold([]); s.run(6, () => s.livesLost >= n);
+    sim.R = sl.R; s.lives = 3;
+    s.run(4, () => s.state === 'playing');
+    room.push(Math.round(sim.gap));
   }
-  t.check(hit >= 1 && clean >= 4, `run 12: of 11 straight lines past a rolling boulder, ${hit} met it and ${clean} were clear (expected some of each)`);
+  t.check(room.join() === [1, 2, 3, 3].map((n) => START_GAP + n * MERCY_GAP).join(), `after 1, 2, 3 and 4 lives lost on a run the avalanche restarts ${room.join(', ')} m behind (${[1, 2, 3, 3].map((n) => START_GAP + n * MERCY_GAP).join(', ')})`);
 }
 
-// ── 12 · mercy ──
-{
-  const s = G.start({ seed: 6, level: 12, unlimited: true }), g = s.game;
-  const o = g.slope.obstacles.find((q) => q.kind === 'tree' && q.z > 80 && !g.slope.obstacles.some((w) => w !== q && Math.abs(w.z - q.z) < 14 && Math.abs(w.x - q.x) < 3));
-  const ride = () => { place(g, o.x, o.z - 8); const t0 = g.sim.tumbles; for (let i = 0; i < 0.8 / STEP && g.sim.p.z < o.z + 1; i++) { s.hold([]); s.tick(); } return g.sim.tumbles - t0; };
-  t.check(ride() === 1, 'run 12: riding into a tree was not a tumble');
-  s.run(SAFE_T + 0.2);
-  t.check(ride() === 0, 'run 12: a tree that was already crashed into knocked the sled down again');
-  // each life lost sets the avalanche further back
-  const gaps = [];
-  for (let k = 0; k < 3; k++) { g.sim.az = g.sim.p.z - 1; s.hold([]); s.run(1, () => s.livesLost > k); s.run(4, () => s.state === 'playing'); gaps.push(g.sim.gap); }
-  t.check(gaps.every((d, k) => Math.abs(d - Math.min(90, START_GAP + MERCY_GAP * (k + 1))) < 3), `run 12: the avalanche restarted ${gaps.map((d) => d.toFixed(0)).join(', ')} m behind after 1, 2, 3 lives lost (should be ${[1, 2, 3].map((k) => Math.min(90, START_GAP + MERCY_GAP * k)).join(', ')})`);
-  t.check(g.slope.packs.every((q) => !q.met || q.out), 'run 12: a wolf pack that was met is waiting again after a lost life');
-}
-
-// A slope with nothing on it but what `keep` names (rules tests).
-const only = (level, seed, keep) => {
-  const s = G.start({ seed, level, unlimited: true }), g = s.game, sl = g.slope;
-  sl.obstacles = sl.obstacles.filter((o) => keep.pillars && o.kind === 'pillar'); sl.crevasses.length = 0; sl.crystals.length = 0; sl.packs.length = 0; sl.rollers.length = 0;
-  if (!keep.ramps) sl.ramps.length = 0;
-  if (!keep.zones) sl.zones.length = 0;
-  if (!keep.pillars) sl.walls.length = 0;
-  if (!keep.gusts) sl.gusts.length = 0;
-  if (!keep.giant) g.sim.giant = null;
-  return { s, g, sim: g.sim, p: g.sim.p, sl };
-};
-
-// ── 14 · ice and deep snow ──
-for (const level of [3, 9, 14]) {
-  const { s, g, sim, p, sl } = only(level, 5, { zones: true });
-  const ice = sl.zones.find((q) => q.kind === 'ice');
-  if (t.check(!!ice, `run ${level}: no ice patch on this slope`)) {
-    place(g, ice.x, ice.z + 1); s.hold(['right']); s.run(0.1);
-    const onIce = p.vx;
-    place(g, ice.x, ice.z - 30); s.hold(['right']); s.run(0.1);
-    const onSnow = p.vx;
-    t.check(onIce > 0 && onIce < onSnow * (ICE_GRIP + 0.08), `run ${level}: 0.1 s of steering gave ${onIce.toFixed(2)} m/s sideways on ice and ${onSnow.toFixed(2)} on snow (ice should give about ${Math.round(ICE_GRIP * 100)}%)`);
-    t.check(sim.tumbles === 0, `run ${level}: ice knocked the sled over`);
-  }
-  const drift = sl.zones.find((q) => q.kind === 'drift');
-  if (level >= 6 && t.check(!!drift, `run ${level}: no deep-snow drift on this slope`)) {
-    place(g, drift.x, drift.z - 5); s.hold([]);
-    let low = 99; for (let i = 0; i < 3 / STEP && p.z < drift.z + drift.len; i++) { s.tick(); if (p.z > drift.z) low = Math.min(low, p.v); }
-    t.check(low < sim.R.cruise * (DRIFT_SPEED + 0.12), `run ${level}: deep snow only slowed the sled to ${low.toFixed(1)} m/s (cruising ${sim.R.cruise.toFixed(1)}; it should drag to ${Math.round(DRIFT_SPEED * 100)}%)`);
-    s.run(1.5);
-    t.check(p.v > sim.R.cruise * 0.9 && sim.tumbles === 0, `run ${level}: 1.5 s after a drift the sled rides at ${p.v.toFixed(1)} m/s with ${sim.tumbles} tumbles`);
-  }
-}
-
-// ── 15 · ruins ──
-for (const level of [8, 12, 15]) {
-  const { s, g, sim, p, sl } = only(level, 4, { pillars: true });
-  const w = sl.walls[0];
-  if (!t.check(!!w, `run ${level}: no ruin on this slope`)) continue;
-  const row = sl.obstacles.filter((o) => Math.abs(o.z - w.z) < 0.1).map((o) => o.x).sort((a, b) => a - b);
-  const gaps = row.slice(1).map((x, i) => x - row[i]).filter((d) => d > PILLAR_R * 2 + 0.6);
-  t.check(gaps.length === 1 && Math.abs(gaps[0] - (w.half + PILLAR_R) * 2) < 0.2, `run ${level}: the wall at z=${w.z.toFixed(0)} has gaps of ${gaps.map((d) => d.toFixed(1)).join(', ') || 'none'} m (it should have one gate, ${((w.half + PILLAR_R) * 2).toFixed(1)} m between pillar centres)`);
-  t.check(row[0] < -HALF + PILLAR_R + 1.2 && row[row.length - 1] > HALF - PILLAR_R - 1.2 || Math.abs(w.x) > HALF - w.half - 2.5, `run ${level}: the wall stops short of the slope's edge (${row[0].toFixed(1)} … ${row[row.length - 1].toFixed(1)})`);
-  // through the gate along the safe line (steering to stay on it)
-  place(g, lineAt(sl.knots, w.z - 40), w.z - 40);
-  for (let i = 0; i < 3 / STEP && p.z < w.z + 5; i++) { const dx = lineAt(sl.knots, p.z + 4) - p.x; s.hold(Math.abs(dx) < 0.15 ? [] : [dx > 0 ? 'right' : 'left']); s.tick(); }
-  t.check(sim.tumbles === 0 && p.z >= w.z + 5, `run ${level}: a sled on the safe line did not get through the ruin's gate (${sim.tumbles} tumbles)`);
-  place(g, row[1], w.z - 10); s.hold([]); for (let i = 0; i < 1 / STEP && p.z < w.z + 2; i++) s.tick();
-  t.check(sim.tumbles === 1 && s.livesLost === 0, `run ${level}: riding into a pillar gave ${sim.tumbles} tumbles and cost ${s.livesLost} lives`);
-}
-
-// ── 16 · frost gusts ──
-for (const level of [6, 13]) {
-  const { s, g, sim, p, sl } = only(level, 2, { gusts: true });
-  const q = sl.gusts[0];
-  if (!t.check(!!q, `run ${level}: no frost gust on this slope`)) continue;
-  place(g, q.x, q.z - 12); sim.az = p.z - 30; s.hold([]);
-  let before = 0, after = 0;
-  for (let i = 0; i < 1.5 / STEP && p.z < q.z + 6; i++) { const was = sim.gap, got = q.got; s.tick(); if (!got && q.got) { before = was; after = sim.gap; } }
-  t.check(q.got && Math.abs(after - before - GUST_BACK) < 1, `run ${level}: riding through a frost gust moved the avalanche from ${before.toFixed(0)} to ${after.toFixed(0)} m behind (should be ${GUST_BACK} m further)`);
-}
-
-// ── 17 · the giant yeti ──
-{
-  const meet = (plan) => {
-    const { s, g, sim, p } = only(15, 3, { giant: true });
-    place(g, 0, 200); sim.giant.t = 0.2;
-    let by = '', warned = 0, sawShadow = false, airLeap = false, stood = false;
-    for (let i = 0; i < 9 / STEP; i++) {
-      const Gt = sim.giant, t0 = sim.tumbles, st = Gt.state;
-      let keys = [];
-      if (plan === 'aside' && (Gt.state === 'shadow' || Gt.state === 'stand')) keys = [Gt.x >= p.x ? 'left' : 'right'];
-      if ((plan === 'legs' || plan === 'stomp') && Gt.state === 'stand') { const dx = Gt.x - p.x; keys = Math.abs(dx) < 0.3 ? [] : [dx > 0 ? 'right' : 'left']; if (plan === 'stomp' && Gt.z - p.z < p.v * 0.3 && Gt.z > p.z) keys.push('up'); }
-      if ((plan === 'legs' || plan === 'stomp') && Gt.state === 'shadow') keys = [Gt.x >= p.x ? 'left' : 'right'];      // step out from under it first …
-      s.hold(keys); s.tick();
-      if (Gt.state === 'shadow') { sawShadow = true; warned += STEP; if (p.air === 'ramp') airLeap = true; }
-      if (st === 'shadow' && Gt.state === 'stand') stood = true;
-      if (sim.tumbles > t0 && !by) by = 'giant';
-      if (Gt.state === 'dazed') break;
-      if (stood && Gt.state === 'wait') break;
-    }
-    return { by, warned, sawShadow, airLeap, sim, s, state: sim.giant.state };
-  };
-  const under = meet('under');
-  if (t.check(under.sawShadow, 'run 15: the giant yeti never leapt in 9 s')) {
-    t.check(Math.abs(under.warned - GIANT_T) < 0.05, `run 15: the giant's shadow warned for ${under.warned.toFixed(2)} s (should be ${GIANT_T})`);
-    t.check(under.by === 'giant' && under.s.livesLost === 0, `run 15: staying under the giant yeti: ${under.by || 'no tumble'}, ${under.s.livesLost} lives lost`);
-    const aside = meet('aside');
-    t.check(aside.sim.tumbles === 0, `run 15: stepping out from under the giant's shadow still ended in ${aside.sim.tumbles} tumbles`);
-    // (after stepping aside you are too far over to get back to its legs in time on every seed: try, and accept either a tumble or a clean pass, but never a life)
-    const legs = meet('legs');
-    t.check(legs.s.livesLost === 0, `run 15: the giant's legs cost ${legs.s.livesLost} lives`);
-  }
-  // straight at a standing giant: a tumble; from the air: dazed
-  for (const plan of ['legs', 'stomp']) {
-    const { s, g, sim, p } = only(15, 3, { giant: true });
-    place(g, 0, 300); Object.assign(sim.giant, { state: 'stand', t: 0, x: 0, z: p.z + 40 });
-    for (let i = 0; i < 2.5 / STEP && sim.giant.state === 'stand' && sim.tumbles === 0; i++) { s.hold(plan === 'stomp' && sim.giant.z - p.z < p.v * 0.3 ? ['up'] : []); s.tick(); }
-    if (plan === 'legs') t.check(sim.tumbles === 1 && s.livesLost === 0, `run 15: riding into the standing giant: ${sim.tumbles} tumbles, ${s.livesLost} lives lost`);
-    else t.check(sim.giant.state === 'dazed' && sim.tumbles === 0, `run 15: jumping onto the giant's head left it "${sim.giant.state}" with ${sim.tumbles} tumbles (should be dazed, none)`);
-  }
-  // never at a sled in mid-flight off a ramp
-  {
-    const { s, g, sim, p, sl } = only(15, 3, { giant: true, ramps: true });
-    const rp = sl.ramps.find((r) => !r.crev && r.z > 200 && r.z < sl.flagZ - 150);
-    if (t.check(!!rp, 'run 15: no plain ramp to test the giant against')) {
-      place(g, rp.x, rp.z - 6); sim.giant.t = 0;
-      let bad = false; for (let i = 0; i < 4 / STEP; i++) { const was = sim.giant.state; s.hold([]); s.tick(); if (was === 'wait' && sim.giant.state === 'shadow' && p.air === 'ramp') bad = true; }
-      t.check(!bad, 'run 15: the giant yeti leapt at a sled in mid-flight off a ramp');
-    }
-  }
-}
-
-// ── 13 · phone buttons ──
+// ── 11 · phone buttons ──
 {
   const s = G.start({ seed: 1, level: 1 }), g = s.game, fingers = s.input.pointers;
   g.touchSeen = true; g.layout();
   const C = g.ctl, at = (k) => ({ x: C[k].x, y: C[k].y, t: 0, touch: true });
   const put = (...list) => { fingers.clear(); list.forEach((q, i) => fingers.set(i + 1, q)); return g.readInput(); };
   t.check(put().dir === 0 && !put().jump && !put().tuck, 'with no finger on the screen a button reads as held');
-  t.check(put(at('left')).dir === -1, 'a finger on ◀ does not steer left');
-  t.check(put({ ...at('right'), x: C.right.x - 4, y: C.right.y + 6 }).dir === 1, 'a finger that slid from ◀ onto ▶ does not steer right');
+  t.check(put(at('left')).dir === -1, 'a finger on ◀ does not read as ◀');
+  t.check(put({ ...at('right'), x: C.right.x - 4, y: C.right.y + 6 }).dir === 1, 'a finger that slid from ◀ onto ▶ does not read as ▶');
   const two = put(at('left'), at('jump'));
   t.check(two.dir === -1 && two.jump && !two.tuck, `two thumbs on ◀ and JUMP read as ${JSON.stringify(two)}`);
   const tk = put(at('right'), at('tuck'));
   t.check(tk.dir === 1 && tk.tuck && !tk.jump, `two thumbs on ▶ and TUCK read as ${JSON.stringify(tk)}`);
-  t.check(put({ ...at('left'), x: (C.left.x + C.right.x) / 2 - 1 }).dir === -1, 'a thumb between ◀ and ▶, nearer ◀, does not steer left');
+  t.check(put({ ...at('left'), x: (C.left.x + C.right.x) / 2 - 1 }).dir === -1, 'a thumb between ◀ and ▶, nearer ◀, does not read as ◀');
   const none = put();                                   // the engine has let a lost finger go
   t.check(none.dir === 0 && !none.jump && !none.tuck, `once the engine lets a finger go the buttons read ${JSON.stringify(none)}`);
-  for (const k of ['left', 'right', 'tuck', 'jump']) t.check(C[k].x - C[k].r >= 26 && C[k].x + C[k].r <= 480 - 26, `the ${k} button reaches to ${Math.round(Math.min(C[k].x - C[k].r, 480 - C[k].x - C[k].r))} px from the screen's side edge (iPhones start their own swipes there; keep 26 clear)`);
+  for (const k of ['left', 'right', 'tuck', 'jump']) t.check(C[k].x - C[k].r >= 26 && C[k].x + C[k].r <= 480 - 26, `the ${k} button reaches to ${Math.round(Math.min(C[k].x - C[k].r, 480 - C[k].x - C[k].r))} px from the screen's side edge (iPhones start their own swipes inside 26 px)`);
   t.check(C.right.x - C.right.r - (C.left.x + C.left.r) >= 8 && C.jump.x - C.jump.r - (C.tuck.x + C.tuck.r) >= 8, 'two buttons touch or overlap');
 }
 
-t.done(`${runs} runs finished after a real tumble (${tumbles} tumbles in all); a tumble costs ground, not a life; the avalanche costs one life and restarts you on clear snow ${START_GAP} m ahead of it; crystal rushes cannot be lost; ramps throw the sled as the rules say, a full spin lands clean and half a spin tumbles; crevasses cost one life and are crossed by ramp or by a timed jump; a jump clears rocks; wolf bites slow but never tumble, wolves can be knocked down or dodged; yeti boulders can be stepped around and yetis flattened; a run gets kinder each time it beats you; ice, deep snow, ruin gates, frost gusts and the giant yeti behave as the rules say; phone buttons cannot stick`);
+t.done(`${runs} runs finished after a real tumble (${tumbles} tumbles in all); a tumble costs ground, not a life; the avalanche costs one life and restarts you on plain snow ahead of it; it is never more than ${MAX_GAP} m behind and always in the picture, on every run; caught, it covers the whole picture before you are put back; crystal rushes cannot be lost; flips and grabs land clean with a burst of speed, upside down is a tumble; crevasses, cracks and rocks do what the rules say; phone buttons read each finger`);

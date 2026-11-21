@@ -685,18 +685,17 @@ export const GAMES = [
   {
     id: 'avalanche-run',
     genres: ['racing', 'action'],
-    is3d: true,
     gold: 'Golden Iceman',          // golden character, unlocked by the Zone 6 egg (once Zone 6's Legends game exists) — never sold
     title: 'Avalanche Run',
-    tagline: 'The Iceman is out of the volcano, and now the mountain is coming down behind him. Sled down the frozen slope past wolves, yetis and the ruins of the ice kingdom, and reach the hut before the avalanche reaches you.',
-    controls: '← → steer (spin in the air) · ↓ tuck for speed (grab in the air) · ↑ or Space jump (touch: ◀ ▶, TUCK and JUMP)',
+    tagline: 'The Iceman is out of the volcano, and now the mountain is coming down behind him. Sled down the steep frozen slope, flip off the kickers, jump the crevasses, and reach the hut before the avalanche swallows you.',
+    controls: '← backflip · → front flip (in the air) · ↓ tuck for speed (grab in the air) · ↑ or Space jump (touch: ↺ ↻, TUCK and JUMP)',
     color: '#7dd3fc',
     isNew: true,
     achievements: [
       { id: 'first',    icon: '🛷', title: 'First Descent',  desc: 'Reach the hut at the bottom of run 1' },
       { id: 'clean',    icon: '❄️', title: 'Clean Sweep',    desc: 'Reach a hut without a single tumble' },
       { id: 'outrun',   icon: '🏔️', title: 'Outrun',         desc: 'Reach the hut on run 15 and outrun the mountain' },
-      { id: 'trickster', icon: '🌀', title: 'Trickster',     desc: 'Land a triple spin off one ramp' },
+      { id: 'trickster', icon: '🌀', title: 'Trickster',     desc: 'Land a double flip off one kicker' },
       { id: 'yeti',     icon: '🦶', title: 'Yeti Hopper',    desc: 'Come down on a yeti from the air and flatten it' },
       { id: 'wolves',   icon: '🐺', title: 'Wolf Tamer',     desc: 'Knock down 5 ice wolves in one run' },
       { id: 'giant',    icon: '👣', title: 'Giant Dazed',    desc: 'Jump onto the giant yeti’s head on run 15' },
