@@ -181,7 +181,7 @@ class StarStrike {
   }
   onAction(a, x, y) {
     if (a === 'press') {
-      if (Math.hypot(x - (W - 44), y - (H - 60)) < 30) { this.bomb(); return; }
+      if (Math.hypot(x - (W - 60), y - (H - 60)) < 30) { this.bomb(); return; }
       this.onPointerMove(x, y);
     }
   }
@@ -223,7 +223,7 @@ class StarStrike {
 
     // firing
     this.fireT -= dt; this.homeT -= dt; this.droneT -= dt;
-    const firing = inp.isDown('action') || (inp.pointer.down && inp.pointer.y < H - 110) || (inp.pointer.down && Math.hypot(inp.pointer.x - (W - 44), inp.pointer.y - (H - 60)) > 30 && inp.pointer.y >= H - 110);
+    const firing = inp.isDown('action') || (inp.pointer.down && inp.pointer.y < H - 110) || (inp.pointer.down && Math.hypot(inp.pointer.x - (W - 60), inp.pointer.y - (H - 60)) > 30 && inp.pointer.y >= H - 110);
     if (firing && !this.bonus) {
       if (this.fireT <= 0) this.fire();
       if (this.homing > 0 && this.homeT <= 0) this.launchMissiles();
@@ -1064,9 +1064,9 @@ class StarStrike {
     ctx.save();
     ctx.globalAlpha = this.bombs ? 0.9 : 0.35;
     ctx.fillStyle = '#831843'; ctx.strokeStyle = '#f472b6'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(W - 44, H - 60, 26, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(W - 60, H - 60, 26, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     ctx.fillStyle = '#fff'; ctx.font = '800 13px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(`💣${this.bombs}`, W - 44, H - 60);
+    ctx.fillText(`💣${this.bombs}`, W - 60, H - 60);
     ctx.restore();
     ctx.textAlign = 'center'; ctx.font = '600 11px system-ui'; ctx.fillStyle = 'rgba(226,232,240,.45)';
     if (s.state === 'playing' && this.sectorT < 6) ctx.fillText(this.s.coarse ? 'Touch and hold: fly and fire · 💣 button' : 'Arrows / mouse to fly · Space / click to fire · B bomb', W / 2, H - 14);

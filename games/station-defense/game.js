@@ -168,7 +168,7 @@ class StationDefense {
     const b = this.s.bands?.bottom || 0;
     if (b < BAND_MIN) return null;
     const bh = Math.round(Math.min(62, b * 0.4));
-    return { h: b, info: { y: H + 10, h: Math.max(44, Math.min(60, b - bh - 34)) }, btn: { x: 16, y: H + b - bh - 14, w: W - 32, h: bh } };
+    return { h: b, info: { y: H + 10, h: Math.max(44, Math.min(60, b - bh - 34)) }, btn: { x: 30, y: H + b - bh - 14, w: W - 60, h: bh } };   // 30 px off the screen edges
   }
 
   /** The round buttons around the selected pad: the four turrets, or upgrade / sell. */

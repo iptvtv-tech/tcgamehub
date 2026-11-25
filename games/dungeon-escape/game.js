@@ -19,8 +19,8 @@ const ID = 'dungeon-escape';
 const W = 480, H = 720;
 const VIEW = { x: 0, y: 44, w: 480, h: 500 };
 const PANEL_Y = VIEW.y + VIEW.h;
-const STICK = { x: 82, y: PANEL_Y + 88, r: 58 };          // the Crown Heist roller-ball stick
-const FLASH_BTN = { x: W - 58, y: PANEL_Y + 88, r: 38 };
+const STICK = { x: 88, y: PANEL_Y + 88, r: 58 };          // the Crown Heist roller-ball stick, 30 px clear of the screen edge
+const FLASH_BTN = { x: W - 68, y: PANEL_Y + 88, r: 38 };   // 30 px clear of the screen edge
 const BASE_Y = { stick: STICK.y, flash: FLASH_BTN.y };
 /** portrait bands: on a tall phone the stick and flash button drop below the box, at thumb height */
 function dropControls(bands) {

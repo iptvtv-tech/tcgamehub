@@ -1077,7 +1077,7 @@ class Eggspress {
     if (i.isDown('right') || i.isDown('up') || i.isDown('action')) gas = true;
     if (i.isDown('left') || i.isDown('down')) brake = true;
     const pedal = (x0, x1, label, sub, col, hot) => {
-      const pad = 26, py = y0 + 22, ph = bh - 44;
+      const pad = 30, py = y0 + 22, ph = bh - 44;   // 30 px off the screen edges (iPhone edge swipes)
       ctx.fillStyle = hot ? col + '44' : 'rgba(255,255,255,.06)';
       roundRect(ctx, x0 + pad, py, x1 - x0 - pad * 2, ph, 24); ctx.fill();
       ctx.strokeStyle = hot ? col : col + '88'; ctx.lineWidth = hot ? 5 : 3;

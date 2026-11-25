@@ -268,9 +268,10 @@ class AstroExplorer {
     // the stick on the left; JUMP big at the bottom right, BLADE to its left, BLAST above them, DASH top right
     const cy = band >= 150 ? H + band * 0.5 : H - PANEL / 2;
     Object.assign(this.stickPos, { x: band >= 150 ? 92 : 88, y: cy, r: band >= 150 ? 56 : 52 });
+    // 30 px clear of the screen's side edges: iPhones start their own swipes there
     this.btn = {
-      jump: { x: W - 60, y: cy + 22, r: 38 }, slash: { x: W - 150, y: cy + 28, r: 35 },
-      shoot: { x: W - 112, y: cy - 40, r: 28 }, dash: { x: W - 42, y: cy - 44, r: 26 },
+      jump: { x: W - 68, y: cy + 22, r: 38 }, slash: { x: W - 150, y: cy + 28, r: 35 },
+      shoot: { x: W - 112, y: cy - 40, r: 28 }, dash: { x: W - 56, y: cy - 44, r: 26 },
     };
   }
   onBandsChange() { this.layout(); this.sky = null; }

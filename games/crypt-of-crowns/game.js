@@ -22,7 +22,7 @@ const ID = 'crypt-of-crowns';
 const W = 480, H = 720;
 const VIEW = { x: 0, y: 46, w: 480, h: 430 };
 const PANEL_Y = VIEW.y + VIEW.h;
-const STICK = { x: 82, y: PANEL_Y + 128, r: 58 };          // the Crown Heist roller-ball stick, same spot
+const STICK = { x: 88, y: PANEL_Y + 128, r: 58 };          // the Crown Heist roller-ball stick, 30 px clear of the screen edge
 const SEARCH_BTN = { x: 404, y: PANEL_Y + 112, r: 42 };
 const BASE_Y = { stick: STICK.y, search: SEARCH_BTN.y };
 /** portrait bands: the stick and SEARCH drop below the box on tall phones */

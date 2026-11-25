@@ -30,8 +30,8 @@ const ID = 'crown-heist';
 const W = 480, H = 720;
 const VIEW = { x: 0, y: 46, w: 480, h: 430 };
 const PANEL_Y = VIEW.y + VIEW.h;
-const STICK = { x: 82, y: PANEL_Y + 128, r: 58 };
-const BTN = { use: { x: 404, y: PANEL_Y + 66, r: 40 }, coin: { x: 364, y: PANEL_Y + 170, r: 31 }, smoke: { x: 442, y: PANEL_Y + 170, r: 31 } };
+const STICK = { x: 88, y: PANEL_Y + 128, r: 58 };          // 30 px clear of the screen edge (iPhone edge swipes)
+const BTN = { use: { x: 404, y: PANEL_Y + 66, r: 40 }, coin: { x: 352, y: PANEL_Y + 170, r: 31 }, smoke: { x: 419, y: PANEL_Y + 170, r: 31 } };
 const BASE_Y = { stick: STICK.y, use: BTN.use.y, coin: BTN.coin.y, smoke: BTN.smoke.y };
 /** portrait bands: the stick and the three buttons drop below the box on tall phones,
  *  keeping their layout (USE above, COIN/SMOKE below) */

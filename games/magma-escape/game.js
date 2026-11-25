@@ -172,9 +172,11 @@ class MagmaEscape {
     const cy = inBand ? H + band * 0.5 : H - PANEL / 2;
     const r = inBand ? 44 : 40;
     // left thumb: ◀ ▶ side by side; right thumb: SLASH, and JUMP (the biggest) at the edge
+    // kept 30 px clear of the screen's side edges: iPhones start their own swipes there
+    const lx = 30 + r, jx = W - 30 - (r + 6);
     this.ctl = {
-      left: { x: 58, y: cy, r }, right: { x: 58 + r * 2 + 16, y: cy, r },
-      slash: { x: W - 58 - (r + 6) * 2 - 14, y: cy + 10, r: r - 2 }, jump: { x: W - 58, y: cy - 4, r: r + 6 },
+      left: { x: lx, y: cy, r }, right: { x: lx + r * 2 + 16, y: cy, r },
+      slash: { x: jx - (r + 6) * 2 - 14, y: cy + 10, r: r - 2 }, jump: { x: jx, y: cy - 4, r: r + 6 },
     };
   }
   onBandsChange() { this.layout(); }

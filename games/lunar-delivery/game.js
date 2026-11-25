@@ -102,7 +102,7 @@ class LunarDelivery {
     // on a tall phone the engine's portrait bands add space under the box: the stick and
     // THRUST drop into it, so thumbs no longer cover the landing view
     const b = this.s.bands?.bottom || 0, y = b >= 150 ? H + b * 0.52 : H - 104;
-    return { stick: { x: 86, y, r: 58 }, thrust: { x: W - 92, y, r: 58 } };
+    return { stick: { x: 88, y, r: 58 }, thrust: { x: W - 92, y, r: 58 } };   // both 30+ px clear of the screen edges
   }
   moveStick(x, y) {
     const U = this.ui().stick, dx = (x - U.x) / U.r, dy = (y - U.y) / U.r, l = Math.hypot(dx, dy), k = l > 1 ? 1 / l : 1;

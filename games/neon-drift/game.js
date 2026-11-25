@@ -542,7 +542,7 @@ class NeonDrift {
   /** portrait bands: on a tall phone the wheel and buttons hang below the box, at thumb height */
   drop() { const b = this.s.bands?.bottom || 0; return b >= 120 ? Math.min(b - 20, 160) : 0; }
   /** in touch-wheel mode BOOST sits above HANDBRAKE on the right (one thumb for both), VIEW goes bottom-left */
-  boostButton() { const d = this.drop(); return this.wheelMode ? { x: W - 100, y: H - 100 + d, w: 90, h: 36 } : { x: 10, y: H - 46 + d, w: 100, h: 34 }; }   // wheel mode: a clear gap above HANDBRAKE (was 8px)
+  boostButton() { const d = this.drop(); return this.wheelMode ? { x: W - 120, y: H - 100 + d, w: 90, h: 36 } : { x: 30, y: H - 46 + d, w: 100, h: 34 }; }   // clear gap above HANDBRAKE; 30 px off the screen edge (iPhone edge swipes)
   /** fire the drift-charged boost: the whole meter goes in one burst (longer the fuller it was) */
   fireBoost() {
     const p = this.p, s = this.s;
@@ -608,8 +608,8 @@ class NeonDrift {
     if (this.s.gold) return mixHex('#f59e0b', '#fef08a', c);
     return c < 0.5 ? mixHex('#ff4fa3', '#a78bfa', c * 2) : mixHex('#a78bfa', '#22d3ee', (c - 0.5) * 2);
   }
-  viewButton() { const d = this.drop(); return this.wheelMode ? { x: 10, y: H - 46 + d, w: 90, h: 34 } : { x: W - 100, y: H - 46 + d, w: 90, h: 34 }; }
-  handButton() { const d = this.drop(); return { x: W - 100, y: H - 46 + d, w: 90, h: 34 }; }   // drops into the phone band like the other buttons
+  viewButton() { const d = this.drop(); return this.wheelMode ? { x: 30, y: H - 46 + d, w: 90, h: 34 } : { x: W - 120, y: H - 46 + d, w: 90, h: 34 }; }   // 30 px off the screen edge
+  handButton() { const d = this.drop(); return { x: W - 120, y: H - 46 + d, w: 90, h: 34 }; }   // drops into the phone band; 30 px off the screen edge
   get wheelMode() { return this.wheelTouch.active; }
   tuneButtons() { return STATIONS.map((_, i) => ({ x: 52 + i * 128, y: 352, w: 120, h: 74 })); }
 

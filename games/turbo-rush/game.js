@@ -292,7 +292,7 @@ class TurboRush {
   /** portrait bands: on a tall phone the wheel and buttons hang below the box, at thumb height */
   drop() { const b = this.s.bands?.bottom || 0; return b >= 120 ? Math.min(b - 20, 160) : 0; }
   /** in touch-wheel mode NITRO takes the bottom-right corner (the boosting thumb) and VIEW moves bottom-left */
-  viewButton() { const d = this.drop(); return this.wheelMode ? { x: 8, y: H - 44 + d, w: 84, h: 34 } : { x: W - 92, y: H - 44 + d, w: 84, h: 34 }; }
+  viewButton() { const d = this.drop(); return this.wheelMode ? { x: 30, y: H - 44 + d, w: 84, h: 34 } : { x: W - 114, y: H - 44 + d, w: 84, h: 34 }; }   // 30 px off the screen edge (iPhone edge swipes)
   /** NITRO (hold) — only in touch-wheel mode */
   nitroButton() { const d = this.drop(); return { x: W - 96, y: H - 92 + d, w: 88, h: 82 }; }
   get wheelMode() { return this.wheelTouch.active; }
