@@ -52,7 +52,7 @@ function roundHazards(g, tx, tz, hooked) {
 }
 
 /** Fly towards (tx, tz) and hold altitude `alt`. vmax = top horizontal speed. */
-function fly(g, s, { tx, tz, alt, vmax, climb = 5, sink = 3, push = 0, through = false }, noise = 0, b = null) {
+function fly(g, s, { tx, tz, alt, vmax, climb = 5, sink = 3, push = 0, through = false, dip = false }, noise = 0, b = null) {
   const p = g.p, v = g.v;
   const ex = tx - p[0], ez = tz - p[2];
   const dist = Math.hypot(ex, ez) || 1e-6, ux = ex / dist, uz = ez / dist;
@@ -64,15 +64,21 @@ function fly(g, s, { tx, tz, alt, vmax, climb = 5, sink = 3, push = 0, through =
   // a meteor on its way (2.4 s of warning) that would catch the hopper or the crate: full power away from it
   let dodge = false;
   const cr = g.crate?.hooked ? g.crate.c : null;
+  const crLow = cr && cr[1] - 0.92 - g.W.ground(cr[0], cr[2]) < 6;
   for (const m of g.meteors) {
     if (m.done) continue;
-    const left = Math.max(0, m.warn - m.t), reach = m.r + 2.5;
+    // during a canister dip the low-hanging crate is in every blast's reach: start fleeing
+    // that much sooner there — but only there, or the extra shying slows the whole leg
+    const left = Math.max(0, m.warn - m.t), reach = m.r + (crLow && dip ? 4.5 : 2.5);
     const hx = p[0] + v[0] * left, hz = p[2] + v[2] * left;
     const dh = Math.hypot(hx - m.to[0], p[1] - m.to[1], hz - m.to[2]);
     const dc = cr ? Math.hypot(cr[0] + v[0] * left - m.to[0], cr[1] - m.to[1], cr[2] + v[2] * left - m.to[2]) : 1e9;
     if (dh > reach && dc > reach) continue;
     const ax = hx - m.to[0], az = hz - m.to[2], l = Math.hypot(ax, az) || 1;
-    cx = ax / l * 9; cz = az / l * 9; dodge = true;
+    // with the crate hanging low, flee just under the drag-scrape speed (6 m/s) and let the
+    // climb do the rest: dragging the crate clear at full tilt costs 20 damage a second
+    const fleeV = crLow ? 5 : 9;
+    cx = ax / l * fleeV; cz = az / l * fleeV; dodge = true;
   }
   if (dodge && b && b.rand() < (1 - b.skill) * 0.01) dodge = false;   // a weaker pilot is slow to see it
   const want = Math.hypot(cx, cz);
@@ -96,7 +102,9 @@ function fly(g, s, { tx, tz, alt, vmax, climb = 5, sink = 3, push = 0, through =
 
 export default {
   levels: 20,
-  limit: (level) => 600 + level * 60,     // from level 14 the heavy legs take several tries (meteors on the crate)
+  // from level 14 the heavy legs take several tries (meteors on the crate): the expert's
+  // attempts vary life to life, so the hard meteor levels get time for a few more of them
+  limit: (level) => 600 + level * 60 + (level >= 14 ? (level - 13) * 90 : 0),
   stuck: 200,                               // a long leg with a refuel stop is well under this
 
   progress: (g) => (g.bonus ? 0 : g.leg * 2 + (g.crate?.hooked ? 1 : 0)),
@@ -115,7 +123,9 @@ export default {
 
   bot(g, s, b) {
     const sloppy = 1 - b.skill, p = g.p, m = b.mem;
-    const noise = sloppy * 1.2;
+    // even an expert never flies the same line twice: a touch of variation that grows with
+    // lost lives breaks the deterministic repeat of an attempt that keeps failing one way
+    const noise = Math.max(sloppy * 1.2, Math.min(0.35, s.livesLost * 0.06));
     if (g.bonus) {                                          // stardust storm: chase the nearest star
       let best = null, bd = 1e9;
       for (const d of g.W.dust) { if (d.got) continue; const dd = Math.hypot(d.x - p[0], d.y - p[1], d.z - p[2]); if (dd < bd) { bd = dd; best = d; } }
@@ -153,8 +163,15 @@ export default {
     if (m.canKey !== `${c.pad}`) { m.canKey = `${c.pad}`; m.can = null; m.shun = []; m.nearT = null; m.ll = s.livesLost; m.canD = 1e9; }
     // a canister it died going for, or hovers beside without ever grabbing (on a knoll the
     // crate can't cross without smashing), is given up on — the list survives the lost life.
-    // (A death with the tank dry is the leg's fuel problem, not this canister's fault.)
-    if (s.livesLost !== m.ll) { m.ll = s.livesLost; if (m.can && m.canD < 30 && m.lastFuel > 5) m.shun.push(m.can); m.can = null; m.nearT = null; m.dipFor = null; m.dipDown = false; }
+    // (A death with the tank dry is the leg's fuel problem, not this canister's fault — but
+    // dying dry while CHASING a canister means that plan failed, so the next life sets it
+    // aside and tries another, alternating: a deterministic loop never clears a leg.)
+    if (s.livesLost !== m.ll) {
+      m.ll = s.livesLost;
+      if (m.can && m.canD < 30 && m.lastFuel > 5) m.shun.push(m.can);
+      else if (m.can && m.lastFuel <= 5) m.avoid1 = m.avoid1 === m.can ? null : m.can;
+      m.can = null; m.nearT = null; m.dipFor = null; m.dipDown = false;
+    }
     m.lastFuel = g.fuel;
     if (m.can?.got) { m.can = null; m.nearT = null; }
     if (m.can) {
@@ -173,7 +190,7 @@ export default {
     if (!m.can && (c.dmg < 55 || !canReach) && (g.fuel < perM * dPad * 1.3 + 16 || g.fuel < 45)) {
       // a canister parked in a geyser's blast is a trap: roundHazards never lets the bot reach it
       const inGeyser = (f) => g.W.geysers.some((gy) => Math.hypot(f.x - gy.x, f.z - gy.z) < 14);
-      const open = g.W.fuel.filter((f) => !f.got && f.leg === c.pad && !m.shun.includes(f) && !inGeyser(f));
+      const open = g.W.fuel.filter((f) => !f.got && f.leg === c.pad && !m.shun.includes(f) && f !== m.avoid1 && !inGeyser(f));
       // the shunned ones back, one at a time, when what is left cannot cover the leg:
       // a retried knoll can be survived with luckier meteors, an empty tank cannot
       if (m.shun.length && g.fuel + open.length * PHYS.CAN < perM * dPad * 1.15 + 8) { open.push(m.shun.shift()); }
@@ -197,14 +214,18 @@ export default {
     if (can) {
       // grab from the low side: park the hopper a couple of metres off the canister over the
       // lowest ground around, so the hanging crate is not pressed into a bump — one slam smashes
-      if (m.dipFor !== can) {
-        m.dipFor = can; m.dipDown = false;
-        let bg = 1e9;
+      if (m.dipFor !== can || m.dipLife !== s.livesLost) {
+        m.dipFor = can; m.dipLife = s.livesLost; m.dipDown = false;
+        const spots = [];
         for (let k = 0; k < 8; k++) {
           const a = k * Math.PI / 4, ox = can.x + Math.cos(a) * 2.1, oz = can.z + Math.sin(a) * 2.1;
-          const gg = groundAround(g, ox, oz, 2.5);
-          if (gg < bg) { bg = gg; m.dip = [ox, oz]; }
+          spots.push({ g: groundAround(g, ox, oz, 2.5), ox, oz });
         }
+        spots.sort((q, r) => q.g - r.g);
+        // park over low ground, from a different side after each lost life: the same
+        // approach into the same shower keeps ending the same way
+        const pick = spots[s.livesLost % 3];
+        m.dip = [pick.ox, pick.oz];
       }
       [tx, tz] = Math.hypot(can.x - p[0], can.z - p[2]) < 25 ? m.dip : [can.x, can.z];
     }
@@ -219,6 +240,9 @@ export default {
     const blast = g.meteorRate ? (g.level >= 14 ? 9 : 7.5) + 1.5 : 0;
     const under = blast ? groundAround(g, p[0] + g.v[0] * 2.5, p[2] + g.v[2] * 2.5, 13) : nearTop;
     let alt = Math.max(top + hang + 3 - sloppy * 1.5, under + hang + blast);
+    // the crate trails metres behind the hopper on the cable: keep IT clear of the bumps
+    // around its own spot too, or a basin's pinpoint ridge swats it mid-cruise
+    alt = Math.max(alt, groundAround(g, c.c[0], c.c[2], 6) + hang + 1.5);
     let vmax = (heavy ? 9 : 13) + sloppy * 4, sink = 3, push = goalDist > 60 ? 22 : 8;
     const through = false;
     if (can) {
@@ -229,7 +253,15 @@ export default {
       // still moving swings the crate like a pendulum and whip-slams it into the next bump.
       // Once the descent starts it is seen through — flapping between dive and cruise burns
       // the tank dry.
-      if (!m.dipDown && goalDist < 16) m.dipDown = true;
+      if (!m.dipDown && goalDist < 16) {
+        // a sharp pilot times the dive: meteors land where the hopper lingers, so wait out
+        // the ones already falling near the canister and go in the gap — briefly, because
+        // lingering draws the next shower onto this very spot
+        const hot = g.meteorRate && g.meteors.some((mm) => !mm.done && Math.hypot(mm.to[0] - can.x, mm.to[2] - can.z) < 22);
+        m.waitT ??= b.t;
+        if (!hot || sloppy > 0.15 || g.fuel < 45 || b.t - m.waitT > 12) { m.dipDown = true; m.waitT = null; }
+        else vmax = Math.min(vmax, 2.5);
+      }
       if (m.dipDown && goalDist > 30) m.dipDown = false;      // blown far off (a dodge): approach again
       if (m.dipDown) {
         vmax = Math.min(vmax, 3);
@@ -241,6 +273,9 @@ export default {
     } else if (dPad < 10) vmax = 4;
     // the crate must clear the ground just ahead before the hopper moves off
     if (p[1] < nearTop + hang + 0.8 && !(can && goalDist < 22)) vmax = Math.min(vmax, 1.5);
+    // and while it still skims the ground (climbing out of a canister dip, say), stay under
+    // the drag-scrape speed: racing off drags it across the grab-site's bumps
+    if (c.c[1] - CRATE_H - groundAround(g, c.c[0], c.c[2], 3) < 1.2) vmax = Math.min(vmax, 4.5);
     // over the pad and steady: lower the crate
     const swing = Math.hypot(c.c[0] - p[0], c.c[2] - p[2]);
     if (!can && dPad < 3.2 + sloppy * 2.5 && sp < 1.6 + sloppy * 2 && swing < 2.2 + sloppy * 2) {
@@ -250,7 +285,7 @@ export default {
     // never let the crate come down hard: it breaks at about 3 m/s (a fragile one at under 2)
     const crateUp = c.c[1] - CRATE_H - g.W.ground(c.c[0], c.c[2]);
     if (crateUp < 6) sink = Math.min(sink, (c.kind === 'fragile' ? 1.2 : 1.9) + sloppy * 2.5);
-    fly(g, s, { tx, tz, alt, vmax, sink, push, through }, noise, b);
+    fly(g, s, { tx, tz, alt, vmax, sink, push, through, dip: !!(can && m.dipDown) }, noise, b);
   },
 
   // climb, then cut the engine and fall
