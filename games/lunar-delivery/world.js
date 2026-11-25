@@ -242,11 +242,24 @@ export function buildWorld({ level, bonus, seed }) {
     const need = legFuel(W.ground, A, B, L, crateKind(L, k)).fuel * 1.2;
     const onLeg = () => W.fuel.filter((f) => f.leg === k).length;
     const spots = [0.3, 0.7, 0.5, 0.15, 0.85, 0.4, 0.6];
-    for (let n = 0; 100 + onLeg() * PHYS.CAN < need && onLeg() < 5 && n < spots.length; n++) {
-      const t = spots[n] + (rand() - 0.5) * 0.06, off = (rand() < 0.5 ? -1 : 1) * (6 + rand() * 8);
-      const x = A.x + dx * t + sx * off, z = A.z + dz * t + sz * off;
-      if (W.fuel.some((f) => Math.hypot(f.x - x, f.z - z) < 22)) continue;
-      W.fuel.push({ x, z, y: top(x, z) + 9, leg: k });
+    while (100 + onLeg() * PHYS.CAN < need && onLeg() < 5) {
+      // of all the admissible spots, take the one on the flattest ground: a canister on a
+      // knoll or down a crater makes the grab press the hanging crate into the rim
+      let best = null, bestRough = 1e9;
+      for (const s of spots) {
+        const t = s + (rand() - 0.5) * 0.06;
+        for (const side of [-1, 1]) {
+          const off = side * (6 + rand() * 8);
+          const x = A.x + dx * t + sx * off, z = A.z + dz * t + sz * off;
+          if (W.fuel.some((f) => Math.hypot(f.x - x, f.z - z) < 22)) continue;
+          let ring = -1e9;
+          for (let q = 0; q < 8; q++) { const a = q * Math.PI / 4; ring = Math.max(ring, W.ground(x + Math.cos(a) * 5, z + Math.sin(a) * 5)); }
+          const rough = ring - W.ground(x, z);
+          if (rough < bestRough) { bestRough = rough; best = { x, z }; }
+        }
+      }
+      if (!best) break;
+      W.fuel.push({ x: best.x, z: best.z, y: top(best.x, best.z) + 9, leg: k });
     }
   }
   let maxY = -1e9; for (let i = 0; i < h.length; i++) maxY = Math.max(maxY, h[i]);
