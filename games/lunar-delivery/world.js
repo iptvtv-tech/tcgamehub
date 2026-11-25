@@ -56,8 +56,16 @@ export const burnFor = (level) => PHYS.BURN * Math.min(1.35, 1 + 0.022 * (level 
 
 export const CRATE_MASS = { normal: 0.5, heavy: 0.9, fragile: 0.4 };
 export const crateKind = (level, k) => (level >= 12 && k % 2 === 1 ? 'fragile' : level >= 8 && k % 2 === 0 ? 'heavy' : 'normal');
+// What a pilot really sustains with the stick hard forward and the engine lit, measured in the
+// headless game (25 Nov 2026): normal 7.0 m/s, heavy 6.3, fragile a touch over normal. Priced a
+// little under that because real flying weaves round geysers, domes and meteors. The old price
+// of 13 m/s for every crate left the longest heavy legs a canister short — test.mjs holds the
+// price at or under the measured speed.
+export const CRUISE = { normal: 6.5, heavy: 5.5, fragile: 6.5 };
+
 /** Fuel (%) a careful pilot needs for one leg: climb over the highest rock on the straight line with the crate
- *  12 m clear, cruise at 13 m/s, fall then brake down to the pad, plus 6 s to hook up and set down. */
+ *  12 m clear, cruise at the crate's real pace (CRUISE), fall then brake down to the pad, plus 6 s to hook up
+ *  and set down. */
 export function legFuel(ground, A, B, level, kind) {
   const D = Math.hypot(B.x - A.x, B.z - A.z), m = CRATE_MASS[kind];
   let top = -1e9;
@@ -67,7 +75,7 @@ export function legFuel(ground, A, B, level, kind) {
   const climb = Math.max(0, cruiseY - A.y) + 8, drop = Math.max(0, cruiseY - B.y);
   const climbT = Math.sqrt(2 * climb / (aNet + aNet * aNet / PHYS.G)) * 1.4;
   const h1 = drop * aNet / (PHYS.G + aNet), brakeT = Math.sqrt(2 * PHYS.G * h1) / aNet * 1.3;
-  const secs = (D / 13) * duty + climbT + brakeT + 6;
+  const secs = (D / CRUISE[kind]) * duty + climbT + brakeT + 6;
   return { fuel: secs * burnFor(level), cruiseY, D };
 }
 
