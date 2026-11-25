@@ -87,8 +87,11 @@ function fly(g, s, { tx, tz, alt, vmax, climb = 5, sink = 3, push = 0, through =
   // altitude: hold a climb rate; burn when below it
   const wantVy = clamp((alt - p[1]) * 0.9, -sink, climb);
   // `push`: a pilot in a hurry keeps the engine lit while tilted, trading a little height for speed
-  const hurry = push > 0 && want > 1.5 && Math.abs(tilt) > 0.8 && p[1] < alt + push && v[1] < 3;
-  s.hold(v[1] < wantVy || hurry || (dodge && Math.abs(tilt) > 0.5 && v[1] < 5) ? ['action'] : []);
+  const below = p[1] < g.W.ceiling - 4;                               // never ride a dodge through the ceiling
+  const hurry = push > 0 && want > 1.5 && Math.abs(tilt) > 0.8 && p[1] < alt + push && v[1] < 3 && below;
+  // a low-hanging crate is what the blast reaches: while dodging, climb it clear as well as fleeing
+  const lowCrate = dodge && cr && cr[1] - 0.92 - g.W.ground(cr[0], cr[2]) < 10;
+  s.hold(v[1] < wantVy || hurry || (dodge && below && v[1] < 5 && (Math.abs(tilt) > 0.5 || lowCrate)) ? ['action'] : []);
 }
 
 export default {
@@ -145,21 +148,66 @@ export default {
 
     // fuel: is the pad in reach, or is a canister on this leg needed? Once chosen, it stays the
     // goal until it is picked up.
-    const perM = g.burn * (heavy ? 0.16 : 0.11);          // % of the tank per metre, flown well
-    if (m.canKey !== `${c.pad}:${s.livesLost}`) { m.canKey = `${c.pad}:${s.livesLost}`; m.can = null; }
-    if (m.can?.got) m.can = null;
-    if (!m.can && (g.fuel < perM * dPad * 1.3 + 16 || g.fuel < 45 || (heavy && g.fuel < 100 - PHYS.CAN * 0.6))) {
+    const perM = g.burn * (heavy ? 0.125 : 0.09);         // % of the tank per metre, flown well
+                                                          // (measured ~0.107/0.073 at full-stick cruise)
+    if (m.canKey !== `${c.pad}`) { m.canKey = `${c.pad}`; m.can = null; m.shun = []; m.nearT = null; m.ll = s.livesLost; m.canD = 1e9; }
+    // a canister it died going for, or hovers beside without ever grabbing (on a knoll the
+    // crate can't cross without smashing), is given up on — the list survives the lost life.
+    // (A death with the tank dry is the leg's fuel problem, not this canister's fault.)
+    if (s.livesLost !== m.ll) { m.ll = s.livesLost; if (m.can && m.canD < 30 && m.lastFuel > 5) m.shun.push(m.can); m.can = null; m.nearT = null; m.dipFor = null; m.dipDown = false; }
+    m.lastFuel = g.fuel;
+    if (m.can?.got) { m.can = null; m.nearT = null; }
+    if (m.can) {
+      const d = Math.hypot(m.can.x - p[0], m.can.z - p[2]);
+      m.canD = d;
+      if (d < 9) { m.nearT ??= b.t; if (b.t - m.nearT > 10) { m.shun.push(m.can); m.can = null; m.nearT = null; } }
+      else m.nearT = null;
+    }
+    // dip for a canister only when the pad is out of reach on the tank: every dip hangs the
+    // crate low where a meteor can reach it, so eager topping-up costs more than it saves.
+    // With a crate one meteor hit from smashing, avoid dips the tank lets it skip: a dip is
+    // one more roll of the meteor dice. But when the tank cannot reach the pad anyway, dip
+    // regardless — a possible hit beats the certain dry tank.
+    const canReach = g.fuel > perM * dPad * 1.05 + 4;
+    if (m.can && c.dmg >= 55 && canReach) { m.can = null; m.nearT = null; }
+    if (!m.can && (c.dmg < 55 || !canReach) && (g.fuel < perM * dPad * 1.3 + 16 || g.fuel < 45)) {
+      // a canister parked in a geyser's blast is a trap: roundHazards never lets the bot reach it
+      const inGeyser = (f) => g.W.geysers.some((gy) => Math.hypot(f.x - gy.x, f.z - gy.z) < 14);
+      const open = g.W.fuel.filter((f) => !f.got && f.leg === c.pad && !m.shun.includes(f) && !inGeyser(f));
+      // the shunned ones back, one at a time, when what is left cannot cover the leg:
+      // a retried knoll can be survived with luckier meteors, an empty tank cannot
+      if (m.shun.length && g.fuel + open.length * PHYS.CAN < perM * dPad * 1.15 + 8) { open.push(m.shun.shift()); }
       const lx = T.x - p[0], lz = T.z - p[2];
       let bd = 1e9;
-      for (const f of g.W.fuel) {
-        if (f.got || f.leg !== c.pad) continue;
+      for (const f of open) {
         const fx = f.x - p[0], fz = f.z - p[2], d = Math.hypot(fx, fz), along = (fx * lx + fz * lz) / (dPad || 1);
         if (along > -6 && along < dPad + 6 && d < bd && Math.hypot(f.x - T.x, f.z - T.z) < dPad + 12) { bd = d; m.can = f; }
       }
+      // none on the way and the tank alone will not make the pad: detour to the nearest one anywhere
+      if (!m.can && g.fuel < perM * dPad * 1.15 + 8) {
+        for (const f of open) {
+          const d = Math.hypot(f.x - p[0], f.z - p[2]);
+          if (d < bd) { bd = d; m.can = f; }
+        }
+      }
+      if (m.can) m.nearT = null;
     }
     const can = m.can;
     let tx = T.x, tz = T.z;
-    if (can) { tx = can.x; tz = can.z; }
+    if (can) {
+      // grab from the low side: park the hopper a couple of metres off the canister over the
+      // lowest ground around, so the hanging crate is not pressed into a bump — one slam smashes
+      if (m.dipFor !== can) {
+        m.dipFor = can; m.dipDown = false;
+        let bg = 1e9;
+        for (let k = 0; k < 8; k++) {
+          const a = k * Math.PI / 4, ox = can.x + Math.cos(a) * 2.1, oz = can.z + Math.sin(a) * 2.1;
+          const gg = groundAround(g, ox, oz, 2.5);
+          if (gg < bg) { bg = gg; m.dip = [ox, oz]; }
+        }
+      }
+      [tx, tz] = Math.hypot(can.x - p[0], can.z - p[2]) < 25 ? m.dip : [can.x, can.z];
+    }
     const goalDist = Math.hypot(tx - p[0], tz - p[2]) || 1;
     [tx, tz] = roundHazards(g, tx, tz, true);
     const dx = tx - p[0], dz = tz - p[2], dist = Math.hypot(dx, dz) || 1, ux = dx / dist, uz = dz / dist;
@@ -176,8 +224,15 @@ export default {
     if (can) {
       // hover down onto the canister: stay high until close, then just low enough to reach it
       // (within 3.4 m of the hopper) with the crate barely off the ground
-      vmax = Math.min(vmax, 2 + goalDist * 0.35);
-      if (goalDist < 22) {
+      vmax = Math.min(vmax, 2 + goalDist * 0.3);
+      // stay at cruise height (the crate safely high) until close AND slow: descending while
+      // still moving swings the crate like a pendulum and whip-slams it into the next bump.
+      // Once the descent starts it is seen through — flapping between dive and cruise burns
+      // the tank dry.
+      if (!m.dipDown && goalDist < 16) m.dipDown = true;
+      if (m.dipDown && goalDist > 30) m.dipDown = false;      // blown far off (a dodge): approach again
+      if (m.dipDown) {
+        vmax = Math.min(vmax, 3);
         const crateGnd = groundAround(g, c.c[0], c.c[2], 3);
         alt = Math.min(can.y + 2.9, Math.max(can.y + 1.2, crateGnd + hang + 0.3));
         alt = Math.max(alt, groundAround(g, p[0], p[2], 3) + PHYS.FEET + 1.6);   // feet off the slope
