@@ -427,4 +427,56 @@ for (const level of [8, 14]) {
   t.check(runFor(7).wolves === 0 && runFor(8).wolves === 1 && runFor(11).wolves === 2 && runFor(14).wolves === 3, 'the runs do not call for wolves as 0 to run 7, 1 from run 8, 2 from 11, 3 from 14');
 }
 
-t.done(`${runs} runs finished after a real tumble (${tumbles} tumbles in all); a tumble costs ground, not a life; the avalanche costs one life and restarts you on plain snow ahead of it; it is never more than ${MAX_GAP} m behind and always in the picture, on every run; caught, it covers the whole picture before you are put back; crystal rushes cannot be lost; flips and grabs land clean with a burst of speed, upside down is a tumble; kickers come in sizes and a big one has room for a double; crevasses, cracks and rocks do what the rules say; a yeti is a tumble to ride into, is cut down by the sword in reach or flattened from above, and its snowballs can be cut out of the air; an ice wolf's bite bleeds speed but never costs a tumble or a life, the sword cuts it down, a jump dodges its lunge, top speed shakes it off, and a pack met once stays away; phone buttons read each finger; bigger tricks give bigger boosts, three kickers of tricks running is a rush, sword spins and supermen count, rockets and letters can be picked up`);
+// ── 15 · the giant yeti (run 15) ──
+{
+  const { GIANT_H } = await import('./world.js');
+  /** The careful rider: tucks, jumps rocks and cracks, answers creatures with the sword —
+   *  with `tuckOff(sim)` able to stand the sled up at the wrong moment. */
+  const rideOn = (r, secs, until, tuckOff = () => false) => {
+    const { s, g, sim, p, sl } = r;
+    let pressed = false;
+    for (let i = 0; i < secs / STEP && !sim.done; i++) {
+      const rock = sl.rocks.find((q) => q.x > p.x), crack = sl.gaps.find((c) => c.crack && c.x > p.x);
+      const want = !p.air && ((rock && rock.x - p.x < Math.max(2.4, p.v * 0.3)) || (crack && crack.x - p.x < Math.max(1.2, p.v * 0.1)));
+      const jump = want && !pressed; pressed = !!want;
+      const yeti = sl.yetis.find((y) => !y.down && y.x > p.x - 1), ball = sim.balls.find((b) => b.x - p.x < 6 && b.x > p.x - 1);
+      const wolf = sl.wolves.find((w) => w.joined && !w.gone && (w.state === 'crouch' || w.state === 'lunge') && w.wx - p.x < 6 && w.wx > p.x - 1);
+      if ((yeti && yeti.x - p.x < 5) || ball || wolf) g.swing = true;
+      const keys = tuckOff(sim) ? [] : ['down'];
+      if (jump) keys.push('up');
+      s.hold(keys); s.tick();
+      if (until(r)) return true;
+    }
+    return false;
+  };
+  // it leaps with its warning and lands; a tucked sled shoots the gap under it — no tumble, no life
+  const a = begin(15);
+  a.sim.R = { ...a.sim.R, avalanche: a.sim.R.cruise * 0.75 };
+  const under = rideOn(a, 60, (r) => r.saw('giantUnder').length >= 1);
+  t.check(a.saw('giantLeap').length >= 1 && a.saw('giantLand').length >= 1, 'run 15: the giant never leapt and landed');
+  t.check(under, 'run 15: a tucked sled never passed under the giant');
+  t.check(!a.saw('tumble').some((e) => e.by === 'giant'), 'run 15: the giant tumbled a tucked sled');
+  // standing up into it is a tumble — never a life
+  const b = begin(15);
+  b.sim.R = { ...b.sim.R, avalanche: b.sim.R.cruise * 0.75 };
+  const lives0 = b.s.livesLost;
+  const hitIt = rideOn(b, 60, (r) => r.saw('tumble').some((e) => e.by === 'giant'),
+    (sim) => sim.giant.state === 'standing' && Math.abs(sim.giant.x - sim.p.x) < 30);
+  t.check(hitIt, 'run 15: an upright sled rode through the giant untouched');
+  t.check(b.s.livesLost === lives0, 'run 15: the giant cost a life (it must only ever tumble)');
+  // coming down on its head off a flight dazes it for good: no more leaps
+  const c = begin(15);
+  c.sim.R = { ...c.sim.R, avalanche: c.sim.R.cruise * 0.75 };
+  rideOn(c, 40, (r) => r.sim.giant.state === 'standing');
+  if (c.sim.giant.state === 'standing') {
+    const gx = c.sim.giant.x, snow = snowAt(c.sl, gx);
+    Object.assign(c.p, { air: true, x: gx - 0.3, y: snow + GIANT_H * 0.8, vx: 4, vy: -2, airT: 0.4, from: 'kicker' });
+    c.s.hold([]); c.s.run(0.2);
+    t.check(c.saw('giantDazed').length === 1 && c.sim.giant.state === 'dazed', `run 15: coming down on the giant's head did not daze it (${c.sim.giant.state})`);
+    const leaps = c.saw('giantLeap').length;
+    c.s.hold(['down']); c.s.run(8);
+    t.check(c.saw('giantLeap').length === leaps, 'run 15: a dazed giant leapt again');
+  } else t.check(false, 'run 15: the giant never stood for the head-landing test');
+}
+
+t.done(`${runs} runs finished after a real tumble (${tumbles} tumbles in all); a tumble costs ground, not a life; the avalanche costs one life and restarts you on plain snow ahead of it; it is never more than ${MAX_GAP} m behind and always in the picture, on every run; caught, it covers the whole picture before you are put back; crystal rushes cannot be lost; flips and grabs land clean with a burst of speed, upside down is a tumble; kickers come in sizes and a big one has room for a double; crevasses, cracks and rocks do what the rules say; a yeti is a tumble to ride into, is cut down by the sword in reach or flattened from above, and its snowballs can be cut out of the air; an ice wolf's bite bleeds speed but never costs a tumble or a life, the sword cuts it down, a jump dodges its lunge, top speed shakes it off, and a pack met once stays away; the giant yeti leaps where the ring warns, tumbles an upright sled but never costs a life, lets a tucked sled shoot the gap under its stamp, and is dazed for good by a landing on its head; phone buttons read each finger; bigger tricks give bigger boosts, three kickers of tricks running is a rush, sword spins and supermen count, rockets and letters can be picked up`);

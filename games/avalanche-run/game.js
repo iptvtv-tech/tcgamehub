@@ -18,7 +18,7 @@
 //  input, camera, drawing, sound and points. Tunes and sounds are in sfx.js.
 // ─────────────────────────────────────────────────────────────
 import { runGame, roundRect, clamp } from '../../assets/js/engine.js';
-import { SlopeSim, makeSlope, snowAt, gradeAt, MAX_GAP, SLASH_T, YETI_H, LETTERS, BONUS_LEVELS, FINAL_LEVEL } from './world.js';
+import { SlopeSim, makeSlope, snowAt, gradeAt, MAX_GAP, SLASH_T, YETI_H, GIANT_H, GIANT_WARN, LETTERS, BONUS_LEVELS, FINAL_LEVEL } from './world.js';
 import { drawIcemanFront, drawYeti, drawWolf, PAL } from './art.js';
 import { drawIceman, drawSlashArc } from '../magma-escape/art.js';
 import { MUSIC, tuneFor, makeSfx } from './sfx.js';
@@ -57,7 +57,7 @@ const LEVEL_INFO = {
   9: 'Rocks come in pairs now: jump, land, jump.',
   11: 'Night run. The avalanche is faster than ever.',
   13: 'Storm on the mountain. Land your tricks for speed.',
-  15: 'The last run. Outrun the mountain.',
+  15: 'The last run. The GIANT hunts you: TUCK under its stamp — or come down on its head off a kicker.',
 };
 
 let tune = MUSIC.slope;              // the tune of the run in play (sfx.js)
@@ -194,7 +194,7 @@ class AvalancheRun {
     for (const e of events) {
       if (e.type === 'tumble') {
         s.resetCombo(); this.sfx.tumble(); s.fx.shake(7, 0.25);
-        s.fx.text(sx + 40, sy - 50, e.sup ? 'LET GO BEFORE YOU LAND!' : e.bad ? 'BAD LANDING!' : e.by === 'ball' ? 'SNOWBALL!' : e.by === 'yeti' ? 'YETI!' : 'TUMBLE!', { color: '#fca5a5', size: 26 });
+        s.fx.text(sx + 40, sy - 50, e.sup ? 'LET GO BEFORE YOU LAND!' : e.bad ? 'BAD LANDING!' : e.by === 'ball' ? 'SNOWBALL!' : e.by === 'yeti' ? 'YETI!' : e.by === 'giant' ? 'THE GIANT!' : 'TUMBLE!', { color: '#fca5a5', size: 26 });
         s.fx.burst(sx, sy + 20, { colors: ['#ffffff', '#dbeafe'], count: 22, speed: 220 });
       } else if (e.type === 'crystal') {
         if (e.c.gold) { s.award(60 * L, this.X(e.c.x), this.Y(e.c.y) - 14, { chain: true, color: '#fde047', size: 22 }); s.fx.burst(this.X(e.c.x), this.Y(e.c.y), { colors: ['#fde047', '#fff7c2'], count: 18, speed: 220 }); this.sfx.crystal(12); this.sfx.crystal(s.comboCount); }
@@ -243,6 +243,19 @@ class AvalancheRun {
         if (e.dodged) { s.award(30 * L, sx, sy - 40, { chain: true, color: '#7dd3fc', size: 18 }); this.sfx.cleared(); }
       } else if (e.type === 'wolfLost') {
         if (e.by === 'avalanche') this.sfx.yelp(-0.8);
+      } else if (e.type === 'giantLeap') {
+        this.sfx.roar(true);
+        s.fx.text(W / 2, 230, 'THE GIANT LEAPS!', { color: '#fecaca', size: 24, life: 1.2 });
+      } else if (e.type === 'giantLand') {
+        this.sfx.slam(); s.fx.shake(10, 0.35);
+        s.fx.burst(this.X(e.x), this.Y(snowAt(this.slope, e.x)), { colors: ['#ffffff', '#dbeafe', '#cbd5e1'], count: 34, speed: 320 });
+      } else if (e.type === 'giantUnder') {
+        s.award(150 * L, sx, sy - 40, { chain: true, color: '#fde047', size: 24 });
+        s.fx.text(W / 2, 230, 'UNDER THE GIANT!', { color: '#fef9c3', size: 24, life: 1.2 }); this.sfx.gust();
+      } else if (e.type === 'giantDazed') {
+        s.award(500 * L, sx, sy - 40, { color: '#fde047', size: 28 });
+        s.fx.text(W / 2, 230, 'THE GIANT IS DAZED!', { color: '#fef9c3', size: 26, life: 1.6 });
+        this.sfx.dazed(); this.sfx.slam(); s.fx.shake(8, 0.3);
       } else if (e.type === 'thud') {
         this.sfx.thud(); s.fx.burst(this.X(e.b.x), this.Y(e.b.y), { colors: ['#ffffff', '#dbeafe'], count: 10, speed: 120 });
       } else if (e.type === 'launch') {
@@ -399,6 +412,7 @@ class AvalancheRun {
     for (const r of sl.rocks) if (r.x > x0 && r.x < x1) this.drawRock(ctx, r);
     for (const y of sl.yetis) if (y.x > x0 - 3 && y.x < x1 + 3) this.drawYetiAt(ctx, y);
     for (const w of sl.wolves) if (w.joined && !w.gone && w.wx > x0 - 3 && w.wx < x1 + 3) this.drawWolfAt(ctx, w);
+    if (sim.giant && sim.giant.state !== 'away') this.drawGiant(ctx, sim.giant, x0, x1);
     for (const b of sim.balls) { const X = this.X(b.x), Y = this.Y(b.y), r = 0.75 * Z; ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(X, Y, r, 0, TAU); ctx.fill(); ctx.fillStyle = '#cfe0f0'; ctx.beginPath(); ctx.arc(X + r * 0.25, Y + r * 0.25, r * 0.55, 0, TAU); ctx.fill(); ctx.strokeStyle = '#7f9cc0'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(X, Y, r, 0, TAU); ctx.stroke(); }
     for (const c of sl.crystals) if (!c.got && c.x > x0 && c.x < x1) this.drawCrystal(ctx, c);
     for (const q of sl.items) if (!q.got && q.x > x0 && q.x < x1) this.drawItem(ctx, q);
@@ -543,6 +557,29 @@ class AvalancheRun {
     drawWolf(ctx, { t: this.t * 2.2 + w.at, state: w.state === 'crouch' ? 'crouch' : w.state === 'lunge' ? 'lunge' : 'run', side: w.wx >= this.sim.p.x ? 1 : -1 });
     ctx.restore();
     if (w.state === 'crouch' && this.level <= 10) this.jumpSign(ctx, X, Y - 1.9 * Z - 12, 'SWORD!');
+  }
+  /** The giant yeti: a red ring and a swelling shadow while it falls, then the yeti art at
+   *  nearly three times the size, a shade darker; a heap once it is dazed. */
+  drawGiant(ctx, g, x0, x1) {
+    if (g.x < x0 - 10 || g.x > x1 + 10) return;
+    const Z = this.zoom, X = this.X(g.x), Y = this.Y(snowAt(this.slope, g.x)) + 4, u = Z * GIANT_H * 1.62 / 116;
+    if (g.state === 'falling') {
+      const k = 1 - Math.max(0, g.t) / GIANT_WARN;        // 0 → 1 as it comes down
+      ctx.strokeStyle = `rgba(239,68,68,${0.5 + 0.4 * k})`; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.ellipse(X, Y, (2.6 - 1.1 * k) * Z, (0.62 - 0.26 * k) * Z, 0, 0, TAU); ctx.stroke();
+      ctx.fillStyle = `rgba(30,41,59,${0.12 + 0.3 * k})`;
+      ctx.beginPath(); ctx.ellipse(X, Y, 2.1 * k * Z + 6, 0.5 * k * Z + 2, 0, 0, TAU); ctx.fill();
+      ctx.save(); ctx.translate(X, Y - (1 - k) * 430); ctx.scale(u, u); ctx.filter = 'brightness(0.8)';
+      drawYeti(ctx, { t: this.t, arm: 1, flat: false });
+      ctx.restore(); ctx.filter = 'none';
+      return;
+    }
+    ctx.fillStyle = 'rgba(40,70,120,0.3)'; ctx.beginPath(); ctx.ellipse(X, Y, 3 * Z, 0.55 * Z, 0, 0, TAU); ctx.fill();
+    ctx.save(); ctx.translate(X, Y); ctx.scale(u, u);
+    ctx.filter = g.state === 'dazed' ? 'brightness(0.9)' : 'brightness(0.8) saturate(1.1)';
+    drawYeti(ctx, { t: this.t * 0.6, arm: g.state === 'dazed' ? 0 : 0.85, flat: g.state === 'dazed' });
+    ctx.restore(); ctx.filter = 'none';
+    if (g.state === 'standing') { const d = g.x - this.sim.p.x; if (d > 0 && d < 40) this.jumpSign(ctx, X, Y - GIANT_H * 1.62 * Z - 14, 'TUCK!'); }
   }
   jumpSign(ctx, x, y, word = 'JUMP!') {
     ctx.font = '900 15px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = 4; ctx.strokeStyle = '#ffffff'; ctx.strokeText(word, x, y);

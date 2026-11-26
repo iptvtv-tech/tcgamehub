@@ -42,9 +42,11 @@ function ride(sl, x0) {
     const jump = want && !pressed; pressed = !!want;
     const yeti = sl.yetis.find((y) => !y.down && y.x > p.x - 1), ball = sim.balls.find((b) => b.x - p.x < SLASH_REACH + 1 + p.v * 0.08 && b.x > p.x - 1);
     const wolf = sl.wolves.find((w) => w.joined && !w.gone && (w.state === 'crouch' || w.state === 'lunge') && w.wx - p.x < SLASH_REACH + 1 && w.wx > p.x - 1);
-    const slash = ((yeti && yeti.x - p.x < SLASH_REACH + p.v * 0.12) || !!ball || !!wolf) && i % 2 === 0;
+    // (the sword has a cooldown: never spend it on a wolf when a yeti is nearly in reach)
+    const yetiSoon = yeti && yeti.x - p.x < SLASH_REACH + p.v * 0.55;
+    const slash = ((yeti && yeti.x - p.x < SLASH_REACH + p.v * 0.12) || !!ball || (!!wolf && !yetiSoon)) && i % 2 === 0;
     for (const e of sim.step({ dir: 0, tuck: true, jump, slash }, DT)) {
-      if (e.type === 'tumble') return `a tumble at x=${Math.round(p.x)}`;
+      if (e.type === 'tumble') return `a tumble at x=${Math.round(p.x)} (by ${e.by || (e.bad ? 'a bad landing' : '?')}${sim.giant ? ', giant ' + sim.giant.state + ' at ' + Math.round(sim.giant.x) : ''})`;
       if (e.type === 'fell') return `a fall at x=${Math.round(p.x)}`;
       if (e.type === 'caught') return `caught by the avalanche at x=${Math.round(p.x)}`;
       if (e.type === 'hut') return null;

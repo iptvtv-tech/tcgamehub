@@ -65,6 +65,10 @@ export const WOLF_LUNGE_T = 0.5;     // … and the lunge takes about this long
 export const WOLF_BITE = 0.6;        // a bite leaves this share of your speed (never a tumble) …
 export const WOLF_AGAIN = 2.5;       // … and no second bite comes this soon
 export const WOLF_REST = 3.2;        // after a lunge, hit or not, it hangs back this long
+export const GIANT_H = 8;            // the giant yeti (run 15) stands this tall (m)
+export const GIANT_R = 1.9;          // … half its stance (m)
+export const GIANT_EVERY = 6;        // it leaps down the mountain about this often (s) …
+export const GIANT_WARN = 1.5;       // … and the ring shows where, this long ahead
 export const REACH = 1.7;            // the sled picks up a crystal this close (m)
 export const BACK = 90;              // snow behind the start line, for the eye and the avalanche (m)
 export const AHEAD = 140;            // … and past the hut
@@ -298,6 +302,8 @@ export class SlopeSim {
   constructor(slope) {
     this.sl = slope; this.R = slope.R; this.bonus = slope.bonus;
     this.flagged = false; this.lost = 0; this.tumbles = 0; this.flips = 0; this.slain = 0; this.wolvesSlain = 0; this.t = 0; this.balls = [];
+    // run 15's set-piece: the giant yeti leaps down the mountain after the sled
+    this.giant = slope.level === FINAL_LEVEL && !slope.bonus ? { state: 'away', t: 3.5, x: 0, passed: false } : null;
     this.p = {}; this.place(0);
   }
   /** Put the sled on the snow at x at cruising speed, the avalanche START_GAP behind (more after lost lives). */
@@ -310,6 +316,8 @@ export class SlopeSim {
     this.done = false; this.jumpHeld = false; this.slashHeld = false; this.balls = []; this.quiet = 1.5;
     Object.assign(this.p, { atk: 0, cool: 0, noBite: 0 });
     for (const y of this.sl.yetis) y.wait = 0.25;
+    // the giant gathers itself afresh after a lost life
+    if (this.giant && this.giant.state !== 'dazed') Object.assign(this.giant, { state: 'away', t: 3.5, x: 0, passed: false });
     // a pack already met does not come back after a lost life; the rest wait at their marks
     this.wolfBusy = false;
     for (const w of this.sl.wolves) {
@@ -327,6 +335,62 @@ export class SlopeSim {
     const p = this.p;
     p.tumble = TUMBLE_T; p.safe = TUMBLE_T + SAFE_T; p.boost = 0; p.rush = 0; p.rocket = 0; p.streak = 0; p.v = Math.min(p.v, this.R.cruise * TUMBLE_V); p.spin = 0;
     this.tumbles++; ev.push({ type: 'tumble', ...why });
+  }
+
+  /** The giant yeti (run 15): every six seconds or so (two more for every life lost) it leaps
+   *  over the picture and lands ahead where the ring shows, flattening the snow, and stands
+   *  eight metres tall in the sled's path. TUCK to shoot the gap under its stamping leg —
+   *  upright it is a tumble, never a life. Off a kicker you can fly over it, and coming down
+   *  on its head dazes it for good (the sword means nothing to a giant). It never aims at a
+   *  sled in the air, and never lands on a crevasse, a kicker's flight, the flag or the hut. */
+  giantStep(dt, ev) {
+    const g = this.giant, sl = this.sl, p = this.p;
+    if (!g || g.state === 'dazed') return;
+    const up = p.y - snowAt(sl, p.x);
+    if (g.state === 'away') {
+      if ((g.t -= dt) > 0) return;
+      if (p.air || p.tumble > 0 || p.safe > 0 || this.quiet > 0 || this.wolfBusy || this.balls.length) return;   // (not at a sled in the air, nor over another attack)
+      // where to land: ahead, close enough that the ring and the landing play out in the
+      // picture (the view shows a few seconds of snow) — on clear ground, off every flight
+      const from = p.x + Math.max(26, p.v * (GIANT_WARN + 1));
+      let gx = 0;
+      for (let x = from; x < from + 70 && !gx; x += 2) {
+        if (x > sl.len - 80 || Math.abs(x - sl.flagX) < 35) continue;
+        // (clear of crevasses and cracks AND the jumps over them, of rocks and the jumps over
+        //  them, of standing yetis, and of every kicker's whole flight: nobody should be thrown
+        //  into the giant by the run itself)
+        if (gapAt(sl, x) || sl.gaps.some((c) => x > c.x - 12 && x < c.x + c.w + 46)) continue;
+        if (sl.rocks.some((r) => r.x > x - 46 && r.x < x + 10) || sl.yetis.some((y) => !y.down && Math.abs(y.x - x) < 8)) continue;
+        if (sl.kickers.some((k) => x > k.x - k.L - 4 && x < k.x + k.far + 8)) continue;
+        gx = x;
+      }
+      if (!gx) { g.t = 1.2; return; }                     // (no clear ground just there: it waits)
+      g.state = 'falling'; g.t = GIANT_WARN; g.x = gx; g.passed = false;
+      ev.push({ type: 'giantLeap', x: gx });
+    } else if (g.state === 'falling') {
+      if ((g.t -= dt) > 0) return;
+      g.state = 'standing'; g.stand = 0;
+      ev.push({ type: 'giantLand', x: g.x });
+    } else if (g.state === 'standing') {
+      g.stand += dt;
+      const d = g.x - p.x;
+      // coming down on its head off a kicker: dazed for good
+      if (p.air && p.vy < 0 && Math.abs(d) < GIANT_R + 0.8 && up > GIANT_H * 0.55 && up < GIANT_H + 1.6) {
+        g.state = 'dazed'; p.vy = STOMP_UP + 2; p.turned = 0; p.grab = 0; p.airT = 0; p.from = 'hop';
+        ev.push({ type: 'giantDazed' }); return;
+      }
+      if (Math.abs(d) < GIANT_R + 0.4) {
+        const low = up < GIANT_H * 0.45;                   // under its raised leg: a tucked sled, riding or flying low, fits through
+        if (!low && p.air && up < GIANT_H * 0.55) {        // flying into its chest
+          if (p.safe <= 0 && p.tumble <= 0) { p.vy = Math.max(p.vy, 3); this.tumbleNow(ev, { by: 'giant' }); }
+        } else if (low && !p.tuck && p.safe <= 0 && p.tumble <= 0) {
+          this.tumbleNow(ev, { by: 'giant' });             // upright into the stamp
+        } else if (low && p.tuck && !g.passed && p.tumble <= 0) {
+          g.passed = true; ev.push({ type: 'giantUnder' });     // shot the gap under its leg
+        }
+      }
+      if (d < -(GIANT_R + 6)) { g.state = 'away'; g.t = GIANT_EVERY + 2 * this.lost; }      // left behind: it gathers itself to leap again
+    }
   }
 
   /** Ice wolves: each lopes a little ahead of the sled, crouches with its eyes burning, and
@@ -361,7 +425,10 @@ export class SlopeSim {
         if (!this.bonus && w.wx < this.az + 2) { lost('avalanche'); continue; }
         if ((w.rest -= dt) > 0) continue;
         if (w.state === 'rest') { w.state = 'run'; w.rest = 0.6; continue; }   // done sulking: it sweeps forward again
-        if (!busy && Math.abs(err) < 2.5 && this.quiet <= 0 && !p.air && p.tumble <= 0 && p.safe <= 0 && p.noBite <= 0) {
+        // never just before a crevasse: a bite there would leave the sled too slow for the
+        // kicker that carries it over (70% of cruising), and a crevasse costs a life
+        const gapSoon = sl.gaps.some((c) => !c.crack && c.x > p.x && c.x - p.x < p.v * 1.6 + 14);
+        if (!busy && !gapSoon && Math.abs(err) < 2.5 && this.quiet <= 0 && !p.air && p.tumble <= 0 && p.safe <= 0 && p.noBite <= 0) {
           w.state = 'crouch'; w.t = WOLF_CROUCH; busy = true; ev.push({ type: 'growl', w });
         }
       } else if (w.state === 'crouch') {
@@ -512,6 +579,7 @@ export class SlopeSim {
     }
     this.wolves(dt, ev, x0);
     this.creatures(dt, ev, x0);
+    this.giantStep(dt, ev);
     for (const c of sl.crystals) {
       if (c.got || c.x < x0 - REACH) continue;
       if (c.x > p.x + REACH) break;

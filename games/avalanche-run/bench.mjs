@@ -23,6 +23,14 @@ function bot(g, s, b) {
   let jump = false;
   if (rock && rock.x - p.x < Math.max(2.4, p.v * 0.3) - late) jump = true;
   if (crack && crack.x - p.x < Math.max(1.2, p.v * 0.1) - late * 0.25) jump = true;
+  // the giant (run 15): tuck through its stamp, and skip only a jump whose flight would
+  // carry into it (the run keeps rocks clear of the giant's ground, so this is rare)
+  const gi = sim.giant;
+  if (gi && gi.state === 'standing') {
+    const d = gi.x - p.x;
+    if (d > -3 && d < p.v * 0.9 + 8 && !keys.includes('down')) keys.push('down');
+    if (jump && d > 0 && p.x + p.v * 1.15 + 6 > gi.x - 4) jump = false;
+  }
   if (jump && !m.pressed) { keys.push('up'); m.pressed = true; m.late = b.rand(); } else if (!jump) m.pressed = false;
   s.hold(keys);
   swing(g, b, late);
@@ -33,7 +41,9 @@ function swing(g, b, late = 0) {
   const sim = g.sim, p = sim.p;
   const yeti = g.slope.yetis.find((y) => !y.down && y.x > p.x - 1), ball = sim.balls.find((q) => q.x > p.x - 1 && q.x - p.x < SLASH_REACH + 1 + p.v * 0.08 - late * 0.5);
   const wolf = g.slope.wolves.find((w) => w.joined && !w.gone && (w.state === 'crouch' || w.state === 'lunge') && w.wx > p.x - 1 && w.wx - p.x < SLASH_REACH + 1 - late * 0.5);
-  if (((yeti && yeti.x - p.x < SLASH_REACH + p.v * 0.12 - late) || ball || wolf) && p.cool <= 0) g.swing = true;
+  // (the sword has a cooldown: never spend it on a wolf when a yeti is nearly in reach)
+  const yetiSoon = yeti && yeti.x - p.x < SLASH_REACH + p.v * 0.55;
+  if (((yeti && yeti.x - p.x < SLASH_REACH + p.v * 0.12 - late) || ball || (wolf && !yetiSoon)) && p.cool <= 0) g.swing = true;
 }
 
 export default {
