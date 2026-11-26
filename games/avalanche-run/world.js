@@ -58,6 +58,13 @@ export const BALL_R = 1.3;           // a snowball hits the sled this close (m)
 export const STOMP_UP = 7;           // landing on a yeti's head bounces the sled up (m/s)
 export const ROCK_R = 0.9;           // a rock: half its length …
 export const ROCK_H = 1.0;           // … and its height (m)
+export const WOLF_R = 1.1;           // a wolf: half its length (m)
+export const WOLF_STATION = 7;       // it lopes this far ahead of the sled …
+export const WOLF_CROUCH = 0.55;     // … crouches, ears back and eyes burning, this long …
+export const WOLF_LUNGE_T = 0.5;     // … and the lunge takes about this long
+export const WOLF_BITE = 0.6;        // a bite leaves this share of your speed (never a tumble) …
+export const WOLF_AGAIN = 2.5;       // … and no second bite comes this soon
+export const WOLF_REST = 3.2;        // after a lunge, hit or not, it hangs back this long
 export const REACH = 1.7;            // the sled picks up a crystal this close (m)
 export const BACK = 90;              // snow behind the start line, for the eye and the avalanche (m)
 export const AHEAD = 140;            // … and past the hut
@@ -82,6 +89,7 @@ export function runFor(level) {
     rocks: n < 2 ? 0 : Math.min(5, 1 + Math.floor(n / 3)),
     cracks: n < 6 ? 0 : Math.min(3, Math.floor((n - 3) / 3)),            // narrow: jump them
     yetis: n < 4 ? 0 : Math.min(4, 1 + Math.floor((n - 4) / 3)),         // swing the sword, or land on its head
+    wolves: n < 8 ? 0 : Math.min(3, 1 + Math.floor((n - 8) / 3)),        // it runs with you and lunges: cut it down, or jump the lunge
     crevasses: n < 3 ? 0 : Math.min(3, 1 + Math.floor((n - 3) / 4)),     // wide: a kicker at the edge
   };
 }
@@ -140,7 +148,7 @@ export function makeSlope(level, dice, bonus = false, squeeze = 0) {
   };
   const P = new Float32Array(N);                      // the pitch of the mountainside itself, before anything is built on it
   for (let i = 1; i < N; i++) { P[i] = -pitch(i - BACK); H[i] = H[i - 1] + P[i]; }
-  const sl = { level, bonus, R, len, H, P, kickers: [], gaps: [], rocks: [], yetis: [], crystals: [], flagX: Math.round(len / 2) };
+  const sl = { level, bonus, R, len, H, P, kickers: [], gaps: [], rocks: [], yetis: [], wolves: [], crystals: [], flagX: Math.round(len / 2) };
 
   // What stands where: mostly kickers; a few crevasses, cracks and rocks, never more than two of
   // those in a row. They are dealt out as the run is laid, so that every one of them finds a place.
@@ -268,6 +276,18 @@ export function makeSlope(level, dice, bonus = false, squeeze = 0) {
     }
     sl.items.sort((a, b) => a.x - b.x);
   }
+  // ice wolves: each joins the chase as the sled passes its mark, in open snow away from the
+  // flag and the crevasses (the wolf itself runs with the sled from there)
+  if (!bonus) {
+    for (let n = R.wolves, tries = 0; n > 0 && tries < 80; tries++) {
+      const at = Math.round(CLEAR_START + 30 + rng() * (len - CLEAR_START - 200));
+      if (Math.abs(at - sl.flagX) < 45) continue;
+      if (sl.gaps.some((c) => at > c.x - 30 && at < c.x + c.w + 20)) continue;
+      if (sl.wolves.some((w) => Math.abs(w.at - at) < 130)) continue;
+      sl.wolves.push({ at }); n--;
+    }
+    sl.wolves.sort((a, b) => a.at - b.at);
+  }
   sl.crystals.sort((a, b) => a.x - b.x);
   sl.rocks.sort((a, b) => a.x - b.x);
   return sl;
@@ -277,7 +297,7 @@ export function makeSlope(level, dice, bonus = false, squeeze = 0) {
 export class SlopeSim {
   constructor(slope) {
     this.sl = slope; this.R = slope.R; this.bonus = slope.bonus;
-    this.flagged = false; this.lost = 0; this.tumbles = 0; this.flips = 0; this.slain = 0; this.t = 0; this.balls = [];
+    this.flagged = false; this.lost = 0; this.tumbles = 0; this.flips = 0; this.slain = 0; this.wolvesSlain = 0; this.t = 0; this.balls = [];
     this.p = {}; this.place(0);
   }
   /** Put the sled on the snow at x at cruising speed, the avalanche START_GAP behind (more after lost lives). */
@@ -288,8 +308,15 @@ export class SlopeSim {
     this.room = Math.min(3, this.lost) * MERCY_GAP;
     this.az = x - START_GAP - this.room; this.gap = START_GAP + this.room;
     this.done = false; this.jumpHeld = false; this.slashHeld = false; this.balls = []; this.quiet = 1.5;
-    Object.assign(this.p, { atk: 0, cool: 0 });
+    Object.assign(this.p, { atk: 0, cool: 0, noBite: 0 });
     for (const y of this.sl.yetis) y.wait = 0.25;
+    // a pack already met does not come back after a lost life; the rest wait at their marks
+    this.wolfBusy = false;
+    for (const w of this.sl.wolves) {
+      if (w.slain) { w.gone = true; continue; }
+      if (w.at < x - 5) { w.gone = true; continue; }
+      Object.assign(w, { joined: false, gone: false, state: 'run', wx: 0, wy: 0, t: 0, rest: 0, from: 0 });
+    }
   }
   /** After a lost life: back to the start line, or the flag once passed. */
   reset() {
@@ -300,6 +327,63 @@ export class SlopeSim {
     const p = this.p;
     p.tumble = TUMBLE_T; p.safe = TUMBLE_T + SAFE_T; p.boost = 0; p.rush = 0; p.rocket = 0; p.streak = 0; p.v = Math.min(p.v, this.R.cruise * TUMBLE_V); p.spin = 0;
     this.tumbles++; ev.push({ type: 'tumble', ...why });
+  }
+
+  /** Ice wolves: each lopes a little ahead of the sled, crouches with its eyes burning, and
+   *  lunges. Cut it down mid-lunge, or jump so it sails under; a bite bleeds speed, never a
+   *  tumble — the danger is the avalanche closing in. Only one creature attacks at a time. */
+  wolves(dt, ev, x0) {
+    const sl = this.sl, R = this.R, p = this.p, swing = p.atk > 0, up = p.y - snowAt(sl, p.x);
+    const sledV = (p.x - x0) / dt;
+    if (p.noBite > 0) p.noBite -= dt;
+    let busy = this.balls.length > 0 || sl.wolves.some((w) => !w.gone && w.joined && (w.state === 'crouch' || w.state === 'lunge'));
+    for (const w of sl.wolves) {
+      if (w.gone) continue;
+      if (!w.joined) {
+        if (p.x < w.at) continue;
+        w.joined = true; w.state = 'run'; w.wx = p.x + 30; w.wy = snowAt(sl, w.wx); w.rest = 1.4;
+        ev.push({ type: 'howl', w });
+      }
+      // the sword reaches it in front of the sled, loping, crouched or mid-lunge
+      const d = w.wx - p.x;
+      if (swing && d > -1 && d < SLASH_REACH + WOLF_R && up < 2.2 && w.wy - snowAt(sl, w.wx) < 2.2) {
+        w.gone = true; w.slain = true; this.wolvesSlain++; ev.push({ type: 'wolfSlain', w }); continue;
+      }
+      const lost = (why) => { w.gone = true; ev.push({ type: 'wolfLost', w, by: why }); };
+      if (w.state === 'run' || w.state === 'rest') {
+        // keep station — ahead of the sled, or hanging back after a lunge. At top speed
+        // (a rush, a rocket) it cannot keep up and is outrun, or the avalanche takes it.
+        const cap = p.rush > 0 || p.rocket > 0 ? R.cruise * 1.05 : R.top * 1.04;
+        const err = p.x + (w.state === 'run' ? WOLF_STATION : -5) - w.wx;
+        w.wx += Math.min(Math.max(sledV + Math.max(-8, Math.min(6, err * 1.6)), 0), cap) * dt;
+        w.wy = snowAt(sl, w.wx);
+        if (p.x - w.wx > 26) { lost('outrun'); continue; }
+        if (!this.bonus && w.wx < this.az + 2) { lost('avalanche'); continue; }
+        if ((w.rest -= dt) > 0) continue;
+        if (w.state === 'rest') { w.state = 'run'; w.rest = 0.6; continue; }   // done sulking: it sweeps forward again
+        if (!busy && Math.abs(err) < 2.5 && this.quiet <= 0 && !p.air && p.tumble <= 0 && p.safe <= 0 && p.noBite <= 0) {
+          w.state = 'crouch'; w.t = WOLF_CROUCH; busy = true; ev.push({ type: 'growl', w });
+        }
+      } else if (w.state === 'crouch') {
+        w.wx += sledV * dt; w.wy = snowAt(sl, w.wx);                   // it keeps pace while it crouches
+        if ((w.t -= dt) <= 0) { w.state = 'lunge'; w.t = WOLF_LUNGE_T; w.from = w.wx - p.x; }
+      } else if (w.state === 'lunge') {
+        w.t -= dt;
+        const k = 1 - Math.max(0, w.t) / WOLF_LUNGE_T;                 // 0 → 1 across the lunge
+        w.wx = p.x + (1 - k) * w.from;
+        w.wy = snowAt(sl, w.wx) + Math.sin(k * Math.PI) * 1.1;         // a flat arc back at the sled
+        const settle = () => { w.state = 'rest'; w.rest = WOLF_REST; };
+        if (Math.abs(w.wx - p.x) < WOLF_R + 0.8 && k > 0.35) {
+          if (up < 1.6 && p.tumble <= 0 && p.safe <= 0 && p.noBite <= 0) {
+            p.v = Math.max(R.cruise * TUMBLE_V, p.v * WOLF_BITE);
+            p.noBite = WOLF_AGAIN; p.boost = 0; p.rush = 0; p.rocket = 0; p.streak = 0;
+            ev.push({ type: 'bite', w });
+          } else ev.push({ type: 'wolfUnder', w, dodged: up >= 1.6 });
+          settle();
+        } else if (w.t <= 0) { ev.push({ type: 'wolfUnder', w, dodged: up >= 1.6 }); settle(); }
+      }
+    }
+    this.wolfBusy = sl.wolves.some((w) => !w.gone && w.joined && (w.state === 'crouch' || w.state === 'lunge'));
   }
 
   /** Yetis and their snowballs. */
@@ -323,7 +407,7 @@ export class SlopeSim {
       y.arm = Math.max(0, (y.arm || 0) - dt);
       // (never so late that the snowball and the yeti arrive together: the sword needs a moment between swings)
       const soon = (p.x - x0) / dt * (THROW_T + 0.65);
-      if (!nearest || d < soon || d > soon + 36 || this.quiet > 0 || this.balls.length) continue;
+      if (!nearest || d < soon || d > soon + 36 || this.quiet > 0 || this.balls.length || this.wolfBusy) continue;
       y.wait -= dt;
       if (y.wait > 0 || p.air || p.tumble > 0 || p.safe > 0) continue;
       y.wait = THROW_EVERY; y.arm = 0.5;
@@ -426,6 +510,7 @@ export class SlopeSim {
         if (p.safe <= 0 && p.tumble <= 0) { r.hit = true; if (p.air) { p.vy = Math.max(p.vy, 3); } this.tumbleNow(ev, { by: 'rock', r }); }
       } else if (!r.passed && p.x > r.x + ROCK_R + 0.5) { r.passed = true; if (p.air) ev.push({ type: 'cleared', r }); }
     }
+    this.wolves(dt, ev, x0);
     this.creatures(dt, ev, x0);
     for (const c of sl.crystals) {
       if (c.got || c.x < x0 - REACH) continue;

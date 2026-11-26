@@ -27,11 +27,13 @@ function bot(g, s, b) {
   s.hold(keys);
   swing(g, b, late);
 }
-/** The sword: at a yeti within reach, and at a snowball about to arrive. (The game reads a swing as one press.) */
+/** The sword: at a yeti within reach, at a snowball about to arrive, and at a wolf come to
+ *  crouch or lunge in front of the sled. (The game reads a swing as one press.) */
 function swing(g, b, late = 0) {
   const sim = g.sim, p = sim.p;
   const yeti = g.slope.yetis.find((y) => !y.down && y.x > p.x - 1), ball = sim.balls.find((q) => q.x > p.x - 1 && q.x - p.x < SLASH_REACH + 1 + p.v * 0.08 - late * 0.5);
-  if (((yeti && yeti.x - p.x < SLASH_REACH + p.v * 0.12 - late) || ball) && p.cool <= 0) g.swing = true;
+  const wolf = g.slope.wolves.find((w) => w.joined && !w.gone && (w.state === 'crouch' || w.state === 'lunge') && w.wx > p.x - 1 && w.wx - p.x < SLASH_REACH + 1 - late * 0.5);
+  if (((yeti && yeti.x - p.x < SLASH_REACH + p.v * 0.12 - late) || ball || wolf) && p.cool <= 0) g.swing = true;
 }
 
 export default {

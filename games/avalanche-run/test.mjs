@@ -30,6 +30,10 @@
 //       thrown back); a rocket gives top speed; every run has a golden crystal; a rider who just
 //       rides the kickers picks up all four letters
 //  10 · mercy: every life lost on a run gives 4 m more room ahead of the avalanche at the restart
+//  14 · ice wolves (from run 8): one joins with a howl, crouches and lunges; left alone the bite
+//       bleeds speed — never a tumble, never a life — and no second bite comes within 2.5 s; the
+//       sword cuts a crouching or lunging wolf down; a jump at the lunge lets it sail under; at
+//       top speed the wolf is outrun; a pack already met does not come back after a lost life
 //  11 · phone buttons (bug, 20 Nov 2026: on an iPhone ◀ ▶ "glitch and get stuck"): each finger
 //       presses the button nearest to it; a finger that slides from ◀ to ▶ changes over at once;
 //       two thumbs work together; and no button sits in the strips at the screen's side edges
@@ -366,4 +370,61 @@ for (const level of [3, 8, 14]) {
   t.check(C.right.x - C.right.r - (C.left.x + C.left.r) >= 8 && C.jump.x - C.jump.r - (C.tuck.x + C.tuck.r) >= 8 && ['tuck', 'jump'].every((k) => Math.hypot(C.sword.x - C[k].x, C.sword.y - C[k].y) - C.sword.r - C[k].r >= 8), 'two buttons touch or overlap');
 }
 
-t.done(`${runs} runs finished after a real tumble (${tumbles} tumbles in all); a tumble costs ground, not a life; the avalanche costs one life and restarts you on plain snow ahead of it; it is never more than ${MAX_GAP} m behind and always in the picture, on every run; caught, it covers the whole picture before you are put back; crystal rushes cannot be lost; flips and grabs land clean with a burst of speed, upside down is a tumble; kickers come in sizes and a big one has room for a double; crevasses, cracks and rocks do what the rules say; a yeti is a tumble to ride into, is cut down by the sword in reach or flattened from above, and its snowballs can be cut out of the air; phone buttons read each finger; bigger tricks give bigger boosts, three kickers of tricks running is a rush, sword spins and supermen count, rockets and letters can be picked up`);
+// ── 14 · ice wolves (from run 8) ──
+for (const level of [8, 14]) {
+  /** Ride with a wolf on the chase; act(p, w, sim) may hold keys or swing. A slope and a spot
+   *  where the wolf's whole hunt plays out over plain snow (no kickers, rocks, cracks or yetis). */
+  const chase = (act, secs = 14) => {
+    let r, w;
+    for (let seed = 1; seed < 300 && !w; seed++) {
+      r = begin(level, seed);
+      // (clear of anything that tumbles or kills — and of kicker lips in the attack window,
+      //  so the hunt is not interrupted by a flight mid-lunge)
+      const clear = (a, b) => ![...r.sl.rocks, ...r.sl.yetis].some((q) => q.x > a - 14 && q.x < b) && !r.sl.gaps.some((c) => c.x + c.w > a - 6 && c.x < b);
+      w = r.sl.wolves.find((q) => clear(q.at - 25, q.at + 130) && !r.sl.kickers.some((k) => k.x > q.at + 5 && k.x < q.at + 95));
+    }
+    const { s, g, sim, p } = r;
+    sim.R = { ...sim.R, avalanche: sim.R.cruise * 0.75 };           // (this is about the wolf, not the avalanche)
+    sim.place(w.at - 20);                                           // (quiet stays at its natural 1.5 s: wolves honour it too)
+    for (const q of r.sl.wolves) if (q !== w) q.gone = true;        // (one wolf at a time: this is its test)
+    for (let i = 0; i < secs / STEP && !sim.done; i++) {
+      if (r.saw('bite').length + r.saw('wolfSlain').length >= 1) break;                 // (at once: the bite's cost is read right here)
+      if (r.saw('wolfUnder').length >= 1 && !p.air) break;
+      const out = act(p, w, sim) || {};
+      if (out.swing) g.swing = true;
+      s.hold(out.keys || []); s.tick();
+    }
+    return { ...r, w };
+  };
+  // left alone it joins, growls and bites: speed bleeds, never a tumble, never a life
+  const bit = chase(() => ({ keys: ['down'] }));
+  t.check(bit.saw('howl').length === 1 && bit.saw('growl').length >= 1, `run ${level}: the wolf never joined or never growled`);
+  t.check(bit.saw('bite').length === 1, `run ${level}: the wolf never bit a sled that did nothing`);
+  t.check(bit.sim.tumbles === 0 && bit.s.livesLost === 0, `run ${level}: a bite cost a tumble or a life`);
+  t.check(bit.p.v <= bit.sim.R.cruise * 0.8, `run ${level}: just after a bite the sled still rides at ${bit.p.v.toFixed(1)} m/s`);
+  // … and no second bite comes within 2.5 s
+  let again = 0;
+  for (let i = 0; i < 2.2 / STEP; i++) { bit.s.hold(['down']); bit.s.tick(); again = bit.saw('bite').length; }
+  t.check(again === 1, `run ${level}: ${again} bites within 2.2 s of the first`);
+  // the sword, swung as it comes, cuts it down
+  const cut = chase((p, w) => ({ swing: (w.state === 'crouch' || w.state === 'lunge') && Math.abs(w.wx - p.x) < 5 }));
+  t.check(cut.saw('wolfSlain').length === 1 && cut.w.gone && cut.saw('bite').length === 0, `run ${level}: a swing of the sword did not cut the lunging wolf down`);
+  // a jump, taken as it springs, lets the lunge sail under
+  const hop = chase((p, w) => ({ keys: w.state === 'lunge' ? ['up'] : [] }));
+  t.check(hop.saw('wolfUnder').some((e) => e.dodged) && hop.saw('bite').length === 0, `run ${level}: a jump did not dodge the lunge (${hop.saw('bite').length} bites)`);
+  // at top speed (a rocket) the wolf cannot keep up and is outrun (its lunge held off: this is a footrace)
+  if (level === 8) {                                   // (the footrace needs open road: one level proves the cap rule, which is the same on all)
+    const run = chase((p, w, sim) => { sim.p.rocket = 6; w.rest = 99; return { keys: ['down'] }; }, 26);
+    t.check(run.saw('wolfLost').length === 1 && run.saw('bite').length === 0, `run ${level}: a sled at top speed did not shake the wolf off (it falls behind — and the avalanche is there)`);
+  }
+  // a pack already met does not come back after a lost life
+  const back = chase(() => ({ keys: ['down'] }));
+  back.sim.flagged = true; back.sim.place(back.sl.flagX);
+  t.check(back.sl.wolves.filter((q) => q.at < back.sl.flagX).every((q) => q.gone), `run ${level}: a wolf already met came back after a lost life`);
+}
+{
+  const { runFor } = await import('./world.js');
+  t.check(runFor(7).wolves === 0 && runFor(8).wolves === 1 && runFor(11).wolves === 2 && runFor(14).wolves === 3, 'the runs do not call for wolves as 0 to run 7, 1 from run 8, 2 from 11, 3 from 14');
+}
+
+t.done(`${runs} runs finished after a real tumble (${tumbles} tumbles in all); a tumble costs ground, not a life; the avalanche costs one life and restarts you on plain snow ahead of it; it is never more than ${MAX_GAP} m behind and always in the picture, on every run; caught, it covers the whole picture before you are put back; crystal rushes cannot be lost; flips and grabs land clean with a burst of speed, upside down is a tumble; kickers come in sizes and a big one has room for a double; crevasses, cracks and rocks do what the rules say; a yeti is a tumble to ride into, is cut down by the sword in reach or flattened from above, and its snowballs can be cut out of the air; an ice wolf's bite bleeds speed but never costs a tumble or a life, the sword cuts it down, a jump dodges its lunge, top speed shakes it off, and a pack met once stays away; phone buttons read each finger; bigger tricks give bigger boosts, three kickers of tricks running is a rush, sword spins and supermen count, rockets and letters can be picked up`);

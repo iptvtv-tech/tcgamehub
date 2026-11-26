@@ -19,7 +19,7 @@
 // ─────────────────────────────────────────────────────────────
 import { runGame, roundRect, clamp } from '../../assets/js/engine.js';
 import { SlopeSim, makeSlope, snowAt, gradeAt, MAX_GAP, SLASH_T, YETI_H, LETTERS, BONUS_LEVELS, FINAL_LEVEL } from './world.js';
-import { drawIcemanFront, drawYeti, PAL } from './art.js';
+import { drawIcemanFront, drawYeti, drawWolf, PAL } from './art.js';
 import { drawIceman, drawSlashArc } from '../magma-escape/art.js';
 import { MUSIC, tuneFor, makeSfx } from './sfx.js';
 
@@ -53,6 +53,7 @@ const LEVEL_INFO = {
   4: 'A yeti! Swing your sword at it (SWORD, or X), or land on its head. Cut its snowballs out of the air too.',
   6: 'Cracks in the snow: JUMP them, or you are gone.',
   7: 'Land tricks off three kickers in a row for a BLIZZARD RUSH. Swing the sword in the air for a sword spin.',
+  8: 'An ice wolf hunts with you! When it crouches, red-eyed, cut it down (SWORD) — or JUMP its lunge.',
   9: 'Rocks come in pairs now: jump, land, jump.',
   11: 'Night run. The avalanche is faster than ever.',
   13: 'Storm on the mountain. Land your tricks for speed.',
@@ -224,6 +225,24 @@ class AvalancheRun {
         s.fx.burst(this.X(e.b.x), this.Y(e.b.y), { colors: ['#ffffff', '#dbeafe'], count: 16, speed: 240 }); this.sfx.parry();
       } else if (e.type === 'throw') {
         this.sfx.roar(false); this.sfx.throwIt();
+      } else if (e.type === 'howl') {
+        this.sfx.howl(1);
+        s.fx.text(W / 2, 230, 'A WOLF JOINS THE CHASE!', { color: '#bfdbfe', size: 22, life: 1.4 });
+      } else if (e.type === 'growl') {
+        this.sfx.growl(0.4);
+      } else if (e.type === 'bite') {
+        this.sfx.bite(); s.fx.shake(5, 0.2); s.fx.flash('#fca5a5', 0.15);
+        s.fx.text(sx + 40, sy - 50, 'BITTEN!', { color: '#fca5a5', size: 26 });
+        s.fx.burst(sx, sy + 10, { colors: ['#fecaca', '#ffffff'], count: 14, speed: 180 });
+      } else if (e.type === 'wolfSlain') {
+        s.award(120 * L, this.X(e.w.wx), this.Y(e.w.wy) - 40, { chain: true, color: '#fde047', size: 24 });
+        s.fx.text(W / 2, 230, 'WOLF CUT DOWN!', { color: '#fef9c3', size: 24, life: 1.2 });
+        s.fx.burst(this.X(e.w.wx), this.Y(e.w.wy) - 20, { colors: ['#ffffff', '#dbeafe'], count: 24, speed: 260 });
+        this.sfx.yelp(0.3); s.fx.shake(4, 0.15);
+      } else if (e.type === 'wolfUnder') {
+        if (e.dodged) { s.award(30 * L, sx, sy - 40, { chain: true, color: '#7dd3fc', size: 18 }); this.sfx.cleared(); }
+      } else if (e.type === 'wolfLost') {
+        if (e.by === 'avalanche') this.sfx.yelp(-0.8);
       } else if (e.type === 'thud') {
         this.sfx.thud(); s.fx.burst(this.X(e.b.x), this.Y(e.b.y), { colors: ['#ffffff', '#dbeafe'], count: 10, speed: 120 });
       } else if (e.type === 'launch') {
@@ -379,6 +398,7 @@ class AvalancheRun {
     if (!this.bonus && sl.len > x0 - 12 && sl.len < x1 + 12) this.drawHut(ctx, sl.len + 5);
     for (const r of sl.rocks) if (r.x > x0 && r.x < x1) this.drawRock(ctx, r);
     for (const y of sl.yetis) if (y.x > x0 - 3 && y.x < x1 + 3) this.drawYetiAt(ctx, y);
+    for (const w of sl.wolves) if (w.joined && !w.gone && w.wx > x0 - 3 && w.wx < x1 + 3) this.drawWolfAt(ctx, w);
     for (const b of sim.balls) { const X = this.X(b.x), Y = this.Y(b.y), r = 0.75 * Z; ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(X, Y, r, 0, TAU); ctx.fill(); ctx.fillStyle = '#cfe0f0'; ctx.beginPath(); ctx.arc(X + r * 0.25, Y + r * 0.25, r * 0.55, 0, TAU); ctx.fill(); ctx.strokeStyle = '#7f9cc0'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(X, Y, r, 0, TAU); ctx.stroke(); }
     for (const c of sl.crystals) if (!c.got && c.x > x0 && c.x < x1) this.drawCrystal(ctx, c);
     for (const q of sl.items) if (!q.got && q.x > x0 && q.x < x1) this.drawItem(ctx, q);
@@ -513,6 +533,16 @@ class AvalancheRun {
     drawYeti(ctx, { t: this.t + y.x, arm: clamp((y.arm || 0) * 2, 0, 1), flat: !!y.down });
     ctx.restore();
     if (!y.down && y.x - this.sim.p.x > 0 && y.x - this.sim.p.x < 32 && this.level <= 7) this.jumpSign(ctx, X, Y - YETI_H * 1.65 * Z - 14, "SWORD!");
+  }
+  /** An ice wolf loping with the sled (art.js): ears back and red-eyed in its crouch, jaws
+   *  open in the lunge. Its head turns to watch the sled whichever side it is on. */
+  drawWolfAt(ctx, w) {
+    const Z = this.zoom, X = this.X(w.wx), Y = this.Y(w.wy) + 4, u = Z * 2.8 / 62;    // (drawn well over life size, like the yeti, so it reads at speed)
+    ctx.fillStyle = 'rgba(40,70,120,0.25)'; ctx.beginPath(); ctx.ellipse(X, Y, 1.5 * Z, 0.32 * Z, 0, 0, TAU); ctx.fill();
+    ctx.save(); ctx.translate(X, Y); ctx.scale(u, u);
+    drawWolf(ctx, { t: this.t * 2.2 + w.at, state: w.state === 'crouch' ? 'crouch' : w.state === 'lunge' ? 'lunge' : 'run', side: w.wx >= this.sim.p.x ? 1 : -1 });
+    ctx.restore();
+    if (w.state === 'crouch' && this.level <= 10) this.jumpSign(ctx, X, Y - 1.9 * Z - 12, 'SWORD!');
   }
   jumpSign(ctx, x, y, word = 'JUMP!') {
     ctx.font = '900 15px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineWidth = 4; ctx.strokeStyle = '#ffffff'; ctx.strokeText(word, x, y);

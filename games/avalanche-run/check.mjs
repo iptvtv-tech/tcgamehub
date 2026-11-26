@@ -41,7 +41,8 @@ function ride(sl, x0) {
     const want = !p.air && ((rock && rock.x - p.x < Math.max(2.4, p.v * 0.3)) || (crack && crack.x - p.x < Math.max(1.2, p.v * 0.1)));
     const jump = want && !pressed; pressed = !!want;
     const yeti = sl.yetis.find((y) => !y.down && y.x > p.x - 1), ball = sim.balls.find((b) => b.x - p.x < SLASH_REACH + 1 + p.v * 0.08 && b.x > p.x - 1);
-    const slash = ((yeti && yeti.x - p.x < SLASH_REACH + p.v * 0.12) || !!ball) && i % 2 === 0;
+    const wolf = sl.wolves.find((w) => w.joined && !w.gone && (w.state === 'crouch' || w.state === 'lunge') && w.wx - p.x < SLASH_REACH + 1 && w.wx > p.x - 1);
+    const slash = ((yeti && yeti.x - p.x < SLASH_REACH + p.v * 0.12) || !!ball || !!wolf) && i % 2 === 0;
     for (const e of sim.step({ dir: 0, tuck: true, jump, slash }, DT)) {
       if (e.type === 'tumble') return `a tumble at x=${Math.round(p.x)}`;
       if (e.type === 'fell') return `a fall at x=${Math.round(p.x)}`;
@@ -57,7 +58,7 @@ function hopHeight(sl, x, v, t) {
   return snowAt(sl, x) + q.vy * t - GRAV * t * t / 2 - snowAt(sl, X);
 }
 
-let items = 0, airMin = 9, airMax = 0, yetis = 0, slopes = 0, kickers = 0, crevs = 0, cracks = 0, rocks = 0, crystals = 0, tight = 99;
+let items = 0, airMin = 9, airMax = 0, yetis = 0, wolves = 0, slopes = 0, kickers = 0, crevs = 0, cracks = 0, rocks = 0, crystals = 0, tight = 99;
 for (let level = 1; level <= FINAL_LEVEL; level++) {
   const bonus = BONUS_LEVELS.includes(level);
   for (let seed = 1; seed <= SEEDS; seed++) {
@@ -76,6 +77,12 @@ for (let level = 1; level <= FINAL_LEVEL; level++) {
     if (small.length !== R.cracks) fail(`${tag}: ${small.length} cracks (the run calls for ${R.cracks})`);
     yetis += sl.yetis.length;
     if (sl.yetis.length !== R.yetis) fail(`${tag}: ${sl.yetis.length} yetis (the run calls for ${R.yetis})`);
+    wolves += sl.wolves.length;
+    if (sl.wolves.length !== R.wolves) fail(`${tag}: ${sl.wolves.length} wolves (the run calls for ${R.wolves})`);
+    for (const w of sl.wolves) {
+      if (Math.abs(w.at - sl.flagX) < 45) fail(`${tag}: a wolf joins at x=${w.at}, too near the flag`);
+      if (sl.gaps.some((c) => w.at > c.x - 30 && w.at < c.x + c.w + 20)) fail(`${tag}: a wolf joins at x=${w.at}, over a crevasse or a crack`);
+    }
     // kickers of different sizes on every run: the biggest throws a cruising sled at least half as long again as the smallest
     { const airs = sl.kickers.map((k) => { const q = launch(sl, k.x, R.cruise); return fly(sl, k.x, snowAt(sl, k.x), q.vx, q.vy, false).t; });
       if (Math.max(...airs) < Math.min(...airs) * 1.5) fail(`${tag}: its kickers are all much the same size (they throw the sled for ${Math.min(...airs).toFixed(1)}–${Math.max(...airs).toFixed(1)} s)`); }
@@ -168,4 +175,4 @@ for (let level = 1; level <= FINAL_LEVEL; level++) {
   }
 }
 if (problems.length) { console.log(`✗ avalanche-run levels: ${problems.length} problem(s)`); for (const p of problems) console.log('    ' + p); process.exit(1); }
-console.log(`✓ avalanche-run levels — ${slopes} runs built (${FINAL_LEVEL} runs × ${SEEDS} seeds): ${kickers} kickers, in four sizes, throwing a cruising sled for ${airMin.toFixed(1)}–${airMax.toFixed(1)} s, and none landing it on a rock or in a crack at any speed; ${crevs} crevasses, each carried by its kicker from 70% of cruising speed up (at least ${tight.toFixed(1)} m to spare); ${cracks} cracks, each cleared by a jump and a fall without one; ${rocks} rocks, each cleared by a jump; ${yetis} yetis, none where a flight lands; restarts begin on plain snow; a careful rider reaches the hut from the start line and from the flag on every run; ${crystals} crystals over the snow; ${items} letters and rockets, every letter within reach of a sled that just rides its kicker, slow or fast`);
+console.log(`✓ avalanche-run levels — ${slopes} runs built (${FINAL_LEVEL} runs × ${SEEDS} seeds): ${kickers} kickers, in four sizes, throwing a cruising sled for ${airMin.toFixed(1)}–${airMax.toFixed(1)} s, and none landing it on a rock or in a crack at any speed; ${crevs} crevasses, each carried by its kicker from 70% of cruising speed up (at least ${tight.toFixed(1)} m to spare); ${cracks} cracks, each cleared by a jump and a fall without one; ${rocks} rocks, each cleared by a jump; ${yetis} yetis, none where a flight lands; ${wolves} wolves, each joining clear of the flag and the crevasses; restarts begin on plain snow; a careful rider reaches the hut from the start line and from the flag on every run; ${crystals} crystals over the snow; ${items} letters and rockets, every letter within reach of a sled that just rides its kicker, slow or fast`);
