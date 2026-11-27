@@ -59,7 +59,15 @@ const genrePages = () => [
 ];
 const hasGenrePage = (id) => genrePages().some((ge) => ge.id === id);
 const genreHref = (rel, id) => `${rel}games/${hasGenrePage(id) ? id + '/' : ''}`;
-const pageTitle = (g) => `${g.title} – free online ${copyOf(g).kind} | ${SITE_NAME}`;
+// Google shows about 60 characters of a title and names the site separately (WebSite schema),
+// so the " | Quick Play Arcade" ending is added only when the whole title still fits.
+const MAX_TITLE = 60, MAX_DESC = 155;
+const withSite = (base) => (`${base} | ${SITE_NAME}`.length <= MAX_TITLE ? `${base} | ${SITE_NAME}` : base);
+// A description is its first sentence plus each extra sentence that still fits in MAX_DESC.
+const fitDesc = (first, ...extras) => extras.reduce((d, x) => (d.length + x.length <= MAX_DESC ? d + x : d), first);
+// Lower-case a genre for running text, keeping "3D" and the proper noun "Legends".
+const lcGenre = (s) => s.split(' ').map((w) => (/^(3d|legends)$/i.test(w) ? w.replace(/^3d$/i, '3D') : w.toLowerCase())).join(' ');
+const pageTitle = (g) => withSite(`${g.title} – free online ${copyOf(g).kind}`);
 const difficultyText = (sl) => `${sl.tier.label} · Zone ${sl.zone.n}`;
 let changed = 0;
 function out(file, content) {
@@ -306,7 +314,7 @@ function gamePage(g) {
       </div>
       <div>
         <h2>Levels, bonus rounds and scoring</h2>
-        <p>${esc(g.title)} is game ${sl.n} of ${SLOTS.length} on ${SITE_NAME}, in <a href="${rel}#zone-${z.n}">${esc(z.name)}</a> (${esc(sl.tier.label)} difficulty). Every game is open to everyone; the zones are the recommended order, and playing all six games of a zone completes it.</p>
+        <p>${esc(g.title)} is game ${sl.n} on ${SITE_NAME} (one of ${GAMES.length} free games), in <a href="${rel}#zone-${z.n}">${esc(z.name)}</a> (${esc(sl.tier.label)} difficulty). Every game is open to everyone; the zones are the recommended order, and playing all six games of a zone completes it.</p>
         <ul>
           <li>Every level is a little faster than the last, with something new every few levels.</li>
           <li>Every 5th level is a <b>bonus round</b>: no way to lose, a timer and lots of points. Clear it to unlock a checkpoint you can start from next time.</li>
@@ -345,18 +353,21 @@ function genrePage(ge) {
   const url = `${SITE}games/${ge.id}/`;
   const games = GAMES.filter((g) => genresOf(g).some((x) => x.id === ge.id));
   const label = ge.label.replace('👑 ', '');
-  const title = `Free online ${label.toLowerCase()} games to play in your browser | ${SITE_NAME}`;
-  const description = `${games.length} free ${label.toLowerCase()} games you can play right now in the browser, no sign-up: ${games.slice(0, 4).map((g) => g.title).join(', ')}${games.length > 4 ? ' and more' : ''}. Levels, bonus rounds and high scores.`;
+  // "Racing & driving" → "Racing & driving games"; "3D games" already ends in "games"
+  const noun = /\bgames$/i.test(label) ? label : `${label} games`;
+  const title = withSite(`Free online ${lcGenre(noun)} – no download`);
+  const list = `${games.slice(0, 3).map((g) => g.title).join(', ')}${games.length > 3 ? ' and more' : ''}`;
+  const description = fitDesc(`${games.length} free ${lcGenre(noun)} to play in your browser, no sign-up: ${list}.`, ' Levels, bonus rounds and high scores.');
   const schema = [
-    { '@context': 'https://schema.org', '@type': 'CollectionPage', name: `${label} games`, url, description, isPartOf: { '@id': SITE + '#website' },
+    { '@context': 'https://schema.org', '@type': 'CollectionPage', name: noun, url, description, isPartOf: { '@id': SITE + '#website' },
       mainEntity: { '@type': 'ItemList', numberOfItems: games.length, itemListElement: games.map((g, i) => ({ '@type': 'ListItem', position: i + 1, url: `${SITE}games/${g.id}/`, name: g.title })) } },
-    breadcrumb([[SITE_NAME, SITE], ['Games', `${SITE}games/`], [`${label} games`, url]]),
+    breadcrumb([[SITE_NAME, SITE], ['Games', `${SITE}games/`], [noun, url]]),
   ];
   const body = `
 <body>${siteHeader(rel, 'games')}
   <main class="wrap genre-page">
     <nav class="crumbs" aria-label="Breadcrumb"><a href="${rel}">${SITE_NAME}</a> › <a href="${rel}games/">Games</a> › <span>${esc(label)}</span></nav>
-    <h1>${esc(label)} games</h1>
+    <h1>${esc(noun)}</h1>
     <p class="lead">${esc(ge.blurb)} All ${games.length} are free to play in your browser with no sign-up and no download.</p>
     <p class="pills">${genrePages().map((o) => `<a class="pill genre${o.id === ge.id ? ' on' : ''}" href="${rel}games/${o.id}/">${esc(o.label)}</a>`).join(' ')} <a class="pill" href="${rel}games/">All games</a></p>
     <div class="game-grid">${games.map((g) => card(slotOf(g), rel)).join('')}
@@ -380,7 +391,7 @@ function gamesIndex() {
   const rel = '../';
   const url = `${SITE}games/`;
   const title = `All ${GAMES.length} free browser games, by genre | ${SITE_NAME}`;
-  const description = `Every game on ${SITE_NAME}: arcade, puzzle, shooter, racing, stealth and 3D adventure games, all free in your browser with no sign-up. Pick a genre or jump straight in.`;
+  const description = fitDesc(`All ${GAMES.length} games on ${SITE_NAME}: arcade, puzzle, shooter, racing, stealth and 3D adventure games, free in your browser.`, ' No sign-up.');
   const schema = [
     { '@context': 'https://schema.org', '@type': 'CollectionPage', name: 'All games', url, description, isPartOf: { '@id': SITE + '#website' },
       mainEntity: { '@type': 'ItemList', numberOfItems: GAMES.length, itemListElement: GAMES.map((g, i) => ({ '@type': 'ListItem', position: i + 1, url: `${SITE}games/${g.id}/`, name: g.title })) } },

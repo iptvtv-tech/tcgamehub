@@ -53,7 +53,7 @@ Badges named `level10`, `score5k`, `score10k` or `combo3` unlock **automatically
   controls: '← → or drag',
   difficulty: 'Medium',
   color: '#34d399',          // accent colour for the card, HUD and glow
-  isNew: true,               // shows a NEW pill on the home page
+  isNew: true,               // NEW pill on the cards; keep it on the newest 2–3 games only (turn the oldest off)
   achievements: [
     { id: 'level10', icon: '🚀', title: 'Deep Space', desc: 'Reach level 10' },
   ],

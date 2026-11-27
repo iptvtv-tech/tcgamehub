@@ -144,7 +144,7 @@ export const GAMES = [
     tagline: 'A knot of snakes, every one in another\'s way. Each tap slides a snake until it\'s blocked — clear the board before you run out of moves.',
     controls: 'Tap / click a snake to slide it · R or ↺ to restart the board (free) · arrow keys + Space',
     color: '#2dd4bf',
-    isNew: true,
+    isNew: false,
     achievements: [
       { id: 'clean',    icon: '🧠', title: 'Perfect Solve', desc: 'Clear level 3+ in the fewest possible moves' },
       { id: 'quick',    icon: '⏱️', title: 'Quick Thinker', desc: 'Clear a timed level with half the clock left' },
@@ -163,7 +163,7 @@ export const GAMES = [
     tagline: 'Hit the falling notes on the beat — every note you hit plays the tune. Chords, holds and stealth notes!',
     controls: '← ↓ ↑ → or A S W D · tap the lanes on touch screens · hold for long notes',
     color: '#e879f9',
-    isNew: true,
+    isNew: false,
     achievements: [
       { id: 'fullcombo',  icon: '🎯', title: 'Full Combo',   desc: 'Finish a song (level 2+) without a single miss' },
       { id: 'allperfect', icon: '💎', title: 'Pitch Perfect', desc: 'Finish a song with nothing but PERFECTs' },
@@ -182,7 +182,7 @@ export const GAMES = [
     tagline: 'Drop swinging floors from the crane and build sky-high. Off-centre floors make it lean… and TOPPLE!',
     controls: 'Tap / click / Space to drop the floor',
     color: '#fb923c',
-    isNew: true,
+    isNew: false,
     achievements: [
       { id: 'perfect5', icon: '🎯', title: 'Dead Centre',    desc: '5 PERFECT drops in a row' },
       { id: 'windy',    icon: '💨', title: 'Weather Proof',  desc: 'Land 10 floors in strong wind in one level' },
@@ -201,7 +201,7 @@ export const GAMES = [
     tagline: 'Circle the core and slip through the gaps as hexagon walls close in and the world spins. Pure reflexes.',
     controls: 'Hold ← → or A / D · touch: hold the left or right side of the screen',
     color: '#22d3ee',
-    isNew: true,
+    isNew: false,
     achievements: [
       { id: 'nohit',     icon: '🎯', title: 'Untouchable',  desc: 'Clear level 3+ without losing a life' },
       { id: 'survive60', icon: '⏱️', title: 'Hyper Minute', desc: 'Survive a 60-second level' },
@@ -241,7 +241,7 @@ export const GAMES = [
     tagline: 'Plan every step of your crew — thief, hacker and muscle — then press GO and watch the heist play out.',
     controls: 'Arrows / tap next to a crew member to plan steps · Space wait · Tab switch crew · Enter GO',
     color: '#fde047',
-    isNew: true,
+    isNew: false,
     legend: true,                   // Zone 2's Legends game
     legendLore: 'Legends say a flawless crew finds a door no one else has seen…',
     legendHow: 'Start at job 1 and don\'t lose a single life. A hidden door waits beyond job 15…',
@@ -264,7 +264,7 @@ export const GAMES = [
     tagline: 'Race the clock from the driver\'s seat — coast roads, mountain passes, tunnels, city freeways and storms. Skim past cars for near-miss combos, slipstream and drive clean to charge your nitro, dodge roadworks and police — and beat VIPER in the rival duels.',
     controls: 'Steer ← → (or A / D) · hold ↑ / W for nitro · ↓ / S brake · C swaps cockpit / chase cam · tuck in behind a car to slipstream · touch: hold the left or right side to steer, the middle to boost, 🎥 VIEW to swap camera',
     color: '#ef4444',
-    isNew: true,
+    isNew: false,
     achievements: [
       { id: 'clean',    icon: '🧼', title: 'Clean Run',     desc: 'Clear level 3+ without crashing' },
       { id: 'nearmiss', icon: '💨', title: 'Hair\'s Breadth', desc: 'Chain 10 near misses in one level' },
@@ -286,7 +286,7 @@ export const GAMES = [
     tagline: 'Fire glossy 3D bubbles up the table and pop groups of 3. Sparkly bubbles hide bonuses — or traps. The ceiling keeps dropping, so be quick!',
     controls: 'Aim with the mouse and click to fire · touch: drag to aim, let go to fire · ← → aim, Space fire, ↑ swap (or tap NEXT)',
     color: '#ec4899',
-    isNew: true,
+    isNew: false,
     achievements: [
       { id: 'flawless', icon: '💎', title: 'Flawless',       desc: 'Clear level 3+ without losing a life' },
       { id: 'bigdrop',  icon: '🌧️', title: 'Avalanche',      desc: 'Drop 10 bubbles with one shot' },
@@ -307,7 +307,7 @@ export const GAMES = [
     tagline: 'Neon 3D pinball against the clock — and CHAOS: ghost balls, earthquakes, magnets, reversed flippers, hidden trap doors, portals and black holes. Hit the UFO for multiball jackpots!',
     controls: 'Flippers: ← → or A / D (touch: hold left / right half) · Launch: hold Space / touch, let go · Nudge: ↑ (too much = TILT)',
     color: '#f472b6',
-    isNew: true,
+    isNew: false,
     achievements: [
       { id: 'skill',     icon: '🎯', title: 'Skill Shot',     desc: 'Launch with a full-power plunger' },
       { id: 'neon',      icon: '💡', title: 'Lights On',      desc: 'Light all four N·E·O·N lanes' },
@@ -330,7 +330,7 @@ export const GAMES = [
     tagline: 'Fly a starfighter down a 3D space corridor. Grab spread, plasma, homing missiles and a wingman drone, blast 12 kinds of enemy and take down three different bosses.',
     controls: 'Fly: arrows / WASD or mouse (touch: drag) · Fire: hold Space / mouse (touch fires automatically) · Bomb: B or 💣 · fly into or shoot power-up capsules',
     color: '#38bdf8',
-    isNew: true,
+    isNew: false,
     achievements: [
       { id: 'ace',      icon: '🎖️', title: 'Ace Pilot',      desc: 'Clear sector 3+ without being hit' },
       { id: 'boss',     icon: '🛸', title: 'Mothership Down', desc: 'Destroy a Mothership' },
@@ -353,7 +353,7 @@ export const GAMES = [
     tagline: 'Lost in a 3D maze with a dying torch. Grab the keys, find the stairs — and keep one step ahead of the ghouls hunting you in the dark.',
     controls: 'Walk: ↑/↓ or W/S · Turn: ←/→ or A/D · Flash: Space or ✨ (touch: tap sides to turn, middle to walk, bottom to step back)',
     color: '#f59e0b',
-    isNew: true,
+    isNew: false,
     achievements: [
       { id: 'untouched', icon: '🛡️', title: 'Untouched',     desc: 'Escape dungeon 3+ without losing a life' },
       { id: 'nostun',    icon: '🤫', title: 'Silent Runner', desc: 'Escape dungeon 3+ without using your flash' },
@@ -373,7 +373,7 @@ export const GAMES = [
     tagline: 'Neon racing from the driver\'s seat on a glowing grid circuit. Tune the radio, throw the car sideways into every bend — chain drifts for huge combos, dodge the oil, beat five rivals to the flag — and every 5th level, a boss duel.',
     controls: 'Steer: ← → or A/D · Handbrake drift: Space or ↓ · Fire drift boost: ↑ or W · Cockpit / chase cam: C (phone: tilt to steer and hold the middle to drift, or hold the left or right side · tap ⚡ BOOST to fire · tap VIEW to switch camera)',
     color: '#ff4fa3',
-    isNew: true,
+    isNew: false,
     achievements: [
       { id: 'drift3s',  icon: '💨', title: 'Sideways',        desc: 'Hold one drift for 3 seconds' },
       { id: 'fullboost', icon: '⚡', title: 'Overcharged',    desc: 'Fire a FULL drift boost' },
@@ -398,7 +398,7 @@ export const GAMES = [
     tagline: 'Fire crystals down a mine shaft onto a turning platform. Match 3 to shatter, set off cascades, bombs and drills — dig down to the gold geodes and crack them open before the stack breaks the laser ring.',
     controls: 'Aim: mouse / ← → (touch: drag) · Fire: click / Space (touch: let go) · hold fire during Fever · Swap: ↑ or tap NEXT',
     color: '#22d3ee',
-    isNew: true,
+    isNew: false,
     achievements: [
       { id: 'cascade3', icon: '⛓️', title: 'Avalanche',    desc: 'Set off a 3-step chain reaction' },
       { id: 'digger',   icon: '🪙', title: 'Gold Digger',  desc: 'Crack 10 geodes in one game' },
@@ -421,7 +421,7 @@ export const GAMES = [
     tagline: 'Stand at the heart of a glowing arena over the void as geometric invaders pour in from every side. Light-trail shots, shattering enemies, a NOVA shockwave — and a giant boss every 5th wave.',
     controls: 'Aim: mouse (click to lock) or ← → · Fire: hold click / Space · Nova: ↑ / W · Turn round: ↓ / S (touch: drag to turn, hold to fire, NOVA and ⟲ buttons)',
     color: '#a78bfa',
-    isNew: true,
+    isNew: false,
     achievements: [
       { id: 'monolith',  icon: '🗿', title: 'Monolith Breaker', desc: 'Destroy The Monolith' },
       { id: 'halo',      icon: '⭕', title: 'Halo Shattered',   desc: 'Destroy The Halo' },
@@ -443,7 +443,7 @@ export const GAMES = [
     tagline: 'Sneak into the Deep Vaults by torchlight, lift the crown from its pedestal — and run. Fifteen floors of guards, slamming portcullises, crumbling floors and the Crown Wraith.',
     controls: 'Move: ↑/↓ or W/S · Turn: ←/→ or A/D · Sidestep: Q/E · Grab / lever: Space · Coin: C · Smoke: X (touch: stick, drag the view to look, GRAB / COIN / SMOKE)',
     color: '#f59e0b',
-    isNew: true,
+    isNew: false,
     legend: true,                   // Zone 4's Legends game
     legendLore: 'You saw the crown in the Crypt. Now steal it from the Vault.',
     legendHow: 'Carry the crown out of all 15 floors of Crown Heist (over as many visits as it takes).',
@@ -469,7 +469,7 @@ export const GAMES = [
     tagline: 'A 3D dungeon crawl through 15 hand-built crypts. Find keys, work the levers, search for secret walls and time your way past skeleton patrols and spike traps.',
     controls: 'Step: ↑/↓ or W/S · Turn: ←/→ or A/D · Search: Space (touch: on-screen pad, or tap the view)',
     color: '#a78bfa',
-    isNew: true,
+    isNew: false,
     legend: true,                   // Zone 3's Legends game
     legendLore: 'Legends say the Crypt Kings buried their crown where only a flawless explorer can find it…',
     legendHow: 'Start at crypt 1 and never get caught. Watch for a crown carved into the wall in the deepest crypts…',
@@ -492,7 +492,7 @@ export const GAMES = [
     tagline: 'An open-world survival block game. Start with nothing: punch trees, craft tools, find food before your energy runs out, survive the nights — and one day face the Shadow King.',
     controls: 'WASD move · Shift sprint · Mouse look (click the view) · Left click mine/hit · Right click place/use/eat · E bag & crafting · L advancements (touch: stick, drag to look, HIT / USE / ⤒)',
     color: '#84cc16',
-    isNew: true,
+    isNew: false,
     achievements: [
       { id: 'firstkill', icon: '⚔️', title: 'Monster Hunter', desc: 'Defeat your first hostile creature' },
       { id: 'ironsuit',  icon: '🛡️', title: 'Suit Up',        desc: 'Wear a full set of iron armour' },
@@ -513,7 +513,7 @@ export const GAMES = [
     tagline: 'Deliver one very loose egg over the hills to the farm. Ramps, chasms, wind and oil — hard landings crack it, and three cracks is SPLAT!',
     controls: 'Drive: → / D / Space · Brake & reverse: ← / A · in the air → tips back, ← tips forward (touch: hold right side to drive, left side to brake)',
     color: '#fb923c',
-    isNew: true,
+    isNew: false,
     achievements: [
       { id: 'clean',    icon: '🥚', title: 'Handle With Care', desc: 'Make a perfect delivery (no cracks, no lives lost) on delivery 3 or later' },
       { id: 'air',      icon: '🦅', title: 'Big Air',          desc: 'Land a 1.5 second jump with the egg still in its cup' },
@@ -535,7 +535,7 @@ export const GAMES = [
     tagline: 'Fly a moon hopper between lunar bases with a cargo crate swinging on your tow cable. Set it down gently on the green ring — past craters, ridges, meteor showers and dust geysers, with Earth hanging over the horizon.',
     controls: 'Thrust: Space · Tilt: ↑/↓ or W/S · Turn: ←/→ or A/D · Sidestep: Q/E (touch: stick to tilt and turn, hold THRUST)',
     color: '#67e8f9',
-    isNew: true,
+    isNew: false,
     achievements: [
       { id: 'feather',  icon: '🪶', title: 'Feather Touch',   desc: 'Set a crate down at under 1 m/s' },
       { id: 'pristine', icon: '📦', title: 'Not a Scratch',   desc: 'Finish run 3 or later without a single bump' },
@@ -558,7 +558,7 @@ export const GAMES = [
     tagline: 'One button, endless sky. Circle a planet, let go at just the right moment and ride gravity from world to world, up to the golden beacon. The void is always waiting.',
     controls: 'Space, click or tap: let go of the planet',
     color: '#67e8f9',
-    isNew: true,
+    isNew: false,
     achievements: [
       { id: 'first',    icon: '🚀', title: 'First Hop',      desc: 'Reach another planet' },
       { id: 'beacon',   icon: '⭐', title: 'Beacon Keeper',  desc: 'Reach the beacon and clear a level' },
@@ -579,7 +579,7 @@ export const GAMES = [
     tagline: 'Hold the lane. Build lasers, missile pods, cryo beams and tesla coils beside a glowing space lane, then fire the station cannon yourself as raiders, tanks and motherships pour out of the warp gates.',
     controls: 'Tap or click a pad to build, a turret to upgrade or sell · tap anywhere else to fire · Space: next wave · keys: hover a pad, 1–4 build, U upgrade, X sell',
     color: '#818cf8',
-    isNew: true,
+    isNew: false,
     achievements: [
       { id: 'arsenal',  icon: '🧰', title: 'Full Arsenal',    desc: 'Have all four kinds of turret on the map at once' },
       { id: 'maxed',    icon: '⭐', title: 'Fully Armed',     desc: 'Upgrade a turret to tier 3' },
@@ -601,7 +601,7 @@ export const GAMES = [
     tagline: 'Space-traffic control. Ships warp in from the void: drag each one a flight path to the docking bay of its colour, keep the lanes crossing-free, and never let two hulls touch.',
     controls: 'Drag a line from a ship to the bay of the same colour',
     color: '#fcd34d',
-    isNew: true,
+    isNew: false,
     achievements: [
       { id: 'first',    icon: '🛬', title: 'Cleared to Dock', desc: 'Dock your first ship' },
       { id: 'hat',      icon: '🎩', title: 'Hat-Trick',       desc: 'Dock 3 ships within 4 seconds' },
@@ -646,7 +646,7 @@ export const GAMES = [
     tagline: 'Fifteen sealed vaults on an alien moon. Time the laser grids, slip past the sentry drones, drift across zero-g fields and reach the airlock before your oxygen runs out. Same layout every time: learn it, then beat the par.',
     controls: 'Move: arrows or WASD, or swipe (touch: D-pad) · Restart the vault: Space twice or ⟲ (costs a life)',
     color: '#6ee7b7',
-    isNew: true,
+    isNew: false,
     legend: true,                   // Zone 5's Legends game
     legendLore: 'Legends say something deep inside the moon is still sending a signal…',
     legendHow: 'Start at vault 1 and clear all 15 without losing a life. Something is waiting beyond vault 15…',
