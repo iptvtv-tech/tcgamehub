@@ -318,11 +318,11 @@ function gamePage(g) {
         <p>Press <kbd>P</kbd> to pause and <kbd>M</kbd> to mute. Works on desktop, tablet and phone.</p>
       </div>
       <div>
-        <h2>Levels, bonus rounds and scoring</h2>
+        <h2>${c.levels ? 'Levels and scoring' : 'Levels, bonus rounds and scoring'}</h2>
         <p>${esc(g.title)} is game ${sl.n} on ${SITE_NAME} (one of ${GAMES.length} free games), in <a href="${rel}#zone-${z.n}">${esc(z.name)}</a> (${esc(sl.tier.label)} difficulty). Every game is open to everyone; the zones are the recommended order, and playing all six games of a zone completes it.</p>
         <ul>
-          <li>Every level is a little faster than the last, with something new every few levels.</li>
-          <li>Every 5th level is a <b>bonus round</b>: no way to lose, a timer and lots of points. Clear it to unlock a checkpoint you can start from next time.</li>
+          ${c.levels ? c.levels.map((l) => `<li>${esc(l)}</li>`).join('\n          ') : `<li>Every level is a little faster than the last, with something new every few levels.</li>
+          <li>Every 5th level is a <b>bonus round</b>: no way to lose, a timer and lots of points. Clear it to unlock a checkpoint you can start from next time.</li>`}
           <li>Chain hits quickly to raise your <b>combo multiplier</b>.</li>
           <li>Make the top 20 and type a nickname to go on the <a href="${rel}leaderboard/#${g.id}">public leaderboard</a> — no account needed. Boards reset daily and weekly.</li>
           ${g.noDaily ? '' : `<li>One game a day is the <b>Daily Challenge</b>: the same layout for everyone, with its own board. <a href="./?daily=1">Play today's ${esc(g.title)} challenge</a>.</li>`}

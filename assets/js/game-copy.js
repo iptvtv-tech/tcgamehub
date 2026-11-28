@@ -7,6 +7,8 @@
 //    blurb — one or two plain sentences: what you do and why it's fun
 //    how   — 3–5 short steps a new player needs (controls are added automatically)
 //    tip   — optional one-liner shown at the end of "How to play"
+//    levels — optional bullets about the levels and points, in place of the usual "faster every
+//             level / bonus round every 5th level" (for games without bonus rounds)
 // ─────────────────────────────────────────────────────────────
 export const COPY = {
   'neon-snake': {
@@ -187,11 +189,20 @@ export const COPY = {
     blurb: 'Climb out of an erupting volcano as a man made of ice. The lava rises, every burn melts you smaller, and three fire bosses wait on the way up.',
     how: ['Climb from ledge to ledge up to the cold air of the vent at the top, before the rising lava catches you.', 'Your size is your health: every burn melts you smaller, and a smaller Iceman jumps lower. Ice crystals freeze you back up.', 'Slash the magma creatures that drip from above. A slash while falling is a jump-stab that bounces you up.', 'Levels 5, 10 and 15 are boss fights: your blade only hurts a boss while it is dazed and glowing white.'],
     tip: 'Hold JUMP for a higher jump; a quick tap is a short hop that still clears a ledge.',
+    levels: ['Fifteen levels: twelve climbs up the volcano\'s shafts, a boss on levels 5 and 10 (the Magma Golem and the Cinder Drake), and the Volcano Lord on level 15. The lava rises faster as you go.', 'Points grow with the level: creatures slashed, fireballs and rocks smashed and ice crystals collected, a bonus for every crystal on a level and for reaching the vent still big. Each boss pays out in one go.', 'Reach level 6 or 11 and you can start from there next time.'],
   },
   'avalanche-run': {
     kind: 'downhill sled game',
     blurb: 'Sled down a steep frozen mountain with an avalanche rolling down right behind you. Flip off the kickers, jump the crevasses and reach the hut at the bottom.',
     how: ['You see the mountain from the side. The sled rides downhill by itself, and the avalanche is the white wall behind you.', 'Kickers throw you into the air. Hold left for a backflip or right for a front flip, then let go so the sled levels itself before it lands.', 'A flat landing after a trick gives a burst of speed. Land crooked and you tumble: you lose no life, but the avalanche gains on you.', 'Hold tuck to go faster on the snow. In the air, tuck grabs the sled, and a grab is a trick too.', 'Kickers come in four sizes, and the bigger ones give you time for two or three flips: a double scores far more than two singles.', 'Yetis stand on the run and throw snowballs. Swing your sword to cut one down or to cut a snowball out of the air, or land on a yeti\'s head to flatten it.', 'More tricks: swing the sword in the air for a sword spin, or hold tuck and jump together off a kicker for a superman (let go before you land). The bigger the trick, the bigger and longer the burst of speed.', 'Land tricks off three kickers in a row for a blizzard rush: a few seconds at top speed, with the avalanche thrown back.', 'Pick up rockets for top speed, golden crystals high over the biggest kickers, and the letters S, L, E and D for a big bonus.', 'Jump hops over rocks and over narrow cracks. Wide crevasses have a kicker at the edge that carries you over, as long as you keep your speed up.', 'If the avalanche catches you, or you fall into a crevasse, you lose a life and start again from the flag halfway down. Reach the hut to finish the run.'],
     tip: 'On the later runs the avalanche is faster than a sled that only cruises. Tuck, and land tricks for the burst of speed.',
+    levels: ['Fifteen runs down the mountain. Each one is steeper and faster, and so is the avalanche behind you.', 'Runs 5 and 10 are crystal rushes: no avalanche, just kickers and crystals for 20 seconds.', 'Points grow with the run: crystals, flips and tricks (a double flip is worth far more than two singles), yetis cut down or flattened, and a bonus at the hut, bigger if you never tumbled.', 'Reach run 6 or 11 and you can start from there next time.'],
+  },
+  'inferno-vault': {
+    kind: 'stealth platform game',
+    blurb: 'Sneak down through the Fire King\'s vault as a man made of ice. Stay out of the lantern light, hide in the dark, and put the fire guards out from behind.',
+    how: ['Work your way down through the vault\'s floors to the vault door at the bottom of each level.', 'Each fire guard carries a lantern. Its light melts you, and once a guard sees you it throws fireballs until it loses you again.', 'Step into a dark alcove to hide: a guard can\'t see you there, and it walks right past.', 'Slash a guard from behind to put it out. From the front your blade bounces off its flame, and it sees you.', 'Your size is your health: lava, flames and lantern light melt you smaller. Frost shards freeze you back up. Your blade can smash a fireball out of the air.', 'Fire opals are the loot: take them all for a bonus. Reach the door without being seen for the Ghost bonus.'],
+    tip: 'Watch a guard walk its round before you drop down to its floor: drop in just after it has walked past.',
+    levels: ['15 levels, each a stack of vault floors to work down through. The guards walk a little faster on every level.', 'Points grow with the level: fire opals, guards put out and fireballs smashed, with a bonus at the vault door for the ice you have left and a big Ghost bonus if no guard saw you.', 'Reach level 6 or 11 and you can start from there next time.'],
   },
 };

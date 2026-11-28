@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="hall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0d0910"/><stop offset=".7" stop-color="#1c1014"/><stop offset="1" stop-color="#3a140a"/></linearGradient>
+    <linearGradient id="beam" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stop-color="#ffbe5a" stop-opacity=".55"/><stop offset="1" stop-color="#ffbe5a" stop-opacity="0"/></linearGradient>
+    <linearGradient id="lava" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffb35c"/><stop offset=".25" stop-color="#f76707"/><stop offset="1" stop-color="#7a1c06"/></linearGradient>
+    <radialGradient id="flame" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ff7a1a" stop-opacity=".75"/><stop offset="1" stop-color="#ff7a1a" stop-opacity="0"/></radialGradient>
+    <radialGradient id="ice" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffffff" stop-opacity=".35"/><stop offset="1" stop-color="#8fd3f0" stop-opacity="0"/></radialGradient>
+    <radialGradient id="door" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ff9a3c" stop-opacity=".5"/><stop offset="1" stop-color="#ff9a3c" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="200" height="200" fill="url(#hall)"/>
+  <!-- basalt vault walls -->
+  <g fill="#1a1418" stroke="#05050a" stroke-width="1.2">
+    <rect x="0" y="0" width="200" height="22"/>
+    <rect x="0" y="150" width="200" height="50"/>
+    <rect x="0" y="22" width="12" height="128"/><rect x="188" y="22" width="12" height="128"/>
+  </g>
+  <g stroke="#2e2428" stroke-width="1"><path d="M0 11 H200 M30 0 V11 M80 0 V11 M130 0 V11 M180 0 V11 M55 11 V22 M105 11 V22 M155 11 V22"/><path d="M0 162 H200 M40 150 V162 M95 150 V162 M150 150 V162"/></g>
+  <!-- a dark alcove on the left, where the Iceman hides -->
+  <path d="M22 150 V84 Q22 72 34 72 H58 Q70 72 70 84 V150 Z" fill="#050407" stroke="#2e2428" stroke-width="2"/>
+  <!-- the vault door, far right -->
+  <circle cx="168" cy="118" r="30" fill="url(#door)"/>
+  <circle cx="168" cy="118" r="20" fill="#4a3c3a" stroke="#05050a" stroke-width="2.4"/>
+  <circle cx="168" cy="118" r="14" fill="none" stroke="#6a5650" stroke-width="1.6"/>
+  <g stroke="#ff9a3c" stroke-width="2.4" stroke-linecap="round"><path d="M159 118 H177 M163.5 110 L172.5 126 M172.5 110 L163.5 126"/></g>
+  <!-- the guard's lantern beam, sweeping left — just short of the alcove -->
+  <path d="M132 112 L74 92 L74 140 L132 118 Z" fill="url(#beam)">
+    <animate attributeName="opacity" values=".85;1;.8;1;.85" dur="1.6s" repeatCount="indefinite"/>
+  </path>
+  <!-- the fire guard, facing left -->
+  <g transform="translate(146 150) scale(-1.25 1.25)">
+    <circle cx="0" cy="-30" r="26" fill="url(#flame)"/>
+    <rect x="-7" y="-14" width="5" height="14" fill="#2b2226" stroke="#05050a" stroke-width="1.6"/>
+    <rect x="2" y="-14" width="5" height="14" fill="#2b2226" stroke="#05050a" stroke-width="1.6"/>
+    <path d="M-9 -14 Q-13 -32 -4 -40 Q4 -36 9 -40 Q13 -28 9 -14 Z" fill="#ff7a1a"/>
+    <path d="M-4 -16 Q-6 -28 0 -36 Q6 -28 4 -16 Z" fill="#ffd27a"/>
+    <path d="M-9 -16 H9 L7 -32 H-7 Z" fill="#3a2e30" stroke="#05050a" stroke-width="1.6"/>
+    <path d="M-8 -33 H8 L7 -46 Q0 -50 -7 -46 Z" fill="#2b2226" stroke="#05050a" stroke-width="1.6"/>
+    <rect x="-1" y="-42" width="8" height="2.4" fill="#ffb060"/>
+    <path d="M-4 -47 Q-2 -57 2 -59 Q1 -52 5 -47 Z" fill="#ff7a1a">
+      <animate attributeName="d" dur=".7s" repeatCount="indefinite" values="M-4 -47 Q-2 -57 2 -59 Q1 -52 5 -47 Z;M-4 -47 Q-3 -54 1 -56 Q1 -51 5 -47 Z;M-4 -47 Q-2 -57 2 -59 Q1 -52 5 -47 Z"/>
+    </path>
+    <path d="M4 -28 L11 -28" stroke="#2b2226" stroke-width="3.4"/>
+    <rect x="9" y="-36" width="7" height="10" fill="#1a1416" stroke="#05050a" stroke-width="1.2"/>
+    <rect x="10.5" y="-34" width="4" height="6" fill="#ffe2a8"/>
+  </g>
+  <!-- the Iceman, flat against the back of the alcove, blade ready -->
+  <g transform="translate(46 150)">
+    <circle cx="0" cy="-30" r="26" fill="url(#ice)"/>
+    <path d="M-10 -2 L-12 -22 L-6 -30 L8 -30 L12 -20 L10 -2 Z" fill="#7ebce6" stroke="#05050a" stroke-width="2.2" stroke-linejoin="round" opacity=".8"/>
+    <path d="M-9 -30 L-12 -48 L0 -52 L12 -48 L10 -30 Z" fill="#5f9bd0" stroke="#05050a" stroke-width="2.2" stroke-linejoin="round" opacity=".8"/>
+    <path d="M-11 -46 L-18 -58 L-7 -50 M11 -46 L18 -58 L7 -50" fill="#cfe8f5" stroke="#05050a" stroke-width="1.4" opacity=".8"/>
+    <circle cx="0.5" cy="-41" r="3.2" fill="#fff"/><circle cx="9" cy="-41" r="3.2" fill="#fff"/>
+    <circle cx="2" cy="-41" r="1.4" fill="#05050a"/><circle cx="10.5" cy="-41" r="1.4" fill="#05050a"/>
+    <path d="M10 -16 L30 -50 L15 -12 Z" fill="#f2fbff" stroke="#05050a" stroke-width="1.8"/>
+    <path d="M-7 -2 V0 M6 -2 V0" stroke="#4a8cc8" stroke-width="4" stroke-linecap="round"/>
+  </g>
+  <!-- fire opals -->
+  <g stroke="#05050a" stroke-width="1.2">
+    <path d="M100 52 L106 58 L103 66 L97 66 L94 58 Z" fill="#ff5a1a"><animateTransform attributeName="transform" type="translate" values="0 0;0 -3;0 0" dur="2s" repeatCount="indefinite"/></path>
+    <path d="M128 40 L133 45 L131 52 L125 52 L123 45 Z" fill="#ff7a1a"><animateTransform attributeName="transform" type="translate" values="0 -2;0 1;0 -2" dur="2.4s" repeatCount="indefinite"/></path>
+  </g>
+  <!-- lava seeping below the floor -->
+  <path fill="url(#lava)" d="M0 182 Q25 178 50 182 T100 182 T150 182 T200 182 V200 H0 Z">
+    <animate attributeName="d" dur="3s" repeatCount="indefinite" values="M0 182 Q25 178 50 182 T100 182 T150 182 T200 182 V200 H0 Z;M0 182 Q25 186 50 182 T100 182 T150 182 T200 182 V200 H0 Z;M0 182 Q25 178 50 182 T100 182 T150 182 T200 182 V200 H0 Z"/>
+  </path>
+</svg>

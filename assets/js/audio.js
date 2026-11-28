@@ -177,6 +177,7 @@ const PROGRESSIONS = {
   whiteout: [[52, 55, 59], [50, 54, 57], [48, 52, 55], [47, 51, 54], [52, 55, 59], [55, 59, 62], [45, 48, 52], [47, 51, 54]], // Em D C B Em G Am B — Avalanche Run: night, storm and the giant
   crystalrush: [[53, 57, 60], [48, 52, 55], [50, 53, 57], [46, 50, 53]], // F C Dm Bb — Avalanche Run: the crystal rush
   magma: [[52, 55, 59], [53, 57, 60], [52, 55, 59], [50, 53, 57], [48, 52, 55], [53, 57, 60], [47, 50, 53], [52, 56, 59]], // Em F Em Dm C F Bdim E — Magma Escape: Phrygian dread inside the volcano
+  heist: [[45, 48, 52], [46, 50, 53], [45, 48, 52], [43, 46, 50], [41, 45, 48], [46, 50, 53], [44, 47, 50], [45, 49, 52]], // Am Bb Am Gm F Bb G#dim A — Inferno Vault: creeping through the Fire King's vault
 };
 const ARP = [0, 1, 2, 1, 0, 1, 2, 1], OCT = [12, 12, 12, 12, 24, 24, 24, 24];
 const music = { on: false, timer: null, step: 0, nextTime: 0, bpm: 110, prog: PROGRESSIONS.minor, lead: 'square', arp: ARP, oct: OCT, bass: 'half', kit: 'chip', hook: null };

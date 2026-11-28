@@ -14,7 +14,7 @@ export const GENRES = [
   { id: 'shooter',   label: 'Shooter',          blurb: 'Asteroids, alien fleets, star corridors and arena waves. Hold to fire, grab power-ups and take down the bosses.' },
   { id: 'racing',    label: 'Racing & driving', blurb: 'From the driver\'s seat: beat the clock, chain drifts, slipstream rivals — and deliver an egg in one piece.' },
   { id: 'space',     label: 'Space',            blurb: 'Starfighters, moon hoppers and alien vaults. Everything set beyond the Earth.' },
-  { id: 'stealth',   label: 'Stealth',          blurb: 'Dodge guards, cameras and torch cones; grab the loot and get out. Three of the five Legends games live here.' },
+  { id: 'stealth',   label: 'Stealth',          blurb: 'Dodge guards, cameras and lantern light; grab the loot and get out. Most of the Legends games live here.' },
   { id: 'adventure', label: '3D adventure',     blurb: 'First-person crypts, mazes, vaults and an open block world — explore, find keys and survive.' },
   { id: 'snake',     label: 'Snake',            blurb: 'Two takes on the classic: a neon arcade snake, and a sliding-snake puzzle.' },
   { id: 'sports',    label: 'Sports',           blurb: 'Crazy golf, for now. More to come.' },
@@ -704,6 +704,25 @@ export const GAMES = [
       { id: 'score10k', icon: '🏅', title: 'Ten Grand',      desc: 'Score 10,000 in one game' },
     ],
   },
+  {
+    id: 'inferno-vault',
+    genres: ['stealth', 'action'],
+    noDaily: true,                  // hand-drawn vault floors: the Daily seed changes nothing, so no Daily mode
+    gold: 'Golden Iceman',          // golden character, unlocked by the Zone 6 crystal (won in this game) — never sold
+    title: 'Inferno Vault',
+    tagline: 'The Fire King keeps the Inferno Crystal in a vault deep inside the volcano. Sneak down through its floors as the Iceman: stay out of the guards\' lantern light, hide in the dark alcoves, and put the guards out with a slash from behind.',
+    controls: '← → move · ↑ or Space jump (hold for higher) · X, J or click to slash (touch: ◀ ▶, JUMP and SLASH)',
+    color: '#ff9a3c',
+    isNew: true,
+    achievements: [
+      { id: 'takedown', icon: '🧊', title: 'Lights Out',      desc: 'Put out a fire guard with a slash from behind' },
+      { id: 'ghost',    icon: '👻', title: 'Ghost',           desc: 'Reach the vault door without being seen' },
+      { id: 'opals',    icon: '🔶', title: 'Opal Thief',      desc: 'Take every fire opal on a level' },
+      { id: 'frozen',   icon: '❄️', title: 'Cold Feet',       desc: 'Reach the vault door still at full size' },
+      { id: 'level10',  icon: '🔥', title: 'Deep Vault',      desc: 'Reach level 10' },
+      { id: 'score10k', icon: '🏅', title: 'Ten Grand',       desc: 'Score 10,000 in one game' },
+    ],
+  },
 ];
 
 // Badges that any game can earn (unlocked automatically by the engine).
@@ -760,8 +779,8 @@ export const ZONES = [
   { n: 5, name: 'Zone 5 · Beyond', blurb: 'Ultra difficulty, out past the Earth. Vault of Stars is this zone\'s Legends game.',
     legendGame: 'vault-of-stars',
     slots: ['lunar-delivery', 'orbit-hopper', 'station-defense', 'dock-master', 'astro-explorer', 'vault-of-stars'] },
-  { n: 6, name: 'Zone 6 · Inferno', blurb: 'Beyond Ultra, into the fire and the ice. Magma Escape and Avalanche Run are open now; four more games are on their way.',
-    slots: ['magma-escape', 'avalanche-run', null, null, null, null] },
+  { n: 6, name: 'Zone 6 · Inferno', blurb: 'Beyond Ultra, into the fire and the ice. Magma Escape, Avalanche Run and Inferno Vault are open now; three more games are on their way.',
+    slots: ['magma-escape', 'avalanche-run', null, null, null, 'inferno-vault'] },
   { n: 7, name: 'Zone 7 · Coming soon', blurb: 'A whole new zone is being built. Check back soon!',
     slots: [null, null, null, null, null, null] },
 ];
