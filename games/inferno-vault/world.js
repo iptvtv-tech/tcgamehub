@@ -16,10 +16,18 @@
 //  Slash a guard from BEHIND and it goes out (a takedown); from the front the blade bounces off.
 //  Lava burns and throws him up. Frost shards freeze him back up; fire opals are the loot.
 //
+//  From level 6 (section 2) he can FREEZE (F / L, or the phone's FREEZE button), at the cost of a
+//  little of his ice: a blast of cold in front of him (or above him, with ↑) turns a lava pool
+//  into an ice bridge for a few seconds, a fire guard into an ice statue (one slash shatters it),
+//  stops a flame jet, and puts out a heat lamp.
+//
 //  Tiles:   # rock    = stone ledge (one-way, jump up through it)    ~ lava    : shadow (an alcove)
 //  Markers (air): S start   D the vault door   * frost shard   o fire opal
 //                 G a fire guard facing right   g … facing left   | where a patrol turns back
-//  A guard walks its floor between walls, drops, lava and | marks, pausing at each end to turn.
+//                 ^ a flame jet (a vent in the floor below)   L a heat lamp (hanging from the rock above)
+//  A guard walks its floor between walls, drops, lava, jets and | marks, pausing at each end to turn.
+//  Ice bridges live in the level's own copy of the tiles (sim.m.t), as rock that melts back to
+//  lava; the map itself (sim.base) never changes, so the planner and the checker can share it.
 // ─────────────────────────────────────────────────────────────
 import {
   TILE, COLS, DT, AIR, ROCK, LEDGE, isFloor, moveBody, stepPlayer, makePlayer, playerBox, overlap, halfW, bodyH,
@@ -46,13 +54,27 @@ export const GUARD_DMG = 25;                  // walking into a guard
 export const SHOT_G = 520, SHOT_R = 7, SHOT_DMG = 15, SHOT_LIFE = 3.2, MAX_SHOTS = 6;
 export const OPAL_PTS = 40, SHARD_PTS = 25, TAKEDOWN_PTS = 150, SHOT_PTS = 20;
 
+// The Freeze (section 2)
+export const FREEZE_FROM = 6;                 // the first level where he can freeze
+export const FREEZE_COST = 5;                 // the ice a freeze costs him (a size is 25)
+export const FREEZE_CD = 0.55;
+export const FREEZE_R = 96;                   // its reach in front of him
+export const FREEZE_UP = 120;                 // its reach above him (↑ + FREEZE)
+export const ICE_T = 4.5, ICE_WARN = 1.2;     // an ice bridge holds this long, cracking for the last ICE_WARN s
+export const POOL_MAX = 8;                    // the most lava tiles one freeze turns to ice
+export const STATUE_T = 5;                    // a frozen guard thaws after this long
+// Flame jets: a vent in the floor that roars up every JET_P seconds (off, then a sputter, then fire)
+export const JET_H = 3 * TILE, JET_HW = 10, JET_DMG = 20, JET_P = 3.0, JET_OFF = 1.6, JET_WARN = 0.45, JET_FROZEN_T = 6;
+// Heat lamps: a brazier on a chain that swings, its light sweeping the floor below
+export const LAMP_R = 160, LAMP_HALF = 0.2, LAMP_SWING = 0.6, LAMP_P = 5.0, LAMP_CHAIN = 16, LAMP_DPS = 9, LAMP_OUT_T = 6;
+
 // ── The map ──────────────────────────────────────────────────
 /** Parse a level's rows (top to bottom) into a tile map with its markers. */
-export function parseMap(rows, name = '') {
+export function parseMap(rows, name = '', opts = {}) {
   const R = rows.length, C = rows[0].length;
   if (C !== COLS) throw new Error(`${name}: rows must be ${COLS} wide (got ${C})`);
   const t = new Uint8Array(R * C), stops = new Set();
-  const m = { name, R, C, w: C * TILE, h: R * TILE, t, spawn: null, exit: null, shards: [], opals: [], guards: [] };
+  const m = { name, R, C, w: C * TILE, h: R * TILE, t, spawn: null, exit: null, shards: [], opals: [], guards: [], jets: [], lamps: [], freeze: !!opts.freeze };
   rows.forEach((row, r) => {
     if (row.length !== C) throw new Error(`${name}: row ${r} is ${row.length} wide`);
     for (let c = 0; c < C; c++) {
@@ -67,6 +89,8 @@ export function parseMap(rows, name = '') {
       else if (ch === 'o') m.opals.push({ x: cx, y: cy });
       else if (ch === 'G' || ch === 'g') m.guards.push({ c, r, x: cx, y: feet, face: ch === 'G' ? 1 : -1 });
       else if (ch === '|') stops.add(r * C + c);
+      else if (ch === '^') { m.jets.push({ c, r, x: cx, y: feet }); stops.add(r * C + c); }
+      else if (ch === 'L') m.lamps.push({ c, r, x: cx, y: r * TILE });
       else if (ch !== '.') throw new Error(`${name}: unknown tile '${ch}' at row ${r}`);
     }
   });
@@ -74,6 +98,14 @@ export function parseMap(rows, name = '') {
   // each guard's patrol: along its floor, up to a wall, a drop, lava or a | mark
   const walkable = (c, r) => c > 0 && c < C - 1 && !stops.has(r * C + c)
     && tileAt(m, c, r) !== ROCK && tileAt(m, c, r) !== LAVA && tileAt(m, c, r - 1) !== ROCK && isFloor(tileAt(m, c, r + 1));
+  m.jets.forEach((j, i) => {
+    if (!isFloor(tileAt(m, j.c, j.r + 1))) throw new Error(`${name}: the flame jet at col ${j.c}, row ${j.r} has no floor under it`);
+    j.id = i + 1; j.phase = opts.jets?.[i] ?? (i * 1.1) % JET_P;
+  });
+  m.lamps.forEach((l, i) => {
+    if (tileAt(m, l.c, l.r - 1) !== ROCK) throw new Error(`${name}: the heat lamp at col ${l.c}, row ${l.r} has no rock above to hang from`);
+    l.id = i + 1; l.phase = opts.lamps?.[i] ?? i * 1.3;
+  });
   for (const g of m.guards) {
     if (!walkable(g.c, g.r)) throw new Error(`${name}: the guard at col ${g.c}, row ${g.r} has no floor to stand on`);
     let l = g.c; while (walkable(l - 1, g.r)) l--;
@@ -121,25 +153,92 @@ export function inBeam(m, g, x, y, reach = beamReach(m, g)) {
 }
 /** The guard can see him: he is in the beam and not hiding in shadow. */
 export function sees(m, g, p, reach) {
-  if (g.state === 'down' || p.dead || isHidden(m, p)) return false;
+  if (g.state === 'down' || g.state === 'frozen' || p.dead || isHidden(m, p)) return false;
   const h = bodyH(p.k);
   return inBeam(m, g, p.x, p.y - h * 0.5, reach) || inBeam(m, g, p.x, p.y - h + 6, reach) || inBeam(m, g, p.x, p.y - 6, reach);
 }
-export const guardActive = (g) => g.state !== 'down';
+export const guardActive = (g) => g.state !== 'down' && g.state !== 'frozen';
+
+// ── Section 2: jets, lamps and the freeze ───────────────────
+/** Where a flame jet is in its cycle at time t: 'off' | 'warn' | 'on' (or 'frozen'). */
+export function jetState(j, t) {
+  if (j.frozen > 0) return 'frozen';
+  const u = (((t + j.phase) % JET_P) + JET_P) % JET_P;
+  return u < JET_OFF ? 'off' : u < JET_OFF + JET_WARN ? 'warn' : 'on';
+}
+/** The fire of a jet (when on), and its vent (where a freeze stops it). */
+export const jetBox = (j) => [j.x - JET_HW, j.y - JET_H, j.x + JET_HW, j.y];
+export const ventBox = (j) => [j.x - 12, j.y - 20, j.x + 12, j.y + 2];
+
+/** A heat lamp's swing at time t: its angle from straight down, and where its light comes from. */
+export function lampAt(l, t) {
+  const a = LAMP_SWING * Math.sin(((t + l.phase) / LAMP_P) * Math.PI * 2);
+  return { a, hx: l.x + Math.sin(a) * LAMP_CHAIN, hy: l.y + Math.cos(a) * LAMP_CHAIN };
+}
+export const lampBox = (l) => [l.x - 16, l.y, l.x + 16, l.y + LAMP_CHAIN + 14];
+/** The point (x, y) is in the lamp's light (inside the cone, no rock in between). */
+export function inLamp(m, l, t, x, y) {
+  if (l.out > 0) return false;
+  const { a, hx, hy } = lampAt(l, t), dx = x - hx, dy = y - hy;
+  if (dy <= 0 || dx * dx + dy * dy > LAMP_R * LAMP_R) return false;
+  if (Math.abs(Math.atan2(dx, dy) - a) > LAMP_HALF) return false;
+  for (let i = 1; i < 6; i++) { const k = i / 6; if (tileAtPx(m, hx + dx * k, hy + dy * k) === ROCK) return false; }
+  return true;
+}
+export function litByLamp(m, l, t, p) {
+  if (p.dead || isHidden(m, p)) return false;
+  const h = bodyH(p.k);
+  return inLamp(m, l, t, p.x, p.y - h * 0.5) || inLamp(m, l, t, p.x, p.y - h + 6) || inLamp(m, l, t, p.x, p.y - 6);
+}
+
+/** The cold of a freeze: a box in front of him (from his head down into the floor), or above him. */
+export function freezeBox(p, dir, up) {
+  const hw = halfW(p.k), h = bodyH(p.k);
+  if (up) return [p.x - 34, p.y - h - FREEZE_UP, p.x + 34, p.y - h + 10];
+  const x0 = p.x + dir * (hw - 2), x1 = p.x + dir * (hw + FREEZE_R);
+  return [Math.min(x0, x1), p.y - h - 16, Math.max(x0, x1), p.y + TILE - 2];
+}
+/** The lava tiles a freeze in `box` turns to ice: every pool it touches, along its row (up to POOL_MAX each),
+ *  but never a tile his own body is in. t: the tiles to read (the level's live copy). */
+export function lavaToFreeze(m, t, box, p) {
+  const C = m.C, out = new Set(), pb = playerBox(p);
+  const c0 = Math.max(0, Math.floor(box[0] / TILE)), c1 = Math.min(C - 1, Math.floor(box[2] / TILE));
+  const r0 = Math.max(0, Math.floor(box[1] / TILE)), r1 = Math.min(m.R - 1, Math.floor(box[3] / TILE));
+  const lava = (c, r) => c >= 0 && c < C && t[r * C + c] === LAVA;
+  const clear = (c, r) => !overlap(pb, [c * TILE + 1, r * TILE + 1, (c + 1) * TILE - 1, (r + 1) * TILE - 1]);
+  for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) {
+    if (!lava(c, r) || out.has(r * C + c)) continue;
+    // the whole pool along this row, outward from where the cold hit it
+    const pool = [c];
+    for (let d = 1; pool.length < POOL_MAX; d++) {
+      const l = lava(c - d, r) && !out.has(r * C + c - d), rt = lava(c + d, r) && !out.has(r * C + c + d);
+      if (!l && !rt) break;
+      if (rt) pool.push(c + d);
+      if (l && pool.length < POOL_MAX) pool.push(c - d);
+    }
+    for (const q of pool) if (clear(q, r)) out.add(r * C + q);
+  }
+  return [...out];
+}
 
 // ── One level ────────────────────────────────────────────────
 export class VaultSim {
   constructor(m, level) {
-    this.m = m; this.level = level;
+    this.base = m; this.level = level;
     this.gv = guardSpeed(level);
+    this.canFreeze = level >= FREEZE_FROM;
     this.reset();
   }
 
   /** The start of the level, and every retry after a lost heart. */
   reset() {
-    const m = this.m;
+    const m = this.m = { ...this.base, t: this.base.t.slice() };   // the level's own tiles: ice bridges live here
     this.p = makePlayer(m);
-    this.p.hidden = false;
+    this.p.hidden = false; this.p.frzCD = 0;
+    this.ice = [];
+    this.jets = m.jets.map((j) => ({ ...j, frozen: 0, was: 'off' }));
+    this.lamps = m.lamps.map((l) => ({ ...l, out: 0 }));
+    this.freezes = 0; this.statues = 0;
     this.guards = m.guards.map((g, i) => ({ id: i + 1, x: g.x, y: g.y, face: g.face, x0: g.x0, x1: g.x1, state: 'patrol', t: 0, throwT: 0, lost: 0, reach: BEAM, saw: false }));
     this.shots = []; this.nextShot = 1;
     this.shards = m.shards.map((c) => ({ x: c.x, y: c.y, got: false }));
@@ -148,14 +247,18 @@ export class VaultSim {
     this.ev = [];
   }
 
-  /** One 1/120 s step. inp = { dir, jumpPress, jumpHeld, up, down, slashPress }. Returns this step's events. */
+  /** One 1/120 s step. inp = { dir, jumpPress, jumpHeld, up, down, slashPress, freezePress }. Returns this step's events. */
   step(inp) {
     const ev = this.ev = [];
     const p = this.p, m = this.m;
     this.t += DT;
-    if (p.dead || this.done) { this.stepGuards(); this.stepShots(); return ev; }
+    this.stepIce();
+    if (p.dead || this.done) { this.stepGuards(); this.stepShots(); this.stepJets(); this.stepLamps(); return ev; }
     if (p.inv > 0) p.inv -= DT;
     if (p.atkCD > 0) p.atkCD -= DT;
+    if (p.frzCD > 0) p.frzCD -= DT;
+    if (inp.freezePress) this.freeze(inp);
+    if (p.dead) return ev;
 
     // the blade: a press shortly before it is ready still counts
     p.slashBuf = inp.slashPress ? SLASH_BUF : Math.max(0, p.slashBuf - DT);
@@ -189,6 +292,10 @@ export class VaultSim {
     if (p.dead) return ev;
     this.stepShots();
     if (p.dead) return ev;
+    this.stepJets();
+    if (p.dead) return ev;
+    this.stepLamps();
+    if (p.dead) return ev;
 
     // frost shards and fire opals
     const pb = playerBox(p);
@@ -215,6 +322,10 @@ export class VaultSim {
     let lit = false;
     for (const g of this.guards) {
       if (g.state === 'down') { g.t += DT; continue; }
+      if (g.state === 'frozen') {                       // an ice statue: no light, no flame, until it thaws
+        if ((g.t -= DT) <= 0) { g.state = 'patrol'; g.saw = false; g.lost = 0; this.ev.push({ type: 'thawGuard', id: g.id, x: g.x, y: g.y - GUARD_H / 2 }); }
+        continue;
+      }
       g.reach = beamReach(m, g);
       const see = !this.done && sees(m, g, p, g.reach);
       if (see) lit = true;
@@ -301,6 +412,11 @@ export class VaultSim {
     for (const g of this.guards) {
       if (g.state === 'down' || a.hit.includes(g.id) || !overlap(box, guardBox(g))) continue;
       a.hit.push(g.id);
+      if (g.state === 'frozen') {                       // an ice statue shatters, from any side
+        g.state = 'down'; g.t = 0; this.takedowns++;
+        this.ev.push({ type: 'shatter', id: g.id, x: g.x, y: g.y - GUARD_H / 2, pts: TAKEDOWN_PTS });
+        continue;
+      }
       const behind = Math.sign(p.x - g.x) === -g.face;
       if (behind && (g.state === 'patrol' || g.state === 'turn')) {
         g.state = 'down'; g.t = 0; this.takedowns++;
@@ -311,6 +427,78 @@ export class VaultSim {
         this.ev.push({ type: 'parry', id: g.id, x: g.x - g.face * 6, y: g.y - GUARD_H * 0.6 });
         this.spot(g);
       }
+    }
+  }
+
+  // ── The Freeze (section 2) ─────────────────────────────────
+  /** FREEZE pressed: a blast of cold in front of him (with ↑ and no ←/→: above him). It costs a little ice. */
+  freeze(inp) {
+    const p = this.p, m = this.m;
+    if (!this.canFreeze || p.frzCD > 0) return;
+    if (p.hp <= FREEZE_COST) { p.frzCD = 0.3; this.ev.push({ type: 'cold', x: p.x, y: p.y - bodyH(p.k) }); return; }
+    const up = !!inp.up && !inp.dir, dir = inp.dir || p.face;
+    if (!up && !p.atk) p.face = dir;
+    p.frzCD = FREEZE_CD; this.freezes++;
+    const box = freezeBox(p, dir, up);
+    this.ev.push({ type: 'freeze', x: p.x, y: p.y - bodyH(p.k) * 0.6, dir, up, box });
+    // lava pools → ice bridges (and an ice bridge it touches holds again for the full time)
+    const tiles = lavaToFreeze(m, m.t, box, p);
+    for (const i of tiles) { m.t[i] = ROCK; this.ice.push({ i, t: ICE_T, warned: false }); }
+    for (const e of this.ice) {
+      const c = e.i % m.C, r = Math.floor(e.i / m.C);
+      if (overlap(box, [c * TILE, r * TILE, (c + 1) * TILE, (r + 1) * TILE])) { e.t = ICE_T; e.warned = false; }
+    }
+    if (tiles.length) this.ev.push({ type: 'ice', tiles });
+    // fire guards → ice statues
+    for (const g of this.guards) {
+      if (!guardActive(g) || !overlap(box, guardBox(g))) continue;
+      g.state = 'frozen'; g.t = STATUE_T; this.statues++;
+      this.ev.push({ type: 'statue', id: g.id, x: g.x, y: g.y - GUARD_H / 2 });
+    }
+    // flame jets stop; heat lamps go out; fireballs fizzle
+    for (const j of this.jets) if (overlap(box, ventBox(j)) || (jetState(j, this.t) === 'on' && overlap(box, jetBox(j)))) {
+      j.frozen = JET_FROZEN_T; this.ev.push({ type: 'jetFrozen', id: j.id, x: j.x, y: j.y });
+    }
+    for (const l of this.lamps) if (l.out <= 0 && overlap(box, lampBox(l))) { l.out = LAMP_OUT_T; this.ev.push({ type: 'lampOut', id: l.id, x: l.x, y: l.y + 20 }); }
+    for (const b of this.shots) if (!b.dead && overlap(box, shotBox(b))) { b.dead = true; this.ev.push({ type: 'fizz', x: b.x, y: b.y }); }
+    this.meltBy(FREEZE_COST);
+  }
+
+  /** Ice bridges crack, then melt back into lava (under his feet, if he is still on one). */
+  stepIce() {
+    if (!this.ice.length) return;
+    const m = this.m;
+    for (const e of this.ice) {
+      e.t -= DT;
+      if (!e.warned && e.t <= ICE_WARN) { e.warned = true; this.ev.push({ type: 'crack', i: e.i }); }
+      if (e.t <= 0) { m.t[e.i] = LAVA; this.ev.push({ type: 'thaw', i: e.i, x: (e.i % m.C) * TILE + TILE / 2, y: Math.floor(e.i / m.C) * TILE }); }
+    }
+    this.ice = this.ice.filter((e) => e.t > 0);
+  }
+
+  stepJets() {
+    const p = this.p;
+    for (const j of this.jets) {
+      if (j.frozen > 0) j.frozen = Math.max(0, j.frozen - DT);
+      const st = jetState(j, this.t);
+      if (st !== j.was) { if (st === 'on') this.ev.push({ type: 'jet', id: j.id, x: j.x, y: j.y }); j.was = st; }
+      if (st === 'on' && !p.dead && p.inv <= 0 && overlap(playerBox(p), jetBox(j))) {
+        this.damage(JET_DMG, 'hurt', Math.sign(p.x - j.x) || -p.face);
+        if (p.dead) return;
+      }
+    }
+  }
+
+  stepLamps() {
+    const p = this.p, m = this.m;
+    let lit = false;
+    for (const l of this.lamps) {
+      if (l.out > 0) { l.out = Math.max(0, l.out - DT); if (l.out === 0) this.ev.push({ type: 'lampOn', id: l.id, x: l.x, y: l.y + 20 }); continue; }
+      if (!lit && !this.done && litByLamp(m, l, this.t, p)) lit = true;
+    }
+    if (lit && !p.dead) {
+      this.meltBy(LAMP_DPS * DT);
+      if ((this.heatT -= DT) <= 0) { this.heatT = 0.22; this.ev.push({ type: 'heat', x: p.x, y: p.y - bodyH(p.k) * 0.6, lamp: true }); }
     }
   }
 

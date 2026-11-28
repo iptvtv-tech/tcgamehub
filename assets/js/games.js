@@ -711,7 +711,7 @@ export const GAMES = [
     gold: 'Golden Iceman',          // golden character, unlocked by the Zone 6 crystal (won in this game) — never sold
     title: 'Inferno Vault',
     tagline: 'The Fire King keeps the Inferno Crystal in a vault deep inside the volcano. Sneak down through its floors as the Iceman: stay out of the guards\' lantern light, hide in the dark alcoves, and put the guards out with a slash from behind.',
-    controls: '← → move · ↑ or Space jump (hold for higher) · X, J or click to slash (touch: ◀ ▶, JUMP and SLASH)',
+    controls: '← → move · ↑ or Space jump (hold for higher) · X, J or click to slash · F or L to freeze, from level 6 (↑ + freeze: above you) (touch: ◀ ▶, JUMP, SLASH and FREEZE)',
     color: '#ff9a3c',
     isNew: true,
     achievements: [
@@ -719,6 +719,9 @@ export const GAMES = [
       { id: 'ghost',    icon: '👻', title: 'Ghost',           desc: 'Reach the vault door without being seen' },
       { id: 'opals',    icon: '🔶', title: 'Opal Thief',      desc: 'Take every fire opal on a level' },
       { id: 'frozen',   icon: '❄️', title: 'Cold Feet',       desc: 'Reach the vault door still at full size' },
+      { id: 'bridge',   icon: '🌉', title: 'Cold Crossing',   desc: 'Stand on an ice bridge you froze over a lava pool' },
+      { id: 'statue',   icon: '🗿', title: 'Cold Shoulder',   desc: 'Freeze a fire guard into an ice statue' },
+      { id: 'shatter',  icon: '💥', title: 'Ice Sculptor',    desc: 'Shatter an ice statue with your blade' },
       { id: 'level10',  icon: '🔥', title: 'Deep Vault',      desc: 'Reach level 10' },
       { id: 'score10k', icon: '🏅', title: 'Ten Grand',       desc: 'Score 10,000 in one game' },
     ],

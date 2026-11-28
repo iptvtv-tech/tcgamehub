@@ -2,9 +2,10 @@
 //  INFERNO VAULT — the art (canvas, no image files). The Iceman himself, his blade, his puddle,
 //  the frost shards and the fireballs are Magma Escape's own drawings (imported in game.js).
 //  This file draws the vault: its stone and lava, the alcoves' shadow, the vault door, the fire
-//  opals, and the Fire King's guards with their lantern beams.
+//  opals, and the Fire King's guards with their lantern beams; from section 2 the ice bridges,
+//  ice statues, flame jets, heat lamps and the freeze's cold.
 // ─────────────────────────────────────────────────────────────
-import { TILE, ROCK, LEDGE, LAVA, SHADOW, tileAt, GUARD_H, BEAM_Y, beamHalf } from './world.js';
+import { TILE, ROCK, LEDGE, LAVA, SHADOW, tileAt, GUARD_H, BEAM_Y, beamHalf, ICE_WARN, STATUE_T, JET_H, JET_P, JET_OFF, JET_WARN, LAMP_R, LAMP_HALF, lampAt } from './world.js';
 
 const TAU = Math.PI * 2;
 const INK = '#07050a';
@@ -149,7 +150,7 @@ export function drawOpal(ctx, x, y, t, glow) {
 
 /** A guard's lantern beam (world space): a warm cone out to `reach`. */
 export function drawBeam(ctx, g, t, alarmed) {
-  if (g.state === 'down' || g.reach <= 0) return;
+  if (g.state === 'down' || g.state === 'frozen' || g.reach <= 0) return;
   const lx = g.x + g.face * 12, ly = g.y - BEAM_Y, R = g.reach, hh = beamHalf(R);
   const flick = 0.92 + Math.sin(t * 17 + g.id) * 0.05 + Math.sin(t * 7.3 + g.id * 3) * 0.03;
   ctx.save();
@@ -175,6 +176,8 @@ export function drawGuard(ctx, g, t, glow, walk) {
     ctx.restore();
     return;
   }
+  const frozen = g.state === 'frozen';
+  if (frozen) { glow = null; t = g.id * 1.7; walk = 0; }       // a statue: the flame stands still
   ctx.scale(g.face, 1);
   const bob = g.state === 'patrol' ? Math.abs(Math.sin(walk)) * 1.5 : 0;
   const step = g.state === 'patrol' ? Math.sin(walk) * 4 : 0;
@@ -211,6 +214,7 @@ export function drawGuard(ctx, g, t, glow, walk) {
   ctx.fillRect(9, -36 + raise, 7, 10); ctx.strokeRect(9, -36 + raise, 7, 10);
   ctx.fillStyle = '#ffe2a8'; ctx.fillRect(10.5, -34 + raise, 4, 6);
   if (glow) { ctx.globalAlpha = 0.8; ctx.drawImage(glow, -4, -50 + raise, 34, 34); ctx.globalAlpha = 1; }
+  if (frozen) drawIceBlock(ctx, g.t);
   ctx.restore();
   // "!" — it has seen him
   if (g.state === 'alert') {
@@ -236,6 +240,121 @@ export function drawGuardSmoke(ctx, g, t) {
     ctx.globalAlpha = (1 - k) * 0.35 * Math.max(0, 1 - g.t / 2.5);
     ctx.fillStyle = '#c8c0d0';
     ctx.beginPath(); ctx.arc(g.x + Math.sin(i * 2 + t) * 6, g.y - 12 - k * 40, 4 + k * 8, 0, TAU); ctx.fill();
+  }
+  ctx.restore();
+}
+
+// ── Section 2: ice, jets, lamps ──────────────────────────────
+
+/** The ice around a frozen guard (in the guard's own space, feet at 0). left: seconds until it thaws. */
+function drawIceBlock(ctx, left) {
+  const thaw = left < 1.2 ? 0.5 + 0.5 * Math.sin(left * 30) : 1;
+  ctx.save();
+  ctx.globalAlpha = 0.62 * (0.75 + 0.25 * thaw);
+  const g = ctx.createLinearGradient(0, -GUARD_H - 16, 0, 0);
+  g.addColorStop(0, '#e8f7ff'); g.addColorStop(1, '#7ebce6');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(-16, 0); ctx.lineTo(-17, -GUARD_H + 4); ctx.lineTo(-9, -GUARD_H - 16); ctx.lineTo(8, -GUARD_H - 14);
+  ctx.lineTo(18, -GUARD_H + 2); ctx.lineTo(16, 0); ctx.closePath(); ctx.fill();
+  ctx.globalAlpha = 1; ctx.strokeStyle = '#cfe8f5'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(-11, -8); ctx.lineTo(-12, -GUARD_H + 2); ctx.moveTo(-6, -GUARD_H - 8); ctx.lineTo(3, -GUARD_H - 9); ctx.stroke();
+  if (left < STATUE_T * 0.3) {                       // cracks as it starts to thaw
+    ctx.strokeStyle = 'rgba(7,5,10,.55)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(2, -GUARD_H - 10); ctx.lineTo(-3, -30); ctx.lineTo(4, -20); ctx.lineTo(-2, -8); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/** Ice bridges (world space): pale blue blocks where the lava was; they crack, then blink, before they melt. */
+export function drawIce(ctx, m, ice, t) {
+  for (const e of ice) {
+    const c = e.i % m.C, r = Math.floor(e.i / m.C), x = c * TILE, y = r * TILE;
+    const warn = e.t < ICE_WARN, blink = e.t < 0.5 ? 0.55 + 0.45 * Math.sin(t * 40) : 1;
+    ctx.save(); ctx.globalAlpha = blink;
+    const g = ctx.createLinearGradient(0, y, 0, y + TILE);
+    g.addColorStop(0, '#f2fbff'); g.addColorStop(0.35, '#bfe6f7'); g.addColorStop(1, '#5f9bd0');
+    ctx.fillStyle = g; ctx.fillRect(x, y, TILE, TILE);
+    ctx.strokeStyle = INK; ctx.lineWidth = 1.5; ctx.strokeRect(x + 0.75, y + 0.75, TILE - 1.5, TILE - 1.5);
+    ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(x + 3, y + 3); ctx.lineTo(x + TILE - 6, y + 3); ctx.stroke();
+    if (warn) {
+      ctx.strokeStyle = 'rgba(7,5,10,.6)'; ctx.lineWidth = 1;
+      const h = hash(c, r);
+      ctx.beginPath(); ctx.moveTo(x + 4 + h * 8, y + 2); ctx.lineTo(x + 10, y + 11); ctx.lineTo(x + 6 + h * 10, y + TILE - 2);
+      ctx.moveTo(x + 10, y + 11); ctx.lineTo(x + TILE - 3, y + 8 + h * 6); ctx.stroke();
+      // the lava showing through underneath
+      ctx.fillStyle = `rgba(255,122,26,${(0.35 * (1 - e.t / ICE_WARN)).toFixed(3)})`; ctx.fillRect(x, y + TILE * 0.55, TILE, TILE * 0.45);
+    }
+    ctx.restore();
+  }
+}
+
+/** A flame jet: an iron vent in the floor; it sputters, then roars up (state from jetState). */
+export function drawJet(ctx, j, state, t, glow) {
+  const x = j.x, y = j.y;
+  ctx.save();
+  if (state === 'on' || state === 'warn') {
+    const u = (((t + j.phase) % JET_P) + JET_P) % JET_P;
+    const k = state === 'on' ? Math.min(1, (u - JET_OFF - JET_WARN) / 0.12) : 0;
+    const h = state === 'on' ? JET_H * (0.35 + 0.65 * k) : 8 + Math.abs(Math.sin(t * 31)) * 10;
+    const fl = (a) => Math.sin(t * 23 + a) * 3;
+    if (glow) { ctx.globalAlpha = state === 'on' ? 0.85 : 0.4; ctx.drawImage(glow, x - 30, y - h - 20, 60, h + 30); ctx.globalAlpha = 1; }
+    ctx.fillStyle = '#ff5a1a';
+    ctx.beginPath(); ctx.moveTo(x - 10, y - 2); ctx.quadraticCurveTo(x - 13 + fl(1), y - h * 0.5, x + fl(2), y - h); ctx.quadraticCurveTo(x + 13 + fl(3), y - h * 0.5, x + 10, y - 2); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#ffb060';
+    ctx.beginPath(); ctx.moveTo(x - 6, y - 2); ctx.quadraticCurveTo(x - 7 + fl(4), y - h * 0.45, x + fl(5), y - h * 0.8); ctx.quadraticCurveTo(x + 7 + fl(6), y - h * 0.45, x + 6, y - 2); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#fff2c8';
+    ctx.beginPath(); ctx.moveTo(x - 3, y - 2); ctx.quadraticCurveTo(x - 3, y - h * 0.3, x, y - h * 0.5); ctx.quadraticCurveTo(x + 3, y - h * 0.3, x + 3, y - 2); ctx.closePath(); ctx.fill();
+  }
+  // the vent
+  ctx.fillStyle = '#1a1416'; ctx.strokeStyle = INK; ctx.lineWidth = 1.5;
+  ctx.fillRect(x - 12, y - 5, 24, 5); ctx.strokeRect(x - 12, y - 5, 24, 5);
+  ctx.fillStyle = state === 'frozen' ? '#8fd3f0' : state === 'off' ? '#5a2410' : '#ffb060';
+  for (let i = 0; i < 4; i++) ctx.fillRect(x - 9 + i * 5, y - 4, 2.5, 3);
+  if (state === 'frozen') {
+    ctx.fillStyle = 'rgba(191,230,247,.9)'; ctx.strokeStyle = '#cfe8f5'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(x - 13, y - 4); ctx.lineTo(x - 8, y - 12); ctx.lineTo(x + 2, y - 14); ctx.lineTo(x + 12, y - 9); ctx.lineTo(x + 13, y - 4); ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/** A heat lamp's light (world space): a warm cone swinging under it. Drawn under everything that moves. */
+export function drawLampLight(ctx, l, t) {
+  if (l.out > 0) return;
+  const { a, hx, hy } = lampAt(l, t), R = LAMP_R;
+  const flick = 0.9 + Math.sin(t * 13 + l.id) * 0.06;
+  ctx.save();
+  const g = ctx.createRadialGradient(hx, hy, 4, hx, hy, R);
+  g.addColorStop(0, `rgba(255,200,110,${(0.4 * flick).toFixed(3)})`); g.addColorStop(1, 'rgba(255,170,80,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.moveTo(hx, hy);
+  ctx.lineTo(hx + Math.sin(a - LAMP_HALF) * R, hy + Math.cos(a - LAMP_HALF) * R);
+  ctx.lineTo(hx + Math.sin(a + LAMP_HALF) * R, hy + Math.cos(a + LAMP_HALF) * R);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+/** A heat lamp: a brazier on a chain from the rock above (frosted over while it is out). */
+export function drawLamp(ctx, l, t, glow) {
+  const { a, hx, hy } = lampAt(l, t), out = l.out > 0;
+  ctx.save();
+  ctx.strokeStyle = '#4a3c3a'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(l.x, l.y); ctx.lineTo(hx, hy); ctx.stroke();
+  ctx.fillStyle = '#2b2226'; ctx.fillRect(l.x - 5, l.y, 10, 3);
+  ctx.translate(hx, hy); ctx.rotate(-a);
+  if (!out && glow) { ctx.globalAlpha = 0.85; ctx.drawImage(glow, -20, -14, 40, 40); ctx.globalAlpha = 1; }
+  // the bowl
+  ctx.fillStyle = out ? '#5f9bd0' : '#3a2e30'; ctx.strokeStyle = INK; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.moveTo(-9, 0); ctx.lineTo(9, 0); ctx.lineTo(6, 8); ctx.lineTo(-6, 8); ctx.closePath(); ctx.fill(); ctx.stroke();
+  if (out) {
+    ctx.fillStyle = '#e8f7ff'; ctx.beginPath(); ctx.moveTo(-8, 0); ctx.lineTo(-3, -5); ctx.lineTo(3, -4); ctx.lineTo(8, 0); ctx.closePath(); ctx.fill();
+  } else {
+    ctx.fillStyle = '#ffe2a8'; ctx.fillRect(-6, 5, 12, 4);
+    ctx.fillStyle = '#ff7a1a';
+    const f = Math.sin(t * 17 + l.id) * 2;
+    ctx.beginPath(); ctx.moveTo(-6, 0); ctx.quadraticCurveTo(-4, -7 - f, 0, -9); ctx.quadraticCurveTo(4, -6 + f, 6, 0); ctx.closePath(); ctx.fill();
   }
   ctx.restore();
 }

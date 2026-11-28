@@ -1,6 +1,6 @@
 // ─────────────────────────────────────────────────────────────
 //  INFERNO VAULT — Zone 6 · game 6, its Legends game (the Inferno Crystal). Built in sections
-//  for review (see the project brief, claude/inferno-vault-brief.md). Section 1: break in.
+//  for review (see the project brief, claude/inferno-vault-brief.md). Section 1: break in; section 2: the Freeze.
 //
 //  The Fire King has locked the Inferno Crystal in a vault deep inside the volcano. You are the
 //  Iceman: work your way down through the vault's floors to the vault door at the bottom.
@@ -9,24 +9,30 @@
 //  it out (from the front your blade bounces off its flame). Lava burns. Frost shards freeze
 //  you back up a size; fire opals are the loot. Get through a level unseen for the Ghost bonus.
 //
+//  Section 2 (levels 6–10): the FREEZE. A blast of cold in front of him (↑ + FREEZE: above him)
+//  turns a lava pool into an ice bridge for a few seconds, a fire guard into an ice statue that
+//  one slash shatters, stops a flame jet and puts out a heat lamp. Each freeze costs a little ice.
+//
 //  Controls (as in Magma Escape): ← → move, ↑ or Space jump (hold for higher), X / J / click
-//  slash. Phone: ◀ ▶ under the left thumb, JUMP and SLASH under the right.
+//  slash, F / L freeze (from level 6). Phone: ◀ ▶ under the left thumb, SLASH, FREEZE and JUMP
+//  under the right.
 //
 //  The rules live in world.js (pure, shared with check.mjs and the bots); the vault's art in
 //  art.js; the Iceman's own drawing is Magma Escape's (../magma-escape/art.js).
 // ─────────────────────────────────────────────────────────────
 import { runGame, roundRect, clamp } from '../../assets/js/engine.js';
 import { Sound } from '../../assets/js/audio.js';
-import { VaultSim, TILE, STAGES, sizeIdx, SLASH_T, bodyH, OPAL_PTS, SHARD_PTS, TAKEDOWN_PTS } from './world.js';
+import { VaultSim, TILE, STAGES, sizeIdx, SLASH_T, bodyH, OPAL_PTS, SHARD_PTS, TAKEDOWN_PTS, FREEZE_COST, FREEZE_CD, jetState, tileAtPx } from './world.js';
 import { mapFor, nameFor } from './levels.js';
 import { drawIceman, drawPuddle, drawSlashArc, drawCrystal, drawShot, PAL } from '../magma-escape/art.js';
-import { paintMap, drawBackdrop, drawLavaTiles, drawDoor, drawOpal, drawBeam, drawGuard, drawGuardSmoke } from './art.js';
+import { paintMap, drawBackdrop, drawLavaTiles, drawDoor, drawOpal, drawBeam, drawGuard, drawGuardSmoke, drawIce, drawJet, drawLamp, drawLampLight } from './art.js';
 
 const ID = 'inferno-vault';
 const W = 480, H = 720;
 const PANEL = 150;                 // touch strip inside the box when a phone's bottom band is too short
 const TAU = Math.PI * 2;
 const SLASH_KEYS = new Set(['KeyX', 'KeyJ', 'KeyK', 'KeyC']);
+const FREEZE_KEYS = new Set(['KeyF', 'KeyL']);
 
 // Original music: a creeping heist in a minor key with a flat second (assets/js/audio.js 'heist').
 const MUSIC = { bpm: 86, style: 'heist', lead: 'triangle', arp: [0, 2, 1, 2, 0, 2, 1, 3], oct: [12, 12, 12, 12, 12, 24, 12, 12], bass: 'half' };
@@ -56,6 +62,11 @@ const LEVEL_INFO = {
   3: 'Slash a guard from behind to put it out. From the front, your blade bounces off.',
   4: 'The Crucible: a sea of lava. Use the stone ledges.',
   5: 'Three guards. Get through without being seen for the Ghost bonus.',
+  6: 'NEW: FREEZE (F, or the ❄ button). Freeze a lava pool into an ice bridge, then cross before it melts.',
+  7: 'Flame jets roar up from the floor. Wait for the fire to die down, or freeze the vent.',
+  8: 'Heat lamps swing on their chains. Stay out of their light, or freeze one out with ↑ + FREEZE.',
+  9: 'Freeze a guard into an ice statue: it can\'t see you, and one slash shatters it.',
+  10: 'The Furnace: lava, fire, lamps and guards. Every freeze costs you a little ice.',
 };
 
 /** Original sound effects on the shared synth (no audio files). */
@@ -79,6 +90,15 @@ const sfx = {
   takedown: () => sfx.play(() => { Sound.noise({ dur: 0.5, vol: 0.16, freq: 5000, to: 600, type: 'highpass' }); Sound.tone({ freq: 220, to: 90, dur: 0.4, type: 'sine', vol: 0.07 }); [0, 3, 7].forEach((n, i) => Sound.tone({ freq: Sound.note(69 + n), dur: 0.12, type: 'triangle', vol: 0.05, delay: 0.12 + i * 0.06 })); }),
   parry: () => sfx.play(() => { Sound.tone({ freq: 240, to: 160, dur: 0.12, type: 'square', vol: 0.06 }); Sound.noise({ dur: 0.18, vol: 0.12, freq: 3200, to: 900, type: 'highpass' }); }),
   sizzle: () => sfx.play(() => Sound.noise({ dur: 0.16, vol: 0.04, freq: 6000, to: 2500, type: 'highpass' })),
+  freeze: () => sfx.play(() => { Sound.noise({ dur: 0.35, vol: 0.12, freq: 7000, to: 2200, type: 'bandpass' }); [0, 3, 7].forEach((n, i) => Sound.tone({ freq: Sound.note(91 + n), dur: 0.16, type: 'sine', vol: 0.04, delay: i * 0.03 })); }),
+  iceUp: () => sfx.play(() => { Sound.noise({ dur: 0.25, vol: 0.08, freq: 3000, to: 6000, type: 'highpass' }); Sound.tone({ freq: 1200, to: 1800, dur: 0.2, type: 'triangle', vol: 0.03 }); }),
+  creak: () => sfx.play(() => { Sound.noise({ dur: 0.2, vol: 0.06, freq: 2500, to: 1200 }); Sound.tone({ freq: 700, to: 500, dur: 0.15, type: 'square', vol: 0.02 }); }),
+  thaw: () => sfx.play(() => Sound.noise({ dur: 0.5, vol: 0.08, freq: 5200, to: 1500, type: 'highpass' })),
+  statue: () => sfx.play(() => { Sound.noise({ dur: 0.4, vol: 0.12, freq: 6000, to: 1800 }); [0, 5, 10].forEach((n, i) => Sound.tone({ freq: Sound.note(88 + n), dur: 0.14, type: 'triangle', vol: 0.05, delay: i * 0.05 })); }),
+  shatter: () => sfx.play(() => { Sound.noise({ dur: 0.45, vol: 0.18, freq: 8000, to: 2000, type: 'highpass' }); [12, 7, 3, 0].forEach((n, i) => Sound.tone({ freq: Sound.note(84 + n), dur: 0.1, type: 'square', vol: 0.03, delay: i * 0.04 })); }),
+  roar: () => sfx.play(() => { Sound.noise({ dur: 0.7, vol: 0.1, freq: 600, to: 1600, type: 'bandpass' }); Sound.tone({ freq: 90, to: 140, dur: 0.5, type: 'sawtooth', vol: 0.03 }); }),
+  fizzle: () => sfx.play(() => Sound.noise({ dur: 0.3, vol: 0.07, freq: 4000, to: 900, type: 'highpass' })),
+  cold: () => sfx.play(() => Sound.tone({ freq: 300, to: 220, dur: 0.12, type: 'square', vol: 0.04 })),
   door: () => sfx.play(() => { Sound.tone({ freq: 80, to: 50, dur: 0.6, type: 'sawtooth', vol: 0.08 }); Sound.noise({ dur: 0.6, vol: 0.1, freq: 500, to: 120 }); [0, 4, 7, 12].forEach((n, i) => Sound.tone({ freq: Sound.note(72 + n), dur: 0.18, type: 'triangle', vol: 0.06, delay: 0.45 + i * 0.08 })); }),
 };
 
@@ -87,9 +107,9 @@ class InfernoVault {
     this.s = s; this.t = 0;
     this.parts = [];
     this.cam = { y: 0 };
-    this.press = { slash: false };
-    this.prev = { jump: false, slash: false };
-    this.btnOn = { left: false, right: false, jump: false, slash: false };
+    this.press = { slash: false, freeze: false };
+    this.prev = { jump: false, slash: false, freeze: false };
+    this.btnOn = { left: false, right: false, jump: false, slash: false, freeze: false };
     this.zHeld = false; this.touchSeen = false;
     this.anim = { phase: 0, land: 0, hurt: 0, k: 1, dead: 0, flash: 0, walk: new Map() };
     this.ctl = {};
@@ -106,8 +126,9 @@ class InfernoVault {
     this.mapCv = null;
     this.parts = [];
     Object.assign(this.anim, { k: this.sim.p.k, dead: 0, hurt: 0, land: 0, flash: 0, walk: new Map() });
-    this.hintT = level <= 3 ? 10 : 0;
-    this.spottedOnce = false;
+    this.hintT = level <= 3 || (level >= 6 && level <= 9) ? 10 : 0;
+    this.spottedOnce = false; this.onIce = false;
+    this.layout();
     this.snapCamera();
   }
 
@@ -127,13 +148,19 @@ class InfernoVault {
   layout() {
     const band = this.s.bands?.bottom || 0, inBand = band >= 150;
     const cy = inBand ? H + band * 0.5 : H - PANEL / 2;
-    const r = inBand ? 44 : 40;
-    // left thumb: ◀ ▶; right thumb: SLASH, and JUMP (the biggest) at the edge — 30 px clear of the sides
+    const frz = !!this.sim?.canFreeze;
+    const r = frz ? (inBand ? 40 : 37) : (inBand ? 44 : 40);
+    // left thumb: ◀ ▶; right thumb: SLASH, (FREEZE,) and JUMP (the biggest) at the edge — 30 px clear of the sides
     const lx = 30 + r, jx = W - 30 - (r + 6);
     this.ctl = {
-      left: { x: lx, y: cy, r }, right: { x: lx + r * 2 + 16, y: cy, r },
-      slash: { x: jx - (r + 6) * 2 - 14, y: cy + 10, r: r - 2 }, jump: { x: jx, y: cy - 4, r: r + 6 },
+      left: { x: lx, y: cy, r }, right: { x: lx + r * 2 + 14, y: cy, r },
+      jump: { x: jx, y: cy - 4, r: r + 6 },
     };
+    if (frz) {
+      const fr = r - 8;
+      this.ctl.freeze = { x: jx - (r + 6) - fr - 10, y: cy - r * 0.55, r: fr };
+      this.ctl.slash = { x: this.ctl.freeze.x - fr - (r - 4) - 6, y: cy + 14, r: r - 4 };
+    } else this.ctl.slash = { x: jx - (r + 6) * 2 - 14, y: cy + 10, r: r - 2 };
   }
   onBandsChange() { this.layout(); }
 
@@ -142,10 +169,11 @@ class InfernoVault {
     const s = this.s, playing = () => s.state === 'playing';
     addEventListener('keydown', (e) => {
       if (e.target instanceof HTMLInputElement) return;
-      if ((SLASH_KEYS.has(e.code) || e.code === 'KeyZ') && playing()) e.preventDefault();
+      if ((SLASH_KEYS.has(e.code) || FREEZE_KEYS.has(e.code) || e.code === 'KeyZ') && playing()) e.preventDefault();
       if (e.code === 'KeyZ') this.zHeld = true;
       if (e.repeat || !playing()) return;
       if (SLASH_KEYS.has(e.code)) this.press.slash = true;
+      if (FREEZE_KEYS.has(e.code)) this.press.freeze = true;
     });
     addEventListener('keyup', (e) => { if (e.code === 'KeyZ') this.zHeld = false; });
     addEventListener('blur', () => { this.zHeld = false; });
@@ -157,10 +185,11 @@ class InfernoVault {
 
   /** Which buttons fingers rest on (each finger presses the button it's nearest to, with a margin). */
   buttons() {
-    const on = { left: false, right: false, jump: false, slash: false }, C = this.ctl;
+    const on = { left: false, right: false, jump: false, slash: false, freeze: false }, C = this.ctl;
+    const keys = C.freeze ? ['left', 'right', 'jump', 'slash', 'freeze'] : ['left', 'right', 'jump', 'slash'];
     for (const q of this.s.input.pointers.values()) {
       let best = null, bd = 1e9;
-      for (const k of ['left', 'right', 'jump', 'slash']) { const b = C[k], d = Math.hypot(q.x - b.x, q.y - b.y); if (d < b.r + 22 && d - b.r < bd) { bd = d - b.r; best = k; } }
+      for (const k of keys) { const b = C[k], d = Math.hypot(q.x - b.x, q.y - b.y); if (d < b.r + 22 && d - b.r < bd) { bd = d - b.r; best = k; } }
       if (best) on[best] = true;
     }
     return on;
@@ -168,7 +197,7 @@ class InfernoVault {
 
   readInput() {
     const i = this.s.input, touch = this.touchUI();
-    const tb = this.btnOn = touch ? this.buttons() : { left: false, right: false, jump: false, slash: false };
+    const tb = this.btnOn = touch ? this.buttons() : { left: false, right: false, jump: false, slash: false, freeze: false };
     const left = i.isDown('left') || tb.left, right = i.isDown('right') || tb.right;
     const up = i.isDown('up') || i.isDown('action') || this.zHeld || tb.jump;
     const p = this.sim.p, aim = touch && !left && !right && !p.ground;
@@ -178,9 +207,10 @@ class InfernoVault {
       up: i.isDown('up') || (aim && p.vy < 0),
       down: i.isDown('down') || (aim && p.vy >= 0),
       slashPress: this.press.slash || (tb.slash && !this.prev.slash),
+      freezePress: this.press.freeze || (tb.freeze && !this.prev.freeze),
     };
-    this.prev.jump = up; this.prev.slash = tb.slash;
-    this.press.slash = false;
+    this.prev.jump = up; this.prev.slash = tb.slash; this.prev.freeze = tb.freeze;
+    this.press.slash = false; this.press.freeze = false;
     return inp;
   }
 
@@ -189,6 +219,12 @@ class InfernoVault {
     this.t += dt;
     const ev = this.sim.step(this.readInput());
     for (const e of ev) this.onEvent(e);
+    // standing on his own ice bridge (the Cold Crossing badge)
+    const p = this.sim.p;
+    if (!this.onIce && p.ground && this.sim.ice.length) {
+      const i = Math.floor(p.y / TILE + 0.01) * this.m.C + Math.floor(p.x / TILE);
+      if (this.sim.ice.some((e) => e.i === i)) { this.onIce = true; this.s.unlock('bridge'); }
+    }
     this.animate(dt);
     this.stepParts(dt);
     this.updateCamera(dt);
@@ -282,6 +318,49 @@ class InfernoVault {
         if (e.all) { s.unlock('opals'); s.award(150 * L, W / 2, vh * 0.3, { color: '#ffd27a', size: 22 }); s.fx.text(W / 2, vh * 0.3 - 30, 'EVERY OPAL!', { color: '#ffd27a', size: 20, life: 1.4 }); }
         break;
       }
+      case 'freeze': {
+        sfx.freeze(); this.anim.blast = { box: e.box, t: 0.35, up: e.up, dir: e.dir };
+        const b = e.box;
+        for (let i = 0; i < 26; i++) {
+          const x = b[0] + Math.random() * (b[2] - b[0]), y = b[1] + Math.random() * (b[3] - b[1]);
+          this.parts.push({ x, y, vx: (e.up ? 0 : e.dir * 40) + (Math.random() - 0.5) * 30, vy: e.up ? -30 - Math.random() * 40 : (Math.random() - 0.5) * 30, life: 0.4 + Math.random() * 0.4, max: 0.8, size: 1 + Math.random() * 2, color: i % 3 ? '#cfe8f5' : '#ffffff', grav: 0, drag: 2 });
+        }
+        this.capParts();
+        break;
+      }
+      case 'cold': {
+        sfx.cold();
+        const [sx, sy] = this.scr(e.x, e.y);
+        s.fx.text(clamp(sx, 110, W - 110), sy - 10, 'TOO LITTLE ICE TO FREEZE', { color: '#ffb060', size: 14, life: 1 });
+        break;
+      }
+      case 'ice': {
+        sfx.iceUp();
+        for (const i of e.tiles) { const x = (i % this.m.C) * TILE + TILE / 2, y = Math.floor(i / this.m.C) * TILE; this.steam(x, y, 2); this.sparks(x, y, 3, '#cfe8f5', 70); }
+        break;
+      }
+      case 'crack': if (this.near(Math.floor(e.i / this.m.C) * TILE)) sfx.creak(); break;
+      case 'thaw': if (this.near(e.y)) { sfx.thaw(); this.steam(e.x, e.y, 3); } break;
+      case 'statue': {
+        sfx.statue(); s.unlock('statue');
+        const [sx, sy] = this.scr(e.x, e.y);
+        s.fx.text(sx, sy - 40, 'FROZEN!', { color: '#cfe8f5', size: 16, life: 1 });
+        this.ring(e.x, e.y, '#cfe8f5'); this.sparks(e.x, e.y, 10, '#ffffff', 90);
+        break;
+      }
+      case 'shatter': {
+        sfx.shatter(); s.fx.shake(3, 0.14); s.unlock('shatter');
+        const [sx, sy] = this.scr(e.x, e.y);
+        s.award(e.pts * L, sx, sy - 20, { chain: true, color: '#cfe8f5' });
+        s.fx.text(sx, sy - 44, 'SHATTERED!', { color: '#cfe8f5', size: 16, life: 1 });
+        this.sparks(e.x, e.y, 24, '#cfe8f5', 220); this.sparks(e.x, e.y, 10, '#ffffff', 160); this.steam(e.x, e.y, 8);
+        break;
+      }
+      case 'thawGuard': if (this.near(e.y)) { sfx.thaw(); this.steam(e.x, e.y, 10); } break;
+      case 'jet': if (this.near(e.y) && Math.abs(e.y - p.y) < 200) sfx.roar(); break;
+      case 'jetFrozen': case 'lampOut': sfx.iceUp(); this.sparks(e.x, e.y - 8, 10, '#cfe8f5', 90); this.steam(e.x, e.y - 8, 4); break;
+      case 'lampOn': break;
+      case 'fizz': sfx.fizzle(); this.steam(e.x, e.y, 4); break;
       case 'exit': {
         sfx.door();
         if (sizeIdx(p) === 3) s.unlock('frozen');
@@ -307,6 +386,7 @@ class InfernoVault {
     A.land = Math.max(0, A.land - dt * 5);
     A.hurt = Math.max(0, A.hurt - dt * 3);
     A.flash = Math.max(0, A.flash - dt * 2.5);
+    if (A.blast && (A.blast.t -= dt) <= 0) A.blast = null;
     if (p.dead) A.dead += dt;
     for (const g of this.sim.guards) if (g.state === 'patrol') A.walk.set(g.id, (A.walk.get(g.id) || 0) + dt * 6);
     const st = sizeIdx(p);
@@ -364,8 +444,12 @@ class InfernoVault {
     const sy0 = Math.max(0, camY), sh = Math.min(m.h - sy0, vh + 2);
     if (sh > 0) ctx.drawImage(this.mapCv, 0, sy0 * scale, m.w * scale, sh * scale, 0, sy0, m.w, sh);
     const r0 = Math.floor(camY / TILE) - 1, r1 = Math.ceil((camY + vh) / TILE) + 1;
-    drawLavaTiles(ctx, m, r0, r1, t, glow('rgba(255,122,26,0.85)'));
+    drawLavaTiles(ctx, sim.m, r0, r1, t, glow('rgba(255,122,26,0.85)'));
+    if (sim.ice.length) drawIce(ctx, sim.m, sim.ice, t);
     drawDoor(ctx, m.exit, t, glow('rgba(255,150,60,0.6)'), sim.done ? 1 : 0);
+    for (const l of sim.lamps) if (this.near(l.y + 80)) drawLampLight(ctx, l, sim.t);
+    const jg = glow('rgba(255,110,30,0.85)');
+    for (const j of sim.jets) if (this.near(j.y)) drawJet(ctx, j, jetState(j, sim.t), sim.t, jg);
     const og = glow('rgba(255,110,40,0.8)');
     for (const o of sim.opals) if (!o.got && this.near(o.y)) drawOpal(ctx, o.x, o.y, t, og);
     const cg = glow('rgba(143,211,240,0.75)');
@@ -381,7 +465,10 @@ class InfernoVault {
     }
     const sg = glow('rgba(255,154,60,0.85)');
     for (const b of sim.shots) if (!b.dead && this.near(b.y)) drawShot(ctx, b, sg);
+    const lg = glow('rgba(255,190,100,0.8)');
+    for (const l of sim.lamps) if (this.near(l.y)) drawLamp(ctx, l, sim.t, lg);
     this.drawPlayer(ctx);
+    if (this.anim.blast) this.drawBlast(ctx, this.anim.blast);
     this.drawParts(ctx);
     ctx.restore();
     if (alarmed) { ctx.fillStyle = `rgba(255,60,20,${(0.05 + 0.03 * Math.sin(t * 6)).toFixed(3)})`; ctx.fillRect(0, 0, W, vh); }
@@ -406,6 +493,20 @@ class InfernoVault {
     drawIceman(ctx, st, pal, this.s.glowSprite('rgba(255,255,255,0.9)'));
     ctx.globalAlpha = 1;
     drawSlashArc(ctx, p.x, p.y, p.face, st, A.k);
+  }
+
+  /** The cold of a freeze, for a moment: a pale wash over the box it reached. */
+  drawBlast(ctx, b) {
+    const k = b.t / 0.35, [x0, y0, x1, y1] = b.box;
+    ctx.save();
+    const g = b.up ? ctx.createLinearGradient(0, y1, 0, y0) : ctx.createLinearGradient(b.dir > 0 ? x0 : x1, 0, b.dir > 0 ? x1 : x0, 0);
+    g.addColorStop(0, `rgba(230,247,255,${(0.55 * k).toFixed(3)})`); g.addColorStop(1, 'rgba(143,211,240,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    if (b.up) { const cx = (x0 + x1) / 2; ctx.moveTo(cx - 8, y1); ctx.lineTo(x0, y0); ctx.lineTo(x1, y0); ctx.lineTo(cx + 8, y1); }
+    else { const sx = b.dir > 0 ? x0 : x1, ex = b.dir > 0 ? x1 : x0, my = (y0 + y1) / 2 - 6; ctx.moveTo(sx, my - 8); ctx.lineTo(ex, y0); ctx.lineTo(ex, y1); ctx.lineTo(sx, my + 8); }
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
   }
 
   drawParts(ctx) {
@@ -452,6 +553,15 @@ class InfernoVault {
     const got = sim.opals.filter((o) => o.got).length;
     ctx.textAlign = 'right'; ctx.fillStyle = '#ffb060';
     ctx.fillText(`◆ ${got}/${sim.opals.length}`, bx + bwd - 10, y + 15.5);
+    // the freeze: ready, cooling down, or too little ice (keyboards; phones see it on the button)
+    if (sim.canFreeze && !this.touchUI()) {
+      const ready = p.frzCD <= 0 && p.hp > FREEZE_COST, cool = clamp(1 - p.frzCD / FREEZE_CD, 0, 1);
+      ctx.fillStyle = 'rgba(5,5,10,.62)'; roundRect(ctx, x, y + 36, 104, 24, 8); ctx.fill();
+      ctx.fillStyle = 'rgba(143,211,240,.25)'; roundRect(ctx, x, y + 36, 104 * cool, 24, 8); ctx.fill();
+      ctx.font = '800 11px system-ui, sans-serif'; ctx.textAlign = 'left';
+      ctx.fillStyle = ready ? '#cfe8f5' : '#6a6478';
+      ctx.fillText(p.hp > FREEZE_COST ? '❄ FREEZE · F' : '❄ TOO LITTLE ICE', x + 9, y + 48.5);
+    }
     // the way down: the Iceman between the top of the vault and its door
     const top = 60, bot = vh - 28, X = W - 13, span = Math.max(1, m.exit.y - m.spawn.y);
     const at = (wy) => clamp(top + ((wy - m.spawn.y) / span) * (bot - top), top, bot);
@@ -469,7 +579,11 @@ class InfernoVault {
     const lines = L === 1
       ? (touch ? ['◀ ▶ move · JUMP (hold to jump higher) · SLASH', 'Down to the vault door. Lava burns: jump it.'] : ['← → move · ↑ / Space jump · X or J slash (or click)', 'Down to the vault door. Lava burns: jump it.'])
       : L === 2 ? ['A lantern beam melts you, and the guard throws fire.', 'Stand in a dark alcove: you are hidden there.']
-      : ['Slash a guard from BEHIND to put it out.', 'From the front, the blade bounces off its flame.'];
+      : L === 3 ? ['Slash a guard from BEHIND to put it out.', 'From the front, the blade bounces off its flame.']
+      : L === 6 ? [touch ? 'NEW: ❄ FREEZE — face a lava pool and tap it.' : 'NEW: F (or L) to FREEZE — face a lava pool and press it.', 'It turns to ice for a few seconds. Each freeze costs a little ice.']
+      : L === 7 ? ['Flame jets roar up from the floor now and then.', 'Wait for the fire to die down, or freeze the vent.']
+      : L === 8 ? ['Heat lamps melt you while their light is on you.', touch ? 'Hold ▲ (JUMP) and tap ❄ to freeze a lamp above you.' : 'Hold ↑ and press F to freeze a lamp above you.']
+      : ['Freeze a guard into an ice statue: it can\'t see you.', 'One slash from any side shatters it.'];
     ctx.save(); ctx.globalAlpha = a;
     const y = vh - 78;
     ctx.fillStyle = 'rgba(5,5,10,.72)'; roundRect(ctx, 24, y, W - 48, 54, 12); ctx.fill();
@@ -502,6 +616,18 @@ class InfernoVault {
       ctx.strokeStyle = on.jump ? '#ffffff' : '#cfe8f5'; ctx.lineWidth = 4;
       ctx.beginPath(); ctx.moveTo(b.x - b.r * 0.3, b.y + b.r * 0.02); ctx.lineTo(b.x, b.y - b.r * 0.3); ctx.lineTo(b.x + b.r * 0.3, b.y + b.r * 0.02); ctx.stroke();
       ctx.fillStyle = '#e0d8ea'; ctx.font = '800 11px system-ui, sans-serif'; ctx.fillText('JUMP', b.x, b.y + b.r * 0.5); }
+    if (C.freeze) {
+      const b = C.freeze, p = this.sim.p, ready = p.frzCD <= 0 && p.hp > FREEZE_COST;
+      button(b, on.freeze, ready ? 'rgba(143,211,240,.9)' : 'rgba(138,128,152,.45)');
+      if (!ready && p.hp > FREEZE_COST) {                       // cooling down: a sweep around the rim
+        ctx.strokeStyle = 'rgba(143,211,240,.8)'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(b.x, b.y, b.r - 3, -Math.PI / 2, -Math.PI / 2 + TAU * clamp(1 - p.frzCD / FREEZE_CD, 0, 1)); ctx.stroke();
+      }
+      ctx.save(); ctx.translate(b.x, b.y - 4); ctx.strokeStyle = ready ? '#e8f7ff' : '#6a6478'; ctx.lineWidth = 2.6;
+      for (let i = 0; i < 3; i++) { ctx.rotate(Math.PI / 3); ctx.beginPath(); ctx.moveTo(-b.r * 0.38, 0); ctx.lineTo(b.r * 0.38, 0); ctx.stroke(); }
+      ctx.restore();
+      ctx.fillStyle = '#e0d8ea'; ctx.font = '800 10px system-ui, sans-serif'; ctx.fillText('FREEZE', b.x, b.y + b.r * 0.6);
+    }
     { const b = C.slash; button(b, on.slash, 'rgba(207,232,245,.6)');
       ctx.save(); ctx.translate(b.x - 2, b.y - 6); ctx.rotate(-0.75); const r = b.r / 52;
       ctx.beginPath(); ctx.moveTo(-26 * r, -4 * r); ctx.lineTo(30 * r, 0); ctx.lineTo(-24 * r, 6 * r); ctx.closePath();

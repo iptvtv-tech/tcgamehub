@@ -9,9 +9,12 @@
 //
 //  A node is a standing spot: column c on top of floor row r. Moves ("macros") start from rest:
 //  a jump (an optional run-up, how long ↑ is held, a change of direction in the air), a walk
-//  along the floor, or a drop off an edge with steering.
+//  along the floor, a drop off an edge with steering, or (on the freeze levels, m.freeze) a
+//  FREEZE that turns the lava pool in front into an ice bridge, then a walk across it.
+//  The graph is built on the map as drawn (lava as lava); a bot standing on a level with ice
+//  bridges passes the level's live tiles to simMacro.
 // ─────────────────────────────────────────────────────────────
-import { TILE, DT, ROCK, isFloor, tileAt, stepPlayer, bodyH, atExit, playerBox, overlap, inLava, STAGES } from './world.js';
+import { TILE, DT, ROCK, isFloor, tileAt, stepPlayer, bodyH, atExit, playerBox, overlap, inLava, STAGES, freezeBox, lavaToFreeze } from './world.js';
 
 export const EXIT = -1;
 
@@ -26,14 +29,16 @@ export const MACROS = (() => {
   }
   for (const d1 of [-1, 1]) for (const t of [0.05, 0.12, 0.25, 0.45, 0.8]) out.push({ kind: 'walk', d1, t });
   for (const d1 of [-1, 1]) for (const d2 of [-1, 0, 1]) out.push({ kind: 'drop', d1, d2 });
+  for (const d1 of [-1, 1]) for (const t of [0.35, 0.7, 1.05, 1.5]) out.push({ kind: 'freeze', d1, t });
   return out;
 })();
-const WEIGHT = { jump: 1, walk: 0.25, drop: 0.6 };
+const WEIGHT = { jump: 1, walk: 0.25, drop: 0.6, freeze: 1.6 };
 
 /** The input a macro gives on its frame i (airborne: he has left the ground at some point). */
 export function macroInput(mac, i, p, airborne) {
   const landed = airborne && p.ground;
   if (mac.kind === 'walk') return { dir: i * DT < mac.t && !airborne ? mac.d1 : 0, jumpPress: false, jumpHeld: false };
+  if (mac.kind === 'freeze') return { dir: i * DT < mac.t && !airborne ? mac.d1 : 0, jumpPress: false, jumpHeld: false, freezePress: i === 0 };
   if (mac.kind === 'drop') return { dir: landed ? 0 : airborne && p.air > 0.1 ? mac.d2 : mac.d1, jumpPress: false, jumpHeld: false };
   const i0 = Math.round(mac.pre / DT), held = Math.round(mac.hold / DT), air = (i - i0) * DT;
   return {
@@ -52,9 +57,20 @@ export function standable(m, c, r, k) {
 export const nodeId = (m, c, r) => r * m.C + c;
 export const nodeOf = (m, p) => nodeId(m, Math.floor(p.x / TILE), Math.round(p.y / TILE));
 
-/** Fly one macro from player state p0 (copied). Returns { exit, node, t, p, items } or null (lava, or never settles). */
-export function simMacro(m, p0, mac, items = null) {
+/**
+ * Fly one macro from player state p0 (copied). Returns { exit, node, t, p, items } or null (lava, or never settles).
+ * tiles: the level's live tiles (ice bridges), if not the map as drawn. A freeze macro freezes first (null if
+ * there is no lava in reach to freeze).
+ */
+export function simMacro(m, p0, mac, items = null, tiles = null) {
   const p = { ...p0, atk: null, kbT: 0, buffer: 0, coyote: p0.ground ? 0.09 : 0 };
+  if (tiles) m = { ...m, t: tiles };
+  if (mac.kind === 'freeze') {
+    const t = m.t.slice(), ice = lavaToFreeze(m, t, freezeBox(p, mac.d1, false), p);
+    if (!ice.length) return null;
+    for (const i of ice) t[i] = ROCK;
+    m = { ...m, t }; p.face = mac.d1;
+  }
   let airborne = false;
   const got = items ? new Set() : null;
   for (let i = 0; i < 420; i++) {
@@ -63,7 +79,7 @@ export function simMacro(m, p0, mac, items = null) {
     if (inLava(m, p)) return null;
     if (got) { const b = playerBox(p); items.forEach((q, j) => { if (overlap(b, [q.x - 10, q.y - 10, q.x + 10, q.y + 10])) got.add(j); }); }
     if (p.ground && atExit(p, m)) return { exit: true, node: EXIT, t: i * DT, p, items: got };
-    const moved = mac.kind === 'walk' ? i * DT >= mac.t || airborne : airborne;
+    const moved = mac.kind === 'walk' || mac.kind === 'freeze' ? i * DT >= mac.t || airborne : airborne;
     if (moved && p.ground && Math.abs(p.vx) < 1) return { exit: false, node: nodeOf(m, p), t: i * DT, p, items: got };
   }
   return null;
@@ -75,7 +91,7 @@ export const itemsOf = (m) => [...m.shards, ...m.opals];
 /** The graph for one body size: every standing spot, the moves between them, each spot's distance (in moves) to the door. */
 const graphs = new Map();
 export function graphFor(m, k) {
-  const key = `${m.name}|${k}`;
+  const key = `${m.name}|${k}|${m.freeze ? 'F' : ''}`;
   if (graphs.has(key)) return graphs.get(key);
   const nodes = new Map(), items = itemsOf(m);
   for (let r = 0; r < m.R; r++) for (let c = 0; c < m.C; c++) if (standable(m, c, r, k)) nodes.set(nodeId(m, c, r), { c, r, edges: [], items: new Set() });
@@ -83,6 +99,7 @@ export function graphFor(m, k) {
     const p0 = { x: n.c * TILE + TILE / 2, y: n.r * TILE, vx: 0, vy: 0, face: 1, ground: true, coyote: 0, buffer: 0, jumpHeld: false, jumped: false, air: 0, kbT: 0, k, atk: null };
     const best = new Map();
     for (const mac of MACROS) {
+      if (mac.kind === 'freeze' && !m.freeze) continue;
       const res = simMacro(m, p0, mac, items);
       if (!res) continue;
       res.items.forEach((j) => n.items.add(j));
@@ -129,6 +146,7 @@ export function bestMove(m, p, filter = null) {
   let best = null;
   for (const mac of MACROS) {
     if (filter && !filter(mac)) continue;
+    if (mac.kind === 'freeze' && !m.freeze) continue;
     const res = simMacro(m, p, mac);
     if (!res) continue;
     const d = res.exit ? -1 : g.dist.get(res.node) ?? Infinity;

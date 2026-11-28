@@ -9,10 +9,12 @@
 //    • every frost shard and fire opal can be reached at full size
 //    • every fire guard has a real patrol (two tiles at least), and every floor with a guard
 //      has a shadow alcove to hide in, where a full-size Iceman is hidden from the beams
-//    • no guard can see the start, so the first seconds are always safe
+//    • no guard can see the start, and no heat lamp ever lights it, so the first seconds are safe
+//    • on the freeze levels (6–10) the routes may use the FREEZE (an ice bridge over a lava pool);
+//      the first of them, The Cold Bridge, can't be crossed without it (it teaches the freeze)
 //  Exit code 1 if any level fails.
 // ─────────────────────────────────────────────────────────────
-import { TILE, STAGES, SHADOW, tileAt, isFloor, isHidden, sees, bodyH, LAVA } from './world.js';
+import { TILE, STAGES, SHADOW, tileAt, isFloor, isHidden, sees, bodyH, LAVA, litByLamp, LAMP_P } from './world.js';
 import { ALL_MAPS } from './levels.js';
 import { graphFor, reachableFrom, nodeId, standable, itemsOf } from './plan.js';
 
@@ -42,6 +44,16 @@ for (const m of ALL_MAPS()) {
       if (sees(m, { x, y: g.y, face, state: 'patrol' }, p)) fail(m, `the guard at col ${g.c}, row ${g.r} can see the start`);
     }
   }
+  // heat lamps never light the start
+  for (const l of m.lamps) {
+    for (let t = 0; t < LAMP_P; t += 0.05) if (litByLamp(m, { ...l, out: 0 }, t, { x: m.spawn.x, y: m.spawn.y, k: 1, dead: false })) { fail(m, `the heat lamp at col ${l.c} lights the start`); break; }
+  }
+  // the first freeze level needs the freeze
+  if (m.freeze && m === ALL_MAPS().find((q) => q.freeze)) {
+    const plain = { ...m, name: `${m.name} (no freeze)`, freeze: false };
+    const g = graphFor(plain, 1), { exit } = reachableFrom(plain, g, nodeId(m, sc, sr));
+    if (exit) fail(m, 'it can be crossed without the freeze, so it does not teach it');
+  }
   // the route
   const notes = [];
   for (const st of STAGES) {
@@ -56,7 +68,7 @@ for (const m of ALL_MAPS()) {
     }
     notes.push(`${st.name} ${g.dist.get(start).toFixed(1)}`);
   }
-  console.log(`  ${m.name}: ${m.R} rows, ${m.guards.length} guards, ${m.shards.length} shards, ${m.opals.length} opals · start → door (moves): ${notes.join(', ')}`);
+  console.log(`  ${m.name}: ${m.R} rows, ${m.guards.length} guards${m.jets.length ? `, ${m.jets.length} jets` : ''}${m.lamps.length ? `, ${m.lamps.length} lamps` : ''}, ${m.shards.length} shards, ${m.opals.length} opals · start → door (moves): ${notes.join(', ')}`);
 }
 
 if (bad) { console.log(`✗ inferno-vault level checker: ${bad} problem(s)`); process.exit(1); }
