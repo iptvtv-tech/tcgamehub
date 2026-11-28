@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://tcarcade.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="robots" content="noindex">
+<!-- script-src lists tcarcade.com because after the move the old address redirects every file
+     there (the worker keeps carry-out.js here, but a plain redirect must still work) -->
+<!-- the new address checks that progress came from here; send at least our address along -->
+<meta name="referrer" content="origin">
+<link rel="canonical" href="https://tcarcade.com/">
+<title>Moving your progress · TC Arcade</title>
+<style>
+  body{margin:0;min-height:100vh;display:grid;place-items:center;background:#041019;color:#e0f2fe;font:16px/1.5 system-ui,sans-serif;text-align:center;padding:16px}
+  h1{font-size:2.2em;margin:0 0 .2em;background:linear-gradient(90deg,#a5f3fc,#38bdf8,#e0f2fe);-webkit-background-clip:text;background-clip:text;color:transparent}
+  p{max-width:34em;margin:.4em auto;color:#bae6fd}
+  a{display:inline-block;margin-top:18px;padding:.7em 1.6em;border-radius:999px;background:linear-gradient(135deg,#38bdf8,#0ea5e9,#22d3ee);color:#041019;font-weight:700;text-decoration:none}
+</style></head>
+<!-- Served on the OLD address (tcgamehub.win) after the move: by sw.js, or at /carry/ by the
+     Cloudflare worker (tools/cloudflare/old-domain-worker.js). Paths are from the site root
+     because sw.js shows this page in place of any page. -->
+<body><main><h1>TC Arcade has moved</h1>
+<p>We're now at <b>tcarcade.com</b>. Taking your saved progress with you…</p>
+<a href="https://tcarcade.com/">▶ Go to tcarcade.com</a></main>
+<script src="/assets/js/carry-out.js"></script></body></html>

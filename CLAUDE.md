@@ -45,6 +45,21 @@ publisher (until Nov 2026 it was "Quick Play Arcade" by "TC Game Hub"). Supabase
 - Phone header is a top bar with a ☰ menu (`assets/js/site.js`); nav links live in the
   sheet under 600px.
 
+## Moving to tcarcade.com (Nov 2026)
+
+The site moves from tcgamehub.win to tcarcade.com (Cloudflare zone ready, DNS only, not live
+yet). Saved progress lives in each browser under the address it was made on, so it travels
+in the link: `https://tcarcade.com/<page>#carry=<data>`. Keep these working until mid-2027:
+- `assets/js/theme-boot.js` (first script on every page) merges a carry in — only ever adds,
+  keeps the earliest `crownAt`; a carry without a tcgamehub.win referrer waits for a yes
+  (`site.js` moveNotice, which also shows the "moving" / "Bring my progress" notes).
+- `carry/index.html` + `assets/js/carry-out.js` pack the progress on the old address. `sw.js`
+  shows the carry page when a page on the old address redirects to tcarcade.com.
+- After the move, tcgamehub.win is a Cloudflare 301 to the same page, except `/carry/`,
+  `/assets/js/carry-out.js` and `/sw.js`, served by `tools/cloudflare/old-domain-worker.js`.
+- Tests: `tools/check-carry.mjs` (in test-all) and `tools/e2e-carry.mjs` (real Chromium + service
+  worker, both addresses on a local HTTPS server; needs port 443, run by hand).
+
 ## Adding a game
 
 Follow `docs/ADDING_A_GAME.md`: copy `games/_template`, register it in

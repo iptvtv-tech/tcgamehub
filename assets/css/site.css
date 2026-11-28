@@ -71,6 +71,11 @@ kbd { background: #2c2c5a; border: 1px solid #45458a; border-bottom-width: 2px; 
 .logo img { width: 34px; height: 34px; }
 .logo [data-site-name] { text-transform: uppercase; letter-spacing: 2px; font-weight: 800; }
 .logo [data-site-name] b { color: var(--cyan); text-shadow: 0 0 12px rgba(34, 211, 238, .55); letter-spacing: .5px; font-weight: 900; margin-right: 2px; }
+/* moving day note under the header (site.js moveNotice) */
+.move-bar { background: linear-gradient(90deg, #052033, #0c2a44); border-bottom: 1px solid #38bdf855; color: #e0f2fe; font-size: .92em; }
+.move-bar .wrap { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 16px; }
+.move-bar .wrap > span { flex: 1 1 260px; }
+.move-bar .btn { padding: .35em .9em; font-size: .9em; }
 .site-nav { margin-left: auto; display: flex; gap: 4px; }
 .site-nav a { color: var(--muted); text-decoration: none; padding: .45em .8em; border-radius: 999px; font-weight: 600; }
 .site-nav a:hover, .site-nav a[aria-current] { color: var(--text); background: var(--card2); }

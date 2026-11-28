@@ -103,6 +103,52 @@ export function siteChrome() {
     const root = new URL('../../', import.meta.url); // assets/js/ → site root
     navigator.serviceWorker.register(new URL('sw.js', root)).catch(() => {});
   }
+  moveNotice();
+}
+
+// ── Moving day: tcgamehub.win → tcarcade.com (Nov 2026) ─────
+// Saved progress stays with the address it was made on; theme-boot.js brings it across in the
+// link (#carry=…). This adds the three notes players see around the move.
+const OLD_HOST = 'tcgamehub.win', NEW_HOST = 'tcarcade.com';
+const HINT_UNTIL = Date.UTC(2027, 5, 1);   // stop offering "bring your progress" after May 2027
+function moveBar(html, cls = '') {
+  const bar = document.createElement('div');
+  bar.className = `move-bar ${cls}`.trim();
+  bar.setAttribute('role', 'status');
+  bar.innerHTML = `<div class="wrap">${html}</div>`;
+  (document.querySelector('.site-header') || document.body.firstElementChild)?.after(bar);
+  return bar;
+}
+function moveNotice() {
+  const carry = window.ArcadeCarry;
+  // 1. A carry link that didn't come from the old address: ask before merging it in.
+  let pending = null;
+  try { pending = JSON.parse(sessionStorage.getItem(carry?.PENDING) || 'null'); } catch { pending = null; }
+  if (carry && pending) {
+    const bar = moveBar(`<span>🧊 Bring your saved progress from <b>${OLD_HOST}</b> into this browser?</span>
+      <button type="button" class="btn primary" data-yes>Bring it</button> <button type="button" class="btn" data-no>No thanks</button>`, 'ask');
+    const done = () => { try { sessionStorage.removeItem(carry.PENDING); } catch { /* ignore */ } };
+    bar.querySelector('[data-yes]').addEventListener('click', () => { try { carry.apply(pending, localStorage); } catch { /* ignore */ } done(); location.reload(); });
+    bar.querySelector('[data-no]').addEventListener('click', () => { done(); bar.remove(); });
+    return;
+  }
+  // 2. On the old address before the move: say where we're going.
+  if (location.hostname === OLD_HOST) {
+    let off = false;
+    try { off = sessionStorage.getItem('arcade:move-seen') === '1'; } catch { /* ignore */ }
+    if (off) return;
+    const bar = moveBar(`<span>🧊 TC Arcade is moving to <b>${NEW_HOST}</b>. Your progress comes with you — nothing to do.</span>
+      <button type="button" class="btn" data-no aria-label="Hide this note">OK</button>`);
+    bar.querySelector('[data-no]').addEventListener('click', () => { try { sessionStorage.setItem('arcade:move-seen', '1'); } catch { /* ignore */ } bar.remove(); });
+    return;
+  }
+  // 3. On the new address, home page: anyone whose progress hasn't come across yet can fetch it.
+  const home = /^\/(index\.html)?$/.test(location.pathname);
+  if (location.hostname !== NEW_HOST || !home || Date.now() > HINT_UNTIL) return;
+  try { if (localStorage.getItem('arcade:carried') || localStorage.getItem('arcade:carry-hint-off')) return; } catch { return; }
+  const bar = moveBar(`<span>🧊 Played at <b>${OLD_HOST}</b> before? Your tokens, crystals and best scores can come too.</span>
+    <a class="btn primary" href="https://${OLD_HOST}/carry/">Bring my progress</a> <button type="button" class="btn" data-no>No thanks</button>`);
+  bar.querySelector('[data-no]').addEventListener('click', () => { try { localStorage.setItem('arcade:carry-hint-off', '1'); } catch { /* ignore */ } bar.remove(); });
 }
 
 /** WhatsApp share link (opens the app on phones, WhatsApp Web on computers). */
