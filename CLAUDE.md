@@ -42,6 +42,9 @@ publisher (until Nov 2026 it was "Quick Play Arcade" by "TC Game Hub"). Supabase
   150/day earn cap; lifetime earned and owned items only ever grow (max-merge via
   Legend code). Spent at `/shop/`.
 - Retro Vault (`/retro-vault/`) hosts legal homebrew only and posts no scores.
+- The Iceman (hero of Magma Escape and Avalanche Run) is the site's mascot. `assets/img/iceman.png`
+  and the home share card `assets/img/og.png` are drawn from the game's own art by
+  `node tools/brand/render.mjs` (re-run it after changing his art or the site address).
 - Phone header is a top bar with a ☰ menu (`assets/js/site.js`); nav links live in the
   sheet under 600px.
 

@@ -189,15 +189,15 @@ kbd { background: #2c2c5a; border: 1px solid #45458a; border-bottom-width: 2px; 
 .prose p, .prose li { color: #d6d5f0; }
 
 /* ── Legends ─────────────────────────────────────────────── */
-.badge-group.legendary h3 { color: #fbbf24; }
-.badge.legendary { border-color: #3b2a06; }
-.badge.legendary.got { background: linear-gradient(135deg, #3b2a06, #1a1a3d 60%); border-color: #fbbf24; box-shadow: 0 0 18px -6px #fbbf24; animation: goldGlow 2.4s ease-in-out infinite alternate; }
+.badge-group.legendary h3 { color: #7dd3fc; }
+.badge.legendary { border-color: #082f49; }
+.badge.legendary.got { background: linear-gradient(135deg, #082f49, #1a1a3d 60%); border-color: #7dd3fc; box-shadow: 0 0 18px -6px #7dd3fc; animation: goldGlow 2.4s ease-in-out infinite alternate; }
 .badge.secret .ico { filter: grayscale(1) opacity(.25); }
-@keyframes goldGlow { to { box-shadow: 0 0 26px -4px #fbbf24; } }
-.legend-banner { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 14px 18px; border-radius: var(--radius); background: linear-gradient(135deg, #3b2a06, #1a1a3d 70%); border: 1px solid #fbbf24; margin-bottom: 18px; }
-.legend-banner b { color: #fde68a; }
-.legend-banner .btn { margin-left: auto; background: linear-gradient(135deg, #fde68a, #f59e0b); color: #1c1003; border: 0; }
-.site-nav a.legend-link { color: #fbbf24; }
+@keyframes goldGlow { to { box-shadow: 0 0 26px -4px #7dd3fc; } }
+.legend-banner { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 14px 18px; border-radius: var(--radius); background: linear-gradient(135deg, #082f49, #1a1a3d 70%); border: 1px solid #7dd3fc; margin-bottom: 18px; }
+.legend-banner b { color: #e0f2fe; }
+.legend-banner .btn { margin-left: auto; background: linear-gradient(135deg, #e0f2fe, #0ea5e9); color: #041019; border: 0; }
+.site-nav a.legend-link { color: #7dd3fc; }
 @media (prefers-reduced-motion: reduce) { .badge.legendary.got { animation: none; } }
 
 /* ── Zones & difficulty ─────────────────────────────────────── */
@@ -227,7 +227,7 @@ kbd { background: #2c2c5a; border: 1px solid #45458a; border-bottom-width: 2px; 
   .zone-body { padding: 4px 10px 12px; }
 }
 .zone-head .crown { font-size: .85em; font-weight: 700; padding: .2em .8em; border-radius: 999px; border: 1px dashed #a16207; color: #d6a84a; white-space: nowrap; }
-.zone-head .crown.won { border-style: solid; background: #3b2a06; color: var(--gold); }
+.zone-head .crown.won { border-style: solid; background: #082f49; color: #7dd3fc; }
 .tier { display: inline-flex; align-items: center; gap: 6px; }
 .tier i { display: inline-block; width: 56px; height: 6px; border-radius: 3px; background: #26264a; overflow: hidden; }
 .tier u { display: block; height: 100%; background: var(--t); border-radius: 3px; }
@@ -235,7 +235,7 @@ kbd { background: #2c2c5a; border: 1px solid #45458a; border-bottom-width: 2px; 
 .game-card .thumb { position: relative; }
 .game-card .num { position: absolute; top: 10px; left: 12px; font-weight: 800; font-size: .85em; color: var(--muted); background: rgba(0,0,0,.35); padding: .1em .55em; border-radius: 999px; }
 .game-card.legend-slot { border-color: #a16207; }
-.pill.legend-pill { background: #3b2a06; border-color: #a16207; color: var(--gold); }
+.pill.legend-pill { background: #082f49; border-color: #0369a1; color: #7dd3fc; }
 
 .zone-lock { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: -4px 0 16px; padding: 12px 16px; border-radius: 14px; border: 1px dashed #be185d; background: rgba(190,24,93,.1); }
 .lock-meter { display: inline-block; width: 120px; height: 8px; border-radius: 4px; background: #26264a; overflow: hidden; }
@@ -246,30 +246,31 @@ kbd { background: #2c2c5a; border: 1px solid #45458a; border-bottom-width: 2px; 
 .game-card .played-badge { position: absolute; top: 12px; left: 12px; z-index: 2; background: #052e16; border: 1px solid #16a34a; color: #86efac; font-weight: 800; border-radius: 999px; padding: .25em .65em; font-size: .8em; line-height: 1; }
 .game-card.zone-locked .play-cta { display: none; }
 
-a.legend-banner.hall-door { text-decoration: none; color: var(--text); margin: 0 0 18px; border-color: #a16207; background: linear-gradient(135deg, #1f1a0a, #14142e 70%); transition: border-color .2s, transform .2s; }
-a.legend-banner.hall-door:hover { border-color: #fbbf24; transform: translateY(-2px); }
-.site-nav a.legend-link:not(.is-legend) { color: #d6b25e; }
+a.legend-banner.hall-door { text-decoration: none; color: var(--text); margin: 0 0 18px; border-color: #0369a1; background: linear-gradient(135deg, #071a2a, #14142e 70%); transition: border-color .2s, transform .2s; }
+a.legend-banner.hall-door:hover { border-color: #7dd3fc; transform: translateY(-2px); }
+.site-nav a.legend-link:not(.is-legend) { color: #93c5dd; }
 .daily-streak { color: #fdba74; font-size: .95em; } .daily-streak b { color: #fb923c; }
 
 /* ── Golden Crown extras ─────────────────────────────────── */
-.crown-mark { font-size: .85em; margin-left: .2em; filter: drop-shadow(0 0 4px rgba(251,191,36,.6)); }
+.crown-mark { font-size: .85em; margin-left: .2em; filter: drop-shadow(0 0 4px rgba(56,189,248,.6)); }
 .crown-mark sup { font-size: .7em; color: #6ee7b7; font-weight: 800; margin-left: 1px; }
 .egg-svg { display: inline-block; vertical-align: middle; }
 .zone-head .crown .egg-svg { vertical-align: -3px; }
 .legend-banner .banner-eggs { display: flex; gap: 2px; flex: none; }
 .legend-banner .banner-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
 
-/* The golden arcade — a theme for holders of the Golden Crown (switch it in the Crown Room) */
+/* The frozen arcade — the Frost Crown holders' theme (switch it in the Crown Room). The attribute is
+   still called data-gold-theme so the setting saved by players carries over. */
 :root[data-gold-theme] {
-  --bg: #120d04; --bg2: #1d1507; --card: #2a1e09; --card2: #3a2a0d; --line: #6b4e14;
-  --text: #fff8e7; --muted: #d4bd8a; --cyan: #fcd34d; --purple: #f59e0b; --pink: #fbbf24;
+  --bg: #041019; --bg2: #081c2b; --card: #0c2738; --card2: #12344a; --line: #2b5a78;
+  --text: #f0fbff; --muted: #a8cfe3; --cyan: #a5f3fc; --purple: #c4b5fd; --pink: #e0f2fe;
 }
 :root[data-gold-theme] body {
-  background: radial-gradient(1200px 600px at 10% -10%, #6b460a 0%, transparent 60%),
-              radial-gradient(900px 500px at 110% 10%, #4a3308 0%, transparent 55%), var(--bg);
+  background: radial-gradient(1200px 600px at 10% -10%, #0e4a6b 0%, transparent 60%),
+              radial-gradient(900px 500px at 110% 10%, #1e3a5f 0%, transparent 55%), var(--bg);
   background-attachment: fixed;
 }
-:root[data-gold-theme] .site-header, :root[data-gold-theme] .hud { background: #120d04e6; border-color: #6b4e1455; }
+:root[data-gold-theme] .site-header, :root[data-gold-theme] .hud { background: #041019e6; border-color: #2b5a7855; }
 .crown-svg.spin { animation: crown-turn 6s ease-in-out infinite; }
 @keyframes crown-turn { 0%, 100% { transform: rotateY(-25deg); } 50% { transform: rotateY(25deg) translateY(-6px); } }
 @media (prefers-reduced-motion: reduce) { .crown-svg.spin { animation: none; } }
@@ -442,7 +443,7 @@ a.legend-banner.hall-door:hover { border-color: #fbbf24; transform: translateY(-
 
 /* ── /badges/ ───────────────────────────────────────────────── */
 .badges-page .badge-group { margin: 22px 0; }
-.badges-page .badge-group.legendary .section-head h2 { color: var(--gold); }
+.badges-page .badge-group.legendary .section-head h2 { color: #7dd3fc; }
 .badges-page .section-head .done { color: #86efac; }
 .badge-summary { display: flex; gap: 14px; align-items: center; margin: 0 0 10px; }
 body.unearned-only .badge.got { display: none; }
@@ -451,3 +452,7 @@ body.unearned-only .badge.got { display: none; }
 .shop-card .pack-ico { font-size: 2em; line-height: 1; }
 .shop-card .btn.small { font-size: .85em; padding: .35em .8em; }
 .flair { font-size: .9em; margin-left: .15em; }
+
+/* The Iceman, TC Arcade's mascot (About page) */
+.mascot { float: right; width: 150px; height: auto; margin: 0 0 12px 20px; filter: drop-shadow(0 6px 22px rgba(56, 189, 248, .4)); }
+@media (max-width: 600px) { .mascot { float: none; display: block; margin: 0 auto 12px; width: 130px; } }

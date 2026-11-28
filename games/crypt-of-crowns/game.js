@@ -9,7 +9,7 @@
 //  crypt can be beaten without a scratch.
 //
 //  Finish all 15 without losing a single life, starting from crypt 1, and the
-//  secret 16th crypt opens… the Crown Vault. That wins the Zone 3 crown.
+//  secret 16th crypt opens… the Crown Vault. That wins the Zone 3 Frost Crystal.
 // ─────────────────────────────────────────────────────────────
 import { runGame, roundRect, clamp } from '../../assets/js/engine.js';
 import { HDRaycaster } from '../../assets/js/raycast-hd.js';

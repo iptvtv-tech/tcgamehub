@@ -5,6 +5,7 @@
 //  This is a "Legend game" — see assets/js/legends.js.
 // ─────────────────────────────────────────────────────────────
 import { runGame, roundRect, progressBar } from '../../assets/js/engine.js';
+import { drawCrystal, preloadCrystal } from '../../assets/js/eggs.js';
 import { LEVELS, giftShop } from './levels.js';
 import { TICK, PLAYER_EVERY, COLS, ROWS, DIRS, parseLevel, walkable, isHide, watcherAt, laserOn, vision, caught } from './sim.js';
 
@@ -14,7 +15,7 @@ const cy = (y) => OY + y * T + T / 2;
 // label sizes follow the tile, so they stay readable when a phone shows the board at ~80%
 const FS = { exit: Math.round(T * 0.36), small: Math.round(T * 0.44), mark: Math.round(T * 0.6) };   // 12 · 14 · 19 px at T = 32
 const S = (b) => atob(b); // a few secrets are stored scrambled so a quick peek at the code doesn't spoil them
-const EGG_TEXT = S('VEMgTEVHRU5EUw=='); // engraved around the egg
+const EGG_TEXT = S('VEMgTEVHRU5EUw=='); // engraved on the ring around the crystal
 
 const levelDef = (level) => (level === 5 || level === 10 ? giftShop(level) : LEVELS[level]);
 
@@ -242,6 +243,7 @@ class VaultJob {
     s.sound.noise({ dur: 0.6, vol: 0.35, freq: 6000, type: 'highpass' }); // glass
     s.sound.play('powerup');
     s.legendFound();
+    preloadCrystal(1);   // the Vault Crystal's picture, ready before it rises out of the case
   }
 
   updateFinale(dt) {
@@ -261,7 +263,7 @@ class VaultJob {
     if (f.t > 2.2 && f.sparkT <= 0) {
       f.sparkT = 0.12;
       const a = Math.random() * Math.PI * 2, r = 70 + Math.random() * 50;
-      s.fx.burst(W / 2 + Math.cos(a) * r, H * 0.3 + Math.sin(a) * r * 1.2, { colors: ['#fde68a', '#fff'], count: 2, speed: 30, life: 0.8, size: 3 });
+      s.fx.burst(W / 2 + Math.cos(a) * r, H * 0.3 + Math.sin(a) * r * 1.2, { colors: ['#bae6fd', '#fff'], count: 2, speed: 30, life: 0.8, size: 3 });
     }
   }
 
@@ -473,8 +475,8 @@ class VaultJob {
     ctx.save(); ctx.translate(x, y); ctx.scale(scale, scale);
     ctx.fillStyle = '#3f2d0c'; roundRect(ctx, -34, 18, 68, 30, 6); ctx.fill();          // pedestal
     ctx.fillStyle = '#7a6118'; ctx.fillRect(-34, 18, 68, 5);
-    ctx.save(); ctx.globalAlpha = 0.5 + Math.sin(t * 3) * 0.2;                          // golden glow inside
-    const g = ctx.createRadialGradient(0, -4, 2, 0, -4, 34); g.addColorStop(0, '#fde68a'); g.addColorStop(1, 'rgba(251,191,36,0)');
+    ctx.save(); ctx.globalAlpha = 0.5 + Math.sin(t * 3) * 0.2;                          // icy glow inside
+    const g = ctx.createRadialGradient(0, -4, 2, 0, -4, 34); g.addColorStop(0, '#e0f2fe'); g.addColorStop(1, 'rgba(56,189,248,0)');
     ctx.fillStyle = g; ctx.fillRect(-30, -40, 60, 58); ctx.restore();
     ctx.strokeStyle = 'rgba(224,242,254,.85)'; ctx.lineWidth = 3; ctx.fillStyle = 'rgba(186,230,253,.12)';
     roundRect(ctx, -28, -34, 56, 52, 4); ctx.fill(); ctx.stroke();                     // glass
@@ -491,84 +493,71 @@ class VaultJob {
     // spotlight
     ctx.save(); ctx.globalAlpha = Math.min(1, k) * 0.35;
     const sg = ctx.createLinearGradient(0, 0, 0, H);
-    sg.addColorStop(0, 'rgba(254,243,199,.9)'); sg.addColorStop(1, 'rgba(254,243,199,0)');
+    sg.addColorStop(0, 'rgba(224,242,254,.9)'); sg.addColorStop(1, 'rgba(224,242,254,0)');
     ctx.fillStyle = sg; ctx.beginPath(); ctx.moveTo(W / 2 - 30, 0); ctx.lineTo(W / 2 + 30, 0); ctx.lineTo(W / 2 + 120, H); ctx.lineTo(W / 2 - 120, H); ctx.fill();
     ctx.restore();
     const open = Math.min(1, Math.max(0, (k - 0.4) / 0.8));
     this.drawCase(ctx, W / 2, caseY, 1.25, open, t);
-    // the egg rises out of the case
+    // the crystal rises out of the case
     const rise = Math.min(1, Math.max(0, (k - 1.1) / 2.2));
     const e = 1 - Math.pow(1 - rise, 3);
-    // once the Legend panel appears, the egg floats up out of its way
+    // once the Legend panel appears, the crystal floats up out of its way
     const up = Math.min(1, Math.max(0, (k - 7.3) / 0.8)), ue = up * up * (3 - 2 * up);
     const ey = caseY - 10 + (eggY - caseY + 10) * e + (TOP + 66 - eggY) * ue;
     const size = (0.32 + 0.68 * e) * (1 - 0.35 * ue);
     if (k > 1.1) {
       if (rise > 0.6) this.drawRays(ctx, W / 2, ey, t, (rise - 0.6) / 0.4);
-      drawGoldenEgg(ctx, W / 2, ey, 66 * size, t * 0.8);
+      drawVaultCrystal(ctx, W / 2, ey, 66 * size, t * 0.8);
     }
     if (k > 3.4 && ue < 1) {
       ctx.save(); ctx.globalAlpha = Math.min(1, (k - 3.4) / 0.8) * (1 - ue);
-      ctx.textAlign = 'center'; ctx.font = '800 26px system-ui'; ctx.fillStyle = '#fde68a';
-      ctx.shadowColor = '#f59e0b'; ctx.shadowBlur = 16;
-      ctx.fillText(S('VEhFIEdPTERFTiBFR0c='), W / 2, eggY + 66 * 1.05 + 34);
+      ctx.textAlign = 'center'; ctx.font = '800 26px system-ui'; ctx.fillStyle = '#e0f2fe';
+      ctx.shadowColor = '#38bdf8'; ctx.shadowBlur = 16;
+      ctx.fillText(S('VEhFIFZBVUxUIENSWVNUQUw='), W / 2, eggY + 66 * 1.05 + 34);
       ctx.restore();
     }
   }
 
   drawRays(ctx, x, y, t, a) {
     ctx.save(); ctx.translate(x, y); ctx.rotate(t * 0.25); ctx.globalAlpha = 0.22 * a;
-    ctx.fillStyle = '#fde68a';
+    ctx.fillStyle = '#e0f2fe';
     for (let i = 0; i < 12; i++) { ctx.rotate(Math.PI / 6); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-18, -260); ctx.lineTo(18, -260); ctx.fill(); }
     ctx.restore();
   }
 }
 
-/** A frost crystal with the initials engraved in a band that spins around it. */
-function drawGoldenEgg(ctx, x, y, rx, rot) {
-  const ryT = rx * 1.32, ryB = rx * 1.05;
-  const eggPath = () => {
-    ctx.beginPath();
-    ctx.ellipse(x, y, rx, ryB, 0, 0, Math.PI);
-    ctx.ellipse(x, y, rx, ryT, 0, Math.PI, Math.PI * 2);
-    ctx.closePath();
-  };
-  ctx.save();
-  ctx.shadowColor = '#fbbf24'; ctx.shadowBlur = 40;
-  eggPath();
-  const g = ctx.createRadialGradient(x - rx * 0.35, y - ryT * 0.35, rx * 0.08, x, y, rx * 1.55);
-  g.addColorStop(0, '#fffbe6'); g.addColorStop(0.22, '#fde68a'); g.addColorStop(0.55, '#fbbf24'); g.addColorStop(0.85, '#b45309'); g.addColorStop(1, '#78350f');
-  ctx.fillStyle = g; ctx.fill();
-  ctx.shadowBlur = 0;
-  ctx.clip();
-  // engraved band
-  const bandY = y + ryB * 0.04;
-  ctx.strokeStyle = 'rgba(120,53,15,.8)'; ctx.lineWidth = Math.max(1, rx * 0.035);
-  for (const off of [-rx * 0.26, rx * 0.26]) { ctx.beginPath(); ctx.ellipse(x, bandY + off, rx, rx * 0.1, 0, 0, Math.PI); ctx.stroke(); }
-  // the engraving, travelling around the egg (written twice so the whole phrase is always in view)
-  const items = [...`${EGG_TEXT} ✦ ${EGG_TEXT} ✦ `];
-  const n = items.length;
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  for (let i = 0; i < n; i++) {
-    const a = rot + (i / n) * Math.PI * 2;
-    const depth = Math.cos(a);
-    if (depth <= 0.04 || items[i] === ' ') continue;
-    const lx = x + Math.sin(a) * rx * 0.93;
+/** The Vault Crystal (the zone's Frost Crystal, as on the badges) with the initials engraved on a
+ *  ring of ice that turns around it. rx = the half-width the old golden egg had, so the scene keeps its size. */
+function drawVaultCrystal(ctx, x, y, rx, rot) {
+  const h = rx * 2.5, w = h * 100 / 124;
+  const ringY = y + h * 0.06, R = w * 0.78, r = w * 0.16;
+  const items = [...`${EGG_TEXT} ✦ ${EGG_TEXT} ✦ `], n = items.length;
+  const ring = (front) => {
     ctx.save();
-    ctx.translate(lx, bandY);
-    ctx.scale(depth, 1);
-    ctx.globalAlpha = 0.35 + 0.65 * depth;
-    const fs = items[i] === '✦' ? rx * 0.17 : rx * 0.25;
-    ctx.font = `900 ${fs}px Georgia, 'Times New Roman', serif`;
-    ctx.fillStyle = '#fff7cc'; ctx.fillText(items[i], 0, -1);          // highlight
-    ctx.fillStyle = '#7c2d12'; ctx.fillText(items[i], 0.8, 0.8);       // engraving
+    ctx.strokeStyle = front ? 'rgba(224,242,254,.75)' : 'rgba(186,230,253,.3)'; ctx.lineWidth = Math.max(1, rx * 0.03);
+    ctx.beginPath(); ctx.ellipse(x, ringY, R, r, 0, front ? 0 : Math.PI, front ? Math.PI : Math.PI * 2); ctx.stroke();
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (let i = 0; i < n; i++) {
+      const a = rot + (i / n) * Math.PI * 2, depth = Math.cos(a);
+      if ((depth > 0) !== front || items[i] === ' ') continue;
+      ctx.save();
+      ctx.translate(x + Math.sin(a) * R, ringY + depth * r);
+      ctx.scale(Math.max(0.2, Math.abs(depth)), 1);   // letters turn edge-on at the sides
+      ctx.globalAlpha = front ? 0.45 + 0.55 * depth : 0.25;
+      const fs = items[i] === '✦' ? rx * 0.17 : rx * 0.24;
+      ctx.font = `900 ${fs}px Georgia, 'Times New Roman', serif`;
+      ctx.fillStyle = '#0c4a6e'; ctx.fillText(items[i], 0.8, 0.8);       // engraving
+      ctx.fillStyle = '#f0f9ff'; ctx.fillText(items[i], 0, -0.5);        // frost highlight
+      ctx.restore();
+    }
     ctx.restore();
-  }
-  // shine
-  ctx.globalAlpha = 0.55;
-  ctx.fillStyle = '#fff';
-  ctx.beginPath(); ctx.ellipse(x - rx * 0.38, y - ryT * 0.42, rx * 0.16, ryT * 0.22, -0.4, 0, Math.PI * 2); ctx.fill();
+  };
+  ring(false);                                                            // the back of the ring, behind the crystal
+  ctx.save();
+  const glow = ctx.createRadialGradient(x, y, rx * 0.2, x, y, rx * 1.9);
+  glow.addColorStop(0, 'rgba(186,230,253,.55)'); glow.addColorStop(1, 'rgba(56,189,248,0)');
+  ctx.fillStyle = glow; ctx.fillRect(x - rx * 2, y - rx * 2, rx * 4, rx * 4);
   ctx.restore();
-  // rim
-  ctx.save(); eggPath(); ctx.strokeStyle = 'rgba(255,247,204,.6)'; ctx.lineWidth = 1.5; ctx.stroke(); ctx.restore();
+  drawCrystal(ctx, x, y, h, 1);
+  ring(true);                                                             // the front of the ring
 }

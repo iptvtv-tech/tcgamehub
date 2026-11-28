@@ -94,31 +94,31 @@ canvas { display: block; width: 100%; height: 100%; touch-action: none; user-sel
 @keyframes toastIn { from { transform: translateY(-20px) scale(.8); opacity: 0; } }
 
 /* ── Legends ─────────────────────────────────────────────── */
-.legend-hint { font-style: italic; color: #fde68a; font-size: .92em; }
+.legend-hint { font-style: italic; color: #e0f2fe; font-size: .92em; }
 .chip.gold-chip { border-color: #a16207; color: #fde68a; }
 .chip.gold-chip.on { background: linear-gradient(135deg, #a16207, #fbbf24); color: #1c1003; border-color: #fbbf24; }
 .legend-overlay { display: block; background: linear-gradient(to bottom, transparent 0%, transparent 30%, #06061299 50%); backdrop-filter: none; padding: 33% 4% 4%; }
 .legend-overlay .panel { margin: 0 auto; }
 .legend-overlay .gold-pill { font-size: .72em; padding: .15em .55em; }
-.legend-overlay .panel { border-color: #fbbf24; box-shadow: 0 0 0 1px #fbbf2455, 0 20px 60px #000c, 0 0 60px -10px #fbbf24aa; }
-.legend-title { font: 700 2em var(--font-head); margin: 0; background: linear-gradient(90deg, #fde68a, #fbbf24, #fff7cc, #f59e0b); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.legend-overlay .panel { border-color: #7dd3fc; box-shadow: 0 0 0 1px #7dd3fc55, 0 20px 60px #000c, 0 0 60px -10px #7dd3fcaa; }
+.legend-title { font: 700 2em var(--font-head); margin: 0; background: linear-gradient(90deg, #e0f2fe, #7dd3fc, #f0f9ff, #0ea5e9); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .gold-unlocks { margin: .5em 0; }
 .gold-unlocks small { color: var(--muted); display: block; margin-bottom: .3em; }
 .gold-pill { display: inline-block; margin: .15em; padding: .2em .65em; border-radius: 999px; font-size: .82em; font-weight: 700; color: #1c1003; background: linear-gradient(135deg, #fde68a, #f59e0b); }
-.btn.gold-btn { background: linear-gradient(135deg, #fde68a, #f59e0b); color: #1c1003; border: 0; }
-.legend-code b { font-family: ui-monospace, Consolas, monospace; letter-spacing: .08em; color: #fde68a; font-size: 1.15em; user-select: all; }
+.btn.gold-btn { background: linear-gradient(135deg, #e0f2fe, #0ea5e9); color: #041019; border: 0; }
+.legend-code b { font-family: ui-monospace, Consolas, monospace; letter-spacing: .08em; color: #e0f2fe; font-size: 1.15em; user-select: all; }
 .streak { color: #fdba74; margin: .3em 0; } .streak b { color: #fb923c; }
 .challenge { background: rgba(251,191,36,.12); border: 1px solid rgba(251,191,36,.45); border-radius: 12px; padding: .5em .8em; color: #fde68a; margin: .4em auto; max-width: 26em; } .challenge.won { background: rgba(52,211,153,.14); border-color: rgba(52,211,153,.5); color: #a7f3d0; }
 
 /* Golden Egg / Golden Crown on the Legends finale */
 .legend-overlay { overflow-y: auto; padding-top: 22%; }
 .legend-prize { display: flex; justify-content: center; margin: -6px 0 2px; }
-.legend-prize .egg-svg { filter: drop-shadow(0 6px 18px rgba(251,191,36,.55)); animation: egg-pop .9s cubic-bezier(.2,1.6,.4,1) both; }
+.legend-prize .egg-svg { filter: drop-shadow(0 6px 18px rgba(56,189,248,.55)); animation: egg-pop .9s cubic-bezier(.2,1.6,.4,1) both; }
 @keyframes egg-pop { from { transform: scale(.2) rotate(-20deg); opacity: 0; } }
-.crown-won { display: grid; justify-items: center; gap: 6px; margin: 8px 0; padding: 12px; border-radius: 14px; background: linear-gradient(160deg, #3b2a06, #15153a 80%); border: 1px solid #fbbf24; }
-.crown-won b { color: #fde68a; }
+.crown-won { display: grid; justify-items: center; gap: 6px; margin: 8px 0; padding: 12px; border-radius: 14px; background: linear-gradient(160deg, #082f49, #15153a 80%); border: 1px solid #7dd3fc; }
+.crown-won b { color: #e0f2fe; }
 .crown-won p { margin: 0; }
-.crown-won .crown-svg { filter: drop-shadow(0 0 20px rgba(251,191,36,.6)); max-width: 60%; height: auto; }
+.crown-won .crown-svg { filter: drop-shadow(0 0 20px rgba(56,189,248,.6)); max-width: 60%; height: auto; }
 @media (prefers-reduced-motion: reduce) { .legend-prize .egg-svg { animation: none; } }
 
 /* ── "About this game" section under the stage (written by tools/build-pages.mjs) ── */

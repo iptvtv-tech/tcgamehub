@@ -11,55 +11,55 @@
 .vault p { color: var(--muted); max-width: 32em; margin: 0; }
 .restore { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .restore input { padding: .6em 1em; border-radius: 999px; border: 2px solid #475569; background: #0b0b1a; color: var(--text); font: 700 1em ui-monospace, Consolas, monospace; text-transform: uppercase; letter-spacing: .06em; width: 14em; max-width: 100%; }
-.restore input:focus { outline: none; border-color: #fbbf24; }
+.restore input:focus { outline: none; border-color: #7dd3fc; }
 .restore-msg { min-height: 1.4em; margin: 0; font-size: .92em; }
 .restore-msg.err { color: var(--red); }
 
 .hall-head { text-align: center; padding: 40px 0 10px; }
-.hall-head h1 { font-size: clamp(2em, 6vw, 3.2em); margin: 0; background: linear-gradient(90deg, #fde68a, #fbbf24, #fff7cc, #f59e0b); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.hall-head h1 { font-size: clamp(2em, 6vw, 3.2em); margin: 0; background: linear-gradient(90deg, #e0f2fe, #7dd3fc, #f0f9ff, #0ea5e9); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .hall-head p { color: var(--muted); margin: .4em auto 0; max-width: 36em; }
 .hall-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 20px; margin-top: 24px; }
 @media (max-width: 760px) { .hall-grid { grid-template-columns: 1fr; } }
-.hall-card { background: linear-gradient(160deg, #2b1f05, #15153a 55%); border: 1px solid #a16207; border-radius: var(--radius); padding: 18px; }
-.hall-card h2 { font-size: 1.25em; color: #fde68a; }
+.hall-card { background: linear-gradient(160deg, #072235, #15153a 55%); border: 1px solid #0369a1; border-radius: var(--radius); padding: 18px; }
+.hall-card h2 { font-size: 1.25em; color: #e0f2fe; }
 .legend-list { list-style: none; margin: 0; padding: 0; counter-reset: l; }
 .legend-list li { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; }
 .legend-list li:nth-child(odd) { background: #ffffff08; }
-.legend-list li::before { counter-increment: l; content: counter(l); font: 800 1.05em var(--font-head); color: #fbbf24; width: 2em; text-align: center; }
+.legend-list li::before { counter-increment: l; content: counter(l); font: 800 1.05em var(--font-head); color: #7dd3fc; width: 2em; text-align: center; }
 .legend-list li:first-child::before { content: '👑'; }
 .legend-list b { font-size: 1.05em; }
 .legend-list small { color: var(--muted); margin-left: auto; text-align: right; }
-.legend-list li.me { background: #3b2a06; box-shadow: inset 0 0 0 1px #fbbf24; }
+.legend-list li.me { background: #082f49; box-shadow: inset 0 0 0 1px #7dd3fc; }
 .gold-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #ffffff10; }
 .gold-row:last-child { border-bottom: 0; }
 .gold-row img { width: 36px; height: 36px; }
 .gold-row a { color: var(--text); text-decoration: none; font-weight: 700; }
-.gold-row small { display: block; color: #fde68a; font-weight: 600; }
+.gold-row small { display: block; color: #e0f2fe; font-weight: 600; }
 .switch { margin-left: auto; width: 46px; height: 26px; border-radius: 999px; border: 0; background: #334155; position: relative; cursor: pointer; flex: none; }
 .switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: transform .15s; }
-.switch[aria-checked="true"] { background: linear-gradient(135deg, #f59e0b, #fde68a); }
+.switch[aria-checked="true"] { background: linear-gradient(135deg, #0ea5e9, #e0f2fe); }
 .switch[aria-checked="true"]::after { transform: translateX(20px); }
-.switch:focus-visible { outline: 3px solid #fbbf24; outline-offset: 2px; }
-.my-code { font: 800 1.2em ui-monospace, Consolas, monospace; color: #fde68a; letter-spacing: .08em; user-select: all; }
+.switch:focus-visible { outline: 3px solid #7dd3fc; outline-offset: 2px; }
+.my-code { font: 800 1.2em ui-monospace, Consolas, monospace; color: #e0f2fe; letter-spacing: .08em; user-select: all; }
 
 .crowns { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 14px; }
-.crown-card { display: grid; justify-items: center; gap: 2px; min-width: 190px; max-width: 260px; padding: 12px 16px; border-radius: 14px; border: 1px dashed #a16207; background: rgba(0,0,0,.25); text-align: center; }
+.crown-card { display: grid; justify-items: center; gap: 2px; min-width: 190px; max-width: 260px; padding: 12px 16px; border-radius: 14px; border: 1px dashed #0369a1; background: rgba(0,0,0,.25); text-align: center; }
 .crown-card span { font-size: 1.8em; }
 .crown-card small { color: var(--muted); }
-.crown-card.won { border-style: solid; background: linear-gradient(135deg, #3b2a06, #1a1a3d 80%); }
+.crown-card.won { border-style: solid; background: linear-gradient(135deg, #082f49, #1a1a3d 80%); }
 .gold-row.locked { opacity: .55; }
-.legend-list li.grand b { color: #fde68a; }
-.grand-title { font-size: .7em; padding: .1em .6em; border-radius: 999px; background: linear-gradient(135deg, #fde68a, #f59e0b); color: #1c1003; vertical-align: middle; }
+.legend-list li.grand b { color: #e0f2fe; }
+.grand-title { font-size: .7em; padding: .1em .6em; border-radius: 999px; background: linear-gradient(135deg, #e0f2fe, #0ea5e9); color: #041019; vertical-align: middle; }
 
 /* Golden Eggs & the Golden Crown */
 .egg-shelf { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; margin-top: 16px; }
-.egg-stand { display: grid; justify-items: center; align-content: start; gap: 4px; width: 190px; padding: 14px 12px; border-radius: 14px; border: 1px dashed #a16207; background: rgba(0,0,0,.25); text-align: center; color: var(--text); text-decoration: none; }
+.egg-stand { display: grid; justify-items: center; align-content: start; gap: 4px; width: 190px; padding: 14px 12px; border-radius: 14px; border: 1px dashed #0369a1; background: rgba(0,0,0,.25); text-align: center; color: var(--text); text-decoration: none; }
 .egg-stand small { color: var(--muted); }
-.egg-stand.won { border-style: solid; background: linear-gradient(160deg, #3b2a06, #1a1a3d 85%); }
-.egg-stand.won .egg-svg { filter: drop-shadow(0 4px 12px rgba(251,191,36,.45)); }
-.egg-stand.won b { color: #fde68a; }
+.egg-stand.won { border-style: solid; background: linear-gradient(160deg, #082f49, #1a1a3d 85%); }
+.egg-stand.won .egg-svg { filter: drop-shadow(0 4px 12px rgba(56,189,248,.45)); }
+.egg-stand.won b { color: #e0f2fe; }
 .crown-stand .crown-ghost { font-size: 3.2em; line-height: 1.6; filter: grayscale(1) brightness(.55); }
-a.crown-stand:hover { box-shadow: 0 0 0 2px #fbbf24, 0 0 30px rgba(251,191,36,.35); }
+a.crown-stand:hover { box-shadow: 0 0 0 2px #7dd3fc, 0 0 30px rgba(56,189,248,.35); }
 .crown-stand .crown-svg { max-width: 100%; height: auto; }
 .mini-eggs .egg-svg { vertical-align: -3px; margin-right: 1px; }
 .add-code { margin-top: 12px; }
@@ -67,26 +67,26 @@ a.crown-stand:hover { box-shadow: 0 0 0 2px #fbbf24, 0 0 30px rgba(251,191,36,.3
 .add-code .restore { justify-content: flex-start; margin-top: 8px; }
 .add-code .restore input { width: 11em; font-size: .9em; }
 .grand-title { white-space: nowrap; display: inline-block; font-size: .62em; }
-:root[data-gold-theme] .hall-card { background: linear-gradient(160deg, #3b2a06, #1d1507 60%); }
-:root[data-gold-theme] .egg-stand.won { background: linear-gradient(160deg, #4a3508, #1d1507 85%); }
+:root[data-gold-theme] .hall-card { background: linear-gradient(160deg, #082f49, #051521 60%); }
+:root[data-gold-theme] .egg-stand.won { background: linear-gradient(160deg, #0c3a5a, #051521 85%); }
 
 /* Locked Hall: how to become a Legend + the four Legends games */
 .vault-eggs { display: flex; align-items: center; gap: 10px; }
 .vault-eggs .crown-ghost { font-size: 1.7em; opacity: .4; filter: grayscale(.6); }
 .legend-path, .legend-games { margin-top: 28px; }
-.legend-path h2, .legend-games h2, .code-box h2 { color: #fde68a; font-size: 1.35em; text-align: center; }
+.legend-path h2, .legend-games h2, .code-box h2 { color: #e0f2fe; font-size: 1.35em; text-align: center; }
 .legend-steps { list-style: none; margin: 0; padding: 0; counter-reset: st; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
-.legend-steps li { counter-increment: st; position: relative; padding: 16px 14px 14px 52px; border-radius: var(--radius); background: linear-gradient(160deg, #1f1a0a, #14142e 70%); border: 1px solid #a16207; }
-.legend-steps li::before { content: counter(st); position: absolute; left: 14px; top: 14px; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font: 800 .95em var(--font-head); color: #1c1003; background: linear-gradient(135deg, #fde68a, #f59e0b); }
-.legend-steps li > b { display: block; font-family: var(--font-head); color: #fde68a; margin-bottom: 2px; }
+.legend-steps li { counter-increment: st; position: relative; padding: 16px 14px 14px 52px; border-radius: var(--radius); background: linear-gradient(160deg, #071a2a, #14142e 70%); border: 1px solid #0369a1; }
+.legend-steps li::before { content: counter(st); position: absolute; left: 14px; top: 14px; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font: 800 .95em var(--font-head); color: #041019; background: linear-gradient(135deg, #e0f2fe, #0ea5e9); }
+.legend-steps li > b { display: block; font-family: var(--font-head); color: #e0f2fe; margin-bottom: 2px; }
 .legend-steps span { color: var(--muted); font-size: .92em; }
 .legend-steps .pill { font-size: .8em; }
 .lg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 @media (max-width: 760px) { .lg-grid { grid-template-columns: 1fr; } }
-.lg-card { display: grid; grid-template-columns: 96px 1fr; grid-template-rows: 1fr auto; gap: 6px 14px; padding: 14px; border-radius: var(--radius); background: var(--card); border: 1px solid var(--line); border-top: 3px solid var(--c, #fbbf24); color: var(--text); text-decoration: none; transition: transform .2s, border-color .2s; }
-.lg-card:hover { transform: translateY(-2px); border-color: #fbbf24; }
+.lg-card { display: grid; grid-template-columns: 96px 1fr; grid-template-rows: 1fr auto; gap: 6px 14px; padding: 14px; border-radius: var(--radius); background: var(--card); border: 1px solid var(--line); border-top: 3px solid var(--c, #7dd3fc); color: var(--text); text-decoration: none; transition: transform .2s, border-color .2s; }
+.lg-card:hover { transform: translateY(-2px); border-color: #7dd3fc; }
 .lg-card.locked .lg-art img { filter: grayscale(.8) brightness(.6); }
-.lg-card.won { background: linear-gradient(160deg, #3b2a06, #1a1a3d 85%); border-color: #fbbf24; }
+.lg-card.won { background: linear-gradient(160deg, #082f49, #1a1a3d 85%); border-color: #7dd3fc; }
 .lg-art { position: relative; grid-row: span 2; align-self: start; }
 .lg-art img { width: 96px; height: 96px; border-radius: 12px; display: block; background: #0b0b1a; }
 .lg-egg { position: absolute; right: -10px; bottom: -14px; }
@@ -94,12 +94,12 @@ a.crown-stand:hover { box-shadow: 0 0 0 2px #fbbf24, 0 0 30px rgba(251,191,36,.3
 .lg-zone { font-size: .78em; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
 .lg-body h3 { margin: 2px 0 6px; font-size: 1.15em; }
 .lg-body p { margin: 0 0 6px; font-size: .9em; }
-.lg-lore { font-style: italic; color: #fde68a; }
+.lg-lore { font-style: italic; color: #e0f2fe; }
 .lg-clue { color: var(--text); }
 .lg-status { color: var(--muted); }
 .lg-status .lock-meter { display: inline-block; width: 60px; height: 6px; border-radius: 3px; background: #ffffff1a; vertical-align: middle; overflow: hidden; }
-.lg-status .lock-meter i { display: block; height: 100%; background: #fbbf24; }
-.lg-go { grid-column: 2; justify-self: start; font: 800 .9em var(--font-head); color: #fbbf24; }
+.lg-status .lock-meter i { display: block; height: 100%; background: #7dd3fc; }
+.lg-go { grid-column: 2; justify-self: start; font: 800 .9em var(--font-head); color: #7dd3fc; }
 .code-box { margin-top: 32px; padding: 24px 0 8px; border-top: 1px solid var(--line); }
-.egg-stand .stand-link { margin-top: 4px; font-size: .85em; font-weight: 700; color: #fbbf24; }
-a.egg-stand:hover { border-color: #fbbf24; }
+.egg-stand .stand-link { margin-top: 4px; font-size: .85em; font-weight: 700; color: #7dd3fc; }
+a.egg-stand:hover { border-color: #7dd3fc; }

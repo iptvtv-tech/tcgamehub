@@ -54,6 +54,29 @@ export function eggSVG(n, { size = 64, won = true, title = '' } = {}) {
   </svg>`;
 }
 
+// ── The same crystal on a game's canvas (the Legends games' prize scenes) ──
+const crystalImgs = {};
+/** Start loading zone n's crystal picture for a canvas; call when a game starts so it's ready for the finale. */
+export function preloadCrystal(n) {
+  if (typeof Image === 'undefined' || crystalImgs[n]) return crystalImgs[n] || null;   // no browser (headless tests)
+  const img = new Image();
+  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(eggSVG(n, { size: 240 }).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" '));
+  return (crystalImgs[n] = img);
+}
+/** Draw zone n's crystal centred on (x, y), h pixels tall. Until the picture has loaded, a plain ice crystal stands in. */
+export function drawCrystal(ctx, x, y, h, n) {
+  const w = h * 100 / 124, img = preloadCrystal(n);
+  if (img && img.complete && img.naturalWidth) { ctx.drawImage(img, x - w / 2, y - h / 2, w, h); return; }
+  const k = h / 124, pts = [[50, 4], [80, 34], [74, 98], [50, 120], [26, 98], [20, 34]];
+  ctx.beginPath();
+  pts.forEach(([px, py], i) => ctx[i ? 'lineTo' : 'moveTo'](x + (px - 50) * k, y + (py - 62) * k));
+  ctx.closePath();
+  const g = ctx.createLinearGradient(x - w / 2, y - h / 2, x + w / 2, y + h / 2);
+  g.addColorStop(0, '#f0f9ff'); g.addColorStop(0.35, '#bae6fd'); g.addColorStop(0.7, '#38bdf8'); g.addColorStop(1, '#075985');
+  ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = '#e0f2fe'; ctx.lineWidth = Math.max(1, 2 * k); ctx.stroke();
+}
+
 // Where the star stones sit (the Zone 5 emerald first, then the jewels of Zones 6, 7…): above the centre, then out along the band.
 const JEWEL_SPOTS = [[120, 64], [42, 116], [198, 116], [94, 104], [146, 104], [120, 42]];
 const jewelStar = (x, y, r, fill) => {
@@ -86,7 +109,7 @@ export function crownSVG({ size = 240, cls = '', jewels = [] } = {}) {
     <path d="M120 96 l9 13 -9 13 -9 -13z" fill="url(#${id}r)" stroke="#e0f2fe" stroke-width="1.5"/>
     <path d="M66 112 l6 9 -6 9 -6 -9z" fill="url(#${id}b)"/><path d="M174 112 l6 9 -6 9 -6 -9z" fill="url(#${id}p)"/>
     <path d="M40 136 Q120 120 200 136" stroke="#f0f9ff" stroke-width="2" fill="none" opacity=".8"/>
-    <text x="120" y="176" text-anchor="middle" font-size="9" font-weight="800" fill="#0c4a6e" font-family="system-ui" letter-spacing="2">TC LEGENDS</text>
+    <text x="120" y="177" text-anchor="middle" font-size="10" font-weight="800" fill="#bae6fd" font-family="system-ui" letter-spacing="2">TC LEGENDS</text>
     ${extra}
   </svg>`;
 }

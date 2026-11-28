@@ -14,6 +14,7 @@
 //  job 1, and a secret 16th job opens… it wins the Zone 2 crown.
 // ─────────────────────────────────────────────────────────────
 import { runGame, roundRect, progressBar, clamp } from '../../assets/js/engine.js';
+import { drawCrystal } from '../../assets/js/eggs.js';
 import { LEVELS, levelDef } from './levels.js';
 import { COLS, ROWS, CREW, MOVES, parseLevel, simulate, trace, tileAt, watcherAt, vision, laserOn } from './sim.js';
 
@@ -505,8 +506,8 @@ class HeistPlanner {
     ctx.save(); ctx.translate(x, y);
     ctx.fillStyle = 'rgba(186,230,253,.18)'; ctx.strokeStyle = 'rgba(186,230,253,.7)'; ctx.lineWidth = 2;
     roundRect(ctx, -15, -15, 30, 30, 4); ctx.fill(); ctx.stroke();
-    ctx.shadowColor = '#fde047'; ctx.shadowBlur = 12 + Math.sin(t * 3) * 6;
-    drawCrown(ctx, 0, 2, 11, t);
+    ctx.shadowColor = '#7dd3fc'; ctx.shadowBlur = 12 + Math.sin(t * 3) * 6;
+    drawCrystal(ctx, 0, 1, 25, 2);   // the Heist Crystal, waiting in its case
     ctx.restore();
   }
 
@@ -545,48 +546,32 @@ class HeistPlanner {
     const y = H * 0.36 - up * 110;
     ctx.save(); ctx.globalAlpha = k;
     const glow = ctx.createRadialGradient(W / 2, y, 10, W / 2, y, 200);
-    glow.addColorStop(0, 'rgba(253,224,71,.45)'); glow.addColorStop(1, 'rgba(253,224,71,0)');
+    glow.addColorStop(0, 'rgba(186,230,253,.5)'); glow.addColorStop(1, 'rgba(56,189,248,0)');
     ctx.fillStyle = glow; ctx.fillRect(0, y - 200, W, 400);
-    drawCrown(ctx, W / 2, y, 70 + k * 20, t, true);
-    ctx.fillStyle = '#fde68a'; ctx.font = '900 26px system-ui'; ctx.textAlign = 'center';
-    if (up < 1) ctx.fillText('THE FROST CROWN', W / 2, y + 120);
+    drawCrystal(ctx, W / 2, y, (70 + k * 20) * 2, 2);
+    drawEngraving(ctx, W / 2, y + (70 + k * 20) * 0.62, 70 + k * 20, t);
+    ctx.fillStyle = '#e0f2fe'; ctx.font = '900 26px system-ui'; ctx.textAlign = 'center';
+    if (up < 1) ctx.fillText('THE HEIST CRYSTAL', W / 2, y + (70 + k * 20) + 34);
     ctx.restore();
   }
 }
 
-/** A frost crown with the engraving travelling around its band. */
-function drawCrown(ctx, x, y, r, t, engraved = false) {
+/** The engraving on a band of ice under the crystal, scrolling round as if it spins. */
+function drawEngraving(ctx, x, y, r, t) {
+  const bw = r * 1.5, bh = r * 0.26;
   ctx.save(); ctx.translate(x, y);
-  const g = ctx.createLinearGradient(-r, -r, r, r);
-  g.addColorStop(0, '#fef3c7'); g.addColorStop(0.4, '#fbbf24'); g.addColorStop(1, '#b45309');
-  ctx.fillStyle = g;
-  // points
-  ctx.beginPath();
-  ctx.moveTo(-r, r * 0.35);
-  ctx.lineTo(-r, -r * 0.35); ctx.lineTo(-r * 0.55, r * 0.02); ctx.lineTo(0, -r * 0.7); ctx.lineTo(r * 0.55, r * 0.02); ctx.lineTo(r, -r * 0.35);
-  ctx.lineTo(r, r * 0.35); ctx.closePath(); ctx.fill();
-  // jewels on the points
-  for (const [px, py, c] of [[-r, -r * 0.35, '#f472b6'], [0, -r * 0.7, '#22d3ee'], [r, -r * 0.35, '#a3e635']]) { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(px, py, r * 0.11, 0, 7); ctx.fill(); }
-  // band
-  const bh = r * 0.34;
-  const bg = ctx.createLinearGradient(0, r * 0.2, 0, r * 0.2 + bh);
-  bg.addColorStop(0, '#fcd34d'); bg.addColorStop(1, '#92400e');
-  ctx.fillStyle = bg; ctx.fillRect(-r, r * 0.2, r * 2, bh);
-  if (engraved) {
-    // the engraving scrolls round the band, like it's spinning
-    ctx.save(); ctx.beginPath(); ctx.rect(-r, r * 0.2, r * 2, bh); ctx.clip();
-    ctx.font = `900 ${Math.round(bh * 0.72)}px system-ui`; ctx.textBaseline = 'middle'; ctx.fillStyle = '#78350f';
-    const txt = `${ENGRAVING} ✦ `, tw = ctx.measureText(txt).width;
-    const off = (t * 40) % tw;
-    for (let xx = -r - off; xx < r; xx += tw) {
-      ctx.fillText(txt, xx, r * 0.2 + bh / 2 + 1);
-    }
-    // shading so the band looks round
-    const sh = ctx.createLinearGradient(-r, 0, r, 0);
-    sh.addColorStop(0, 'rgba(0,0,0,.45)'); sh.addColorStop(0.25, 'rgba(0,0,0,0)'); sh.addColorStop(0.75, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(0,0,0,.45)');
-    ctx.fillStyle = sh; ctx.fillRect(-r, r * 0.2, r * 2, bh);
-    ctx.restore();
-  }
+  const bg = ctx.createLinearGradient(0, -bh / 2, 0, bh / 2);
+  bg.addColorStop(0, 'rgba(224,242,254,.9)'); bg.addColorStop(1, 'rgba(56,189,248,.75)');
+  ctx.fillStyle = bg; roundRect(ctx, -bw / 2, -bh / 2, bw, bh, bh / 2); ctx.fill();
+  ctx.beginPath(); ctx.rect(-bw / 2, -bh / 2, bw, bh); ctx.clip();
+  ctx.font = `900 ${Math.round(bh * 0.7)}px system-ui`; ctx.textBaseline = 'middle'; ctx.fillStyle = '#0c4a6e';
+  const txt = `${ENGRAVING} ✦ `, tw = ctx.measureText(txt).width;
+  const off = (t * 40) % tw;
+  for (let xx = -bw / 2 - off; xx < bw / 2; xx += tw) ctx.fillText(txt, xx, 1);
+  // shading so the band looks round
+  const sh = ctx.createLinearGradient(-bw / 2, 0, bw / 2, 0);
+  sh.addColorStop(0, 'rgba(7,89,133,.55)'); sh.addColorStop(0.25, 'rgba(7,89,133,0)'); sh.addColorStop(0.75, 'rgba(7,89,133,0)'); sh.addColorStop(1, 'rgba(7,89,133,.55)');
+  ctx.fillStyle = sh; ctx.fillRect(-bw / 2, -bh / 2, bw, bh);
   ctx.restore();
 }
 

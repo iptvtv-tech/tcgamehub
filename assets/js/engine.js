@@ -942,7 +942,7 @@ class Shell {
     if (Store.submitBest(this.id, score)) this.unlock('pb', true);
     const zone = zoneOf(this.id);
     const unlocks = Legends.unlocks().filter((u) => u.zone === zone?.n);
-    const shareText = `❄️👑 I found the secret at ${location.origin}/?from=wa … can you? Only true Legends get in.`;
+    const shareText = `❄️👑 I found the secret at ${CONFIG.siteName}: ${location.origin}/?from=wa … can you? Only true Legends get in.`;
     const o = this.showOverlay(`
       ${zone ? `<div class="legend-prize">${eggSVG(zone.n, { size: 84 })}</div>` : ''}
       <h2 class="legend-title">${zone ? `${esc(eggName(zone.n))} won!` : '👑 You are a Legend'}</h2>
@@ -1018,8 +1018,8 @@ class Shell {
       const me = Store.name();
       const q = new URLSearchParams({ ...(this.daily ? { daily: '1' } : {}), beat: String(score), ...(me ? { by: me } : {}) });
       return score > 0
-        ? `🎮 ${me ? `${me} scored` : 'I scored'} ${fmt(score)} on ${this.meta.title}${this.daily ? " (today's Daily Challenge)" : ''} and reached ${this.reachedText(true)}! Can you beat me? ${location.origin}${location.pathname}?${q}`
-        : `🎮 Come play ${this.meta.title} with me, free in your browser: ${gameUrl}${gameUrl.includes('?') ? '&' : '?'}from=wa`;
+        ? `🎮 ${me ? `${me} scored` : 'I scored'} ${fmt(score)} on ${this.meta.title} at ${CONFIG.siteName}${this.daily ? " (today's Daily Challenge)" : ''} and reached ${this.reachedText(true)}! Can you beat me? ${location.origin}${location.pathname}?${q}`
+        : `🎮 Come play ${this.meta.title} with me at ${CONFIG.siteName}, free in your browser: ${gameUrl}${gameUrl.includes('?') ? '&' : '?'}from=wa`;
     };
     const shareText = makeShare();
 

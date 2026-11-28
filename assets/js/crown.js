@@ -19,7 +19,7 @@ function sealed() {
     <section class="crown-sealed">
       <div class="sealed-crown" aria-hidden="true">👑</div>
       <h1>The Crown Room</h1>
-      <p>The door is sealed with ${need} golden locks. Only a holder of ${crownEggsText()} may enter.</p>
+      <p>The door is sealed with ${need} frozen locks. Only a holder of ${crownEggsText()} may enter.</p>
       <div class="egg-shelf">${cz.map((z) => `<div class="egg-stand${Legends.hasEgg(z.n) ? ' won' : ''}">${eggSVG(z.n, { size: 60, won: Legends.hasEgg(z.n) })}<b>${esc(eggName(z.n))}</b><small>${esc(gameById(z.legendGame).title)}</small></div>`).join('')}</div>
       <p class="muted">${Legends.isLegend() ? `You hold <b>${eggs} of ${need}</b> crystals.` : 'Nobody has ever been told how to win a crystal…'}</p>
       <a class="btn" href="../hall-of-legends/">🏛️ Hall of Legends</a> <a class="btn" href="../">⌂ Arcade</a>
@@ -69,7 +69,7 @@ function open() {
           <p class="muted small">A picture of your Frost Crown with your name on it — save it or share it.</p>
           <img class="cert-preview" alt="Frost Crown certificate" hidden>
           <p><button class="btn gold-btn" data-cert>🖼️ Make my certificate</button>
-          <a class="btn wa" href="${whatsappLink(`👑 I won the Frost Crown at ${location.origin}/?from=wa — ${Legends.eggs().length} Frost Crystals. Can you?`)}" target="_blank" rel="noopener">${WA_ICON} Share</a></p>
+          <a class="btn wa" href="${whatsappLink(`❄️👑 I won the Frost Crown at ${CONFIG.siteName}: ${location.origin}/?from=wa — ${Legends.eggs().length} Frost Crystals. Can you?`)}" target="_blank" rel="noopener">${WA_ICON} Share</a></p>
         </section>
       </div>
     </div>`;
@@ -92,15 +92,15 @@ async function makeCertificate(btn, at) {
   const W = 1200, H = 850, c = document.createElement('canvas'); c.width = W; c.height = H;
   const g = c.getContext('2d');
   const img = (svg) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg.replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ')); });
-  // parchment + gold frame
+  // deep ice + a frost frame
   const bg = g.createRadialGradient(W / 2, H / 2, 100, W / 2, H / 2, 700);
-  bg.addColorStop(0, '#2a1f0b'); bg.addColorStop(1, '#0f0a03');
+  bg.addColorStop(0, '#0b2a40'); bg.addColorStop(1, '#030b12');
   g.fillStyle = bg; g.fillRect(0, 0, W, H);
-  const gold = g.createLinearGradient(0, 0, W, H);
-  gold.addColorStop(0, '#fde68a'); gold.addColorStop(0.5, '#f59e0b'); gold.addColorStop(1, '#fde68a');
-  g.strokeStyle = gold; g.lineWidth = 14; g.strokeRect(28, 28, W - 56, H - 56);
+  const frost = g.createLinearGradient(0, 0, W, H);
+  frost.addColorStop(0, '#e0f2fe'); frost.addColorStop(0.5, '#38bdf8'); frost.addColorStop(1, '#e0f2fe');
+  g.strokeStyle = frost; g.lineWidth = 14; g.strokeRect(28, 28, W - 56, H - 56);
   g.lineWidth = 3; g.strokeRect(52, 52, W - 104, H - 104);
-  for (const [x, y] of [[52, 52], [W - 52, 52], [52, H - 52], [W - 52, H - 52]]) { g.fillStyle = gold; g.beginPath(); g.arc(x, y, 12, 0, Math.PI * 2); g.fill(); }
+  for (const [x, y] of [[52, 52], [W - 52, 52], [52, H - 52], [W - 52, H - 52]]) { g.fillStyle = frost; g.beginPath(); g.arc(x, y, 12, 0, Math.PI * 2); g.fill(); }
   try {
     const crown = await img(crownSVG({ size: 320, jewels: Legends.crownStones() }));
     g.drawImage(crown, W / 2 - 160, 90, 320, 240);
@@ -108,17 +108,17 @@ async function makeCertificate(btn, at) {
     const n = eggs.length, gap = 150;
     eggs.forEach((e, i) => g.drawImage(e, W / 2 - ((n - 1) * gap) / 2 + i * gap - 40, 600, 80, 96));
   } catch { /* the words still make a fine certificate */ }
-  g.textAlign = 'center'; g.fillStyle = '#fde68a';
+  g.textAlign = 'center'; g.fillStyle = '#e0f2fe';
   g.font = '700 30px Georgia, "Times New Roman", serif'; g.fillText('This certifies that', W / 2, 390);
-  g.font = '900 78px Georgia, "Times New Roman", serif'; g.fillStyle = gold; g.fillText(myName(), W / 2, 470);
-  g.font = '700 30px Georgia, "Times New Roman", serif'; g.fillStyle = '#fde68a';
+  g.font = '900 78px Georgia, "Times New Roman", serif'; g.fillStyle = frost; g.fillText(myName(), W / 2, 470);
+  g.font = '700 30px Georgia, "Times New Roman", serif'; g.fillStyle = '#e0f2fe';
   g.fillText(`won ${Legends.eggs().filter((n) => n <= CROWN_EGGS).length} Frost Crystals${Legends.jewels().length ? ` and ${Legends.jewels().length} jewel${Legends.jewels().length > 1 ? 's' : ''}` : ''}`, W / 2, 525);
   g.fillText('and is a Holder of the Frost Crown', W / 2, 565);
-  g.font = '600 22px system-ui, sans-serif'; g.fillStyle = '#cdb78a';
+  g.font = '600 22px system-ui, sans-serif'; g.fillStyle = '#a8cfe3';
   g.fillText(`${date(at)}  ·  ${CONFIG.siteName}  ·  ${location.host}`, W / 2, 760);
   const url = c.toDataURL('image/png');
   const pv = main.querySelector('.cert-preview'); pv.src = url; pv.hidden = false;
-  const a = document.createElement('a'); a.href = url; a.download = 'golden-crown-certificate.png'; a.className = 'btn gold-btn'; a.textContent = '⬇️ Save certificate';
+  const a = document.createElement('a'); a.href = url; a.download = 'frost-crown-certificate.png'; a.className = 'btn gold-btn'; a.textContent = '⬇️ Save certificate';
   btn.replaceWith(a); a.click();
 }
 
