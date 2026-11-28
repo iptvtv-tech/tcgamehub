@@ -27,10 +27,11 @@ on conflict (id) do update set title = excluded.title, max_points_per_second = e
 
 -- Game 36 · Inferno Vault joins the leaderboard (Zone 6's Legends game).
 -- Points scale with the level: a fire opal 40 × level, a frost shard 25 × level, a guard put out
--- 150 × level, a fireball smashed 20 × level (all in the x5 combo); every opal on a level 150 ×
--- level; at the vault door 100 × level, plus 250 × level for the Ghost bonus (never seen) and
--- 2 × level per point of ice left. A perfect level 15 pays about 60,000 points at x5 in well
--- under ten seconds, but averaged over a game it is far less, so 12,000 leaves lots of room.
+-- or an ice statue shattered 150 × level (a brute 300 × level), a fireball smashed 20 × level (all
+-- in the x5 combo); every opal on a level 150 × level; the ember key 100 × level; at the vault
+-- door 100 × level, plus 250 × level for the Ghost bonus (never seen) and 2 × level per point of
+-- ice left. A perfect level 15 pays about 70,000 points at x5 in well under half a minute, and
+-- averaged over a game it is far less, so 12,000 leaves lots of room.
 insert into public.games (id, title, max_points_per_second)
 values ('inferno-vault', 'Inferno Vault', 12000)
 on conflict (id) do update set title = excluded.title, max_points_per_second = excluded.max_points_per_second;

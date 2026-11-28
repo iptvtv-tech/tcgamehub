@@ -13,8 +13,20 @@
 //  FREEZE that turns the lava pool in front into an ice bridge, then a walk across it.
 //  The graph is built on the map as drawn (lava as lava); a bot standing on a level with ice
 //  bridges passes the level's live tiles to simMacro.
+//  A level with an ember key has two plans (planMap): before the key, the goal is the key and the
+//  gates are shut; after it, the goal is the door and the gates are open.
 // ─────────────────────────────────────────────────────────────
-import { TILE, DT, ROCK, isFloor, tileAt, stepPlayer, bodyH, atExit, playerBox, overlap, inLava, STAGES, freezeBox, lavaToFreeze } from './world.js';
+import { TILE, DT, ROCK, AIR, isFloor, tileAt, stepPlayer, bodyH, atExit, playerBox, overlap, inLava, STAGES, freezeBox, lavaToFreeze, keyBox } from './world.js';
+
+/** The map to plan on: as drawn, or for a level with a key, "to the key, gates shut" / "to the door, gates open". */
+export function planMap(m, keyGot) {
+  if (!m.key) return m;
+  if (keyGot) {
+    if (!m._open) { const t = m.t.slice(); for (const i of m.gates) t[i] = AIR; m._open = { ...m, t, name: `${m.name} #open`, key: null, gates: [] }; }
+    return m._open;
+  }
+  return (m._toKey ||= { ...m, name: `${m.name} #key`, goalKey: true });
+}
 
 export const EXIT = -1;
 
@@ -78,7 +90,7 @@ export function simMacro(m, p0, mac, items = null, tiles = null) {
     if (!p.ground) airborne = true;
     if (inLava(m, p)) return null;
     if (got) { const b = playerBox(p); items.forEach((q, j) => { if (overlap(b, [q.x - 10, q.y - 10, q.x + 10, q.y + 10])) got.add(j); }); }
-    if (p.ground && atExit(p, m)) return { exit: true, node: EXIT, t: i * DT, p, items: got };
+    if (m.goalKey ? overlap(playerBox(p), keyBox(m.key)) : p.ground && atExit(p, m)) return { exit: true, node: EXIT, t: i * DT, p, items: got };
     const moved = mac.kind === 'walk' || mac.kind === 'freeze' ? i * DT >= mac.t || airborne : airborne;
     if (moved && p.ground && Math.abs(p.vx) < 1) return { exit: false, node: nodeOf(m, p), t: i * DT, p, items: got };
   }

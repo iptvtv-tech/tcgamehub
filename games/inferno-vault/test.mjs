@@ -17,11 +17,16 @@
 //      still on it); a frozen guard is a statue (no light, no flame) that one slash shatters from
 //      any side, and thaws back on patrol; a flame jet burns only while it roars and stops when
 //      frozen; a heat lamp melts him in its light, not in an alcove, and ↑ + FREEZE puts it out
+//    • the deep vault (11–15): the vault door stays locked until he has the ember key, which also
+//      opens every gate and hatch; a cold vent freezes him back up; from level 11 a guard that sees
+//      him rings the alarm (its floor's other guards turn on him, and the heat melts him outside an
+//      alcove); the blade bounces off a brute even from behind, but a frozen brute shatters; a
+//      sentinel stands its ground and turns round
 // ─────────────────────────────────────────────────────────────
 import { loadGame, reporter } from '../../tools/lib/headless.mjs';
 import { botStep, rulesBroken } from './bot.js';
 import BENCH from './bench.mjs';
-import { VaultSim, TILE, MAX_HP, STAGES, BEAM_DPS, SPOT_T, SEARCH_T, SHARD_HP, GUARD_H, bodyH, LAVA, ROCK, FREEZE_COST, FREEZE_FROM, ICE_T, STATUE_T, JET_DMG, jetState, LAMP_P, litByLamp, lampAt } from './world.js';
+import { VaultSim, TILE, MAX_HP, STAGES, BEAM_DPS, SPOT_T, SEARCH_T, SHARD_HP, GUARD_H, bodyH, LAVA, ROCK, AIR, FREEZE_COST, FREEZE_FROM, ICE_T, STATUE_T, JET_DMG, jetState, LAMP_P, litByLamp, lampAt, ALARM_FROM, ALARM_T, SENTRY_T } from './world.js';
 import { mapFor, ALL_MAPS } from './levels.js';
 
 const G = await loadGame('inferno-vault');
@@ -29,7 +34,7 @@ const r = reporter('inferno-vault game test');
 const STEP = 1 / 120;
 
 // ── 1. finish every level after a real mistake ──
-const LEVELS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15];
+const LEVELS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 const SEEDS = [1, 2];
 let runs = 0, totalT = 0, takedowns = 0;
 for (const level of LEVELS) for (const seed of SEEDS) {
@@ -250,10 +255,69 @@ const poolOf = (m) => {                                  // the first lava pool 
   r.check(ev.some((e) => e.type === 'fizz'), 'a freeze should put out a fireball in front of him');
 }
 
-// ── 5. every level is a real vault: guards from level 2, more of them deeper ──
+// ── 5. the deep vault (section 3) ──
+{ // the door is locked until the ember key; the key opens every gate and hatch
+  const { sim, p, m } = level(11);
+  stand(p, m.exit.x, m.exit.y);
+  const ev = run(sim, 0.3);
+  r.check(!sim.done && ev.some((e) => e.type === 'locked'), 'the vault door should stay locked without the ember key');
+  r.check(m.gates.every((i) => m.t[i] === ROCK), 'the gates should be shut before the key');
+  p.x = m.key.x; p.y = m.key.y + 20; p.vy = 0;
+  const ev2 = run(sim, 0.05);
+  r.check(sim.keyGot && ev2.some((e) => e.type === 'key'), 'touching the ember key should take it');
+  r.check(m.gates.every((i) => m.t[i] === AIR) && mapFor(11).t[m.gates[0]] === ROCK, 'the key should open the level\'s gates (in its own tiles, not the map)');
+  stand(p, m.exit.x, m.exit.y);
+  const ev3 = run(sim, 0.1);
+  r.check(sim.done && ev3.some((e) => e.type === 'exit'), 'with the key, the vault door should open');
+  sim.reset();
+  r.check(!sim.keyGot && sim.m.gates.every((i) => sim.m.t[i] === ROCK), 'a fresh start should shut the gates and take the key back');
+}
+{ // a cold vent freezes him back up
+  const { sim, p, m } = level(11), v = m.vents[0];
+  stand(p, v.x, v.y); sim.damage(60, 'hurt', 0); stand(p, v.x, v.y); p.inv = 0;
+  const hp = p.hp, k = p.k;
+  run(sim, 2.5, () => { p.vx = 0; return NONE; });
+  r.check(p.hp > hp + 25 && p.k > k, `standing in a cold vent should freeze him back up (hp ${hp.toFixed(0)} → ${p.hp.toFixed(0)}, size ${k} → ${p.k})`);
+}
+{ // the alarm: from level 11, one guard's sighting turns its floor on him, and the vault heats up
+  const { sim, p } = level(14);
+  const g = sim.guards.find((q) => q.kind === 'guard'), others = sim.guards.filter((q) => q !== g && Math.abs(q.y - g.y) < 4);
+  g.x = 8 * TILE; g.face = 1; g.state = 'patrol';
+  stand(p, g.x + 90, g.y); p.inv = 99;
+  const ev = run(sim, 0.1);
+  r.check(ev.some((e) => e.type === 'alarm') && sim.alarmT > ALARM_T - 1, 'a guard seeing him should ring the alarm from level 11');
+  r.check(others.length > 0 && others.every((q) => q.state === 'alert' || q.state === 'hunt' || q.state === 'down'), `the alarm should turn every guard on that floor on him (${others.map((q) => q.state).join(', ')})`);
+  const quiet = level(ALARM_FROM - 1), qg = quiet.sim.guards[0];
+  qg.face = 1; qg.state = 'patrol'; stand(quiet.p, qg.x + 90, qg.y); quiet.p.inv = 99;
+  r.check(!run(quiet.sim, 0.1).some((e) => e.type === 'alarm'), `there should be no alarm before level ${ALARM_FROM}`);
+}
+{ // a brute: the blade bounces off it even from behind; frozen, it shatters
+  const { sim, p } = level(13), b = sim.guards.find((q) => q.kind === 'brute');
+  b.x = 9 * TILE; b.face = 1; b.state = 'patrol';
+  stand(p, b.x - 54, b.y); p.face = 1; p.inv = 99;
+  const ev = run(sim, 0.3, (i) => ({ ...NONE, slashPress: i === 0 }));
+  r.check(b.state !== 'down' && ev.some((e) => e.type === 'parry'), `a slash from behind should bounce off a brute (state ${b.state})`);
+  const f = level(13), fb = f.sim.guards.find((q) => q.kind === 'brute');
+  fb.x = 9 * TILE; fb.face = 1; fb.state = 'patrol';
+  stand(f.p, fb.x - 60, fb.y); f.p.face = 1;
+  run(f.sim, 0.05, (i) => ({ ...NONE, freezePress: i === 0, dir: 1 }));
+  r.check(fb.state === 'frozen', `freezing a brute from behind should make it a statue (state ${fb.state})`);
+  stand(f.p, fb.x - 50, fb.y); f.p.face = 1;
+  const ev2 = run(f.sim, 0.3, (i) => ({ ...NONE, slashPress: i === 0 }));
+  r.check(fb.state === 'down' && ev2.some((e) => e.type === 'shatter' && e.kind === 'brute'), `a frozen brute should shatter (state ${fb.state})`);
+}
+{ // a sentinel stands its ground and turns round
+  const { sim } = level(12), w = sim.guards.find((q) => q.kind === 'sentinel');
+  const x = w.x, faces = new Set([w.face]);
+  for (let i = 0; i < (SENTRY_T * 2 + 0.5) * 120; i++) { sim.step(NONE); faces.add(w.face); }
+  r.check(w.x === x && faces.size === 2, `a sentinel should stay put and turn round (x ${x} → ${w.x}, faces ${[...faces]})`);
+}
+
+// ── 6. every level is a real vault: guards from level 2, more of them deeper ──
 r.check(mapFor(1).guards.length === 0 && mapFor(2).guards.length === 1, 'level 1 should have no guard and level 2 one');
 r.check(mapFor(7).jets.length > 0 && mapFor(8).lamps.length > 0, 'level 7 should have flame jets and level 8 heat lamps');
-r.check(mapFor(11) === mapFor(6) && mapFor(15) === mapFor(10), 'levels 11–15 should play the freeze levels again (until section 3)');
+r.check([11, 12, 13, 14, 15].every((L) => mapFor(L).key), 'every level from 11 should have an ember key');
+r.check(mapFor(12).guards.some((g) => g.kind === 'sentinel') && mapFor(13).guards.some((g) => g.kind === 'brute'), 'level 12 should bring sentinels and level 13 brutes');
 r.check(mapFor(5).guards.length >= 3, 'level 5 should have at least three guards');
 r.check(STAGES.length === 4 && bodyH(1) < 3 * TILE, 'the full-size Iceman should fit in a 3-tile alcove');
 r.check(GUARD_H < 3 * TILE, 'a guard should fit under a 3-tile ceiling');

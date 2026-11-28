@@ -3,9 +3,10 @@
 //  the frost shards and the fireballs are Magma Escape's own drawings (imported in game.js).
 //  This file draws the vault: its stone and lava, the alcoves' shadow, the vault door, the fire
 //  opals, and the Fire King's guards with their lantern beams; from section 2 the ice bridges,
-//  ice statues, flame jets, heat lamps and the freeze's cold.
+//  ice statues, flame jets, heat lamps and the freeze's cold; from section 3 the cold vents, the
+//  ember key and its iron gates, the locked door, brutes and sentinels.
 // ─────────────────────────────────────────────────────────────
-import { TILE, ROCK, LEDGE, LAVA, SHADOW, tileAt, GUARD_H, BEAM_Y, beamHalf, ICE_WARN, STATUE_T, JET_H, JET_P, JET_OFF, JET_WARN, LAMP_R, LAMP_HALF, lampAt } from './world.js';
+import { TILE, ROCK, LEDGE, LAVA, SHADOW, tileAt, GUARD_H, BEAM_Y, beamHalf, ICE_WARN, STATUE_T, JET_H, JET_P, JET_OFF, JET_WARN, LAMP_R, LAMP_HALF, lampAt, VENT_H } from './world.js';
 
 const TAU = Math.PI * 2;
 const INK = '#07050a';
@@ -22,7 +23,9 @@ export function paintMap(m, scale) {
   cv.width = Math.ceil(m.w * scale); cv.height = Math.ceil(m.h * scale);
   const g = cv.getContext('2d');
   g.scale(scale, scale);
+  const gates = new Set(m.gates || []);
   for (let r = 0; r < m.R; r++) for (let c = 0; c < m.C; c++) {
+    if (gates.has(r * m.C + c)) continue;              // iron gates are drawn as they open (drawGates)
     const k = tileAt(m, c, r), x = c * TILE, y = r * TILE;
     if (k === SHADOW) drawAlcove(g, m, c, r, x, y);
     else if (k === ROCK) drawRock(g, m, c, r, x, y);
@@ -117,7 +120,7 @@ export function drawLavaTiles(ctx, m, r0, r1, t, glow) {
 }
 
 /** The vault door at the bottom of the level: round, iron, its wheel glowing with heat. */
-export function drawDoor(ctx, d, t, glow, open = 0) {
+export function drawDoor(ctx, d, t, glow, open = 0, locked = false) {
   const x = d.x, y = d.y - 34, R = 30;
   ctx.save();
   if (glow) { ctx.globalAlpha = 0.6; ctx.drawImage(glow, x - 60, y - 60, 120, 120); ctx.globalAlpha = 1; }
@@ -134,6 +137,7 @@ export function drawDoor(ctx, d, t, glow, open = 0) {
   ctx.restore();
   // the threshold
   ctx.fillStyle = '#2a2024'; ctx.fillRect(x - 26, d.y - 3, 52, 3);
+  if (locked) drawPadlock(ctx, x, y, t);
 }
 
 /** A fire opal: a red-orange gem with a flame inside. */
@@ -168,7 +172,9 @@ export function drawBeam(ctx, g, t, alarmed) {
  */
 export function drawGuard(ctx, g, t, glow, walk) {
   ctx.save(); ctx.translate(g.x, g.y);
+  const brute = g.kind === 'brute', sentinel = g.kind === 'sentinel', sc = brute ? 1.22 : 1;
   if (g.state === 'down') {
+    if (brute) ctx.scale(1.25, 1.25);
     // put out: an empty suit of armour, slumped, smoking
     ctx.fillStyle = '#2a2226'; ctx.strokeStyle = INK; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.ellipse(0, -6, 15, 6, 0, 0, TAU); ctx.fill(); ctx.stroke();
@@ -178,7 +184,13 @@ export function drawGuard(ctx, g, t, glow, walk) {
   }
   const frozen = g.state === 'frozen';
   if (frozen) { glow = null; t = g.id * 1.7; walk = 0; }       // a statue: the flame stands still
-  ctx.scale(g.face, 1);
+  ctx.scale(g.face * sc, sc);
+  if (sentinel) {                                                // a sentinel's halberd, upright behind it
+    ctx.strokeStyle = '#4a3c3a'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(-13, 0); ctx.lineTo(-13, -64); ctx.stroke();
+    ctx.fillStyle = '#6a5650'; ctx.strokeStyle = INK; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(-13, -72); ctx.lineTo(-9, -62); ctx.lineTo(-13, -58); ctx.lineTo(-20, -62); ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
   const bob = g.state === 'patrol' ? Math.abs(Math.sin(walk)) * 1.5 : 0;
   const step = g.state === 'patrol' ? Math.sin(walk) * 4 : 0;
   // flame body (behind the armour)
@@ -203,6 +215,14 @@ export function drawGuard(ctx, g, t, glow, walk) {
   ctx.beginPath(); ctx.moveTo(-8, -33); ctx.lineTo(8, -33); ctx.lineTo(7, -46); ctx.quadraticCurveTo(0, -50, -7, -46); ctx.closePath(); ctx.fill(); ctx.stroke();
   ctx.fillStyle = g.state === 'alert' || g.state === 'hunt' ? '#ffffff' : '#ffb060';
   ctx.fillRect(-1, -42, 8, 2.4);
+  if (brute) {                                                   // horns and shoulder plates
+    ctx.fillStyle = '#5a4a46'; ctx.strokeStyle = INK; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(-7, -44); ctx.quadraticCurveTo(-16, -48, -15, -57); ctx.quadraticCurveTo(-11, -50, -5, -47); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(7, -44); ctx.quadraticCurveTo(16, -48, 15, -57); ctx.quadraticCurveTo(11, -50, 5, -47); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#2b2226';
+    ctx.beginPath(); ctx.ellipse(-10, -31, 6, 4, -0.3, 0, TAU); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(10, -31, 6, 4, 0.3, 0, TAU); ctx.fill(); ctx.stroke();
+  }
   // a crest of flame on top
   ctx.fillStyle = '#ff7a1a';
   ctx.beginPath(); ctx.moveTo(-4, -47); ctx.quadraticCurveTo(-2, -56 - fl(4) * 4, 2, -58); ctx.quadraticCurveTo(1, -52, 5, -47); ctx.closePath(); ctx.fill();
@@ -221,9 +241,10 @@ export function drawGuard(ctx, g, t, glow, walk) {
     const a = Math.min(1, (0.55 - g.t) * 8);
     ctx.save(); ctx.globalAlpha = Math.max(0, a);
     ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#ff3a1a'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(g.x, g.y - GUARD_H - 18, 10, 0, TAU); ctx.fill(); ctx.stroke();
+    const top = (g.h || GUARD_H) * (brute ? 1.08 : 1);
+    ctx.beginPath(); ctx.arc(g.x, g.y - top - 18, 10, 0, TAU); ctx.fill(); ctx.stroke();
     ctx.fillStyle = '#ff3a1a'; ctx.font = '900 15px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('!', g.x, g.y - GUARD_H - 17);
+    ctx.fillText('!', g.x, g.y - top - 17);
     ctx.restore();
   } else if (g.state === 'hunt' && g.lost > 0) {
     ctx.save(); ctx.fillStyle = '#ffb060'; ctx.font = '900 14px system-ui, sans-serif'; ctx.textAlign = 'center';
@@ -356,5 +377,69 @@ export function drawLamp(ctx, l, t, glow) {
     const f = Math.sin(t * 17 + l.id) * 2;
     ctx.beginPath(); ctx.moveTo(-6, 0); ctx.quadraticCurveTo(-4, -7 - f, 0, -9); ctx.quadraticCurveTo(4, -6 + f, 6, 0); ctx.closePath(); ctx.fill();
   }
+  ctx.restore();
+}
+
+// ── Section 3: vents, the key, gates ─────────────────────────
+
+/** A cold vent: a grate in the floor breathing blue mist up (it freezes him back up while he stands in it). */
+export function drawVent(ctx, v, t, glow) {
+  const x = v.x, y = v.y;
+  ctx.save();
+  if (glow) { ctx.globalAlpha = 0.45; ctx.drawImage(glow, x - 26, y - VENT_H, 52, VENT_H + 8); ctx.globalAlpha = 1; }
+  for (let i = 0; i < 7; i++) {
+    const k = (t * 0.6 + i / 7) % 1;
+    ctx.globalAlpha = (1 - k) * 0.4;
+    ctx.fillStyle = i % 2 ? '#cfe8f5' : '#8fd3f0';
+    ctx.beginPath(); ctx.arc(x + Math.sin(i * 2.3 + t * 2) * 7 * k, y - 6 - k * VENT_H, 3 + k * 7, 0, TAU); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = '#1a2430'; ctx.strokeStyle = INK; ctx.lineWidth = 1.5;
+  ctx.fillRect(x - 12, y - 5, 24, 5); ctx.strokeRect(x - 12, y - 5, 24, 5);
+  ctx.fillStyle = '#8fd3f0';
+  for (let i = 0; i < 4; i++) ctx.fillRect(x - 9 + i * 5, y - 4, 2.5, 3);
+  ctx.restore();
+}
+
+/** The ember key: an iron key with a coal glowing in its bow, bobbing. */
+export function drawKey(ctx, k, t, glow) {
+  const b = Math.sin(t * 2.6) * 2.5;
+  ctx.save(); ctx.translate(k.x, k.y + b); ctx.rotate(-0.5);
+  if (glow) { ctx.globalAlpha = 0.75 + Math.sin(t * 5) * 0.15; ctx.drawImage(glow, -24, -24, 48, 48); ctx.globalAlpha = 1; }
+  ctx.strokeStyle = INK; ctx.lineWidth = 1.6; ctx.fillStyle = '#6a5650';
+  ctx.beginPath(); ctx.arc(-6, 0, 6, 0, TAU); ctx.fill(); ctx.stroke();
+  ctx.fillRect(0, -2, 13, 4); ctx.strokeRect(0, -2, 13, 4);
+  ctx.fillRect(8, 2, 3, 4); ctx.strokeRect(8, 2, 3, 4); ctx.fillRect(12, 2, 2, 3);
+  ctx.fillStyle = '#ffb060'; ctx.beginPath(); ctx.arc(-6, 0, 3, 0, TAU); ctx.fill();
+  ctx.fillStyle = '#fff2c8'; ctx.beginPath(); ctx.arc(-7, -1, 1.2, 0, TAU); ctx.fill();
+  ctx.restore();
+}
+
+/** Iron gates and hatches (X) while they are shut: bars with a glowing lock plate. */
+export function drawGates(ctx, m, r0, r1, t) {
+  for (const i of m.gates) {
+    const c = i % m.C, r = Math.floor(i / m.C);
+    if (r < r0 || r > r1) continue;
+    const x = c * TILE, y = r * TILE;
+    ctx.fillStyle = 'rgba(10,8,12,.85)'; ctx.fillRect(x, y, TILE, TILE);
+    ctx.strokeStyle = '#5a4a46'; ctx.lineWidth = 3;
+    ctx.beginPath();
+    for (let k = 4; k < TILE; k += 8) { ctx.moveTo(x + k, y + 1); ctx.lineTo(x + k, y + TILE - 1); ctx.moveTo(x + 1, y + k); ctx.lineTo(x + TILE - 1, y + k); }
+    ctx.stroke();
+    ctx.strokeStyle = INK; ctx.lineWidth = 1.5; ctx.strokeRect(x + 0.75, y + 0.75, TILE - 1.5, TILE - 1.5);
+    ctx.fillStyle = `rgba(255,140,50,${(0.55 + 0.25 * Math.sin(t * 4 + c)).toFixed(3)})`;
+    ctx.fillRect(x + TILE / 2 - 3, y + TILE / 2 - 3, 6, 6);
+  }
+}
+
+/** A padlock on the vault door until the ember key is found. */
+function drawPadlock(ctx, x, y, t) {
+  ctx.save(); ctx.translate(x, y + 2);
+  ctx.strokeStyle = '#8a7a74'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(0, -8, 6, Math.PI, 0); ctx.stroke();
+  ctx.fillStyle = '#4a3c3a'; ctx.strokeStyle = INK; ctx.lineWidth = 1.5;
+  ctx.fillRect(-9, -8, 18, 14); ctx.strokeRect(-9, -8, 18, 14);
+  ctx.fillStyle = `rgba(255,140,50,${(0.7 + 0.3 * Math.sin(t * 4)).toFixed(3)})`;
+  ctx.beginPath(); ctx.arc(0, -2, 2.5, 0, TAU); ctx.fill(); ctx.fillRect(-1, -1, 2, 5);
   ctx.restore();
 }

@@ -10,13 +10,15 @@
 //    • every fire guard has a real patrol (two tiles at least), and every floor with a guard
 //      has a shadow alcove to hide in, where a full-size Iceman is hidden from the beams
 //    • no guard can see the start, and no heat lamp ever lights it, so the first seconds are safe
-//    • on the freeze levels (6–10) the routes may use the FREEZE (an ice bridge over a lava pool);
+//    • on the freeze levels (6+) the routes may use the FREEZE (an ice bridge over a lava pool);
 //      the first of them, The Cold Bridge, can't be crossed without it (it teaches the freeze)
+//    • on a level with an ember key (11–15): the key can be reached with the gates shut, at every
+//      size, and from anywhere he could be when he takes it, the door can be reached with them open
 //  Exit code 1 if any level fails.
 // ─────────────────────────────────────────────────────────────
 import { TILE, STAGES, SHADOW, tileAt, isFloor, isHidden, sees, bodyH, LAVA, litByLamp, LAMP_P } from './world.js';
 import { ALL_MAPS } from './levels.js';
-import { graphFor, reachableFrom, nodeId, standable, itemsOf } from './plan.js';
+import { graphFor, reachableFrom, nodeId, standable, itemsOf, planMap } from './plan.js';
 
 let bad = 0;
 const fail = (m, msg) => { bad++; console.log(`✗ ${m.name}: ${msg}`); };
@@ -29,7 +31,7 @@ for (const m of ALL_MAPS()) {
   if (!isFloor(tileAt(m, dc, dr))) fail(m, 'the vault door has no floor under it');
   // the guards
   for (const g of m.guards) {
-    if (g.x1 - g.x0 < TILE * 2) fail(m, `the guard at col ${g.c}, row ${g.r} has almost no patrol`);
+    if (g.kind !== 'sentinel' && g.x1 - g.x0 < TILE * 2) fail(m, `the guard at col ${g.c}, row ${g.r} has almost no patrol`);
     const floor = g.r + 1;
     let alcove = false;
     for (let c = 1; c < m.C - 1; c++) {
@@ -57,6 +59,7 @@ for (const m of ALL_MAPS()) {
   // the route
   const notes = [];
   for (const st of STAGES) {
+    if (m.key) { keyRoute(m, st, nodeId(m, sc, sr), notes); continue; }
     const g = graphFor(m, st.k), start = nodeId(m, sc, sr);
     if (!g.nodes.has(start)) { fail(m, `the start has no room for the ${st.name} Iceman`); continue; }
     const { seen, exit } = reachableFrom(m, g, start);
@@ -68,7 +71,28 @@ for (const m of ALL_MAPS()) {
     }
     notes.push(`${st.name} ${g.dist.get(start).toFixed(1)}`);
   }
-  console.log(`  ${m.name}: ${m.R} rows, ${m.guards.length} guards${m.jets.length ? `, ${m.jets.length} jets` : ''}${m.lamps.length ? `, ${m.lamps.length} lamps` : ''}, ${m.shards.length} shards, ${m.opals.length} opals · start → door (moves): ${notes.join(', ')}`);
+  const kinds = ['brute', 'sentinel'].map((k) => [k, m.guards.filter((g) => g.kind === k).length]).filter(([, n]) => n).map(([k, n]) => `${n} ${k}${n > 1 ? 's' : ''}`);
+  console.log(`  ${m.name}: ${m.R} rows, ${m.guards.length} guards${kinds.length ? ` (${kinds.join(', ')})` : ''}${m.jets.length ? `, ${m.jets.length} jets` : ''}${m.lamps.length ? `, ${m.lamps.length} lamps` : ''}${m.vents.length ? `, ${m.vents.length} vents` : ''}${m.key ? ', a key' : ''}, ${m.shards.length} shards, ${m.opals.length} opals · start → ${m.key ? 'key + door' : 'door'} (moves): ${notes.join(', ')}`);
+}
+
+/** A level with an ember key: the key first (gates shut), then the door (gates open). */
+function keyRoute(m, st, start, notes) {
+  const toKey = planMap(m, false), open = planMap(m, true);
+  const gk = graphFor(toKey, st.k), go = graphFor(open, st.k);
+  if (!gk.nodes.has(start)) { fail(m, `the start has no room for the ${st.name} Iceman`); return; }
+  const a = reachableFrom(toKey, gk, start);
+  if (!a.exit) fail(m, `the ember key can't be reached at size ${st.name}`);
+  for (const id of a.seen) {
+    if (m.gates.includes(id)) continue;                  // standing on a hatch: it opens under him
+    if (!Number.isFinite(go.dist.get(id))) { fail(m, `after taking the key at col ${id % m.C}, row ${Math.floor(id / m.C)}, the door can't be reached at size ${st.name}`); break; }
+  }
+  if (st.k === 1) {
+    const got = new Set(), b = reachableFrom(open, go, start);
+    for (const id of a.seen) for (const j of gk.nodes.get(id).items) got.add(j);
+    for (const id of b.seen) for (const j of go.nodes.get(id).items) got.add(j);
+    itemsOf(m).forEach((q, j) => { if (!got.has(j)) fail(m, `${j < m.shards.length ? 'frost shard' : 'fire opal'} at col ${Math.floor(q.x / TILE)}, row ${Math.floor(q.y / TILE)} can't be reached`); });
+  }
+  notes.push(`${st.name} ${gk.dist.get(start).toFixed(1)}+${go.dist.get(start)?.toFixed(1) ?? '?'}`);
 }
 
 if (bad) { console.log(`✗ inferno-vault level checker: ${bad} problem(s)`); process.exit(1); }

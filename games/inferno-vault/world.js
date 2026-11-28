@@ -25,7 +25,15 @@
 //  Markers (air): S start   D the vault door   * frost shard   o fire opal
 //                 G a fire guard facing right   g … facing left   | where a patrol turns back
 //                 ^ a flame jet (a vent in the floor below)   L a heat lamp (hanging from the rock above)
-//  A guard walks its floor between walls, drops, lava, jets and | marks, pausing at each end to turn.
+//                 B / b a brute (facing right / left)   W / w a sentinel (stands and turns)
+//                 v a cold vent (in the floor below)    k the ember key    X an iron gate or hatch
+//  A guard walks its floor between walls, drops, lava, jets, gates and | marks, pausing at each end to turn.
+//
+//  The deep vault (section 3, levels 11–15): cold vents freeze him back up while he stands in
+//  them; the ember key opens every iron gate and hatch (X) on its level, and the vault door stays
+//  locked until he has it; a guard that sees him rings the ALARM (every guard on that floor turns
+//  on him, and the vault heats up around him for a while); brutes are too hot for the blade
+//  (freeze one first, then shatter it); sentinels stand still and turn round now and then.
 //  Ice bridges live in the level's own copy of the tiles (sim.m.t), as rock that melts back to
 //  lava; the map itself (sim.base) never changes, so the planner and the checker can share it.
 // ─────────────────────────────────────────────────────────────
@@ -65,6 +73,12 @@ export const POOL_MAX = 8;                    // the most lava tiles one freeze 
 export const STATUE_T = 5;                    // a frozen guard thaws after this long
 // Flame jets: a vent in the floor that roars up every JET_P seconds (off, then a sputter, then fire)
 export const JET_H = 3 * TILE, JET_HW = 10, JET_DMG = 20, JET_P = 3.0, JET_OFF = 1.6, JET_WARN = 0.45, JET_FROZEN_T = 6;
+// The deep vault (section 3)
+export const ALARM_FROM = 11, ALARM_T = 8, ALARM_DPS = 2.5;   // the alarm, from level 11: how long, and the heat
+export const COLD_HPS = 14, VENT_H = 2 * TILE;                // a cold vent freezes him back up this fast, this high
+export const SENTRY_T = 2.6;                                  // a sentinel turns round this often
+export const BRUTE_HW = 14, BRUTE_H = 56, BRUTE_DMG = 30, BRUTE_SPEED = 0.75;
+export const KEY_PTS = 100;
 // Heat lamps: a brazier on a chain that swings, its light sweeping the floor below
 export const LAMP_R = 160, LAMP_HALF = 0.2, LAMP_SWING = 0.6, LAMP_P = 5.0, LAMP_CHAIN = 16, LAMP_DPS = 9, LAMP_OUT_T = 6;
 
@@ -74,7 +88,7 @@ export function parseMap(rows, name = '', opts = {}) {
   const R = rows.length, C = rows[0].length;
   if (C !== COLS) throw new Error(`${name}: rows must be ${COLS} wide (got ${C})`);
   const t = new Uint8Array(R * C), stops = new Set();
-  const m = { name, R, C, w: C * TILE, h: R * TILE, t, spawn: null, exit: null, shards: [], opals: [], guards: [], jets: [], lamps: [], freeze: !!opts.freeze };
+  const m = { name, R, C, w: C * TILE, h: R * TILE, t, spawn: null, exit: null, shards: [], opals: [], guards: [], jets: [], lamps: [], vents: [], gates: [], key: null, freeze: !!opts.freeze };
   rows.forEach((row, r) => {
     if (row.length !== C) throw new Error(`${name}: row ${r} is ${row.length} wide`);
     for (let c = 0; c < C; c++) {
@@ -87,7 +101,12 @@ export function parseMap(rows, name = '', opts = {}) {
       else if (ch === 'D') m.exit = { x: cx, y: feet };
       else if (ch === '*') m.shards.push({ x: cx, y: cy });
       else if (ch === 'o') m.opals.push({ x: cx, y: cy });
-      else if (ch === 'G' || ch === 'g') m.guards.push({ c, r, x: cx, y: feet, face: ch === 'G' ? 1 : -1 });
+      else if (ch === 'G' || ch === 'g') m.guards.push({ c, r, x: cx, y: feet, face: ch === 'G' ? 1 : -1, kind: 'guard' });
+      else if (ch === 'B' || ch === 'b') m.guards.push({ c, r, x: cx, y: feet, face: ch === 'B' ? 1 : -1, kind: 'brute' });
+      else if (ch === 'W' || ch === 'w') m.guards.push({ c, r, x: cx, y: feet, face: ch === 'W' ? 1 : -1, kind: 'sentinel' });
+      else if (ch === 'v') m.vents.push({ c, r, x: cx, y: feet });
+      else if (ch === 'k') { if (m.key) throw new Error(`${name}: one ember key per level`); m.key = { x: cx, y: cy }; }
+      else if (ch === 'X') { t[r * C + c] = ROCK; m.gates.push(r * C + c); }
       else if (ch === '|') stops.add(r * C + c);
       else if (ch === '^') { m.jets.push({ c, r, x: cx, y: feet }); stops.add(r * C + c); }
       else if (ch === 'L') m.lamps.push({ c, r, x: cx, y: r * TILE });
@@ -96,8 +115,13 @@ export function parseMap(rows, name = '', opts = {}) {
   });
   if (!m.spawn || !m.exit) throw new Error(`${name}: needs an S and a D`);
   // each guard's patrol: along its floor, up to a wall, a drop, lava or a | mark
-  const walkable = (c, r) => c > 0 && c < C - 1 && !stops.has(r * C + c)
+  const gate = new Set(m.gates);
+  const walkable = (c, r) => c > 0 && c < C - 1 && !stops.has(r * C + c) && !gate.has((r + 1) * C + c)
     && tileAt(m, c, r) !== ROCK && tileAt(m, c, r) !== LAVA && tileAt(m, c, r - 1) !== ROCK && isFloor(tileAt(m, c, r + 1));
+  m.vents.forEach((v, i) => {
+    if (!isFloor(tileAt(m, v.c, v.r + 1))) throw new Error(`${name}: the cold vent at col ${v.c}, row ${v.r} has no floor under it`);
+    v.id = i + 1;
+  });
   m.jets.forEach((j, i) => {
     if (!isFloor(tileAt(m, j.c, j.r + 1))) throw new Error(`${name}: the flame jet at col ${j.c}, row ${j.r} has no floor under it`);
     j.id = i + 1; j.phase = opts.jets?.[i] ?? (i * 1.1) % JET_P;
@@ -108,6 +132,7 @@ export function parseMap(rows, name = '', opts = {}) {
   });
   for (const g of m.guards) {
     if (!walkable(g.c, g.r)) throw new Error(`${name}: the guard at col ${g.c}, row ${g.r} has no floor to stand on`);
+    if (g.kind === 'sentinel') { g.x0 = g.x1 = g.x; continue; }   // a sentinel stands its ground
     let l = g.c; while (walkable(l - 1, g.r)) l--;
     let rt = g.c; while (walkable(rt + 1, g.r)) rt++;
     g.x0 = l * TILE + TILE / 2; g.x1 = rt * TILE + TILE / 2;
@@ -132,7 +157,13 @@ export function inLava(m, p) {
 /** The vault door: his body reaches it. */
 export const atExit = (p, m) => Math.abs(p.x - m.exit.x) < 22 && Math.abs(p.y - m.exit.y) < 6;
 
-export const guardBox = (g) => [g.x - GUARD_HW, g.y - GUARD_H, g.x + GUARD_HW, g.y];
+export const guardBox = (g) => { const hw = g.hw || GUARD_HW; return [g.x - hw, g.y - (g.h || GUARD_H), g.x + hw, g.y]; };
+export const keyBox = (k) => [k.x - 11, k.y - 11, k.x + 11, k.y + 11];
+export const ventBoxOf = (v) => [v.x - 12, v.y - VENT_H, v.x + 12, v.y];
+/** A guard's body and ways, by kind. */
+export const guardKind = (kind) => kind === 'brute' ? { hw: BRUTE_HW, h: BRUTE_H, dmg: BRUTE_DMG, speed: BRUTE_SPEED, turnT: TURN_T }
+  : kind === 'sentinel' ? { hw: GUARD_HW, h: GUARD_H, dmg: GUARD_DMG, speed: 0, turnT: SENTRY_T }
+  : { hw: GUARD_HW, h: GUARD_H, dmg: GUARD_DMG, speed: 1, turnT: TURN_T };
 export const shotBox = (b) => [b.x - SHOT_R, b.y - SHOT_R, b.x + SHOT_R, b.y + SHOT_R];
 
 /** How far a guard's lantern reaches right now: BEAM, or less where rock stands in the way. */
@@ -239,7 +270,8 @@ export class VaultSim {
     this.jets = m.jets.map((j) => ({ ...j, frozen: 0, was: 'off' }));
     this.lamps = m.lamps.map((l) => ({ ...l, out: 0 }));
     this.freezes = 0; this.statues = 0;
-    this.guards = m.guards.map((g, i) => ({ id: i + 1, x: g.x, y: g.y, face: g.face, x0: g.x0, x1: g.x1, state: 'patrol', t: 0, throwT: 0, lost: 0, reach: BEAM, saw: false }));
+    this.guards = m.guards.map((g, i) => ({ id: i + 1, kind: g.kind || 'guard', ...guardKind(g.kind), x: g.x, y: g.y, face: g.face, x0: g.x0, x1: g.x1, state: 'patrol', t: 0, throwT: 0, lost: 0, reach: BEAM, saw: false }));
+    this.keyGot = !m.key; this.alarmT = 0; this.alarms = 0; this.chillT = 0; this.lockedT = 0;
     this.shots = []; this.nextShot = 1;
     this.shards = m.shards.map((c) => ({ x: c.x, y: c.y, got: false }));
     this.opals = m.opals.map((c) => ({ x: c.x, y: c.y, got: false }));
@@ -311,9 +343,42 @@ export class VaultSim {
       ev.push({ type: 'opal', x: o.x, y: o.y, all: this.opals.every((q) => q.got) });
     }
 
-    // the vault door: the way out
-    if (atExit(p, m) && p.ground) { this.done = true; p.atk = null; ev.push({ type: 'exit', x: p.x, y: p.y, hp: p.hp, ghost: !this.seen }); }
+    // the ember key: every gate and hatch on the level opens, and so does the vault door
+    if (!this.keyGot && overlap(pb, keyBox(m.key))) {
+      this.keyGot = true;
+      for (const i of m.gates) m.t[i] = AIR;
+      ev.push({ type: 'key', x: m.key.x, y: m.key.y, gates: m.gates.length });
+    }
+    // cold vents freeze him back up
+    this.stepVents();
+    // the alarm: the vault heats up around him while it rings
+    if (this.alarmT > 0) {
+      this.alarmT -= DT;
+      if (!p.hidden && !p.dead) this.meltBy(ALARM_DPS * DT);
+      if (this.alarmT <= 0) ev.push({ type: 'alarmOff' });
+      if (p.dead) return ev;
+    }
+    // the vault door: the way out (locked until he has the key)
+    if (this.lockedT > 0) this.lockedT -= DT;
+    if (atExit(p, m) && p.ground) {
+      if (this.keyGot) { this.done = true; p.atk = null; ev.push({ type: 'exit', x: p.x, y: p.y, hp: p.hp, ghost: !this.seen }); }
+      else if (this.lockedT <= 0) { this.lockedT = 2; ev.push({ type: 'locked', x: m.exit.x, y: m.exit.y }); }
+    }
     return ev;
+  }
+
+  stepVents() {
+    const p = this.p;
+    if (p.dead || !this.m.vents.length) return;
+    const pb = playerBox(p);
+    for (const v of this.m.vents) {
+      if (!overlap(pb, ventBoxOf(v))) continue;
+      if (p.hp < MAX_HP) {
+        this.heal(COLD_HPS * DT);
+        if ((this.chillT -= DT) <= 0) { this.chillT = 0.25; this.ev.push({ type: 'chill', x: v.x, y: v.y, hp: p.hp }); }
+      }
+      break;
+    }
   }
 
   // ── Fire guards ────────────────────────────────────────────
@@ -323,7 +388,7 @@ export class VaultSim {
     for (const g of this.guards) {
       if (g.state === 'down') { g.t += DT; continue; }
       if (g.state === 'frozen') {                       // an ice statue: no light, no flame, until it thaws
-        if ((g.t -= DT) <= 0) { g.state = 'patrol'; g.saw = false; g.lost = 0; this.ev.push({ type: 'thawGuard', id: g.id, x: g.x, y: g.y - GUARD_H / 2 }); }
+        if ((g.t -= DT) <= 0) { g.state = 'patrol'; g.saw = false; g.lost = 0; this.ev.push({ type: 'thawGuard', id: g.id, x: g.x, y: g.y - g.h / 2 }); }
         continue;
       }
       g.reach = beamReach(m, g);
@@ -332,9 +397,9 @@ export class VaultSim {
       const toward = Math.sign(p.x - g.x) || g.face;
       switch (g.state) {
         case 'patrol': {
-          g.x += g.face * this.gv * DT;
-          if (g.face > 0 && g.x >= g.x1) { g.x = g.x1; g.state = 'turn'; g.t = TURN_T; }
-          else if (g.face < 0 && g.x <= g.x0) { g.x = g.x0; g.state = 'turn'; g.t = TURN_T; }
+          g.x += g.face * this.gv * g.speed * DT;
+          if (g.face > 0 && g.x >= g.x1) { g.x = g.x1; g.state = 'turn'; g.t = g.turnT; }
+          else if (g.face < 0 && g.x <= g.x0) { g.x = g.x0; g.state = 'turn'; g.t = g.turnT; }
           if (see) this.spot(g);
           break;
         }
@@ -356,7 +421,7 @@ export class VaultSim {
       }
       // walking into a guard burns (not while he hides in an alcove behind its path)
       if (!p.dead && p.inv <= 0 && !p.hidden && overlap(playerBox(p), guardBox(g))) {
-        this.damage(GUARD_DMG, 'hurt', toward);
+        this.damage(g.dmg, 'hurt', toward);
         if (g.state === 'patrol' || g.state === 'turn') this.spot(g);
         if (p.dead) return;
       }
@@ -373,7 +438,16 @@ export class VaultSim {
     g.state = 'alert'; g.t = SPOT_T; g.saw = true;
     g.face = Math.sign(this.p.x - g.x) || g.face;
     this.seen = true;
-    this.ev.push({ type: 'spotted', id: g.id, x: g.x, y: g.y - GUARD_H - 10 });
+    this.ev.push({ type: 'spotted', id: g.id, x: g.x, y: g.y - g.h - 10 });
+    // the deep vault: it rings the alarm, and every guard on its floor turns on him
+    if (this.level >= ALARM_FROM && this.alarmT <= 0) {
+      this.alarmT = ALARM_T; this.alarms++;
+      this.ev.push({ type: 'alarm', id: g.id, x: g.x, y: g.y - g.h });
+      for (const q of this.guards) {
+        if (q === g || !guardActive(q) || Math.abs(q.y - g.y) > 4 || q.state === 'alert' || q.state === 'hunt') continue;
+        q.state = 'alert'; q.t = SPOT_T + 0.35; q.saw = true; q.face = Math.sign(this.p.x - q.x) || q.face;
+      }
+    }
   }
 
   throwAt(g) {
@@ -414,17 +488,17 @@ export class VaultSim {
       a.hit.push(g.id);
       if (g.state === 'frozen') {                       // an ice statue shatters, from any side
         g.state = 'down'; g.t = 0; this.takedowns++;
-        this.ev.push({ type: 'shatter', id: g.id, x: g.x, y: g.y - GUARD_H / 2, pts: TAKEDOWN_PTS });
+        this.ev.push({ type: 'shatter', id: g.id, kind: g.kind, x: g.x, y: g.y - g.h / 2, pts: g.kind === 'brute' ? TAKEDOWN_PTS * 2 : TAKEDOWN_PTS });
         continue;
       }
       const behind = Math.sign(p.x - g.x) === -g.face;
-      if (behind && (g.state === 'patrol' || g.state === 'turn')) {
+      if (behind && g.kind !== 'brute' && (g.state === 'patrol' || g.state === 'turn')) {
         g.state = 'down'; g.t = 0; this.takedowns++;
-        this.ev.push({ type: 'takedown', id: g.id, x: g.x, y: g.y - GUARD_H / 2, pts: TAKEDOWN_PTS });
+        this.ev.push({ type: 'takedown', id: g.id, x: g.x, y: g.y - g.h / 2, pts: TAKEDOWN_PTS });
       } else {
         // the blade glances off its flame: he is pushed back, and it knows he is there
         p.vx = -Math.sign(g.x - p.x || p.face) * KB_VX * 0.8; p.kbT = KB_T * 0.6;
-        this.ev.push({ type: 'parry', id: g.id, x: g.x - g.face * 6, y: g.y - GUARD_H * 0.6 });
+        this.ev.push({ type: 'parry', id: g.id, kind: g.kind, x: g.x - g.face * 6, y: g.y - g.h * 0.6 });
         this.spot(g);
       }
     }
@@ -453,7 +527,7 @@ export class VaultSim {
     for (const g of this.guards) {
       if (!guardActive(g) || !overlap(box, guardBox(g))) continue;
       g.state = 'frozen'; g.t = STATUE_T; this.statues++;
-      this.ev.push({ type: 'statue', id: g.id, x: g.x, y: g.y - GUARD_H / 2 });
+      this.ev.push({ type: 'statue', id: g.id, kind: g.kind, x: g.x, y: g.y - g.h / 2 });
     }
     // flame jets stop; heat lamps go out; fireballs fizzle
     for (const j of this.jets) if (overlap(box, ventBox(j)) || (jetState(j, this.t) === 'on' && overlap(box, jetBox(j)))) {

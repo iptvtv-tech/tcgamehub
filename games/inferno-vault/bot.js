@@ -14,11 +14,14 @@
 //       guard into a statue and shatter it; otherwise push on toward the door
 //  On the freeze levels the planner's moves include "freeze the lava pool in front, walk across";
 //  an ice statue (or any guard the bot froze) is shattered like a takedown, from any side.
+//  In the deep vault (11–15) it heads for the ember key first (planMap), freezes a brute from
+//  behind before it shatters it (the blade alone bounces off a brute), and when it is low on ice it
+//  stands in a cold vent until it has frozen back up.
 //  A worse bot (skill < 1) hesitates between moves, so its predictions go stale, and it tries
 //  fewer takedowns.
 // ─────────────────────────────────────────────────────────────
-import { macroInput, simMacro, graphFor, MACROS, EXIT, nodeOf } from './plan.js';
-import { TILE, ROCK, LAVA, MAX_HP, STAGES, stageOf, tileAtPx, halfW, bodyH, isHidden, GUARD_HW, MAX_SHOTS, FREEZE_COST, FREEZE_R } from './world.js';
+import { macroInput, simMacro, graphFor, MACROS, EXIT, nodeOf, planMap } from './plan.js';
+import { TILE, ROCK, LAVA, MAX_HP, STAGES, stageOf, tileAtPx, halfW, bodyH, isHidden, GUARD_HW, MAX_SHOTS, FREEZE_COST, FREEZE_R, ventBoxOf, playerBox, overlap } from './world.js';
 
 const STEP = 1 / 120;
 const NONE = Object.freeze({ dir: 0, jumpPress: false, jumpHeld: false, up: false, down: false, slashPress: false, freezePress: false });
@@ -91,9 +94,21 @@ export function statuePolicy(gid) {
     const dx = g.x - p.x, side = Math.sign(dx) || p.face, hw = halfW(p.k), d = Math.abs(dx);
     const inp = { ...NONE };
     if (!p.ground) return inp;
-    if (d > hw + GUARD_HW + FREEZE_R - 30) inp.dir = side;
-    else if (p.frzCD <= 0) { inp.dir = side; inp.freezePress = true; }
+    if (d > hw + (g.hw || GUARD_HW) + FREEZE_R - 30) inp.dir = side;
+    else if (p.frzCD <= 0) { if (p.hp <= FREEZE_COST + 1) return null; inp.dir = side; inp.freezePress = true; }
     return inp;
+  };
+}
+
+/** Stand in cold vent `vid` until he has frozen back up (or it takes too long). */
+export function chillPolicy(vid) {
+  return (f, i) => {
+    const v = f.m.vents.find((q) => q.id === vid), p = f.p;
+    if (!v || p.dead || p.hp >= MAX_HP - 4 || i > 1100) return null;
+    if (!p.ground) return { ...NONE };
+    const dx = v.x - p.x;
+    if (overlap(playerBox(p), ventBoxOf(v)) && Math.abs(dx) < 6) return { ...NONE };
+    return { ...NONE, dir: Math.sign(dx) };
   };
 }
 
@@ -122,14 +137,15 @@ export function chasePolicy(gid) {
 }
 
 /** The planner's distance (in moves) to the door from where he stands, on the map as drawn. */
-const distHere = (sim, p) => graphFor(sim.base, p.k).dist.get(nodeOf(sim.base, p)) ?? Infinity;
+const planOf = (sim) => planMap(sim.base, sim.keyGot);
+const distHere = (sim, p) => { const m = planOf(sim); return graphFor(m, p.k).dist.get(nodeOf(m, p)) ?? Infinity; };
 const canFreeze = freezeReady;
 
 /** Every planner move from where he stands, best first (closest to the door, then quickest).
  *  Planned on the map as drawn (sim.base), flown over the level's live tiles (ice bridges). */
 function rankMoves(sim, p, B) {
-  const m = sim.base, frz = canFreeze(sim);
-  const key = `${p.x.toFixed(2)}|${p.y}|${p.k}|${p.face}|${frz}|${sim.ice.map((e) => e.i).join(',')}`;
+  const m = planOf(sim), frz = canFreeze(sim);
+  const key = `${p.x.toFixed(2)}|${p.y}|${p.k}|${p.face}|${frz}|${sim.keyGot}|${sim.ice.map((e) => e.i).join(',')}`;
   if (B.cache?.key === key) return B.cache.moves;
   const g = graphFor(m, p.k), byNode = new Map();
   for (const mac of MACROS) {
@@ -157,8 +173,22 @@ function decide(sim, b, B) {
     if ((g.state !== 'patrol' && g.state !== 'turn' && g.state !== 'frozen') || Math.abs(g.y - p.y) > 4 || Math.abs(g.x - p.x) > 330) continue;
     if (g.state !== 'frozen' && Math.sign(p.x - g.x) !== -g.face) continue;
     if (roll() > 0.25 + skill * 0.75) continue;
+    if (g.kind === 'brute' && g.state !== 'frozen') {      // the blade bounces off a brute: freeze it from behind first
+      if (!canFreeze(sim)) continue;
+      const r = trial(sim, statuePolicy(g.id), { max: 6, tail: 0.4, lamp });
+      if (!r.bad && r.f.guards.find((q) => q.id === g.id).state === 'down') return { kind: 'statue', gid: g.id, i: 0 };
+      continue;
+    }
     const r = trial(sim, chasePolicy(g.id), { max: 5, tail: 0.4, lamp });
     if (!r.bad && r.f.guards.find((q) => q.id === g.id).state === 'down') return { kind: 'chase', gid: g.id, i: 0 };
+  }
+  // low on ice, and a cold vent on this floor: freeze back up
+  if (p.hp < 55 && skill > 0.3) {
+    for (const v of sim.m.vents) {
+      if (Math.abs(v.y - p.y) > 4 || Math.abs(v.x - p.x) > 300) continue;
+      const r = trial(sim, chillPolicy(v.id), { max: 9.5, tail: 0.3, lamp });
+      if (!r.bad && r.f.p.hp > p.hp + 20) return { kind: 'chill', vid: v.id, i: 0 };
+    }
   }
   // 2. toward the door
   const moves = rankMoves(sim, p, B), here = distHere(sim, p);
@@ -230,6 +260,13 @@ export function botStep(s, b, mem) {
       P.i++;
       return;
     }
+  } else if (P?.kind === 'chill') {
+    if (P.i % 30 === 29 && trial(sim, chillPolicy(P.vid), { max: 9.5, tail: 0.3, lamp: 16 }).bad) B.plan = null;
+    else {
+      const inp = chillPolicy(P.vid)(sim, P.i);
+      if (!inp) B.plan = null;
+      else { s.hold(inp.dir < 0 ? ['left'] : inp.dir > 0 ? ['right'] : []); P.i++; return; }
+    }
   } else if (P?.kind === 'chase') {
     // check now and then that the guard still has its back turned
     if (P.i % 30 === 29 && trial(sim, chasePolicy(P.gid), { max: 5, tail: 0.3, lamp: 16 }).bad) B.plan = null;
@@ -256,10 +293,10 @@ export function botStep(s, b, mem) {
     if (p.kbT > 0) return;
     if (!B.airT || --B.airT <= 0) {
       B.airT = 12;
-      const gr = graphFor(sim.base, p.k);
+      const pm = planOf(sim), gr = graphFor(pm, p.k);
       let best = 0, bd = Infinity;
       for (const d of [-1, 0, 1]) {
-        const r = simMacro(sim.base, p, { kind: 'drop', d1: d, d2: d }, null, m.t);
+        const r = simMacro(pm, p, { kind: 'drop', d1: d, d2: d }, null, m.t);
         const dd = !r ? Infinity : r.exit ? -1 : gr.dist.get(r.node) ?? 999;
         if (dd < bd) { bd = dd; best = d; }
       }
