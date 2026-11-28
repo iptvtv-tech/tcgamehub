@@ -36,7 +36,7 @@ const args = new Set(process.argv.slice(2));
 const CHECK = args.has('--check');
 const IMAGES = args.has('--images');
 
-const { GAMES, ZONES, SLOTS, GENRES, GLOBAL_ACHIEVEMENTS, genreById, CROWN_EGGS } = await import(pathToFileURL(join(ROOT, 'assets/js/games.js')).href);
+const { GAMES, ZONES, SLOTS, GENRES, GLOBAL_ACHIEVEMENTS, genreById, CHAPTER_ZONES, chapterOf, crownOf } = await import(pathToFileURL(join(ROOT, 'assets/js/games.js')).href);
 const { COPY } = await import(pathToFileURL(join(ROOT, 'assets/js/game-copy.js')).href);
 const { ICE_CROWN } = await import(pathToFileURL(join(ROOT, 'assets/js/eggs.js')).href);   // the ice crown (in place of 👑)
 
@@ -60,7 +60,7 @@ const genreCount = (id) => GAMES.filter((g) => genresOf(g).some((x) => x.id === 
 const genrePages = () => [
   ...GENRES.filter((ge) => genreCount(ge.id) >= 2),
   { id: '3d', label: '3D games', blurb: 'Every game built on one of the site\'s 3D engines: raycast crypts, pseudo-3D racers and full WebGL worlds. They all run in the browser with nothing to install.' },
-  { id: 'legends', label: 'Legends games', blurb: 'The sixth game of every zone hides a Frost Crystal. Finish it from level 1 without losing a life to open its secret final level — win all 5 Frost Crystals for the Frost Crown.' },
+  { id: 'legends', label: 'Legends games', blurb: 'The sixth game of every zone hides a Frost Crystal. Finish it from level 1 without losing a life to open its secret final level — the six crystals of Zones 1–6 win the Frost Crown, and every six zones after that have a crown of their own.' },
 ];
 const hasGenrePage = (id) => genrePages().some((ge) => ge.id === id);
 const genreHref = (rel, id) => `${rel}games/${hasGenrePage(id) ? id + '/' : ''}`;
@@ -328,7 +328,7 @@ function gamePage(g) {
           ${g.noDaily ? '' : `<li>One game a day is the <b>Daily Challenge</b>: the same layout for everyone, with its own board. <a href="./?daily=1">Play today's ${esc(g.title)} challenge</a>.</li>`}
         </ul>
         ${g.legend ? `<h2>The Legends secret</h2>
-        <p>${esc(g.title)} is ${esc(z.name)}'s <b>Legends game</b>. ${esc(g.legendHow || 'Finish it from level 1 without losing a life.')} Win the crystal to enter the <a href="${rel}hall-of-legends/">Hall of Legends</a>${z.n <= CROWN_EGGS ? ` — and all ${CROWN_EGGS} Frost Crystals together win the Frost Crown` : ' and add a jewel to the Frost Crown'}.</p>
+        <p>${esc(g.title)} is ${esc(z.name)}'s <b>Legends game</b>. ${esc(g.legendHow || 'Finish it from level 1 without losing a life.')} Win the crystal to enter the <a href="${rel}hall-of-legends/">Hall of Legends</a>${((c) => ` — and the ${CHAPTER_ZONES} crystals of Zones ${(c - 1) * CHAPTER_ZONES + 1}–${c * CHAPTER_ZONES} together win the ${crownOf(c).name}`)(chapterOf(z.n))}.</p>
         ${g.legendLore ? `<p class="lore">“${esc(g.legendLore)}”</p>` : ''}` : (legendGame ? `<p>Looking for this zone's Frost Crystal? It is hidden in <a href="${rel}games/${legendGame.id}/">${esc(legendGame.title)}</a>, the zone's Legends game.</p>` : '')}
       </div>
     </div>

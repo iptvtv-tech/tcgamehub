@@ -13,29 +13,48 @@
 //  (Crown Heist, Zone 4's Legends game, is the one exception: its egg is won by carrying the
 //  crown out of all 15 floors, across as many sessions as it takes — a flawless run also opens
 //  its secret 16th floor.)
-//  All five eggs (Zones 1–5) → THE FROST CROWN (badge "grand"): the hidden Crown Room page
-//  (/crown-room/), a frost theme for the whole site, and an ice crown by your name on
-//  the leaderboards. The crown never changes again: every Legends game after Zone 5 adds a JEWEL
-//  to it instead (see crownZones / jewelZones in games.js), so a new zone never takes it away.
-//  Until 29 Oct 2026 the crown was the eggs of Zones 1–4; anyone crowned then keeps it
-//  (the "grand" badge or crownAt on their device, or Hall dates before CROWN_OF_FOUR_UNTIL).
+//  CHAPTERS AND CROWNS (see chapters() in games.js): every 6 zones are a chapter, and a chapter's
+//  6 eggs win its crown. Chapter 1 (Zones 1–6) → THE FROST CROWN (badge "grand"): the hidden Crown
+//  Room page (/crown-room/), a frost theme for the whole site, and an ice crown by your name on the
+//  leaderboards. Chapter 2 (Zones 7–12) → the next crown, and so on. A crown is never taken away:
+//  • until 29 Oct 2026 the Frost Crown was the eggs of Zones 1–4, and until the chapters release
+//    (CROWN_OF_FIVE_UNTIL) the eggs of Zones 1–5; anyone crowned under those rules keeps it
+//    (the "grand" badge or crownAt on their device, or their Hall dates);
+//  • a crown only counts once its chapter is complete (six Legends games), so it never moves.
+//  tools/check-legends.mjs proves all of this against made-up and real Hall histories.
 //
 //  Any future game can join by adding `legend: {...}` to its entry in games.js
 //  and finalLevel / secretLevel to its runGame() settings. See docs/ADDING_A_GAME.md
 // ─────────────────────────────────────────────────────────────
 import { Store } from './storage.js';
-import { GAMES, ZONES, zoneOf, gameById, crownZones, jewelZones, OLD_CROWN_EGGS, CROWN_OF_FOUR_UNTIL } from './games.js';
+import { GAMES, ZONES, zoneOf, gameById, chapters, crownOf, OLD_CROWN_EGGS, CROWN_OF_FOUR_UNTIL, FIVE_CROWN_EGGS, CROWN_OF_FIVE_UNTIL } from './games.js';
 import { ICE_CROWN } from './eggs.js';
 
 import { rpc, ONLINE, nameProblem } from './scores.js';
 
-let crownSet = null, crownPromise = null;
+let crownSet = null, crownPromise = null;           // crownSet: name (lower case) → the chapters whose crowns they hold
+const CROWN_CACHE = 'arcade:crowns2';                 // (2: chapters; the old cache held jewel counts)
 const missingFn = (err) => /could not find the function|does not exist|PGRST202|404/i.test(String(err?.message || err));
 
-/** Group Hall rows by name: [{ name, at, zones:Map, games:[], crown, jewels, crownAt }]
- *  (crownAt = when the last of their crown eggs came in; jewels = eggs won beyond the crown).
- *  Someone whose Zone 1–4 eggs were all signed before CROWN_OF_FOUR_UNTIL was crowned under the old
- *  four-egg rule and keeps the crown. */
+/**
+ * The crowns a player holds, from when they won each zone's egg (zones: Map zone → time).
+ * Returns Map chapter → time crowned. A complete chapter is held once all its eggs are in; the
+ * Frost Crown (chapter 1) is also held under the two older rules if those eggs were all in in time.
+ */
+export function crownsFrom(zones) {
+  const held = new Map(), at = (list) => Math.max(...list.map((n) => zones.get(n)));
+  for (const ch of chapters()) {
+    const ns = ch.legendZones.map((z) => z.n);
+    if (ch.complete && ns.every((n) => zones.has(n))) held.set(ch.n, at(ns));
+  }
+  const old = (k, until) => { const ns = Array.from({ length: k }, (_, i) => i + 1); return ns.every((n) => zones.has(n)) && at(ns) < until ? at(ns) : Infinity; };
+  const legacy = Math.min(old(OLD_CROWN_EGGS, CROWN_OF_FOUR_UNTIL), old(FIVE_CROWN_EGGS, CROWN_OF_FIVE_UNTIL));
+  if (legacy < Infinity) held.set(1, Math.min(legacy, held.get(1) ?? Infinity));
+  return held;
+}
+
+/** Group Hall rows by name: [{ name, at, zones:Map, games:[], crowns:Map, crown, crownAt, jewels }]
+ *  (crowns = chapter → when crowned; crown/crownAt = the Frost Crown; jewels is always 0 now). */
 export function hallPeople(rows) {
   const byName = new Map();
   for (const r of rows) {
@@ -45,17 +64,15 @@ export function hallPeople(rows) {
     if (z && (!e.zones.has(z.n) || e.zones.get(z.n) > r.at)) e.zones.set(z.n, r.at);
     e.games.push(r.game);
   }
-  const cz = crownZones(), old = cz.filter((z) => z.n <= OLD_CROWN_EGGS);
   return [...byName.values()].map((p) => {
-    const full = cz.length > 0 && cz.every((z) => p.zones.has(z.n));
-    const oldAt = old.length && old.every((z) => p.zones.has(z.n)) ? Math.max(...old.map((z) => p.zones.get(z.n))) : Infinity;
-    const legacy = oldAt < CROWN_OF_FOUR_UNTIL;
-    const crown = full || legacy;
-    return { ...p, crown, jewels: jewelZones().filter((z) => p.zones.has(z.n)).length,
-      crownAt: legacy ? oldAt : full ? Math.max(...cz.map((z) => p.zones.get(z.n))) : Math.max(...p.zones.values()) };
+    const crowns = crownsFrom(p.zones), crown = crowns.has(1);
+    return { ...p, crowns, crown, jewels: 0, crownAt: crown ? crowns.get(1) : Math.max(...p.zones.values()) };
   });
 }
-export const crownHolders = (rows) => hallPeople(rows).filter((p) => p.crown).sort((a, b) => a.crownAt - b.crownAt);
+/** Everyone who holds the crown of `chapter` (the Frost Crown by default), first crowned first. */
+export const crownHolders = (rows, chapter = 1) => hallPeople(rows).filter((p) => p.crowns.has(chapter)).sort((a, b) => a.crowns.get(chapter) - b.crowns.get(chapter));
+/** Everyone who holds at least one crown. */
+export const crownedPeople = (rows) => hallPeople(rows).filter((p) => p.crowns.size);
 
 /** Switch the frost theme on the page (Frost Crown holders only). */
 export function applyTheme() {
@@ -186,18 +203,22 @@ export const Legends = {
     return ZONES.filter((z) => z.legendGame && done.includes(z.legendGame)).map((z) => z.n);
   },
   hasEgg(zoneN) { return this.eggs().includes(zoneN); },
-  /** The Frost Crown: all the eggs of Zones 1–5 — or a crown already won under the old
-   *  four-egg rule (its badge, which travels with a Legend code, or crownAt is on this browser). */
-  hasGoldenCrown() {
-    const cz = crownZones();
-    if (cz.length > 0 && cz.every((z) => this.hasEgg(z.n))) return true;
-    return Store.hasAch('g:grand') || !!data().legend?.crownAt;
+  /** The Frost Crown (chapter 1): all six eggs of Zones 1–6 — or a crown already won under an older
+   *  rule (its "grand" badge, which travels with a Legend code, or crownAt on this browser). */
+  hasGoldenCrown() { return this.hasChapterCrown(1); },
+  /** Does this player hold the crown of `chapter`? (complete chapters only) */
+  hasChapterCrown(chapter) {
+    const ch = chapters().find((c) => c.n === chapter);
+    if (ch?.complete && ch.legendZones.every((z) => this.hasEgg(z.n))) return true;
+    return chapter === 1 && (Store.hasAch('g:grand') || !!data().legend?.crownAt);
   },
-  /** Zones whose egg adds a jewel to the crown (Zone 6 on) that this player has won. */
-  jewels() { return jewelZones().filter((z) => this.hasEgg(z.n)).map((z) => z.n); },
-  /** The star stones drawn on top of the crown: every egg past Zone 4 this player holds
-   *  (the Zone 5 emerald, then each jewel). */
-  crownStones() { return this.eggs().filter((n) => n > OLD_CROWN_EGGS); },
+  /** The chapters whose crowns this player holds, e.g. [1] or [1, 2]. */
+  crownsHeld() { return chapters().filter((c) => this.hasChapterCrown(c.n)).map((c) => c.n); },
+  /** Jewels were replaced by chapters (kept for older callers). */
+  jewels() { return []; },
+  /** The star stones drawn on top of the Frost Crown: the eggs of Zones 5 and 6 this player holds
+   *  (Zones 1–4 are the band's own jewels). */
+  crownStones() { return this.eggs().filter((n) => n > OLD_CROWN_EGGS && n <= 6); },
   /** When the crown was won (first seen on this device). */
   crownAt() { return data().legend?.crownAt || null; },
   // old names, still used in a few places
@@ -207,8 +228,8 @@ export const Legends = {
   syncCrowns() {
     const c = this.eggs();
     for (const n of c) Store.unlockAch(`g:crown${n}`);
-    // "grand" = The Frost Crown (all five eggs). Never taken back: a crown won under the old
-    // four-egg rule is kept.
+    // "grand" = The Frost Crown (all six eggs of chapter 1). Never taken back: a crown won under
+    // the older four- or five-egg rules is kept.
     if (this.hasGoldenCrown()) {
       Store.unlockAch('g:grand');
       const d = data();
@@ -319,21 +340,21 @@ export const Legends = {
   crownNames() { return (crownPromise ||= this.loadCrownNames().catch((e) => { crownPromise = null; throw e; })); },
   async loadCrownNames() {
     try {
-      const c = JSON.parse(sessionStorage.getItem('arcade:crowns') || 'null');
-      if (c && Date.now() - c.t < 600000 && Array.isArray(c.n) && (!c.n.length || Array.isArray(c.n[0]))) { crownSet = new Map(c.n); return crownSet; }
+      const c = JSON.parse(sessionStorage.getItem(CROWN_CACHE) || 'null');
+      if (c && Date.now() - c.t < 600000 && Array.isArray(c.n) && c.n.every((e) => Array.isArray(e) && Array.isArray(e[1]))) { crownSet = new Map(c.n); return crownSet; }
     } catch { /* ignore */ }
     const rows = await this.hall();
-    crownSet = new Map(crownHolders(rows).map((p) => [p.name.toLowerCase(), p.jewels]));
-    try { sessionStorage.setItem('arcade:crowns', JSON.stringify({ t: Date.now(), n: [...crownSet] })); } catch { /* ignore */ }
+    crownSet = new Map(crownedPeople(rows).map((p) => [p.name.toLowerCase(), [...p.crowns.keys()].sort((a, b) => a - b)]));
+    try { sessionStorage.setItem(CROWN_CACHE, JSON.stringify({ t: Date.now(), n: [...crownSet] })); } catch { /* ignore */ }
     return crownSet;
   },
-  /** A little ice crown after a name on a leaderboard, with the jewel count once they have any (call crownNames() first). */
+  /** A little ice crown after a name on a leaderboard, with the number of crowns once there is more than one (call crownNames() first). */
   crownMark(name) {
-    const k = String(name).toLowerCase();
-    if (!crownSet?.has(k)) return '';
-    const j = crownSet.get(k) || 0;
-    const title = j ? `Frost Crown holder · ${j} jewel${j > 1 ? 's' : ''}` : 'Holder of the Frost Crown';
-    return ` <span class="crown-mark" title="${title}">${ICE_CROWN}${j ? `<sup>${j}</sup>` : ''}</span>`;
+    const held = crownSet?.get(String(name).toLowerCase());
+    if (!held?.length) return '';
+    const names = held.map((c) => `the ${crownOf(c).name}`);
+    const title = held.length > 1 ? `Holder of ${held.length} crowns: ${names.join(', ').replace(/, ([^,]*)$/, ' and $1')}` : `Holder of ${names[0]}`;
+    return ` <span class="crown-mark" title="${title}">${ICE_CROWN}${held.length > 1 ? `<sup>${held.length}</sup>` : ''}</span>`;
   },
 
   /** Everyone in the Hall (oldest first — the first finders are the most legendary). */

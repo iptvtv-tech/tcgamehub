@@ -755,8 +755,8 @@ export const GLOBAL_ACHIEVEMENTS = [
   { id: 'crown3',  icon: '❄️', title: 'Crypt Crystal', desc: 'Win Zone 3\'s Legends game perfectly — unlocks the golden characters in games 13–18', legendary: true, secret: true },
   { id: 'crown4',  icon: '❄️', title: 'Throne Crystal', desc: 'Carry the crown out of all 15 floors of Crown Heist — unlocks the golden characters in games 19–24', legendary: true, secret: true },
   { id: 'crown5',  icon: '❄️', title: 'Beacon Crystal', desc: 'Reach the Golden Beacon in Vault of Stars — unlocks the golden characters in games 25–30 and is the 5th crystal of the Frost Crown', legendary: true, secret: true },
-  { id: 'crown6',  icon: '❄️', title: 'Inferno Crystal', desc: 'Take the Inferno Crystal from the heart of Inferno Vault — unlocks the golden Iceman in games 31–36', legendary: true, secret: true },
-  { id: 'grand',   icon: '💠', title: 'The Frost Crown', desc: 'Collect all 5 Frost Crystals — opens the Crown Room', legendary: true, secret: true },
+  { id: 'crown6',  icon: '❄️', title: 'Inferno Crystal', desc: 'Take the Inferno Crystal from the heart of Inferno Vault — unlocks the golden Iceman in games 31–36 and is the 6th crystal of the Frost Crown', legendary: true, secret: true },
+  { id: 'grand',   icon: '💠', title: 'The Frost Crown', desc: 'Collect all 6 Frost Crystals of Chapter 1 (Zones 1–6) — opens the Crown Room', legendary: true, secret: true },
 ];
 
 // ── Difficulty tiers & zones ─────────────────────────────────
@@ -801,21 +801,55 @@ export const ZONES = [
 export const crownIcon = () => '❄️';
 /** Zones that have a Legends game yet (each one hides a Frost Crystal). */
 export const legendZones = () => ZONES.filter((z) => z.legendGame);
-/** The Frost Crown is the eggs of Zones 1–5 and never changes again, so adding a zone never
- *  takes it away from anyone. Every Legends game after that adds one jewel to the crown instead.
- *  (Until 29 Oct 2026 it was the eggs of Zones 1–4. Anyone crowned under that rule keeps the crown:
- *  see CROWN_OF_FOUR_UNTIL here and Legends.hasGoldenCrown / hallPeople in legends.js.) */
-export const CROWN_EGGS = 5;
-/** Old rule: the eggs of Zones 1–4, all signed in the Hall before this moment, still make a crown. */
+// ── Chapters and crowns ──────────────────────────────────────
+// Every 6 zones make a CHAPTER, and a chapter's 6 Frost Crystals win its CROWN: Chapter 1 (Zones
+// 1–6) the Frost Crown, Chapter 2 (Zones 7–12) the next crown, and so on, with no end. A crown can
+// only be won once all six of its zones have a Legends game (its chapter is "complete"), it never
+// changes after that, and it is never taken away: new zones add new crowns instead of moving old
+// goals. Crowns are worked out from the Hall of Legends (who signed which game, when: hallPeople in
+// legends.js), so changing these rules never touches anyone's saved progress.
+// Two older rules still crown the players who won under them (tools/check-legends.mjs proves it):
+//   • until 29 Oct 2026 the Frost Crown was the crystals of Zones 1–4 (CROWN_OF_FOUR_UNTIL);
+//   • until the chapters rules went live it was the crystals of Zones 1–5 (CROWN_OF_FIVE_UNTIL).
+// (Between those, each crystal after Zone 5 was a "jewel" on the crown: chapters replaced jewels.)
+export const CHAPTER_ZONES = 6;
+/** The crowns, one per chapter. Names after the Frost Crown are working names until their chapter is
+ *  close (the owner picks them); a chapter past this list gets a placeholder. */
+export const CROWNS = [
+  { n: 1, name: 'Frost Crown', color: '#7dd3fc', deep: '#0c4a6e' },
+  { n: 2, name: 'Glacier Crown', color: '#5eead4', deep: '#134e4a', working: true },
+  { n: 3, name: 'Aurora Crown', color: '#c4b5fd', deep: '#4c1d95', working: true },
+];
+export const crownOf = (c) => CROWNS[c - 1] || { n: c, name: `Crown ${c}`, color: '#bae6fd', deep: '#0c4a6e', working: true };
+/** Which chapter a zone belongs to (Zones 1–6 → 1, 7–12 → 2, …). */
+export const chapterOf = (zoneN) => Math.ceil(zoneN / CHAPTER_ZONES);
+/** Every chapter with at least one zone in ZONES: { n, crown, zones, legendZones, from, to, complete }. */
+export function chapters() {
+  const last = Math.max(...ZONES.map((z) => z.n)), out = [];
+  for (let c = 1; c <= chapterOf(last); c++) {
+    const zones = ZONES.filter((z) => chapterOf(z.n) === c), lz = zones.filter((z) => z.legendGame);
+    out.push({ n: c, crown: crownOf(c), zones, legendZones: lz, from: (c - 1) * CHAPTER_ZONES + 1, to: c * CHAPTER_ZONES, complete: lz.length === CHAPTER_ZONES });
+  }
+  return out;
+}
+export const chapterById = (c) => chapters().find((x) => x.n === c) || null;
+/** A crown's crystals: the Legends zones of its chapter (Chapter 1, the Frost Crown, by default). */
+export const crownZones = (c = 1) => chapterById(c)?.legendZones || [];
+/** Frost Crystals in a crown. */
+export const CROWN_EGGS = CHAPTER_ZONES;
+/** The old rules that still crown the players who won under them (see above). */
 export const OLD_CROWN_EGGS = 4;
-export const CROWN_OF_FOUR_UNTIL = Date.UTC(2026, 9, 30);   // 30 Oct 2026 00:00 UTC — set to the release day
-export const crownZones = () => legendZones().filter((z) => z.n <= CROWN_EGGS);
-export const jewelZones = () => legendZones().filter((z) => z.n > CROWN_EGGS);
-/** How the site names the crown's eggs: "all 5 Frost Crystals" while every egg is a crown egg,
- *  "the Frost Crystals of Zones 1–5" once later zones add jewels. */
-export const crownEggsText = () => jewelZones().length
-  ? `the Frost Crystals of Zones 1–${crownZones().length}`
-  : `all ${crownZones().length} Frost Crystals`;
+export const CROWN_OF_FOUR_UNTIL = Date.UTC(2026, 9, 30);   // 30 Oct 2026 00:00 UTC
+export const FIVE_CROWN_EGGS = 5;
+/** Set to the release day of the chapters rules (the moment the Frost Crown became 6 crystals). */
+export const CROWN_OF_FIVE_UNTIL = Date.UTC(2026, 11, 15);   // 15 Dec 2026 00:00 UTC — PLACEHOLDER: set to the release day
+/** Jewels were replaced by chapters: no crystal adds a jewel any more (kept for older callers). */
+export const jewelZones = () => [];
+/** How the site names a crown's crystals: "all 6 Frost Crystals", or for a later chapter
+ *  "the 6 Frost Crystals of Zones 7–12". */
+export const crownEggsText = (c = 1) => c === 1
+  ? `all ${CROWN_EGGS} Frost Crystals`
+  : `the ${CROWN_EGGS} Frost Crystals of Zones ${(c - 1) * CHAPTER_ZONES + 1}–${c * CHAPTER_ZONES}`;
 
 /** Every slot in order: { n, zone, tier, legendSlot, game|null } */
 export const SLOTS = ZONES.flatMap((z) => z.slots.map((id, i) => {
