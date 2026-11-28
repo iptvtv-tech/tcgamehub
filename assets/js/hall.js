@@ -19,7 +19,7 @@ function legendCards() {
     const g = gameById(z.legendGame), won = Legends.hasEgg(z.n);
     const open = true;
     const far = Store.maxLevel(g.id), played = Store.plays(g.id) > 0;
-    const status = won ? `🥚 <b>${esc(eggName(z.n))} won!</b>`
+    const status = won ? `❄️ <b>${esc(eggName(z.n))} won!</b>`
       : played ? `Your furthest: <b>${UNIT[g.id] || 'level'} ${far}</b> of 15` : 'Not played yet';
     return `
       <a class="lg-card${won ? ' won' : ''}${open ? '' : ' locked'}" href="../games/${g.id}/" style="--c:${g.color}">
@@ -42,17 +42,17 @@ function locked() {
     <section class="vault">
       <div class="vault-door" aria-hidden="true"><i></i><i></i><i></i></div>
       <h1>The Hall of Legends</h1>
-      <p>This door opens for anyone who wins a <b>Golden Egg</b>. There are ${n} hidden in the arcade, one in each zone's Legends game. Few players ever find one.</p>
+      <p>This door opens for anyone who wins a <b>Frost Crystal</b>. There are ${n} hidden in the arcade, one in each zone's Legends game. Few players ever find one.</p>
       <div class="vault-eggs" aria-hidden="true">${legendZones().map((z) => eggSVG(z.n, { size: 30, won: Legends.hasEgg(z.n) })).join('')}<span class="crown-ghost">👑</span></div>
     </section>
 
     <section class="legend-path">
       <h2>How to become a Legend</h2>
       <ol class="legend-steps">
-        <li><b>Open the zones</b><span>Play every game in a zone at least once and the next zone unlocks.</span></li>
+        <li><b>Play the zones</b><span>Every game is open. Play all six in a zone to complete it — the zones get harder as you go.</span></li>
         <li><b>Find the Legends game</b><span>The 6th game in every zone is marked <span class="pill legend-pill">👑 LEGENDS</span> on the home page.</span></li>
-        <li><b>Win its Golden Egg</b><span>Each one hides its egg in a different way. The clues are below, and perfection is usually the key.</span></li>
-        <li><b>Collect all ${crownZones().length}</b><span>${cap(crownEggsText())} win the <b>Golden Crown</b>: the Crown Room, a golden arcade and a 👑 by your name on every leaderboard.${jewelZones().length ? ` Every egg after that adds a jewel to your crown.` : ''}</span></li>
+        <li><b>Win its Frost Crystal</b><span>Each one hides its crystal in a different way. The clues are below, and perfection is usually the key.</span></li>
+        <li><b>Collect all ${crownZones().length}</b><span>${cap(crownEggsText())} win the <b>Frost Crown</b>: the Crown Room, a frozen arcade and a 👑 by your name on every leaderboard.${jewelZones().length ? ` Every egg after that adds a jewel to your crown.` : ''}</span></li>
       </ol>
     </section>
 
@@ -63,7 +63,7 @@ function locked() {
 
     <section class="vault code-box">
       <h2>Already a Legend?</h2>
-      <p class="small">Got a Legend code — from the Hall, or the one Crown Heist gives you? Enter it to bring back your eggs and your game progress on this phone or computer. Just the 6 letters and numbers is fine:</p>
+      <p class="small">Got a Legend code — from the Hall, or the one Crown Heist gives you? Enter it to bring back your crystals and your game progress on this phone or computer. Just the 6 letters and numbers is fine:</p>
       <form class="restore" autocomplete="off">
         <input name="c" placeholder="LEGEND-XXXXXX" maxlength="20" aria-label="Legend code" spellcheck="false" autocapitalize="characters" autocomplete="off" inputmode="text">
         <button class="btn primary" type="submit">Unlock</button>
@@ -90,7 +90,7 @@ function locked() {
         msg.innerHTML = `Welcome back, <b>${esc(entry.name)}</b>! Your game progress (zones, levels, best scores, badges) is back. <a href="../">Back to the arcade →</a>`;
         return;
       }
-      msg.textContent = entry.progress > 0 ? `Welcome back, ${entry.name}! Your eggs and your game progress (zones, levels, best scores, badges) are back.` : `Welcome back, ${entry.name}!`;
+      msg.textContent = entry.progress > 0 ? `Welcome back, ${entry.name}! Your crystals and your game progress (zones, levels, best scores, badges) are back.` : `Welcome back, ${entry.name}!`;
       setTimeout(() => location.reload(), entry.progress > 0 ? 2200 : 900);
     } catch (err) {
       msg.className = 'restore-msg err'; msg.textContent = err.message;
@@ -99,14 +99,14 @@ function locked() {
   };
 }
 
-/** "All 5 Golden Eggs + 1 jewel!" for the crown stand (a crown won under the old 4-egg rule
+/** "All 5 Frost Crystals + 1 jewel!" for the crown stand (a crown won under the old 4-egg rule
  *  says which egg is still out there). */
 function crownLine() {
   const cz = crownZones(), missing = cz.filter((z) => !Legends.hasEgg(z.n));
   const j = Legends.jewels().length, left = jewelZones().length - j;
   const eggs = missing.length
-    ? `Crowned with ${cz.length - missing.length} eggs — the ${missing.map((z) => eggName(z.n).replace('Golden ', '')).join(' & ')} is still out there.`
-    : `All ${cz.length} Golden Eggs${j ? ` + ${j} jewel${j > 1 ? 's' : ''}` : ''}!`;
+    ? `Crowned with ${cz.length - missing.length} crystals — the ${missing.map((z) => eggName(z.n).replace('Golden ', '')).join(' & ')} is still out there.`
+    : `All ${cz.length} Frost Crystals${j ? ` + ${j} jewel${j > 1 ? 's' : ''}` : ''}!`;
   return `${eggs}${left > 0 ? ` ${left} more jewel${left > 1 ? 's' : ''} to win.` : ''}`;
 }
 
@@ -116,14 +116,14 @@ async function open() {
   main.innerHTML = `
     <section class="hall-head">
       <h1>🏛️ Hall of Legends</h1>
-      <p>Only players who have won a Legends game's Golden Egg have found their way in here. Every zone's Legends game has one. ${cap(crownEggsText())} win the Golden Crown${jewelZones().length ? ', and every egg after that adds a jewel to it' : ''}. Welcome, ${esc(me.name || Store.name() || 'Legend')}.</p>
+      <p>Only players who have won a Legends game's Frost Crystal have found their way in here. Every zone's Legends game has one. ${cap(crownEggsText())} win the Frost Crown${jewelZones().length ? ', and every egg after that adds a jewel to it' : ''}. Welcome, ${esc(me.name || Store.name() || 'Legend')}.</p>
       <div class="egg-shelf">${legendZones().map((z) => {
         const won = Legends.hasEgg(z.n), lg = gameById(z.legendGame);
         return `<a class="egg-stand${won ? ' won' : ''}" href="../games/${lg.id}/">${eggSVG(z.n, { size: 70, won })}<b>${esc(eggName(z.n))}</b><small>${won ? 'Won! Golden characters unlocked in Zone ' + z.n + '.' : esc(lg.legendHow || `Finish ${lg.title} without losing a life.`)}</small><span class="stand-link">${esc(lg.title)} →</span></a>`;
       }).join('')}
         ${Legends.hasGoldenCrown()
-          ? `<a class="egg-stand crown-stand won" href="../crown-room/">${crownSVG({ size: 110, cls: 'spin', jewels: Legends.crownStones() })}<b>The Golden Crown</b><small>${crownLine()} Enter the Crown Room →</small></a>`
-          : `<div class="egg-stand crown-stand"><span class="crown-ghost">👑</span><b>The Golden Crown</b><small>Win ${crownEggsText()} to win it — and open the Crown Room.</small></div>`}
+          ? `<a class="egg-stand crown-stand won" href="../crown-room/">${crownSVG({ size: 110, cls: 'spin', jewels: Legends.crownStones() })}<b>The Frost Crown</b><small>${crownLine()} Enter the Crown Room →</small></a>`
+          : `<div class="egg-stand crown-stand"><span class="crown-ghost">👑</span><b>The Frost Crown</b><small>Win ${crownEggsText()} to win it — and open the Crown Room.</small></div>`}
       </div>
     </section>
     <div class="hall-grid">
@@ -137,15 +137,15 @@ async function open() {
           ${unlocks.map((u) => `
             <div class="gold-row${u.unlocked ? '' : ' locked'}">
               <img src="../games/${u.id}/thumb.svg" alt="">
-              <div><a href="../games/${u.id}/">${esc(u.title)}</a><small>${esc(u.gold)}${u.unlocked ? '' : ` · 🔒 needs ${ZONES.find((z) => z.n === u.zone)?.legendGame ? `the ${esc(eggName(u.zone))}${gameById(u.id)?.goldWithCrown ? ' or the Golden Crown' : ''}` : 'the Golden Crown'}`}</small></div>
+              <div><a href="../games/${u.id}/">${esc(u.title)}</a><small>${esc(u.gold)}${u.unlocked ? '' : ` · 🔒 needs ${ZONES.find((z) => z.n === u.zone)?.legendGame ? `the ${esc(eggName(u.zone))}${gameById(u.id)?.goldWithCrown ? ' or the Frost Crown' : ''}` : 'the Frost Crown'}`}</small></div>
               ${u.unlocked ? `<button class="switch" role="switch" aria-checked="${Legends.goldOn(u.id)}" aria-label="${esc(u.gold)}" data-gold="${u.id}"></button>` : ''}
             </div>`).join('')}
         </section>
         <section class="hall-card">
           <h2>🔑 Your Legend code</h2>
           ${me.code ? `<p class="my-code">${esc(me.code)}</p><p><button class="btn small" data-copy="code">📋 Copy code</button> <button class="btn small" data-copy="link">🔗 Copy restore link</button></p><p class="muted small copy-msg">Enter it on this page — tap <b>🏛️ Legends</b> at the top of any page — on any phone or computer to get your golden characters back. Or open your restore link there.</p>`
-            : `<p class="muted small">Sign the Hall at the end of your Legend run to get a code for restoring your eggs and golden characters on another device.</p>`}
-          <details class="add-code"><summary>Won an egg on another device? Add its Legend code</summary>
+            : `<p class="muted small">Sign the Hall at the end of your Legend run to get a code for restoring your crystals and golden characters on another device.</p>`}
+          <details class="add-code"><summary>Won a crystal on another device? Add its Legend code</summary>
             <form class="restore" autocomplete="off"><input name="c" placeholder="LEGEND-XXXXXX" maxlength="20" aria-label="Another Legend code" spellcheck="false" autocapitalize="characters"><button class="btn small" type="submit">Add</button></form>
             <p class="restore-msg" aria-live="polite"></p>
           </details>
@@ -166,7 +166,7 @@ async function open() {
     try {
       await Legends.restore(add.c.value);
       const n = Legends.eggs().length - before;
-      addMsg.textContent = n > 0 ? `🥚 ${n} more egg${n > 1 ? 's' : ''} added!` : 'Done — no new eggs on that code.';
+      addMsg.textContent = n > 0 ? `❄️ ${n} more crystal${n > 1 ? 's' : ''} added!` : 'Done — no new crystals on that code.';
       setTimeout(() => location.reload(), 1100);
     } catch (err) { addMsg.className = 'restore-msg err'; addMsg.textContent = err.message; add.querySelector('button').disabled = false; }
   };

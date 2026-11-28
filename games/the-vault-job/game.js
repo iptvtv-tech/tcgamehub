@@ -524,7 +524,7 @@ class VaultJob {
   }
 }
 
-/** A golden egg with the initials engraved in a band that spins around it. */
+/** A frost crystal with the initials engraved in a band that spins around it. */
 function drawGoldenEgg(ctx, x, y, rx, rot) {
   const ryT = rx * 1.32, ryB = rx * 1.05;
   const eggPath = () => {

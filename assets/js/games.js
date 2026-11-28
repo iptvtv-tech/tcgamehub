@@ -507,7 +507,7 @@ export const GAMES = [
   {
     id: 'eggspress',
     genres: ['racing', 'action'],
-    gold: 'Golden Egg Truck',       // golden character unlocked by the Zone 3 egg
+    gold: 'Golden Egg Truck',          // golden character unlocked by the Zone 3 egg
     title: 'Eggspress 3D',
     is3d: true,
     tagline: 'Deliver one very loose egg over the hills to the farm. Ramps, chasms, wind and oil — hard landings crack it, and three cracks is SPLAT!',
@@ -720,13 +720,13 @@ export const GLOBAL_ACHIEVEMENTS = [
   { id: 'famous',  icon: '🏆', title: 'Famous',          desc: 'Put your name on a leaderboard' },
   { id: 'pb',      icon: '📈', title: 'Getting Better',  desc: 'Beat your own best score' },
   { id: 'retro3',  icon: '📼', title: 'Time Traveller',  desc: 'Play 3 different games in the Retro Vault (your own ROM counts as one)' },
-  { id: 'legend',  icon: '👑', title: 'Legend',          desc: 'Win a Golden Egg in one of the Legends games', legendary: true, secret: true },
-  { id: 'crown1',  icon: '🥚', title: 'Golden Vault Egg', desc: 'Win Zone 1\'s Legends game perfectly — unlocks the golden characters in games 1–6', legendary: true, secret: true },
-  { id: 'crown2',  icon: '🥚', title: 'Golden Heist Egg', desc: 'Win Zone 2\'s Legends game perfectly — unlocks the golden characters in games 7–12', legendary: true, secret: true },
-  { id: 'crown3',  icon: '🥚', title: 'Golden Crypt Egg', desc: 'Win Zone 3\'s Legends game perfectly — unlocks the golden characters in games 13–18', legendary: true, secret: true },
-  { id: 'crown4',  icon: '🥚', title: 'Golden Throne Egg', desc: 'Carry the crown out of all 15 floors of Crown Heist — unlocks the golden characters in games 19–24', legendary: true, secret: true },
-  { id: 'crown5',  icon: '🥚', title: 'Golden Beacon Egg', desc: 'Reach the Golden Beacon in Vault of Stars — unlocks the golden characters in games 25–30 and is the 5th egg of the Golden Crown', legendary: true, secret: true },
-  { id: 'grand',   icon: '👑', title: 'The Golden Crown', desc: 'Collect all 5 Golden Eggs — opens the Crown Room', legendary: true, secret: true },
+  { id: 'legend',  icon: '👑', title: 'Legend',          desc: 'Win a Frost Crystal in one of the Legends games', legendary: true, secret: true },
+  { id: 'crown1',  icon: '❄️', title: 'Vault Crystal', desc: 'Win Zone 1\'s Legends game perfectly — unlocks the golden characters in games 1–6', legendary: true, secret: true },
+  { id: 'crown2',  icon: '❄️', title: 'Heist Crystal', desc: 'Win Zone 2\'s Legends game perfectly — unlocks the golden characters in games 7–12', legendary: true, secret: true },
+  { id: 'crown3',  icon: '❄️', title: 'Crypt Crystal', desc: 'Win Zone 3\'s Legends game perfectly — unlocks the golden characters in games 13–18', legendary: true, secret: true },
+  { id: 'crown4',  icon: '❄️', title: 'Throne Crystal', desc: 'Carry the crown out of all 15 floors of Crown Heist — unlocks the golden characters in games 19–24', legendary: true, secret: true },
+  { id: 'crown5',  icon: '❄️', title: 'Beacon Crystal', desc: 'Reach the Golden Beacon in Vault of Stars — unlocks the golden characters in games 25–30 and is the 5th crystal of the Frost Crown', legendary: true, secret: true },
+  { id: 'grand',   icon: '👑', title: 'The Frost Crown', desc: 'Collect all 5 Frost Crystals — opens the Crown Room', legendary: true, secret: true },
 ];
 
 // ── Difficulty tiers & zones ─────────────────────────────────
@@ -766,11 +766,11 @@ export const ZONES = [
     slots: [null, null, null, null, null, null] },
 ];
 
-/** Icon for each zone's prize (a Golden Egg — see eggs.js for the full artwork). */
-export const crownIcon = () => '🥚';
-/** Zones that have a Legends game yet (each one hides a Golden Egg). */
+/** Icon for each zone's prize (a Frost Crystal — see eggs.js for the full artwork). */
+export const crownIcon = () => '❄️';
+/** Zones that have a Legends game yet (each one hides a Frost Crystal). */
 export const legendZones = () => ZONES.filter((z) => z.legendGame);
-/** The Golden Crown is the eggs of Zones 1–5 and never changes again, so adding a zone never
+/** The Frost Crown is the eggs of Zones 1–5 and never changes again, so adding a zone never
  *  takes it away from anyone. Every Legends game after that adds one jewel to the crown instead.
  *  (Until 29 Oct 2026 it was the eggs of Zones 1–4. Anyone crowned under that rule keeps the crown:
  *  see CROWN_OF_FOUR_UNTIL here and Legends.hasGoldenCrown / hallPeople in legends.js.) */
@@ -780,11 +780,11 @@ export const OLD_CROWN_EGGS = 4;
 export const CROWN_OF_FOUR_UNTIL = Date.UTC(2026, 9, 30);   // 30 Oct 2026 00:00 UTC — set to the release day
 export const crownZones = () => legendZones().filter((z) => z.n <= CROWN_EGGS);
 export const jewelZones = () => legendZones().filter((z) => z.n > CROWN_EGGS);
-/** How the site names the crown's eggs: "all 5 Golden Eggs" while every egg is a crown egg,
- *  "the Golden Eggs of Zones 1–5" once later zones add jewels. */
+/** How the site names the crown's eggs: "all 5 Frost Crystals" while every egg is a crown egg,
+ *  "the Frost Crystals of Zones 1–5" once later zones add jewels. */
 export const crownEggsText = () => jewelZones().length
-  ? `the Golden Eggs of Zones 1–${crownZones().length}`
-  : `all ${crownZones().length} Golden Eggs`;
+  ? `the Frost Crystals of Zones 1–${crownZones().length}`
+  : `all ${crownZones().length} Frost Crystals`;
 
 /** Every slot in order: { n, zone, tier, legendSlot, game|null } */
 export const SLOTS = ZONES.flatMap((z) => z.slots.map((id, i) => {

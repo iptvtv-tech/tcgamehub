@@ -4,7 +4,7 @@
 //
 //  Earning (engine.js calls Tokens.earn): +1 level cleared, +5 bonus round cleared,
 //  +10 new personal best, +5 first Daily Challenge of the day, +10 badge, +50 zone
-//  completed, +100 Golden Egg. Capped at DAILY_CAP a day.
+//  completed, +100 Frost Crystal. Capped at DAILY_CAP a day.
 //
 //  Storage: the lifetime total `tokens.earned` and the `owned` map only ever grow,
 //  so they merge cleanly across devices with a Legend code (max-merge, like plays).

@@ -549,12 +549,12 @@ class HeistPlanner {
     ctx.fillStyle = glow; ctx.fillRect(0, y - 200, W, 400);
     drawCrown(ctx, W / 2, y, 70 + k * 20, t, true);
     ctx.fillStyle = '#fde68a'; ctx.font = '900 26px system-ui'; ctx.textAlign = 'center';
-    if (up < 1) ctx.fillText('THE GOLDEN CROWN', W / 2, y + 120);
+    if (up < 1) ctx.fillText('THE FROST CROWN', W / 2, y + 120);
     ctx.restore();
   }
 }
 
-/** A golden crown with the engraving travelling around its band. */
+/** A frost crown with the engraving travelling around its band. */
 function drawCrown(ctx, x, y, r, t, engraved = false) {
   ctx.save(); ctx.translate(x, y);
   const g = ctx.createLinearGradient(-r, -r, r, r);

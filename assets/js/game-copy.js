@@ -3,7 +3,7 @@
 //  Used by tools/build-pages.mjs to write each game page's <title>, meta
 //  description, share card and the "How to play" section, and by the
 //  genre pages. Keep `blurb` under 155 characters (Google cuts it there).
-//    kind  — what to call it in the title: "<Title> – free online <kind> | Quick Play Arcade"
+//    kind  — what to call it in the title: "<Title> – free online <kind> | TC Arcade"
 //    blurb — one or two plain sentences: what you do and why it's fun
 //    how   — 3–5 short steps a new player needs (controls are added automatically)
 //    tip   — optional one-liner shown at the end of "How to play"
@@ -144,7 +144,7 @@ export const COPY = {
     kind: '3D stealth game',
     blurb: 'Sneak into the Deep Vaults by torchlight, lift the crown from its pedestal and run. Fifteen floors of guards, portcullises and crumbling floors. Zone 4’s Legends game.',
     how: ['Move with ↑ ↓ (W S), turn with ← → (A D), sidestep with Q and E; on a phone use the stick and drag the view.', 'Stay out of the guards’ torch cones — hide in alcoves and throw coins (C) to lure them away.', 'Grab the crown (Space), then run for the stairs before the vault seals.', 'Smoke bombs (X) lose a guard that is chasing you.'],
-    tip: 'Carry the crown out of floor 15 — over as many visits as it takes — to win the Golden Throne Egg.',
+    tip: 'Carry the crown out of floor 15 — over as many visits as it takes — to win the Throne Crystal.',
   },
   'lunar-delivery': {
     kind: '3D lunar lander game',

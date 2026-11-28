@@ -557,13 +557,13 @@ class Shell {
     this.unlock('legend', true);
     this.reward('egg');
     const hadCrown = Legends.hasGoldenCrown();
-    statEvent('egg', this.id);   // a Golden Egg won (anonymous)
+    statEvent('egg', this.id);   // a Frost Crystal won (anonymous)
     Legends.grant(this.id);
-    for (const n of Legends.eggs()) this.unlock(`crown${n}`, true);   // the zone's Golden Egg
+    for (const n of Legends.eggs()) this.unlock(`crown${n}`, true);   // the zone's Frost Crystal
     this.crownWon = !hadCrown && Legends.hasGoldenCrown();
-    if (this.crownWon) this.unlock('grand', true);   // The Golden Crown — every zone's egg
+    if (this.crownWon) this.unlock('grand', true);   // The Frost Crown — every zone's egg
     Legends.syncCrowns();
-    if (this.crownWon) applyTheme();                  // the arcade turns gold
+    if (this.crownWon) applyTheme();                  // the arcade turns to ice
     if (this.def.legendBadge) this.unlock(this.def.legendBadge);
     Sound.stopMusic();
     this.after(this.def.legendRevealDelay ?? 6, () => this.showLegendPanel());
@@ -942,18 +942,18 @@ class Shell {
     if (Store.submitBest(this.id, score)) this.unlock('pb', true);
     const zone = zoneOf(this.id);
     const unlocks = Legends.unlocks().filter((u) => u.zone === zone?.n);
-    const shareText = `🥚👑 I found the secret at ${location.origin}/?from=wa … can you? Only true Legends get in.`;
+    const shareText = `❄️👑 I found the secret at ${location.origin}/?from=wa … can you? Only true Legends get in.`;
     const o = this.showOverlay(`
       ${zone ? `<div class="legend-prize">${eggSVG(zone.n, { size: 84 })}</div>` : ''}
       <h2 class="legend-title">${zone ? `${esc(eggName(zone.n))} won!` : '👑 You are a Legend'}</h2>
-      ${this.crownWon ? `<div class="crown-won">${crownSVG({ size: 150, cls: 'spin', jewels: Legends.crownStones() })}<b>…and that's all ${crownZones().length} Golden Eggs: THE GOLDEN CROWN is yours!</b>
-        <p class="muted small">The Crown Room is open, the whole arcade can turn gold, and a 👑 now follows your name on the leaderboards.</p>
+      ${this.crownWon ? `<div class="crown-won">${crownSVG({ size: 150, cls: 'spin', jewels: Legends.crownStones() })}<b>…and that's all ${crownZones().length} Frost Crystals: THE FROST CROWN is yours!</b>
+        <p class="muted small">The Crown Room is open, the whole arcade can turn to ice, and a 👑 now follows your name on the leaderboards.</p>
         <a class="btn gold-btn" href="../../crown-room/">👑 Enter the Crown Room</a></div>`
         : zone && zone.n > CROWN_EGGS && Legends.hasGoldenCrown()
           ? `<div class="crown-won">${crownSVG({ size: 150, cls: 'spin', jewels: Legends.crownStones() })}<b>Crown upgraded — jewel ${Legends.jewels().length} of ${jewelZones().length}!</b>
-            <p class="muted small">The ${esc(eggName(zone.n))} is now set in your Golden Crown and your 👑 on the leaderboards shows ${Legends.jewels().length}.</p>
+            <p class="muted small">The ${esc(eggName(zone.n))} is now set in your Frost Crown and your 👑 on the leaderboards shows ${Legends.jewels().length}.</p>
             <a class="btn gold-btn" href="../../crown-room/">👑 See it in the Crown Room</a></div>`
-          : `<p class="muted small">Golden Eggs: <b>${Legends.eggs().length} / ${legendZones().length}</b>${Legends.hasGoldenCrown() ? ` · 👑 Golden Crown holder${zone && zone.n <= CROWN_EGGS && crownZones().every((z) => Legends.hasEgg(z.n)) ? ` — all ${crownZones().length} eggs in your crown` : ''}` : zone && zone.n > CROWN_EGGS ? ` — it becomes a jewel in the Golden Crown once you win ${crownEggsText()}.` : ` — win ${crownEggsText()} for the Golden Crown.`}</p>`}
+          : `<p class="muted small">Frost Crystals: <b>${Legends.eggs().length} / ${legendZones().length}</b>${Legends.hasGoldenCrown() ? ` · 👑 Frost Crown holder${zone && zone.n <= CROWN_EGGS && crownZones().every((z) => Legends.hasEgg(z.n)) ? ` — all ${crownZones().length} eggs in your crown` : ''}` : zone && zone.n > CROWN_EGGS ? ` — it becomes a jewel in the Frost Crown once you win ${crownEggsText()}.` : ` — win ${crownEggsText()} for the Frost Crown.`}</p>`}
       ${this.def.legendLore ? `<p class="legend-hint">${esc(this.def.legendLore)}</p>` : ''}
       <p class="muted">Final score <b>${fmt(score)}</b> · ${this.def.legendLine ? esc(this.def.legendLine(this)) : `${this.def.finalLevel || ''} levels · not a single life lost`}</p>
       <div class="gold-unlocks"><small>Golden characters unlocked${zone ? ` in Zone ${zone.n}` : ''}</small>
@@ -989,7 +989,7 @@ class Shell {
         this.sound.play('achieve');
         box.innerHTML = `<p class="rank-msg saved">✅ <b>${esc(name)}</b> is in the Hall of Legends.</p>
           <p class="legend-code">Your Legend code: <b>${esc(code)}</b></p>
-          <p class="muted small">Keep it safe. Enter it on the Hall of Legends page to get your eggs and golden characters back on another phone or computer. Sign with the same name each time and one code holds all your eggs.</p>`;
+          <p class="muted small">Keep it safe. Enter it on the Hall of Legends page to get your crystals and golden characters back on another phone or computer. Sign with the same name each time and one code holds all your eggs.</p>`;
       } catch (err) {
         form.querySelector('button').disabled = false;
         msg.textContent = err.message || 'Could not sign — try again.'; msg.className = 'form-msg err';

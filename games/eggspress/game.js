@@ -10,7 +10,7 @@
 //    D4 low-gravity moon patches      D6 chasms to jump  D7 gusts of wind
 //    D8 oil slicks (no grip)          … and the hills grow taller every time.
 //  Every 5th delivery: ★ GOLDEN EGG RUN — 20 s, the egg can't break, grab the gold.
-//  Golden character: the Golden Egg Truck (unlocked by the Golden Crown).
+//  Golden character: the Golden Egg Truck (unlocked by the Frost Crown).
 // ─────────────────────────────────────────────────────────────
 import { runGame, roundRect, progressBar, clamp } from '../../assets/js/engine.js';
 import { Store } from '../../assets/js/storage.js';

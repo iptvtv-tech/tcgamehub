@@ -69,6 +69,8 @@ kbd { background: #2c2c5a; border: 1px solid #45458a; border-bottom-width: 2px; 
 .site-header .wrap { display: flex; align-items: center; gap: 16px; height: 64px; }
 .logo { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); font: 700 1.25em var(--font-head); }
 .logo img { width: 34px; height: 34px; }
+.logo [data-site-name] { text-transform: uppercase; letter-spacing: 2px; font-weight: 800; }
+.logo [data-site-name] b { color: var(--cyan); text-shadow: 0 0 12px rgba(34, 211, 238, .55); letter-spacing: .5px; font-weight: 900; margin-right: 2px; }
 .site-nav { margin-left: auto; display: flex; gap: 4px; }
 .site-nav a { color: var(--muted); text-decoration: none; padding: .45em .8em; border-radius: 999px; font-weight: 600; }
 .site-nav a:hover, .site-nav a[aria-current] { color: var(--text); background: var(--card2); }
@@ -365,8 +367,9 @@ a.legend-banner.hall-door:hover { border-color: #fbbf24; transform: translateY(-
 :root[data-theme="retro"] body { background: repeating-linear-gradient(0deg, transparent 0 2px, #00000033 2px 4px), radial-gradient(1200px 600px at 10% -10%, #2a3b14 0%, transparent 60%), var(--bg); background-attachment: fixed; }
 :root[data-theme] .site-header, :root[data-theme] .hud { background: color-mix(in srgb, var(--bg) 90%, transparent); }
 /* The Golden Crown theme always wins */
-:root[data-gold-theme][data-theme] { --bg: #120d04; --bg2: #1d1507; --card: #2a1e09; --card2: #3a2a0d; --line: #6b4e14; --text: #fff8e7; --muted: #d4bd8a; --cyan: #fcd34d; --purple: #f59e0b; --pink: #fbbf24; --radius: 16px; }
-:root[data-gold-theme][data-theme] body { background: radial-gradient(1200px 600px at 10% -10%, #6b460a 0%, transparent 60%), radial-gradient(900px 500px at 110% 10%, #4a3308 0%, transparent 55%), var(--bg); background-attachment: fixed; }
+/* The Frost Crown holders' theme (attribute still named gold-theme so saved settings carry over) */
+:root[data-gold-theme][data-theme] { --bg: #041019; --bg2: #081c2b; --card: #0c2738; --card2: #12344a; --line: #2b5a78; --text: #f0fbff; --muted: #a8cfe3; --cyan: #a5f3fc; --purple: #c4b5fd; --pink: #e0f2fe; --radius: 16px; }
+:root[data-gold-theme][data-theme] body { background: radial-gradient(1200px 600px at 10% -10%, #0e4a6b 0%, transparent 60%), radial-gradient(900px 500px at 110% 10%, #1e3a5f 0%, transparent 55%), radial-gradient(700px 300px at 50% 0%, #34d39922 0%, transparent 70%), var(--bg); background-attachment: fixed; }
 
 /* ── Tokens + avatar ── */
 .token-pill { display: inline-flex; align-items: center; gap: 4px; padding: .3em .7em; border-radius: 999px; background: #3b2a06; border: 1px solid #a16207; color: var(--gold); font-weight: 800; text-decoration: none; font-variant-numeric: tabular-nums; white-space: nowrap; }

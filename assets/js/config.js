@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────────────────────
 export const CONFIG = {
   // Shown in the header, page titles and game-over screens.
-  siteName: 'Quick Play Arcade',
+  siteName: 'TC Arcade',
 
   // From Supabase → Project Settings → API (or "API Keys").
   //   supabaseUrl:  https://abcdefghijk.supabase.co

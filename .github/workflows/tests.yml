@@ -1,4 +1,4 @@
-# Quick Play Arcade — automatic tests.
+# TC Arcade — automatic tests.
 #
 # Runs on every push to a review branch, every night on main, and on demand (Actions tab →
 # Tests → Run workflow). Free on GitHub's standard runners for a public repo.

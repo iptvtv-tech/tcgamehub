@@ -1,8 +1,8 @@
-# Quick Play Arcade — tcgamehub.win
+# TC Arcade — tcgamehub.win
 
 Browser-games site: plain HTML/CSS/JS with **no build step on deploy** — GitHub Pages
-serves the committed files. "Quick Play Arcade" is the site name, "TC Game Hub" the
-publisher. Supabase holds the leaderboard (players enter a name only). GoatCounter
+serves the committed files. "TC Arcade" is the one name for the site and its
+publisher (until Nov 2026 it was "Quick Play Arcade" by "TC Game Hub"). Supabase holds the leaderboard (players enter a name only). GoatCounter
 (code `tcgamehub`) is the **only** analytics — never add another tracker.
 
 ## Git workflow
@@ -29,11 +29,14 @@ publisher. Supabase holds the leaderboard (players enter a name only). GoatCount
   games of a zone completes it (+50 tokens, home-page celebration). Never add unlock
   gates back.
 - Legends: finish a Legends game from level 1 without losing a life to open its secret
-  final level and win the zone's Golden Egg. The Golden Crown = all 5 eggs of Zones 1–5,
+  final level and win the zone's Frost Crystal. The Frost Crown = all 5 crystals of Zones 1–5,
   fixed from now on (`CROWN_EGGS = 5`; it was 4 until 29 Oct 2026 and players crowned
-  then keep it); every egg after Zone 5 adds a jewel to the crown.
-  Eggs gate nothing except golden characters.
-- **Golden characters are egg-only, never sold**, and every unlockable character must be
+  then keep it); every crystal after Zone 5 adds a jewel to the crown.
+  Crystals gate nothing except golden characters. Until Nov 2026 they were the Golden Eggs
+  and the Golden Crown: the code still says egg (`EGGS`, `eggSVG`, `Legends.eggs()`,
+  `data-gold-theme`, reward `egg`) so saved progress, Legend codes and crowns carry over —
+  rename only what players read, never those names.
+- **Golden characters are crystal-only, never sold**, and every unlockable character must be
   GOLDEN, in every game, including future ones.
 - Arcade tokens (`assets/js/tokens.js`) are **cosmetic only** and never touch scores;
   150/day earn cap; lifetime earned and owned items only ever grow (max-merge via

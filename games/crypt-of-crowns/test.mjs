@@ -7,7 +7,7 @@
 //   2 · the timetable is fair: it repeats, no skeleton or spike ever reaches the entrance (where
 //       you come back after a catch), and no patrol walks through a wall, door or gate
 //   3 · every crypt can be finished FLAWLESSLY (never caught), which is what the Legends rule and
-//       the Golden Egg ask for, and inside its par time; the vault then gives the crown
+//       the Frost Crystal ask for, and inside its par time; the vault then gives the crown
 //   4 · every crypt can be finished after a real catch (the benchmark's bot walks into a skeleton
 //       or spikes, then plays on) with the game's rules holding at every step; a catch costs one
 //       life and puts you back at the entrance with your keys, doors and levers as they were

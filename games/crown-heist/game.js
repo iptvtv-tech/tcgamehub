@@ -98,7 +98,7 @@ runGame({
 
 function titleExtra() {
   const code = Legends.myCode(), max = Math.min(Store.maxLevel(ID), FINAL), egg = Legends.hasEgg(4);
-  const deep = egg ? '🥚 <b>Golden Throne Egg</b> won — all 15 floors escaped.' : max > 1 ? `🏰 Deepest floor reached: <b>${max}</b> / 15 — carry on from any floor you've reached.` : '';
+  const deep = egg ? '❄️ <b>Throne Crystal</b> won — all 15 floors escaped.' : max > 1 ? `🏰 Deepest floor reached: <b>${max}</b> / 15 — carry on from any floor you've reached.` : '';
   const c = code ? `🔐 Your progress is saved to <b>${esc(code)}</b> — enter it on the 🏛️ Legends page on any phone or computer.`
     : `🔐 Clear floor 3 to seal your progress with a code. Already have one? <a href="../../hall-of-legends/">Enter it here</a>.`;
   return `<p class="muted small">${deep}${deep ? '<br>' : ''}${c}</p>`;
@@ -856,7 +856,7 @@ class CrownHeist {
             <h2>🔐 Sealed</h2>
             <p>Your progress has been sealed. Enter this code when you return.</p>
             <p class="legend-code"><b>${esc(code)}</b></p>
-            <p class="muted small">It's an ordinary Legend code: enter it on the 🏛️ Legends page on any device. Win the Golden Throne Egg and sign the Hall with the same name, and the egg goes on this code too.</p>
+            <p class="muted small">It's an ordinary Legend code: enter it on the 🏛️ Legends page on any device. Win the Throne Crystal and sign the Hall with the same name, and the crystal goes on this code too.</p>
             <button class="btn primary big" data-go>▶ Floor 4</button>`);
           const go = p.querySelector('[data-go]'); go.onclick = done; go.focus({ preventScroll: true });
         } catch (err) {

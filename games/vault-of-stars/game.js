@@ -8,7 +8,7 @@
 //  Grab the key cards, reach the airlock before your oxygen runs out — and beat the par.
 //
 //  THE EGG: start at vault 1 and clear all 15 without losing a life. Vault 16, the Signal
-//  Room, opens — reach the Golden Beacon at its centre to win the Golden Beacon Egg.
+//  Room, opens — reach the Golden Beacon at its centre to win the Beacon Crystal.
 // ─────────────────────────────────────────────────────────────
 import { runGame, roundRect, clamp } from '../../assets/js/engine.js';
 import { Sound } from '../../assets/js/audio.js';

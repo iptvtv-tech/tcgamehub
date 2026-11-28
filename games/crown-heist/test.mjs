@@ -4,7 +4,7 @@
 //       take the crown and reach the stairs without being caught (routes.js, found by
 //       route-search.mjs and kept by find-routes.mjs). The test plays it in the real game, key
 //       for key, from a fresh start, with the game's rules checked after every step. A flawless
-//       run of every floor is what the Golden Egg asks for.
+//       run of every floor is what the Frost Crystal asks for.
 //   2 · the ways use only what you start a floor with (2–3 coins, 1–2 smoke bombs): no gold picked
 //       up on the way is needed, so they still work when a floor is replayed after a catch
 //   3 · a catch costs one life and puts everything back: you, the guards, the crown, the gate

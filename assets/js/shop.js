@@ -18,7 +18,7 @@ function wallet() {
 
 const EARN_ROWS = [
   ['🎯', 'Clear a level', EARN.level], ['⭐', 'Clear a bonus round', EARN.bonus], ['📈', 'Beat your own best score', EARN.best],
-  ['📅', 'Play the Daily Challenge', EARN.daily], ['🏅', 'Unlock a badge', EARN.badge], ['🏁', 'Play every game in a zone', EARN.zone], ['🥚', 'Win a Golden Egg', EARN.egg],
+  ['📅', 'Play the Daily Challenge', EARN.daily], ['🏅', 'Unlock a badge', EARN.badge], ['🏁', 'Play every game in a zone', EARN.zone], ['❄️', 'Win a Frost Crystal', EARN.egg],
 ];
 $('earn-grid').innerHTML = EARN_ROWS.map(([i, t, n]) => `<div class="earn"><span class="ico">${i}</span><span>${t}</span><b>+${n} 🪙</b></div>`).join('');
 

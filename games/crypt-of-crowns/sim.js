@@ -5,7 +5,7 @@
 //
 //  Map key
 //    #  crypt wall     =  bone wall      %  cracked wall (secret — SEARCH it)
-//    @  start          E  stairs (exit)  C  the golden crown (secret vault)
+//    @  start          E  stairs (exit)  C  the frost crown (secret vault)
 //    k  gold key       D  gold door      b  blue key        B  blue door
 //    L  lever (wall)   G  gate, opens when L is pulled   g  gate, CLOSES when L is pulled
 //    M  lever 2        H  gate for M                      h  closes when M is pulled

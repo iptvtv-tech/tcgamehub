@@ -18,7 +18,13 @@ export function ago(ts) {
 
 /** Fill in the site name / year, and register the offline service worker. */
 export function siteChrome() {
-  document.querySelectorAll('[data-site-name]').forEach((el) => { el.textContent = CONFIG.siteName; });
+  // In the header logo the first word ("TC") is drawn in neon; everywhere else it's plain text.
+  document.querySelectorAll('[data-site-name]').forEach((el) => {
+    const [first, ...rest] = CONFIG.siteName.split(' ');
+    if (!el.closest('.logo') || !rest.length) { el.textContent = CONFIG.siteName; return; }
+    const b = document.createElement('b'); b.textContent = first;
+    el.replaceChildren(b, ' ' + rest.join(' '));
+  });
   document.querySelectorAll('[data-year]').forEach((el) => { el.textContent = new Date().getFullYear(); });
   // Everyone can find the door to the Hall of Legends — only Legends get in.
   const nav = document.querySelector('.site-nav');

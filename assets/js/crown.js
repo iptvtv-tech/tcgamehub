@@ -1,4 +1,4 @@
-// The Crown Room — hidden page for holders of the Golden Crown (all 5 Golden Eggs, Zones 1–5;
+// The Crown Room — hidden page for holders of the Frost Crown (all 5 Frost Crystals, Zones 1–5;
 // every egg after that adds a jewel; crowns won under the old 4-egg rule are kept).
 import { gameById, legendZones, crownZones, jewelZones, crownEggsText, CROWN_EGGS } from './games.js';
 import { Store } from './storage.js';
@@ -21,7 +21,7 @@ function sealed() {
       <h1>The Crown Room</h1>
       <p>The door is sealed with ${need} golden locks. Only a holder of ${crownEggsText()} may enter.</p>
       <div class="egg-shelf">${cz.map((z) => `<div class="egg-stand${Legends.hasEgg(z.n) ? ' won' : ''}">${eggSVG(z.n, { size: 60, won: Legends.hasEgg(z.n) })}<b>${esc(eggName(z.n))}</b><small>${esc(gameById(z.legendGame).title)}</small></div>`).join('')}</div>
-      <p class="muted">${Legends.isLegend() ? `You hold <b>${eggs} of ${need}</b> eggs.` : 'Nobody has ever been told how to win an egg…'}</p>
+      <p class="muted">${Legends.isLegend() ? `You hold <b>${eggs} of ${need}</b> crystals.` : 'Nobody has ever been told how to win a crystal…'}</p>
       <a class="btn" href="../hall-of-legends/">🏛️ Hall of Legends</a> <a class="btn" href="../">⌂ Arcade</a>
     </section>`;
 }
@@ -38,7 +38,7 @@ function open() {
     <section class="crown-hero">
       <div class="crown-stage"><div class="rays" aria-hidden="true"></div>${crownSVG({ size: 260, cls: 'spin big', jewels: Legends.crownStones() })}</div>
       <h1>The Crown Room</h1>
-      <p class="crown-sub">Welcome, <b>${esc(myName())}</b> — Holder of the Golden Crown</p>
+      <p class="crown-sub">Welcome, <b>${esc(myName())}</b> — Holder of the Frost Crown</p>
       <p class="muted">Crowned ${date(at)}${jewelLine()}</p>
     </section>
     <section class="pedestals">${legendZones().map((z) => {
@@ -49,7 +49,7 @@ function open() {
     <div class="hall-grid">
       <section class="hall-card">
         <h2>📜 The Crown Roll</h2>
-        <p class="muted small">Everyone who has won the Golden Crown, in the order they were crowned.</p>
+        <p class="muted small">Everyone who has won the Frost Crown, in the order they were crowned.</p>
         <ol class="legend-list" data-roll><li class="muted">Loading…</li></ol>
       </section>
       <div style="display:grid;gap:20px;align-content:start">
@@ -59,17 +59,17 @@ function open() {
           <p class="muted small">${Store.hasAch('crown-heist:throne') ? '🪑 <b>Kingmaker</b> — you carried it down to the Empty Throne without being caught once.' : 'Below the Deep Vaults, a throne still stands empty… for a thief who is never caught.'}</p>
         </section>
         <section class="hall-card">
-          <h2>✨ The golden arcade</h2>
-          <div class="gold-row"><div><b>Golden theme</b><small>Turns the whole arcade gold, on every page.</small></div>
-            <button class="switch" role="switch" aria-checked="${Legends.goldThemeOn()}" aria-label="Golden theme" data-theme-switch></button></div>
+          <h2>✨ The frozen arcade</h2>
+          <div class="gold-row"><div><b>Frost theme</b><small>Turns the whole arcade to ice, on every page.</small></div>
+            <button class="switch" role="switch" aria-checked="${Legends.goldThemeOn()}" aria-label="Frost theme" data-theme-switch></button></div>
           <p class="muted small">A 👑 also follows your name on every leaderboard.</p>
         </section>
         <section class="hall-card">
           <h2>🖼️ Your certificate</h2>
-          <p class="muted small">A picture of your Golden Crown with your name on it — save it or share it.</p>
-          <img class="cert-preview" alt="Golden Crown certificate" hidden>
+          <p class="muted small">A picture of your Frost Crown with your name on it — save it or share it.</p>
+          <img class="cert-preview" alt="Frost Crown certificate" hidden>
           <p><button class="btn gold-btn" data-cert>🖼️ Make my certificate</button>
-          <a class="btn wa" href="${whatsappLink(`👑 I won the Golden Crown at ${location.origin}/?from=wa — ${Legends.eggs().length} Golden Eggs. Can you?`)}" target="_blank" rel="noopener">${WA_ICON} Share</a></p>
+          <a class="btn wa" href="${whatsappLink(`👑 I won the Frost Crown at ${location.origin}/?from=wa — ${Legends.eggs().length} Frost Crystals. Can you?`)}" target="_blank" rel="noopener">${WA_ICON} Share</a></p>
         </section>
       </div>
     </div>`;
@@ -112,8 +112,8 @@ async function makeCertificate(btn, at) {
   g.font = '700 30px Georgia, "Times New Roman", serif'; g.fillText('This certifies that', W / 2, 390);
   g.font = '900 78px Georgia, "Times New Roman", serif'; g.fillStyle = gold; g.fillText(myName(), W / 2, 470);
   g.font = '700 30px Georgia, "Times New Roman", serif'; g.fillStyle = '#fde68a';
-  g.fillText(`won ${Legends.eggs().filter((n) => n <= CROWN_EGGS).length} Golden Eggs${Legends.jewels().length ? ` and ${Legends.jewels().length} jewel${Legends.jewels().length > 1 ? 's' : ''}` : ''}`, W / 2, 525);
-  g.fillText('and is a Holder of the Golden Crown', W / 2, 565);
+  g.fillText(`won ${Legends.eggs().filter((n) => n <= CROWN_EGGS).length} Frost Crystals${Legends.jewels().length ? ` and ${Legends.jewels().length} jewel${Legends.jewels().length > 1 ? 's' : ''}` : ''}`, W / 2, 525);
+  g.fillText('and is a Holder of the Frost Crown', W / 2, 565);
   g.font = '600 22px system-ui, sans-serif'; g.fillStyle = '#cdb78a';
   g.fillText(`${date(at)}  ·  ${CONFIG.siteName}  ·  ${location.host}`, W / 2, 760);
   const url = c.toDataURL('image/png');

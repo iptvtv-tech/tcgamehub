@@ -4,7 +4,7 @@
 //  A Legend game has a fixed ending (def.finalLevel) and a secret level
 //  (def.secretLevel) that only opens for a flawless run: started at level 1
 //  and never lost a life. Every zone of 6 games ends with a Legend game (see ZONES
-//  in games.js). Finishing its secret level wins that zone's GOLDEN EGG:
+//  in games.js). Finishing its secret level wins that zone's FROST CRYSTAL:
 //    • golden versions of the main character in that zone's games (toggle in each game's menu)
 //    • an egg badge (crown1–crown4 — the ids are kept from when they were "crowns")
 //    • special "Legendary" badges
@@ -13,8 +13,8 @@
 //  (Crown Heist, Zone 4's Legends game, is the one exception: its egg is won by carrying the
 //  crown out of all 15 floors, across as many sessions as it takes — a flawless run also opens
 //  its secret 16th floor.)
-//  All five eggs (Zones 1–5) → THE GOLDEN CROWN (badge "grand"): the hidden Crown Room page
-//  (/crown-room/), a golden theme for the whole site, and a 👑 by your name on
+//  All five eggs (Zones 1–5) → THE FROST CROWN (badge "grand"): the hidden Crown Room page
+//  (/crown-room/), a frost theme for the whole site, and a 👑 by your name on
 //  the leaderboards. The crown never changes again: every Legends game after Zone 5 adds a JEWEL
 //  to it instead (see crownZones / jewelZones in games.js), so a new zone never takes it away.
 //  Until 29 Oct 2026 the crown was the eggs of Zones 1–4; anyone crowned then keeps it
@@ -56,7 +56,7 @@ export function hallPeople(rows) {
 }
 export const crownHolders = (rows) => hallPeople(rows).filter((p) => p.crown).sort((a, b) => a.crownAt - b.crownAt);
 
-/** Switch the golden theme on the page (Golden Crown holders only). */
+/** Switch the frost theme on the page (Frost Crown holders only). */
 export function applyTheme() {
   try { document.documentElement.toggleAttribute('data-gold-theme', Legends.goldThemeOn()); } catch { /* ignore */ }
 }
@@ -179,13 +179,13 @@ export const Legends = {
     return first;
   },
 
-  /** Zones whose Legend game this player has completed = the Golden Eggs they hold. */
+  /** Zones whose Legend game this player has completed = the Frost Crystals they hold. */
   eggs() {
     const done = data().legend?.games || [];
     return ZONES.filter((z) => z.legendGame && done.includes(z.legendGame)).map((z) => z.n);
   },
   hasEgg(zoneN) { return this.eggs().includes(zoneN); },
-  /** The Golden Crown: all the eggs of Zones 1–5 — or a crown already won under the old
+  /** The Frost Crown: all the eggs of Zones 1–5 — or a crown already won under the old
    *  four-egg rule (its badge, which travels with a Legend code, or crownAt is on this browser). */
   hasGoldenCrown() {
     const cz = crownZones();
@@ -206,7 +206,7 @@ export const Legends = {
   syncCrowns() {
     const c = this.eggs();
     for (const n of c) Store.unlockAch(`g:crown${n}`);
-    // "grand" = The Golden Crown (all five eggs). Never taken back: a crown won under the old
+    // "grand" = The Frost Crown (all five eggs). Never taken back: a crown won under the old
     // four-egg rule is kept.
     if (this.hasGoldenCrown()) {
       Store.unlockAch('g:grand');
@@ -215,12 +215,12 @@ export const Legends = {
     }
   },
 
-  /** The golden site theme (Golden Crown holders, on by default). */
+  /** The golden site theme (Frost Crown holders, on by default). */
   goldThemeOn() { return this.hasGoldenCrown() && Store.setting('goldTheme') !== false; },
   setGoldTheme(on) { Store.setSetting('goldTheme', !!on); applyTheme(); },
 
   /** Is the golden character unlocked for this game? (needs the egg of the game's zone;
-   *  in a zone that has no Legends game yet, the Golden Crown unlocks it instead. A game whose
+   *  in a zone that has no Legends game yet, the Frost Crown unlocks it instead. A game whose
    *  golden character crown holders already had before its zone got a Legends game keeps it for
    *  them — `goldWithCrown: true` in games.js, e.g. Lunar Delivery's Golden Hopper.) */
   goldUnlocked(gameId) {
@@ -314,7 +314,7 @@ export const Legends = {
   /** Save / fetch progress for this browser's Legend code right now (null if it couldn't). */
   syncProgress() { return syncNow(); },
 
-  /** Names (lower-case) of everyone in the Hall who holds the Golden Crown. Cached for 10 minutes. */
+  /** Names (lower-case) of everyone in the Hall who holds the Frost Crown. Cached for 10 minutes. */
   crownNames() { return (crownPromise ||= this.loadCrownNames().catch((e) => { crownPromise = null; throw e; })); },
   async loadCrownNames() {
     try {
@@ -331,7 +331,7 @@ export const Legends = {
     const k = String(name).toLowerCase();
     if (!crownSet?.has(k)) return '';
     const j = crownSet.get(k) || 0;
-    const title = j ? `Golden Crown holder · ${j} jewel${j > 1 ? 's' : ''}` : 'Holder of the Golden Crown';
+    const title = j ? `Frost Crown holder · ${j} jewel${j > 1 ? 's' : ''}` : 'Holder of the Frost Crown';
     return ` <span class="crown-mark" title="${title}">👑${j ? `<sup>${j}</sup>` : ''}</span>`;
   },
 

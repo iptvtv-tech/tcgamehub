@@ -26,8 +26,12 @@ import { dirname, join, resolve } from 'node:path';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SITE = 'https://tcgamehub.win/';
-const SITE_NAME = 'Quick Play Arcade';
-const PUBLISHER = 'TC Game Hub';
+const SITE_NAME = 'TC Arcade';
+const PUBLISHER = 'TC Arcade';
+// The names the site went by before November 2026, so search engines tie the old brand to the new one.
+const OLD_NAMES = ['Quick Play Arcade', 'TC Game Hub'];
+// Header wordmark: the first word ("TC") in neon, the rest after it.
+const wordmark = () => { const [a, ...b] = SITE_NAME.split(' '); return b.length ? `<b>${esc(a)}</b> ${esc(b.join(' '))}` : esc(SITE_NAME); };
 const args = new Set(process.argv.slice(2));
 const CHECK = args.has('--check');
 const IMAGES = args.has('--images');
@@ -55,12 +59,12 @@ const genreCount = (id) => GAMES.filter((g) => genresOf(g).some((x) => x.id === 
 const genrePages = () => [
   ...GENRES.filter((ge) => genreCount(ge.id) >= 2),
   { id: '3d', label: '3D games', blurb: 'Every game built on one of the site\'s 3D engines: raycast crypts, pseudo-3D racers and full WebGL worlds. They all run in the browser with nothing to install.' },
-  { id: 'legends', label: 'Legends games', blurb: 'The sixth game of every zone hides a Golden Egg. Finish it from level 1 without losing a life to open its secret final level — win all 5 Golden Eggs for the Golden Crown.' },
+  { id: 'legends', label: 'Legends games', blurb: 'The sixth game of every zone hides a Frost Crystal. Finish it from level 1 without losing a life to open its secret final level — win all 5 Frost Crystals for the Frost Crown.' },
 ];
 const hasGenrePage = (id) => genrePages().some((ge) => ge.id === id);
 const genreHref = (rel, id) => `${rel}games/${hasGenrePage(id) ? id + '/' : ''}`;
 // Google shows about 60 characters of a title and names the site separately (WebSite schema),
-// so the " | Quick Play Arcade" ending is added only when the whole title still fits.
+// so the " | TC Arcade" ending is added only when the whole title still fits.
 const MAX_TITLE = 60, MAX_DESC = 155;
 const withSite = (base) => (`${base} | ${SITE_NAME}`.length <= MAX_TITLE ? `${base} | ${SITE_NAME}` : base);
 // A description is its first sentence plus each extra sentence that still fits in MAX_DESC.
@@ -161,7 +165,7 @@ function footer(rel) {
         </ul></div>
       </div>
       <div class="footer-base">
-        <span>© <span data-year>${new Date().getFullYear()}</span> <span data-site-name>${SITE_NAME}</span> by ${PUBLISHER} · ${GAMES.length} free browser games, no sign-up, no downloads</span>
+        <span>© <span data-year>${new Date().getFullYear()}</span> <span data-site-name>${SITE_NAME}</span> · ${GAMES.length} free browser games, no sign-up, no downloads</span>
       </div>
     </div>`;
 }
@@ -203,7 +207,7 @@ ${schema.map((s) => `  <script type="application/ld+json">\n${JSON.stringify(s, 
 const siteHeader = (rel, current) => `
   <header class="site-header">
     <div class="wrap">
-      <a class="logo" href="${rel}"><img src="${rel}favicon.svg" alt=""><span data-site-name>${SITE_NAME}</span></a>
+      <a class="logo" href="${rel}"><img src="${rel}favicon.svg" alt=""><span data-site-name>${wordmark()}</span></a>
       <nav class="site-nav">
         <a href="${rel}games/"${current === 'games' ? ' aria-current="page"' : ''}>Games</a>
         <a href="${rel}leaderboard/">Leaderboard</a>
@@ -212,7 +216,7 @@ const siteHeader = (rel, current) => `
       </nav>
     </div>
   </header>`;
-const orgSchema = { '@type': 'Organization', '@id': SITE + '#org', name: PUBLISHER, alternateName: SITE_NAME, url: SITE, logo: SITE + 'assets/img/icon-512.png' };
+const orgSchema = { '@type': 'Organization', '@id': SITE + '#org', name: PUBLISHER, alternateName: OLD_NAMES, url: SITE, logo: SITE + 'assets/img/icon-512.png' };
 const breadcrumb = (items) => ({
   '@context': 'https://schema.org', '@type': 'BreadcrumbList',
   itemListElement: items.map(([name, url], i) => ({ '@type': 'ListItem', position: i + 1, name, item: url })),
@@ -248,7 +252,7 @@ function homeGrid() {
 }
 function homeSchema() {
   const site = {
-    '@context': 'https://schema.org', '@type': 'WebSite', '@id': SITE + '#website', url: SITE, name: SITE_NAME, alternateName: PUBLISHER,
+    '@context': 'https://schema.org', '@type': 'WebSite', '@id': SITE + '#website', url: SITE, name: SITE_NAME, alternateName: OLD_NAMES,
     description: `${GAMES.length} free browser games with rising levels, bonus rounds, a daily challenge and a public high-score board. No sign-up, no downloads.`,
     publisher: { '@id': SITE + '#org' }, inLanguage: 'en',
   };
@@ -323,13 +327,13 @@ function gamePage(g) {
           ${g.noDaily ? '' : `<li>One game a day is the <b>Daily Challenge</b>: the same layout for everyone, with its own board. <a href="./?daily=1">Play today's ${esc(g.title)} challenge</a>.</li>`}
         </ul>
         ${g.legend ? `<h2>The Legends secret</h2>
-        <p>${esc(g.title)} is ${esc(z.name)}'s <b>Legends game</b>. ${esc(g.legendHow || 'Finish it from level 1 without losing a life.')} Win the egg to enter the <a href="${rel}hall-of-legends/">Hall of Legends</a>${z.n <= CROWN_EGGS ? ` — and all ${CROWN_EGGS} Golden Eggs together win the Golden Crown` : ' and add a jewel to the Golden Crown'}.</p>
-        ${g.legendLore ? `<p class="lore">“${esc(g.legendLore)}”</p>` : ''}` : (legendGame ? `<p>Looking for this zone's Golden Egg? It is hidden in <a href="${rel}games/${legendGame.id}/">${esc(legendGame.title)}</a>, the zone's Legends game.</p>` : '')}
+        <p>${esc(g.title)} is ${esc(z.name)}'s <b>Legends game</b>. ${esc(g.legendHow || 'Finish it from level 1 without losing a life.')} Win the crystal to enter the <a href="${rel}hall-of-legends/">Hall of Legends</a>${z.n <= CROWN_EGGS ? ` — and all ${CROWN_EGGS} Frost Crystals together win the Frost Crown` : ' and add a jewel to the Frost Crown'}.</p>
+        ${g.legendLore ? `<p class="lore">“${esc(g.legendLore)}”</p>` : ''}` : (legendGame ? `<p>Looking for this zone's Frost Crystal? It is hidden in <a href="${rel}games/${legendGame.id}/">${esc(legendGame.title)}</a>, the zone's Legends game.</p>` : '')}
       </div>
     </div>
     ${ach.length ? `<h2>Badges in ${esc(g.title)}</h2>
     <ul class="badge-list">${ach.map((a) => `<li><span class="ico" aria-hidden="true">${a.icon}</span> <b>${esc(a.title)}</b> — ${esc(a.desc)}</li>`).join('')}${secret ? `<li><span class="ico" aria-hidden="true">🔒</span> <b>${secret} secret ${secret === 1 ? 'badge' : 'badges'}</b> — keep playing…</li>` : ''}</ul>` : ''}
-    ${g.gold ? `<p>Win the zone's Golden Egg and ${esc(g.title)} unlocks a golden character: the <b>${esc(g.gold)}</b>.</p>` : ''}
+    ${g.gold ? `<p>Win the zone's Frost Crystal and ${esc(g.title)} unlocks a golden character: the <b>${esc(g.gold)}</b>.</p>` : ''}
     <h2>More games like this</h2>
     <div class="game-grid mini">${related(g).map((o) => card(slotOf(o), rel)).join('')}
     </div>
@@ -374,7 +378,7 @@ function genrePage(ge) {
     </div>
     <section class="section">
       <h2>How the arcade works</h2>
-      <p>Games are grouped into zones of six, from Easy up to Ultra — the recommended order, though every game is open from the start. Every 5th level is a bonus round, the best scores go on a public board under a nickname, and the sixth game of each zone hides a Golden Egg for a flawless run. <a href="${rel}about/">More about the arcade →</a></p>
+      <p>Games are grouped into zones of six, from Easy up to Ultra — the recommended order, though every game is open from the start. Every 5th level is a bonus round, the best scores go on a public board under a nickname, and the sixth game of each zone hides a Frost Crystal for a flawless run. <a href="${rel}about/">More about the arcade →</a></p>
     </section>
   </main>
   <footer class="site-footer">
@@ -448,11 +452,11 @@ function badgesPage() {
     ...GAMES.flatMap((g) => (g.achievements || []).map((a) => ({ a, key: `${g.id}:${a.id}`, group: g.title, game: g }))),
   ];
   const legendary = all.filter((x) => x.a.legendary);
-  const groups = [{ title: '👑 Legendary', cls: 'legendary', items: legendary, blurb: 'One per Legends game: the Golden Egg itself.' },
+  const groups = [{ title: '👑 Legendary', cls: 'legendary', items: legendary, blurb: 'One per Legends game: the Frost Crystal itself.' },
     { title: 'Arcade', items: all.filter((x) => !x.a.legendary && x.group === 'Arcade'), blurb: 'Earned across the whole arcade.' },
     ...GAMES.map((g) => ({ title: g.title, game: g, items: all.filter((x) => x.game === g && !x.a.legendary) }))].filter((grp) => grp.items.length);
   const title = `All ${all.length} badges | ${SITE_NAME}`;
-  const description = `Every badge on ${SITE_NAME}: ${all.length} to collect across ${GAMES.length} games, from your first play to the secret Golden Egg badges. Each badge pays arcade tokens.`;
+  const description = `Every badge on ${SITE_NAME}: ${all.length} to collect across ${GAMES.length} games, from your first play to the secret Frost Crystal badges. Each badge pays arcade tokens.`;
   const schema = [
     { '@context': 'https://schema.org', '@type': 'CollectionPage', name: 'All badges', url, description, isPartOf: { '@id': SITE + '#website' } },
     breadcrumb([[SITE_NAME, SITE], ['Badges', url]]),
@@ -536,7 +540,7 @@ async function shareCards() {
       <div class="txt"><div class="brand">▶ ${esc(SITE_NAME)}</div><h1>${esc(g.title)}</h1><p class="kind">Free online ${esc(c.kind)}</p>
         <div class="pills"><span>${esc(sl.tier.label)} · Zone ${sl.zone.n}</span>${g.is3d ? '<span>3D</span>' : ''}${g.legend ? '<span class="gold">👑 Legends game</span>' : ''}<span>No sign-up</span></div></div>
       <div class="thumb">${thumb}</div>
-      <div class="foot">Play free in your browser at <b>tcgamehub.win</b></div>
+      <div class="foot">Play free in your browser at <b>${new URL(SITE).host}</b></div>
     </body></html>`;
     await page.setContent(html, { waitUntil: 'load' });
     await page.waitForTimeout(150);
