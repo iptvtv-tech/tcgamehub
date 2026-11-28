@@ -54,6 +54,9 @@ export function eggSVG(n, { size = 64, won = true, title = '' } = {}) {
   </svg>`;
 }
 
+/** A small ice crown for text (in place of the gold 👑 emoji): sized by the font, like an emoji. */
+export const ICE_CROWN = '<svg class="ice-crown" viewBox="0 0 24 18" aria-hidden="true"><path d="M2.5 14.5 L1.5 4 L7 8.5 L12 1.5 L17 8.5 L22.5 4 L21.5 14.5 Z" fill="#7dd3fc" stroke="#0c4a6e" stroke-width="1.4" stroke-linejoin="round"/><rect x="2.3" y="13.6" width="19.4" height="3.4" rx="1" fill="#bae6fd" stroke="#0c4a6e" stroke-width="1.2"/><path d="M12 1.5 L17 8.5 L12 7 Z" fill="#0c4a6e" opacity=".25"/><path d="M1.5 4 L7 8.5 L6 13 Z" fill="#f0f9ff" opacity=".6"/><circle cx="12" cy="10.5" r="1.6" fill="#f0f9ff"/></svg>';
+
 // ── The same crystal on a game's canvas (the Legends games' prize scenes) ──
 const crystalImgs = {};
 /** Start loading zone n's crystal picture for a canvas; call when a game starts so it's ready for the finale. */

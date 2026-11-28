@@ -1123,7 +1123,7 @@ class CrownHeist {
     const k = this.nowRun, a = Math.min(1, k * 1.5, (3.2 - k) * 3);
     ctx.save(); ctx.globalAlpha = a; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(0, VIEW.y + 150, W, 110);
-    ctx.font = '900 28px Georgia, serif'; ctx.fillStyle = '#fde047'; ctx.fillText('You have the crown.', W / 2, VIEW.y + 188);
+    ctx.font = '900 28px Georgia, serif'; ctx.fillStyle = '#bae6fd'; ctx.fillText('You have the crown.', W / 2, VIEW.y + 188);
     ctx.font = '900 44px Georgia, serif'; ctx.fillStyle = '#fff7ed'; ctx.fillText('Now run.', W / 2, VIEW.y + 232);
     ctx.restore();
   }
@@ -1141,7 +1141,7 @@ class CrownHeist {
   drawFinale(ctx) {
     const f = this.finale, k = Math.min(1, f.t / 2.5), cx = VIEW.w / 2, cy = VIEW.y + 180 - k * 30;
     const g = ctx.createRadialGradient(cx, cy, 10, cx, cy, 240);
-    g.addColorStop(0, `rgba(253,230,138,${0.55 * k})`); g.addColorStop(1, 'rgba(253,230,138,0)');
+    g.addColorStop(0, `rgba(186,230,253,${0.55 * k})`); g.addColorStop(1, 'rgba(186,230,253,0)');   // the crown's icy glow
     ctx.fillStyle = g; ctx.fillRect(0, VIEW.y, VIEW.w, VIEW.h);
     if (!f.throne) {
       const sz = 90 + k * 110;
@@ -1150,9 +1150,9 @@ class CrownHeist {
     }
     if (f.t > 1.4) {
       ctx.globalAlpha = Math.min(1, (f.t - 1.4) / 1); ctx.textAlign = 'center';
-      ctx.font = '900 22px system-ui'; ctx.fillStyle = '#fde047';
+      ctx.font = '900 22px system-ui'; ctx.fillStyle = '#bae6fd';
       ctx.fillText(f.throne ? 'THE CROWN IS HOME' : 'THE CROWN OF THE CRYPT KINGS', cx, VIEW.y + 340);
-      ctx.font = '700 15px system-ui'; ctx.fillStyle = '#fef3c7';
+      ctx.font = '700 15px system-ui'; ctx.fillStyle = '#e0f2fe';
       ctx.fillText('You saw the crown in the Crypt. You stole it from the Vault.', cx, VIEW.y + 368);
       if (f.throne) ctx.fillText('A flawless heist — and a throne no longer empty.', cx, VIEW.y + 390);
       ctx.globalAlpha = 1;

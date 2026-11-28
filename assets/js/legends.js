@@ -14,7 +14,7 @@
 //  crown out of all 15 floors, across as many sessions as it takes — a flawless run also opens
 //  its secret 16th floor.)
 //  All five eggs (Zones 1–5) → THE FROST CROWN (badge "grand"): the hidden Crown Room page
-//  (/crown-room/), a frost theme for the whole site, and a 👑 by your name on
+//  (/crown-room/), a frost theme for the whole site, and an ice crown by your name on
 //  the leaderboards. The crown never changes again: every Legends game after Zone 5 adds a JEWEL
 //  to it instead (see crownZones / jewelZones in games.js), so a new zone never takes it away.
 //  Until 29 Oct 2026 the crown was the eggs of Zones 1–4; anyone crowned then keeps it
@@ -25,6 +25,7 @@
 // ─────────────────────────────────────────────────────────────
 import { Store } from './storage.js';
 import { GAMES, ZONES, zoneOf, gameById, crownZones, jewelZones, OLD_CROWN_EGGS, CROWN_OF_FOUR_UNTIL } from './games.js';
+import { ICE_CROWN } from './eggs.js';
 
 import { rpc, ONLINE, nameProblem } from './scores.js';
 
@@ -326,13 +327,13 @@ export const Legends = {
     try { sessionStorage.setItem('arcade:crowns', JSON.stringify({ t: Date.now(), n: [...crownSet] })); } catch { /* ignore */ }
     return crownSet;
   },
-  /** A little 👑 after a name on a leaderboard, with the jewel count once they have any (call crownNames() first). */
+  /** A little ice crown after a name on a leaderboard, with the jewel count once they have any (call crownNames() first). */
   crownMark(name) {
     const k = String(name).toLowerCase();
     if (!crownSet?.has(k)) return '';
     const j = crownSet.get(k) || 0;
     const title = j ? `Frost Crown holder · ${j} jewel${j > 1 ? 's' : ''}` : 'Holder of the Frost Crown';
-    return ` <span class="crown-mark" title="${title}">👑${j ? `<sup>${j}</sup>` : ''}</span>`;
+    return ` <span class="crown-mark" title="${title}">${ICE_CROWN}${j ? `<sup>${j}</sup>` : ''}</span>`;
   },
 
   /** Everyone in the Hall (oldest first — the first finders are the most legendary). */

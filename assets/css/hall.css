@@ -26,7 +26,7 @@
 .legend-list li { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; }
 .legend-list li:nth-child(odd) { background: #ffffff08; }
 .legend-list li::before { counter-increment: l; content: counter(l); font: 800 1.05em var(--font-head); color: #7dd3fc; width: 2em; text-align: center; }
-.legend-list li:first-child::before { content: '👑'; }
+.legend-list li:first-child::before { content: '\00a0'; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 18'%3E%3Cpath d='M2.5 14.5 L1.5 4 L7 8.5 L12 1.5 L17 8.5 L22.5 4 L21.5 14.5 Z' fill='%237dd3fc' stroke='%230c4a6e' stroke-width='1.4' stroke-linejoin='round'/%3E%3Crect x='2.3' y='13.6' width='19.4' height='3.4' rx='1' fill='%23bae6fd' stroke='%230c4a6e' stroke-width='1.2'/%3E%3C/svg%3E") center / 1.4em no-repeat; }   /* the ice crown */
 .legend-list b { font-size: 1.05em; }
 .legend-list small { color: var(--muted); margin-left: auto; text-align: right; }
 .legend-list li.me { background: #082f49; box-shadow: inset 0 0 0 1px #7dd3fc; }

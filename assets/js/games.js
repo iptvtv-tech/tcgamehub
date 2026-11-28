@@ -456,7 +456,7 @@ export const GAMES = [
       { id: 'wraith',    icon: '👁️', title: 'Outran the Wraith', desc: 'Escape a floor with the Crown Wraith awake' },
       { id: 'hoard',     icon: '💰', title: 'Vault Raider',      desc: 'Grab 40 coins in one treasure vault' },
       { id: 'level10',   icon: '🏰', title: 'The Deep Vaults',   desc: 'Reach floor 10' },
-      { id: 'heist',     icon: '👑', title: 'Now Run.',          desc: 'Carry the crown of the Crypt Kings out of floor 15', legendary: true, secret: true },
+      { id: 'heist',     icon: '🏃', title: 'Now Run.',          desc: 'Carry the crown of the Crypt Kings out of floor 15', legendary: true, secret: true },
       { id: 'throne',    icon: '🪑', title: 'Kingmaker',         desc: 'Find the secret 16th floor and set the crown on the empty throne', legendary: true, secret: true },
     ],
   },
@@ -480,7 +480,7 @@ export const GAMES = [
       { id: 'swift',     icon: '⏱️', title: 'Swift Feet',       desc: 'Beat the par time on crypt 11 or later' },
       { id: 'hoard',     icon: '🪙', title: 'Treasure Hoarder', desc: 'Grab 50 coins in one treasure room' },
       { id: 'level10',   icon: '🏰', title: 'Deep Crypts',      desc: 'Reach crypt 10' },
-      { id: 'crown',     icon: '👑', title: 'Crown of the Crypt Kings', desc: 'Find the crown in the secret vault', legendary: true, secret: true },
+      { id: 'crown',     icon: '💠', title: 'Crown of the Crypt Kings', desc: 'Find the crown in the secret vault', legendary: true, secret: true },
     ],
   },
   {
@@ -498,7 +498,7 @@ export const GAMES = [
       { id: 'ironsuit',  icon: '🛡️', title: 'Suit Up',        desc: 'Wear a full set of iron armour' },
       { id: 'crystal',   icon: '💎', title: 'Shiny!',         desc: 'Mine a crystal' },
       { id: 'adv10',     icon: '🏆', title: 'Achiever',       desc: 'Earn 10 advancements in one world' },
-      { id: 'boss',      icon: '👑', title: 'Kingslayer',     desc: 'Defeat the Shadow King' },
+      { id: 'boss',      icon: '⚔️', title: 'Kingslayer',     desc: 'Defeat the Shadow King' },
       { id: 'combo4',    icon: '🔥', title: 'On a Roll',      desc: 'Reach a x4 combo' },
       { id: 'level10',   icon: '🌄', title: 'Seasoned',       desc: 'Live to see day 8' },
       { id: 'score10k',  icon: '🏅', title: 'Ten Grand',      desc: 'Score 10,000 in one run' },
@@ -720,13 +720,13 @@ export const GLOBAL_ACHIEVEMENTS = [
   { id: 'famous',  icon: '🏆', title: 'Famous',          desc: 'Put your name on a leaderboard' },
   { id: 'pb',      icon: '📈', title: 'Getting Better',  desc: 'Beat your own best score' },
   { id: 'retro3',  icon: '📼', title: 'Time Traveller',  desc: 'Play 3 different games in the Retro Vault (your own ROM counts as one)' },
-  { id: 'legend',  icon: '👑', title: 'Legend',          desc: 'Win a Frost Crystal in one of the Legends games', legendary: true, secret: true },
+  { id: 'legend',  icon: '❄️', title: 'Legend',          desc: 'Win a Frost Crystal in one of the Legends games', legendary: true, secret: true },
   { id: 'crown1',  icon: '❄️', title: 'Vault Crystal', desc: 'Win Zone 1\'s Legends game perfectly — unlocks the golden characters in games 1–6', legendary: true, secret: true },
   { id: 'crown2',  icon: '❄️', title: 'Heist Crystal', desc: 'Win Zone 2\'s Legends game perfectly — unlocks the golden characters in games 7–12', legendary: true, secret: true },
   { id: 'crown3',  icon: '❄️', title: 'Crypt Crystal', desc: 'Win Zone 3\'s Legends game perfectly — unlocks the golden characters in games 13–18', legendary: true, secret: true },
   { id: 'crown4',  icon: '❄️', title: 'Throne Crystal', desc: 'Carry the crown out of all 15 floors of Crown Heist — unlocks the golden characters in games 19–24', legendary: true, secret: true },
   { id: 'crown5',  icon: '❄️', title: 'Beacon Crystal', desc: 'Reach the Golden Beacon in Vault of Stars — unlocks the golden characters in games 25–30 and is the 5th crystal of the Frost Crown', legendary: true, secret: true },
-  { id: 'grand',   icon: '👑', title: 'The Frost Crown', desc: 'Collect all 5 Frost Crystals — opens the Crown Room', legendary: true, secret: true },
+  { id: 'grand',   icon: '💠', title: 'The Frost Crown', desc: 'Collect all 5 Frost Crystals — opens the Crown Room', legendary: true, secret: true },
 ];
 
 // ── Difficulty tiers & zones ─────────────────────────────────

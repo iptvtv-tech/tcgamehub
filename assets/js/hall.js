@@ -2,7 +2,7 @@
 import { GAMES, ZONES, gameById, legendZones, crownZones, jewelZones, crownEggsText } from './games.js';
 import { Store } from './storage.js';
 import { Legends, hallPeople } from './legends.js';
-import { eggSVG, eggName, crownSVG } from './eggs.js';
+import { eggSVG, eggName, crownSVG, ICE_CROWN } from './eggs.js';
 import { ZoneLock } from './zones.js';
 import { siteChrome, esc } from './site.js';
 
@@ -43,16 +43,16 @@ function locked() {
       <div class="vault-door" aria-hidden="true"><i></i><i></i><i></i></div>
       <h1>The Hall of Legends</h1>
       <p>This door opens for anyone who wins a <b>Frost Crystal</b>. There are ${n} hidden in the arcade, one in each zone's Legends game. Few players ever find one.</p>
-      <div class="vault-eggs" aria-hidden="true">${legendZones().map((z) => eggSVG(z.n, { size: 30, won: Legends.hasEgg(z.n) })).join('')}<span class="crown-ghost">👑</span></div>
+      <div class="vault-eggs" aria-hidden="true">${legendZones().map((z) => eggSVG(z.n, { size: 30, won: Legends.hasEgg(z.n) })).join('')}<span class="crown-ghost">${ICE_CROWN}</span></div>
     </section>
 
     <section class="legend-path">
       <h2>How to become a Legend</h2>
       <ol class="legend-steps">
         <li><b>Play the zones</b><span>Every game is open. Play all six in a zone to complete it — the zones get harder as you go.</span></li>
-        <li><b>Find the Legends game</b><span>The 6th game in every zone is marked <span class="pill legend-pill">👑 LEGENDS</span> on the home page.</span></li>
+        <li><b>Find the Legends game</b><span>The 6th game in every zone is marked <span class="pill legend-pill">${ICE_CROWN} LEGENDS</span> on the home page.</span></li>
         <li><b>Win its Frost Crystal</b><span>Each one hides its crystal in a different way. The clues are below, and perfection is usually the key.</span></li>
-        <li><b>Collect all ${crownZones().length}</b><span>${cap(crownEggsText())} win the <b>Frost Crown</b>: the Crown Room, a frozen arcade and a 👑 by your name on every leaderboard.${jewelZones().length ? ` Every egg after that adds a jewel to your crown.` : ''}</span></li>
+        <li><b>Collect all ${crownZones().length}</b><span>${cap(crownEggsText())} win the <b>Frost Crown</b>: the Crown Room, a frozen arcade and an ${ICE_CROWN} ice crown by your name on every leaderboard.${jewelZones().length ? ` Every crystal after that adds a jewel to your crown.` : ''}</span></li>
       </ol>
     </section>
 
@@ -116,14 +116,14 @@ async function open() {
   main.innerHTML = `
     <section class="hall-head">
       <h1>🏛️ Hall of Legends</h1>
-      <p>Only players who have won a Legends game's Frost Crystal have found their way in here. Every zone's Legends game has one. ${cap(crownEggsText())} win the Frost Crown${jewelZones().length ? ', and every egg after that adds a jewel to it' : ''}. Welcome, ${esc(me.name || Store.name() || 'Legend')}.</p>
+      <p>Only players who have won a Legends game's Frost Crystal have found their way in here. Every zone's Legends game has one. ${cap(crownEggsText())} win the Frost Crown${jewelZones().length ? ', and every crystal after that adds a jewel to it' : ''}. Welcome, ${esc(me.name || Store.name() || 'Legend')}.</p>
       <div class="egg-shelf">${legendZones().map((z) => {
         const won = Legends.hasEgg(z.n), lg = gameById(z.legendGame);
         return `<a class="egg-stand${won ? ' won' : ''}" href="../games/${lg.id}/">${eggSVG(z.n, { size: 70, won })}<b>${esc(eggName(z.n))}</b><small>${won ? 'Won! Golden characters unlocked in Zone ' + z.n + '.' : esc(lg.legendHow || `Finish ${lg.title} without losing a life.`)}</small><span class="stand-link">${esc(lg.title)} →</span></a>`;
       }).join('')}
         ${Legends.hasGoldenCrown()
           ? `<a class="egg-stand crown-stand won" href="../crown-room/">${crownSVG({ size: 110, cls: 'spin', jewels: Legends.crownStones() })}<b>The Frost Crown</b><small>${crownLine()} Enter the Crown Room →</small></a>`
-          : `<div class="egg-stand crown-stand"><span class="crown-ghost">👑</span><b>The Frost Crown</b><small>Win ${crownEggsText()} to win it — and open the Crown Room.</small></div>`}
+          : `<div class="egg-stand crown-stand"><span class="crown-ghost">${ICE_CROWN}</span><b>The Frost Crown</b><small>Win ${crownEggsText()} to win it — and open the Crown Room.</small></div>`}
       </div>
     </section>
     <div class="hall-grid">
@@ -182,7 +182,7 @@ async function open() {
     const people = hallPeople(rows);
     list.innerHTML = people.length ? people.map((p) => {
       const eggs = [...p.zones.keys()].sort().map((n) => eggSVG(n, { size: 18 })).join('');
-      return `<li class="${my && p.name.toLowerCase() === my ? 'me' : ''}${p.crown ? ' grand' : ''}"><b>${esc(p.name)} <span class="mini-eggs">${eggs}</span>${p.crown ? ' <span class="grand-title">👑 GOLDEN CROWN</span>' : ''}</b><small>${esc([...new Set(p.games.map((g) => gameById(g)?.title || g))].join(' · '))}<br>${date(p.at)}</small></li>`;
+      return `<li class="${my && p.name.toLowerCase() === my ? 'me' : ''}${p.crown ? ' grand' : ''}"><b>${esc(p.name)} <span class="mini-eggs">${eggs}</span>${p.crown ? ` <span class="grand-title">${ICE_CROWN} FROST CROWN</span>` : ''}</b><small>${esc([...new Set(p.games.map((g) => gameById(g)?.title || g))].join(' · '))}<br>${date(p.at)}</small></li>`;
     }).join('')
       : '<li class="muted">No names yet — you could be the first to sign!</li>';
   } catch { list.innerHTML = '<li class="muted">The Hall is closed for cleaning — try again in a minute.</li>'; }

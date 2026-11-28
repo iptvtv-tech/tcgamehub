@@ -3,7 +3,7 @@
 import { gameById, legendZones, crownZones, jewelZones, crownEggsText, CROWN_EGGS } from './games.js';
 import { Store } from './storage.js';
 import { Legends, crownHolders } from './legends.js';
-import { eggSVG, eggName, crownSVG } from './eggs.js';
+import { eggSVG, eggName, crownSVG, ICE_CROWN } from './eggs.js';
 import { siteChrome, esc, whatsappLink, WA_ICON } from './site.js';
 import { CONFIG } from './config.js';
 
@@ -17,7 +17,7 @@ function sealed() {
   const cz = crownZones(), eggs = cz.filter((z) => Legends.hasEgg(z.n)).length, need = cz.length;
   main.innerHTML = `
     <section class="crown-sealed">
-      <div class="sealed-crown" aria-hidden="true">👑</div>
+      <div class="sealed-crown" aria-hidden="true">${ICE_CROWN}</div>
       <h1>The Crown Room</h1>
       <p>The door is sealed with ${need} frozen locks. Only a holder of ${crownEggsText()} may enter.</p>
       <div class="egg-shelf">${cz.map((z) => `<div class="egg-stand${Legends.hasEgg(z.n) ? ' won' : ''}">${eggSVG(z.n, { size: 60, won: Legends.hasEgg(z.n) })}<b>${esc(eggName(z.n))}</b><small>${esc(gameById(z.legendGame).title)}</small></div>`).join('')}</div>
@@ -62,14 +62,14 @@ function open() {
           <h2>✨ The frozen arcade</h2>
           <div class="gold-row"><div><b>Frost theme</b><small>Turns the whole arcade to ice, on every page.</small></div>
             <button class="switch" role="switch" aria-checked="${Legends.goldThemeOn()}" aria-label="Frost theme" data-theme-switch></button></div>
-          <p class="muted small">A 👑 also follows your name on every leaderboard.</p>
+          <p class="muted small">An ${ICE_CROWN} ice crown also follows your name on every leaderboard.</p>
         </section>
         <section class="hall-card">
           <h2>🖼️ Your certificate</h2>
           <p class="muted small">A picture of your Frost Crown with your name on it — save it or share it.</p>
           <img class="cert-preview" alt="Frost Crown certificate" hidden>
           <p><button class="btn gold-btn" data-cert>🖼️ Make my certificate</button>
-          <a class="btn wa" href="${whatsappLink(`❄️👑 I won the Frost Crown at ${CONFIG.siteName}: ${location.origin}/?from=wa — ${Legends.eggs().length} Frost Crystals. Can you?`)}" target="_blank" rel="noopener">${WA_ICON} Share</a></p>
+          <a class="btn wa" href="${whatsappLink(`❄️ I won the Frost Crown at ${CONFIG.siteName}: ${location.origin}/?from=wa — ${Legends.eggs().length} Frost Crystals. Can you?`)}" target="_blank" rel="noopener">${WA_ICON} Share</a></p>
         </section>
       </div>
     </div>`;
@@ -81,7 +81,7 @@ function open() {
   const roll = main.querySelector('[data-roll]');
   Legends.hall().then((rows) => {
     const people = crownHolders(rows), me = myName().toLowerCase();
-    roll.innerHTML = people.length ? people.map((p) => `<li class="grand${p.name.toLowerCase() === me ? ' me' : ''}"><b>${esc(p.name)} 👑</b><small>${date(p.crownAt)}</small></li>`).join('')
+    roll.innerHTML = people.length ? people.map((p) => `<li class="grand${p.name.toLowerCase() === me ? ' me' : ''}"><b>${esc(p.name)} ${ICE_CROWN}</b><small>${date(p.crownAt)}</small></li>`).join('')
       : '<li class="muted">Your name appears here once you sign the Hall of Legends at the end of each Legends game — with the same name each time.</li>';
   }).catch(() => { roll.innerHTML = '<li class="muted">The roll is being polished — try again in a minute.</li>'; });
 }

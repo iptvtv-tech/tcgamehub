@@ -1,6 +1,7 @@
 // Small helpers shared by the non-game pages.
 import { CONFIG } from './config.js';
 import { Legends } from './legends.js';
+import { ICE_CROWN } from './eggs.js';
 import { Store } from './storage.js';
 import './stats.js';   // privacy-friendly visitor stats (off unless CONFIG.goatcounter is set)
 import { Tokens } from './tokens.js';
@@ -45,7 +46,7 @@ export function siteChrome() {
     const a = document.createElement('a');
     a.className = 'legend-link' + (Legends.isLegend() ? ' is-legend' : '');
     a.href = new URL('hall-of-legends/', root).href;
-    a.innerHTML = `${Legends.isLegend() ? '👑' : '🏛️'}<span class="nav-label"> Legends</span>`;
+    a.innerHTML = `${Legends.isLegend() ? ICE_CROWN : '🏛️'}<span class="nav-label"> Legends</span>`;
     a.title = 'Hall of Legends';
     if (location.pathname.includes('/hall-of-legends/')) {
       nav.querySelectorAll('[aria-current]').forEach((el) => el.removeAttribute('aria-current'));

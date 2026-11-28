@@ -8,5 +8,5 @@
     <circle cy="2" r="9" fill="#111827"/><rect x="-9" y="-2" width="18" height="2.5" fill="#e5e7eb"/><rect x="-9" y="4" width="18" height="2.5" fill="#e5e7eb"/>
     <circle cy="-8" r="6" fill="#f5c9a0"/><rect x="-6" y="-10" width="12" height="3.5" fill="#0b0b0b"/><path d="M-6 -11 A6 6 0 0 1 6 -11Z" fill="#1f2937"/>
   </g>
-  <g transform="translate(88 32)"><path d="M-11 7 V-5 L-5 0 L0 -9 L5 0 L11 -5 V7Z" fill="#fbbf24"><animateTransform attributeName="transform" type="translate" values="0 0;0 -2;0 0" dur="1.4s" repeatCount="indefinite"/></path><circle cy="2" r="2" fill="#ef4444"/></g>
+  <g transform="translate(88 32)"><g><animateTransform attributeName="transform" type="translate" values="0 0;0 -2;0 0" dur="1.4s" repeatCount="indefinite"/><circle r="12" fill="#7dd3fc" opacity=".25"/><path d="M0 -11 L7 -4 L6 6 L0 11 L-6 6 L-7 -4Z" fill="#7dd3fc" stroke="#e0f2fe" stroke-width="1.2" stroke-linejoin="round"/><path d="M0 -11 L7 -4 L6 6 L0 11Z" fill="#0c4a6e" opacity=".25"/><path d="M0 -11 L-7 -4 L0 -1Z" fill="#fff" opacity=".6"/></g></g>
 </svg>

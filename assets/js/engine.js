@@ -11,7 +11,7 @@
 import { CONFIG } from './config.js';
 import { staleFingers } from './touch.js';
 import { GAMES, GLOBAL_ACHIEVEMENTS, gameById, zoneOf, legendZones, crownZones, CROWN_EGGS, jewelZones, crownEggsText } from './games.js';
-import { eggSVG, eggName, crownSVG } from './eggs.js';
+import { eggSVG, eggName, crownSVG, ICE_CROWN } from './eggs.js';
 import { Store } from './storage.js';
 import { Sound } from './audio.js';
 import { Scores, cleanName, nameProblem } from './scores.js';
@@ -942,18 +942,18 @@ class Shell {
     if (Store.submitBest(this.id, score)) this.unlock('pb', true);
     const zone = zoneOf(this.id);
     const unlocks = Legends.unlocks().filter((u) => u.zone === zone?.n);
-    const shareText = `❄️👑 I found the secret at ${CONFIG.siteName}: ${location.origin}/?from=wa … can you? Only true Legends get in.`;
+    const shareText = `❄️ I found the secret at ${CONFIG.siteName}: ${location.origin}/?from=wa … can you? Only true Legends get in.`;
     const o = this.showOverlay(`
       ${zone ? `<div class="legend-prize">${eggSVG(zone.n, { size: 84 })}</div>` : ''}
-      <h2 class="legend-title">${zone ? `${esc(eggName(zone.n))} won!` : '👑 You are a Legend'}</h2>
+      <h2 class="legend-title">${zone ? `${esc(eggName(zone.n))} won!` : `${ICE_CROWN} You are a Legend`}</h2>
       ${this.crownWon ? `<div class="crown-won">${crownSVG({ size: 150, cls: 'spin', jewels: Legends.crownStones() })}<b>…and that's all ${crownZones().length} Frost Crystals: THE FROST CROWN is yours!</b>
-        <p class="muted small">The Crown Room is open, the whole arcade can turn to ice, and a 👑 now follows your name on the leaderboards.</p>
-        <a class="btn gold-btn" href="../../crown-room/">👑 Enter the Crown Room</a></div>`
+        <p class="muted small">The Crown Room is open, the whole arcade can turn to ice, and an ${ICE_CROWN} ice crown now follows your name on the leaderboards.</p>
+        <a class="btn gold-btn" href="../../crown-room/">${ICE_CROWN} Enter the Crown Room</a></div>`
         : zone && zone.n > CROWN_EGGS && Legends.hasGoldenCrown()
           ? `<div class="crown-won">${crownSVG({ size: 150, cls: 'spin', jewels: Legends.crownStones() })}<b>Crown upgraded — jewel ${Legends.jewels().length} of ${jewelZones().length}!</b>
-            <p class="muted small">The ${esc(eggName(zone.n))} is now set in your Frost Crown and your 👑 on the leaderboards shows ${Legends.jewels().length}.</p>
-            <a class="btn gold-btn" href="../../crown-room/">👑 See it in the Crown Room</a></div>`
-          : `<p class="muted small">Frost Crystals: <b>${Legends.eggs().length} / ${legendZones().length}</b>${Legends.hasGoldenCrown() ? ` · 👑 Frost Crown holder${zone && zone.n <= CROWN_EGGS && crownZones().every((z) => Legends.hasEgg(z.n)) ? ` — all ${crownZones().length} eggs in your crown` : ''}` : zone && zone.n > CROWN_EGGS ? ` — it becomes a jewel in the Frost Crown once you win ${crownEggsText()}.` : ` — win ${crownEggsText()} for the Frost Crown.`}</p>`}
+            <p class="muted small">The ${esc(eggName(zone.n))} is now set in your Frost Crown and your ${ICE_CROWN} on the leaderboards shows ${Legends.jewels().length}.</p>
+            <a class="btn gold-btn" href="../../crown-room/">${ICE_CROWN} See it in the Crown Room</a></div>`
+          : `<p class="muted small">Frost Crystals: <b>${Legends.eggs().length} / ${legendZones().length}</b>${Legends.hasGoldenCrown() ? ` · ${ICE_CROWN} Frost Crown holder${zone && zone.n <= CROWN_EGGS && crownZones().every((z) => Legends.hasEgg(z.n)) ? ` — all ${crownZones().length} eggs in your crown` : ''}` : zone && zone.n > CROWN_EGGS ? ` — it becomes a jewel in the Frost Crown once you win ${crownEggsText()}.` : ` — win ${crownEggsText()} for the Frost Crown.`}</p>`}
       ${this.def.legendLore ? `<p class="legend-hint">${esc(this.def.legendLore)}</p>` : ''}
       <p class="muted">Final score <b>${fmt(score)}</b> · ${this.def.legendLine ? esc(this.def.legendLine(this)) : `${this.def.finalLevel || ''} levels · not a single life lost`}</p>
       <div class="gold-unlocks"><small>Golden characters unlocked${zone ? ` in Zone ${zone.n}` : ''}</small>
@@ -1071,7 +1071,7 @@ class Shell {
     }
     this.sound.play('highscore');
     box.innerHTML = `
-      <p class="rank-msg">${rank === 1 ? '👑 That\'s the <b>#1</b> score today!' : `That's <b>#${rank}</b> today!`} Enter your name:</p>
+      <p class="rank-msg">${rank === 1 ? '🏆 That\'s the <b>#1</b> score today!' : `That's <b>#${rank}</b> today!`} Enter your name:</p>
       <form class="name-form" autocomplete="off">
         <input name="n" maxlength="12" placeholder="Your name" value="${esc(Store.name())}" aria-label="Your name" enterkeyhint="done">
         <button class="btn primary" type="submit">Save</button>

@@ -114,15 +114,15 @@ export function makeHDTextures() {
   DUNGEON.forEach((art, w) => {
     for (let f = 0; f < 3; f++) T[43 + w * 3 + f] = sconce(paint(art, 40 + w), f);
   });
-  // the Crypt Kings' mark: a crown carved into crypt stone, dim (50) or glowing gold (51)
+  // the Crypt Kings' mark: a crown carved into crypt stone, dim (50) or glowing ice-blue (51)
   for (const bright of [0, 1]) {
     const wall = paint(crypt, 10), g = wall.getContext('2d');
     g.fillStyle = 'rgba(0,0,0,.45)'; g.beginPath(); g.moveTo(17, 40); g.lineTo(19, 22); g.lineTo(26, 31); g.lineTo(32, 17); g.lineTo(38, 31); g.lineTo(45, 22); g.lineTo(47, 40); g.closePath(); g.fill();
     g.fillStyle = 'rgba(255,255,255,.12)'; g.fillRect(17, 40, 30, 1);
     const glow = cnv(), q = glow.getContext('2d');
-    q.strokeStyle = bright ? 'rgba(255,214,90,.95)' : 'rgba(200,150,60,.35)'; q.lineWidth = bright ? 1.6 : 1;
+    q.strokeStyle = bright ? 'rgba(125,211,252,.95)' : 'rgba(120,170,200,.35)'; q.lineWidth = bright ? 1.6 : 1;
     q.beginPath(); q.moveTo(17, 40); q.lineTo(19, 22); q.lineTo(26, 31); q.lineTo(32, 17); q.lineTo(38, 31); q.lineTo(45, 22); q.lineTo(47, 40); q.closePath(); q.stroke();
-    if (bright) { q.fillStyle = 'rgba(255,240,180,.9)'; for (const [x, y] of [[19, 22], [32, 17], [45, 22]]) { q.beginPath(); q.arc(x, y, 1.6, 0, 7); q.fill(); } }
+    if (bright) { q.fillStyle = 'rgba(224,242,254,.9)'; for (const [x, y] of [[19, 22], [32, 17], [45, 22]]) { q.beginPath(); q.arc(x, y, 1.6, 0, 7); q.fill(); } }
     T[50 + bright] = { data: texData(wall), glow: texData(glow) };
   }
 
@@ -215,12 +215,12 @@ export function makeHDSprites() {
   S.bluekey = key('#dbeafe', '#60a5fa', '#1e40af');
   // the crown of the Crypt Kings
   S.crown = sp((g) => {
-    const gr = g.createLinearGradient(0, 16, 0, 54); gr.addColorStop(0, '#fff2b0'); gr.addColorStop(0.45, '#f5b82e'); gr.addColorStop(1, '#8a540a');
+    const gr = g.createLinearGradient(0, 16, 0, 54); gr.addColorStop(0, '#f0f9ff'); gr.addColorStop(0.45, '#7dd3fc'); gr.addColorStop(1, '#0c4a6e');   // ice, like the Frost Crown it becomes
     g.fillStyle = gr; g.beginPath(); g.moveTo(11, 46); g.lineTo(13, 21); g.lineTo(23, 33); g.lineTo(32, 13); g.lineTo(41, 33); g.lineTo(51, 21); g.lineTo(53, 46); g.closePath(); g.fill();
     g.fillRect(11, 44, 42, 9);
-    g.strokeStyle = '#7a4a08'; g.lineWidth = 1; g.strokeRect(11.5, 44.5, 41, 8);
-    g.fillStyle = '#fff6d0'; for (const [x, y] of [[13, 21], [32, 13], [51, 21]]) { g.beginPath(); g.arc(x, y, 2.4, 0, 7); g.fill(); }
-    g.fillStyle = '#5a3a06'; g.font = '700 5px system-ui'; g.textAlign = 'center'; g.fillText('TC LEGENDS', 32, 51);
+    g.strokeStyle = '#0c4a6e'; g.lineWidth = 1; g.strokeRect(11.5, 44.5, 41, 8);
+    g.fillStyle = '#f0f9ff'; for (const [x, y] of [[13, 21], [32, 13], [51, 21]]) { g.beginPath(); g.arc(x, y, 2.4, 0, 7); g.fill(); }
+    g.fillStyle = '#0c4a6e'; g.font = '700 5px system-ui'; g.textAlign = 'center'; g.fillText('TC LEGENDS', 32, 51);
   }, (g) => {
     g.fillStyle = '#ef4444'; g.beginPath(); g.arc(32, 38, 3.4, 0, 7); g.fill();
     g.fillStyle = '#22d3ee'; g.beginPath(); g.arc(21, 39, 2.6, 0, 7); g.arc(43, 39, 2.6, 0, 7); g.fill();

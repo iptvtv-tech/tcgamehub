@@ -7,8 +7,8 @@
     <linearGradient id="ceil" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2e2a2c"/><stop offset="1" stop-color="#0b0a0d"/></linearGradient>
     <radialGradient id="flame" cx=".5" cy=".6" r=".5"><stop offset="0" stop-color="#fff7d6"/><stop offset=".4" stop-color="#ffb02e"/><stop offset="1" stop-color="#ff5a10" stop-opacity="0"/></radialGradient>
     <radialGradient id="eye" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffd0c0"/><stop offset=".35" stop-color="#ff3b28"/><stop offset="1" stop-color="#ff3b28" stop-opacity="0"/></radialGradient>
-    <linearGradient id="crown" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff2b0"/><stop offset=".5" stop-color="#f5b82e"/><stop offset="1" stop-color="#8a540a"/></linearGradient>
-    <radialGradient id="halo" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fde68a" stop-opacity=".6"/><stop offset="1" stop-color="#fde68a" stop-opacity="0"/></radialGradient>
+    <linearGradient id="crown" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f0f9ff"/><stop offset=".5" stop-color="#7dd3fc"/><stop offset="1" stop-color="#0c4a6e"/></linearGradient>
+    <radialGradient id="halo" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#bae6fd" stop-opacity=".6"/><stop offset="1" stop-color="#bae6fd" stop-opacity="0"/></radialGradient>
   </defs>
   <rect width="200" height="200" fill="#060507"/>
   <!-- corridor in perspective -->

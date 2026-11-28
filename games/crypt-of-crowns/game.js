@@ -543,7 +543,7 @@ class CryptOfCrowns {
   drawCrownRising(ctx) {
     const f = this.finale, k = Math.min(1, f.t / 2.5), cx = VIEW.w / 2, cy = VIEW.y + 190 - k * 30;
     const g = ctx.createRadialGradient(cx, cy, 10, cx, cy, 220);
-    g.addColorStop(0, `rgba(253,230,138,${0.55 * k})`); g.addColorStop(1, 'rgba(253,230,138,0)');
+    g.addColorStop(0, `rgba(186,230,253,${0.55 * k})`); g.addColorStop(1, 'rgba(186,230,253,0)');   // the crown's icy glow
     ctx.fillStyle = g; ctx.fillRect(0, VIEW.y, VIEW.w, VIEW.h);
     const sz = 90 + k * 110;
     ctx.save(); ctx.imageSmoothingEnabled = false;
@@ -552,7 +552,7 @@ class CryptOfCrowns {
     ctx.restore();
     if (f.t > 1.5) {
       ctx.globalAlpha = Math.min(1, (f.t - 1.5) / 1);
-      ctx.font = '900 22px system-ui'; ctx.textAlign = 'center'; ctx.fillStyle = '#fde047';
+      ctx.font = '900 22px system-ui'; ctx.textAlign = 'center'; ctx.fillStyle = '#bae6fd';
       ctx.fillText('THE CROWN OF THE CRYPT KINGS', cx, VIEW.y + 340);
       ctx.font = '700 15px system-ui'; ctx.fillStyle = '#fef3c7'; ctx.fillText('A flawless run. You are a Legend.', cx, VIEW.y + 368);
       ctx.globalAlpha = 1;

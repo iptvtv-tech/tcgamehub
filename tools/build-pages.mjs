@@ -38,6 +38,7 @@ const IMAGES = args.has('--images');
 
 const { GAMES, ZONES, SLOTS, GENRES, GLOBAL_ACHIEVEMENTS, genreById, CROWN_EGGS } = await import(pathToFileURL(join(ROOT, 'assets/js/games.js')).href);
 const { COPY } = await import(pathToFileURL(join(ROOT, 'assets/js/game-copy.js')).href);
+const { ICE_CROWN } = await import(pathToFileURL(join(ROOT, 'assets/js/eggs.js')).href);   // the ice crown (in place of 👑)
 
 // ── helpers ──────────────────────────────────────────────────
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -52,7 +53,7 @@ const copyOf = (g) => {
 const genresOf = (g) => {
   const list = (g.genres || []).map(genreById).filter(Boolean);
   if (g.is3d) list.push({ id: '3d', label: '3D' });
-  if (g.legend) list.push({ id: 'legends', label: '👑 Legends' });
+  if (g.legend) list.push({ id: 'legends', label: 'Legends' });
   return list;
 };
 const genreCount = (id) => GAMES.filter((g) => genresOf(g).some((x) => x.id === id)).length;
@@ -120,7 +121,7 @@ function card(sl, rel, { home = false } = {}) {
   const g = sl.game;
   if (!g) return `
       <div class="game-card soon${sl.legendSlot ? ' legend-slot' : ''}" style="--c:${sl.tier.color}">
-        <div class="thumb"><span class="num">#${sl.n}</span><span style="font-size:3em" aria-hidden="true">${sl.legendSlot ? '👑' : '🔒'}</span></div>
+        <div class="thumb"><span class="num">#${sl.n}</span><span style="font-size:3em" aria-hidden="true">${sl.legendSlot ? ICE_CROWN : '🔒'}</span></div>
         <div class="body"><h3>${sl.legendSlot ? 'Legends game' : `Game ${sl.n}`}</h3>
           <p>${sl.legendSlot ? `Zone ${sl.zone.n}'s Legends game is on its way.` : 'A new game is being built for this slot — check back soon!'}</p>
           <div class="meta">${tierBar(sl)}<span>Coming soon</span></div></div>
@@ -130,7 +131,7 @@ function card(sl, rel, { home = false } = {}) {
         <div class="thumb"><span class="num">#${sl.n}</span><img src="${rel}games/${g.id}/thumb.svg" alt="" width="120" height="120" loading="lazy">${g.is3d ? '<span class="chip3d" title="Built with a 3D engine">3D</span>' : ''}</div>
         <span class="play-cta">PLAY ▶</span>
         <div class="body">
-          <h3>${esc(g.title)}${g.isNew ? ' <span class="pill new">NEW</span>' : ''}${sl.legendSlot ? ' <span class="pill legend-pill">👑 LEGENDS</span>' : ''}</h3>
+          <h3>${esc(g.title)}${g.isNew ? ' <span class="pill new">NEW</span>' : ''}${sl.legendSlot ? ` <span class="pill legend-pill">${ICE_CROWN} LEGENDS</span>` : ''}</h3>
           <p class="genres">${genresOf(g).filter((x) => x.id !== 'legends' && x.id !== '3d').map((x) => esc(x.label)).join(' · ')}</p>
           <p>${esc(g.tagline)}</p>
           <div class="meta">
@@ -284,7 +285,7 @@ function gamePage(g) {
   const schema = [
     {
       '@context': 'https://schema.org', '@type': 'VideoGame', '@id': url + '#game', name: g.title, url,
-      description: c.blurb, image: og, genre: genres.filter((x) => x.id !== 'legends').map((x) => x.label.replace('👑 ', '')),
+      description: c.blurb, image: og, genre: genres.filter((x) => x.id !== 'legends').map((x) => x.label),
       gamePlatform: 'Web Browser', applicationCategory: 'Game', operatingSystem: 'Any', playMode: 'SinglePlayer',
       numberOfPlayers: { '@type': 'QuantitativeValue', minValue: 1, maxValue: 1 },
       isAccessibleForFree: true, offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD', availability: 'https://schema.org/InStock' },
@@ -305,7 +306,7 @@ function gamePage(g) {
     <p class="pills">
       ${genrePills(g, rel)}
       <span class="pill" title="Difficulty ${sl.n} of ${SLOTS.length}">${esc(difficultyText(sl))}</span>
-      ${g.legend ? `<span class="pill legend-pill">👑 Legends game</span>` : ''}
+      ${g.legend ? `<span class="pill legend-pill">${ICE_CROWN} Legends game</span>` : ''}
       <span class="pill">Free · no sign-up · no download</span>
     </p>
     <div class="info-grid">
@@ -337,7 +338,7 @@ function gamePage(g) {
     <h2>More games like this</h2>
     <div class="game-grid mini">${related(g).map((o) => card(slotOf(o), rel)).join('')}
     </div>
-    <p class="more-links">Browse: ${genresOf(g).map((x) => `<a href="${genreHref(rel, x.id)}">${esc(x.label.replace('👑 ', ''))} games</a>`).join(' · ')} · <a href="${rel}games/">all ${GAMES.length} games</a></p>
+    <p class="more-links">Browse: ${genresOf(g).map((x) => `<a href="${genreHref(rel, x.id)}">${esc(x.label)} games</a>`).join(' · ')} · <a href="${rel}games/">all ${GAMES.length} games</a></p>
   </section>
 
   <footer class="site-footer">
@@ -356,7 +357,7 @@ function genrePage(ge) {
   const rel = '../../';
   const url = `${SITE}games/${ge.id}/`;
   const games = GAMES.filter((g) => genresOf(g).some((x) => x.id === ge.id));
-  const label = ge.label.replace('👑 ', '');
+  const label = ge.label;
   // "Racing & driving" → "Racing & driving games"; "3D games" already ends in "games"
   const noun = /\bgames$/i.test(label) ? label : `${label} games`;
   const title = withSite(`Free online ${lcGenre(noun)} – no download`);
@@ -402,7 +403,7 @@ function gamesIndex() {
     breadcrumb([[SITE_NAME, SITE], ['Games', url]]),
   ];
   const tiers = [...new Set(SLOTS.filter((sl) => sl.game).map((sl) => sl.tier))];
-  const chip = (href, label, data, extra = '') => `<a class="chip${extra}" href="${href}"${data}>${esc(label)}</a>`;
+  const chip = (href, label, data, extra = '', icon = '') => `<a class="chip${extra}" href="${href}"${data}>${icon ? `${icon} ` : ''}${esc(label)}</a>`;
   const body = `
 <body>${siteHeader(rel, 'games')}
   <main class="wrap genre-page browse-page">
@@ -418,7 +419,7 @@ function gamesIndex() {
       <div class="chips" role="group" aria-label="Difficulty and type">
         ${tiers.map((t) => chip(`#tier-${t.id}`, t.label, ` data-f="tier:${t.id}" style="--t:${t.color}"`, ' tier-chip')).join('\n        ')}
         ${chip(`${rel}games/3d/`, '3D', ' data-f="genre:3d"', ' chip-3d')}
-        ${chip(`${rel}games/legends/`, '👑 Legends', ' data-f="genre:legends"', ' chip-gold')}
+        ${chip(`${rel}games/legends/`, 'Legends', ' data-f="genre:legends"', ' chip-legends', ICE_CROWN)}
       </div>
       <p class="muted small" id="browse-count" aria-live="polite"></p>
     </div>
@@ -452,7 +453,7 @@ function badgesPage() {
     ...GAMES.flatMap((g) => (g.achievements || []).map((a) => ({ a, key: `${g.id}:${a.id}`, group: g.title, game: g }))),
   ];
   const legendary = all.filter((x) => x.a.legendary);
-  const groups = [{ title: '👑 Legendary', cls: 'legendary', items: legendary, blurb: 'One per Legends game: the Frost Crystal itself.' },
+  const groups = [{ title: '❄️ Legendary', cls: 'legendary', items: legendary, blurb: 'One per Legends game: the Frost Crystal itself.' },
     { title: 'Arcade', items: all.filter((x) => !x.a.legendary && x.group === 'Arcade'), blurb: 'Earned across the whole arcade.' },
     ...GAMES.map((g) => ({ title: g.title, game: g, items: all.filter((x) => x.game === g && !x.a.legendary) }))].filter((grp) => grp.items.length);
   const title = `All ${all.length} badges | ${SITE_NAME}`;
@@ -533,12 +534,13 @@ async function shareCards() {
       h1{font-size:${g.title.length > 18 ? 68 : 80}px;line-height:1.02;margin:18px 0 14px;background:linear-gradient(90deg,${g.color},#fff 60%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 18px ${g.color}88)}
       .kind{font-size:32px;color:#d6d5f0;margin:0 0 26px}
       .pills span{display:inline-block;font-size:22px;font-weight:700;padding:8px 18px;border-radius:999px;background:#1a1a3d;border:1px solid #ffffff22;margin:0 8px 10px 0}
-      .pills .gold{background:#3b2a06;border-color:#a16207;color:#fbbf24}
+      .pills .ice{background:#082f49;border-color:#0369a1;color:#bae6fd}
+      .ice-crown{display:inline-block;width:1.25em;height:.95em;vertical-align:-.12em}
       .foot{position:absolute;left:80px;bottom:56px;font-size:26px;color:#aab}
       .foot b{color:#fff}
     </style></head><body><div class="bg"></div><div class="grid"></div>
       <div class="txt"><div class="brand">▶ ${esc(SITE_NAME)}</div><h1>${esc(g.title)}</h1><p class="kind">Free online ${esc(c.kind)}</p>
-        <div class="pills"><span>${esc(sl.tier.label)} · Zone ${sl.zone.n}</span>${g.is3d ? '<span>3D</span>' : ''}${g.legend ? '<span class="gold">👑 Legends game</span>' : ''}<span>No sign-up</span></div></div>
+        <div class="pills"><span>${esc(sl.tier.label)} · Zone ${sl.zone.n}</span>${g.is3d ? '<span>3D</span>' : ''}${g.legend ? `<span class="ice">${ICE_CROWN} Legends game</span>` : ''}<span>No sign-up</span></div></div>
       <div class="thumb">${thumb}</div>
       <div class="foot">Play free in your browser at <b>${new URL(SITE).host}</b></div>
     </body></html>`;

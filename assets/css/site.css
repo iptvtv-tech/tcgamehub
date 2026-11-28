@@ -226,7 +226,7 @@ kbd { background: #2c2c5a; border: 1px solid #45458a; border-bottom-width: 2px; 
   .zone-head .crown .crown-txt { display: none; }
   .zone-body { padding: 4px 10px 12px; }
 }
-.zone-head .crown { font-size: .85em; font-weight: 700; padding: .2em .8em; border-radius: 999px; border: 1px dashed #a16207; color: #d6a84a; white-space: nowrap; }
+.zone-head .crown { font-size: .85em; font-weight: 700; padding: .2em .8em; border-radius: 999px; border: 1px dashed #0369a1; color: #93c5dd; white-space: nowrap; }
 .zone-head .crown.won { border-style: solid; background: #082f49; color: #7dd3fc; }
 .tier { display: inline-flex; align-items: center; gap: 6px; }
 .tier i { display: inline-block; width: 56px; height: 6px; border-radius: 3px; background: #26264a; overflow: hidden; }
@@ -234,7 +234,7 @@ kbd { background: #2c2c5a; border: 1px solid #45458a; border-bottom-width: 2px; 
 .tier b { color: var(--t) !important; }
 .game-card .thumb { position: relative; }
 .game-card .num { position: absolute; top: 10px; left: 12px; font-weight: 800; font-size: .85em; color: var(--muted); background: rgba(0,0,0,.35); padding: .1em .55em; border-radius: 999px; }
-.game-card.legend-slot { border-color: #a16207; }
+.game-card.legend-slot { border-color: #0369a1; }
 .pill.legend-pill { background: #082f49; border-color: #0369a1; color: #7dd3fc; }
 
 .zone-lock { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: -4px 0 16px; padding: 12px 16px; border-radius: 14px; border: 1px dashed #be185d; background: rgba(190,24,93,.1); }
@@ -327,7 +327,8 @@ a.legend-banner.hall-door:hover { border-color: #7dd3fc; transform: translateY(-
 .chip:hover { border-color: var(--cyan); color: var(--cyan); }
 .chip.on { background: var(--cyan); border-color: var(--cyan); color: #06121f; }
 .chip.tier-chip.on { background: var(--t); border-color: var(--t); color: #0b0b1a; }
-.chip.chip-gold.on { background: var(--gold); border-color: var(--gold); color: #1c1003; }
+.chip.chip-legends { border-color: #0369a1; color: #bae6fd; }
+.chip.chip-legends.on { background: linear-gradient(135deg, #bae6fd, #38bdf8); border-color: #7dd3fc; color: #041019; }
 .chip.chip-3d.on { background: linear-gradient(135deg, #0369a1, #7c3aed); border-color: #38bdf8; color: #e0f2fe; }
 #browse-count { margin: 0; }
 .genre-links { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
@@ -352,7 +353,8 @@ a.legend-banner.hall-door:hover { border-color: #7dd3fc; transform: translateY(-
 .prize-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; }
 .prize { display: flex; flex-direction: column; gap: 4px; padding: 16px 14px; border-radius: var(--radius); background: var(--card); border: 1px solid var(--line); text-decoration: none; color: var(--text); transition: .18s; }
 .prize:hover { transform: translateY(-3px); border-color: var(--c, var(--gold)); }
-.prize.won { border-color: #a16207; background: linear-gradient(160deg, #2b1f05, var(--card)); }
+.prize.won { border-color: #0369a1; background: linear-gradient(160deg, #072235, var(--card)); }   /* crystals and the crown: ice */
+.prize.gold-prize.won { border-color: #a16207; background: linear-gradient(160deg, #2b1f05, var(--card)); }   /* golden characters stay gold */
 .prize .prize-art { font-size: 2.6em; line-height: 1; height: 56px; display: flex; align-items: center; }
 .prize .prize-how { font-size: .85em; color: #c9c8e6; margin-top: 4px; }
 
@@ -456,3 +458,6 @@ body.unearned-only .badge.got { display: none; }
 /* The Iceman, TC Arcade's mascot (About page) */
 .mascot { float: right; width: 150px; height: auto; margin: 0 0 12px 20px; filter: drop-shadow(0 6px 22px rgba(56, 189, 248, .4)); }
 @media (max-width: 600px) { .mascot { float: none; display: block; margin: 0 auto 12px; width: 130px; } }
+
+/* the ice crown icon (eggs.js ICE_CROWN), in place of the gold 👑 emoji */
+.ice-crown { display: inline-block; width: 1.25em; height: .95em; vertical-align: -.12em; filter: drop-shadow(0 0 3px rgba(125, 211, 252, .55)); }
