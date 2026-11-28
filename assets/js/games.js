@@ -665,7 +665,7 @@ export const GAMES = [
   {
     id: 'magma-escape',
     genres: ['action', 'arcade'],
-    gold: 'Golden Iceman',          // golden character, unlocked by the Zone 6 egg (once Zone 6's Legends game exists) — never sold
+    gold: 'Golden Iceman',          // golden character, unlocked by the Zone 6 crystal (won in Inferno Vault) — never sold
     title: 'Magma Escape',
     tagline: 'You are made of ice, deep inside an erupting volcano. Climb out before the rising lava gets you — every burn melts you smaller. Slash the magma creatures and beat three bosses on the way up.',
     controls: '← → move · ↑ or Space jump (hold for higher) · X, J or click to slash (touch: ◀ ▶, JUMP and SLASH)',
@@ -685,7 +685,7 @@ export const GAMES = [
   {
     id: 'avalanche-run',
     genres: ['racing', 'action'],
-    gold: 'Golden Iceman',          // golden character, unlocked by the Zone 6 egg (once Zone 6's Legends game exists) — never sold
+    gold: 'Golden Iceman',          // golden character, unlocked by the Zone 6 crystal (won in Inferno Vault) — never sold
     title: 'Avalanche Run',
     tagline: 'The Iceman is out of the volcano, and now the mountain is coming down behind him. Sled down the steep frozen slope, flip off the kickers, cut down the yetis, jump the crevasses, and reach the hut before the avalanche swallows you.',
     controls: '← backflip · → front flip (in the air) · ↓ tuck for speed (grab in the air; with jump, a superman) · ↑ or Space jump · X, J or click to swing the sword (touch: ↺ ↻, TUCK, JUMP and SWORD)',
@@ -710,6 +710,9 @@ export const GAMES = [
     noDaily: true,                  // hand-drawn vault floors: the Daily seed changes nothing, so no Daily mode
     gold: 'Golden Iceman',          // golden character, unlocked by the Zone 6 crystal (won in this game) — never sold
     title: 'Inferno Vault',
+    legend: true,                   // Zone 6's Legends game: the Inferno Crystal
+    legendLore: 'Legends say the Fire King keeps the Inferno Crystal at the very heart of his vault: fire, sealed in ice.',
+    legendHow: 'Start at level 1 and reach the vault door of all 15 levels without losing a life. The heart of the vault opens only for an Iceman who never melts…',
     tagline: 'The Fire King keeps the Inferno Crystal in a vault deep inside the volcano. Sneak down through its floors as the Iceman: stay out of the guards\' lantern light, hide in the dark alcoves, and put the guards out with a slash from behind.',
     controls: '← → move · ↑ or Space jump (hold for higher) · X, J or click to slash · F or L to freeze, from level 6 (↑ + freeze: above you) (touch: ◀ ▶, JUMP, SLASH and FREEZE)',
     color: '#ff9a3c',
@@ -725,6 +728,7 @@ export const GAMES = [
       { id: 'unlock',   icon: '🗝️', title: 'Ember Key',       desc: 'Find the ember key in the deep vault' },
       { id: 'chill',    icon: '🌬️', title: 'Chill Out',       desc: 'Freeze back up a size in a cold vent' },
       { id: 'brute',    icon: '🪓', title: 'Brute Force',     desc: 'Freeze a brute and shatter it' },
+      { id: 'crystal',  icon: '🔥', title: 'The Heart of the Vault', desc: 'Take the Inferno Crystal from the hidden 16th level', legendary: true, secret: true },
       { id: 'level10',  icon: '🔥', title: 'Deep Vault',      desc: 'Reach level 10' },
       { id: 'score10k', icon: '🏅', title: 'Ten Grand',       desc: 'Score 10,000 in one game' },
     ],
@@ -751,6 +755,7 @@ export const GLOBAL_ACHIEVEMENTS = [
   { id: 'crown3',  icon: '❄️', title: 'Crypt Crystal', desc: 'Win Zone 3\'s Legends game perfectly — unlocks the golden characters in games 13–18', legendary: true, secret: true },
   { id: 'crown4',  icon: '❄️', title: 'Throne Crystal', desc: 'Carry the crown out of all 15 floors of Crown Heist — unlocks the golden characters in games 19–24', legendary: true, secret: true },
   { id: 'crown5',  icon: '❄️', title: 'Beacon Crystal', desc: 'Reach the Golden Beacon in Vault of Stars — unlocks the golden characters in games 25–30 and is the 5th crystal of the Frost Crown', legendary: true, secret: true },
+  { id: 'crown6',  icon: '❄️', title: 'Inferno Crystal', desc: 'Take the Inferno Crystal from the heart of Inferno Vault — unlocks the golden Iceman in games 31–36', legendary: true, secret: true },
   { id: 'grand',   icon: '💠', title: 'The Frost Crown', desc: 'Collect all 5 Frost Crystals — opens the Crown Room', legendary: true, secret: true },
 ];
 
@@ -785,7 +790,8 @@ export const ZONES = [
   { n: 5, name: 'Zone 5 · Beyond', blurb: 'Ultra difficulty, out past the Earth. Vault of Stars is this zone\'s Legends game.',
     legendGame: 'vault-of-stars',
     slots: ['lunar-delivery', 'orbit-hopper', 'station-defense', 'dock-master', 'astro-explorer', 'vault-of-stars'] },
-  { n: 6, name: 'Zone 6 · Inferno', blurb: 'Beyond Ultra, into the fire and the ice. Magma Escape, Avalanche Run and Inferno Vault are open now; three more games are on their way.',
+  { n: 6, name: 'Zone 6 · Inferno', blurb: 'Beyond Ultra, into the fire and the ice. Inferno Vault is this zone\'s Legends game. Magma Escape, Avalanche Run and Inferno Vault are open now; three more games are on their way.',
+    legendGame: 'inferno-vault',
     slots: ['magma-escape', 'avalanche-run', null, null, null, 'inferno-vault'] },
   { n: 7, name: 'Zone 7 · Coming soon', blurb: 'A whole new zone is being built. Check back soon!',
     slots: [null, null, null, null, null, null] },

@@ -88,7 +88,7 @@ export function parseMap(rows, name = '', opts = {}) {
   const R = rows.length, C = rows[0].length;
   if (C !== COLS) throw new Error(`${name}: rows must be ${COLS} wide (got ${C})`);
   const t = new Uint8Array(R * C), stops = new Set();
-  const m = { name, R, C, w: C * TILE, h: R * TILE, t, spawn: null, exit: null, shards: [], opals: [], guards: [], jets: [], lamps: [], vents: [], gates: [], key: null, freeze: !!opts.freeze };
+  const m = { name, R, C, w: C * TILE, h: R * TILE, t, spawn: null, exit: null, shards: [], opals: [], guards: [], jets: [], lamps: [], vents: [], gates: [], key: null, freeze: !!opts.freeze, heart: !!opts.heart };
   rows.forEach((row, r) => {
     if (row.length !== C) throw new Error(`${name}: row ${r} is ${row.length} wide`);
     for (let c = 0; c < C; c++) {

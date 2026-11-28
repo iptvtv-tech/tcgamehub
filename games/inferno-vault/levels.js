@@ -6,8 +6,10 @@
 //
 //  Section 1 (Nov 2026) drew levels 1–5, section 2 levels 6–10 (the Freeze: lava pools too wide
 //  to jump, flame jets, heat lamps), section 3 levels 11–15 (the deep vault: cold vents, the ember
-//  key and its gates, brutes, sentinels, the alarm).
-//  opts: { freeze: the Iceman can freeze here, jets: [phase s…], lamps: [phase s…] }.
+//  key and its gates, brutes, sentinels, the alarm), section 4 the secret level 16 (The Heart of
+//  the Vault, where the Inferno Crystal rests).
+//  opts: { freeze: the Iceman can freeze here, heart: the secret level (its D is the crystal's altar),
+//          jets: [phase s…], lamps: [phase s…] }.
 // ─────────────────────────────────────────────────────────────
 import { parseMap } from './world.js';
 
@@ -500,10 +502,47 @@ export const MAPS = [
     '####################',
     '####################',
   ] },
+  // ── Section 4: the secret level 16, The Heart of the Vault. Only an Iceman who reaches it from level 1
+  //    without losing a life gets here. D is the altar of the Inferno Crystal (no key, no door). ──
+  { name: "The Heart of the Vault", opts: { freeze: true, heart: true, jets: [0, 1.5], lamps: [0, 0.8, 3.3] }, rows: [
+    '####################',
+    '#.........L........#',
+    '#..................#',
+    '#..................#',
+    '#...........::.....#',
+    '#....o......::..o..#',
+    '#.S.........::.w...#',
+    '################...#',
+    '################...#',
+    '#..................#',
+    '#..................#',
+    '#..................#',
+    '#..::...........::.#',
+    '#..::.....o.....::.#',
+    '#..::..b........::.#',
+    '#...######~~~~~~####',
+    '#...################',
+    '#..................#',
+    '#..................#',
+    '#..................#',
+    '#.....::.......::..#',
+    '#.*...::..o....::..#',
+    '#..v..::..G....::..#',
+    '################...#',
+    '################...#',
+    '#...L.........L....#',
+    '#..................#',
+    '#..................#',
+    '#..................#',
+    '#.........o........#',
+    '#o....^..D..^......#',
+    '###~~~#######~~~####',
+    '####################',
+  ] },
 ];
 
 const parsed = MAPS.map((d) => parseMap(d.rows, d.name, d.opts));
-/** The map for a level (1–15). */
+/** The map for a level (1–15, and the secret level 16). */
 export const mapFor = (level) => parsed[Math.min(parsed.length, Math.max(1, level)) - 1];
 export const nameFor = (level) => mapFor(level).name;
 export const ALL_MAPS = () => parsed;

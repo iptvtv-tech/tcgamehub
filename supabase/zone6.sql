@@ -32,9 +32,15 @@ on conflict (id) do update set title = excluded.title, max_points_per_second = e
 -- door 100 × level, plus 250 × level for the Ghost bonus (never seen) and 2 × level per point of
 -- ice left. A perfect level 15 pays about 70,000 points at x5 in well under half a minute, and
 -- averaged over a game it is far less, so 12,000 leaves lots of room.
-insert into public.games (id, title, max_points_per_second)
-values ('inferno-vault', 'Inferno Vault', 12000)
-on conflict (id) do update set title = excluded.title, max_points_per_second = excluded.max_points_per_second;
+-- It is Zone 6's Legends game: a flawless run from level 1 opens the secret level 16 and the
+-- Inferno Crystal, so it has a Legends row too. legend_min_ms: running straight through all 16
+-- levels, ignoring every guard, takes about 100 s of play, so no real run can be under 60 s.
+alter table public.games add column if not exists has_legend boolean not null default false;
+alter table public.games add column if not exists legend_min_ms integer not null default 90000;
+insert into public.games (id, title, max_points_per_second, has_legend, legend_min_ms)
+values ('inferno-vault', 'Inferno Vault', 12000, true, 60000)
+on conflict (id) do update set title = excluded.title, max_points_per_second = excluded.max_points_per_second,
+  has_legend = excluded.has_legend, legend_min_ms = excluded.legend_min_ms;
 
--- Check: three rows should come back.
-select id, title, max_points_per_second from public.games where id in ('magma-escape', 'avalanche-run', 'inferno-vault');
+-- Check: three rows should come back (Inferno Vault with has_legend = true).
+select id, title, max_points_per_second, has_legend, legend_min_ms from public.games where id in ('magma-escape', 'avalanche-run', 'inferno-vault');

@@ -22,8 +22,9 @@ publisher (until Nov 2026 it was "Quick Play Arcade" by "TC Game Hub"). Supabase
   (the source of truth for zones, slots and genres). The 6th game of each zone is a
   LEGENDS game. Zones 1–5 are full; Zone 6 (*Inferno*) opened on 30 Oct 2026 with Magma
   Escape; Avalanche Run joined on 20 Nov 2026 and was rebuilt side-on on 21 Nov 2026 (flips off kickers of four
-  sizes, a sword for the yetis, an avalanche always in the picture; wolves and the giant yeti to come), leaving four
-  "coming soon" slots. A zone with no game yet (Zone 7) stays in `ZONES`
+  sizes, a sword for the yetis, an avalanche always in the picture; wolves and the giant yeti to come). Inferno
+  Vault (slot 36, a side-on stealth game) is Zone 6's Legends game and holds the Inferno Crystal (its secret
+  level 16, The Heart of the Vault), leaving three "coming soon" slots (33–35). A zone with no game yet (Zone 7) stays in `ZONES`
   but is not shown on the home page until its first game is registered.
 - **Every game is open to everyone.** Zones are a recommended order; playing all six
   games of a zone completes it (+50 tokens, home-page celebration). Never add unlock

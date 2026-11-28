@@ -7,6 +7,7 @@ import { botStep, rulesBroken } from './bot.js';
 import { TILE, LAVA, tileAt } from './world.js';
 
 export default {
+  levels: 16,                          // the 15 levels and the secret one (The Heart of the Vault)
   limit: () => 240,                    // seconds the expert may take on a level (it takes well under a minute)
   stuck: 45,                           // 45 s without getting deeper, a takedown or an opal = stuck
 

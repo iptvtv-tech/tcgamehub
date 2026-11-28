@@ -18,6 +18,10 @@
 //  alarm (every guard on that floor turns on him, and the vault heats up); brutes must be frozen
 //  before the blade can shatter them; sentinels stand still and turn round now and then.
 //
+//  Section 4 (Legends): finish all 15 levels from level 1 without losing a life and the secret
+//  level 16 opens, The Heart of the Vault. At its bottom the Inferno Crystal rests on an altar:
+//  take it (legendFound) and the vault freezes over. It is Zone 6's Frost Crystal.
+//
 //  Controls (as in Magma Escape): ← → move, ↑ or Space jump (hold for higher), X / J / click
 //  slash, F / L freeze (from level 6). Phone: ◀ ▶ under the left thumb, SLASH, FREEZE and JUMP
 //  under the right.
@@ -30,9 +34,11 @@ import { Sound } from '../../assets/js/audio.js';
 import { VaultSim, TILE, STAGES, sizeIdx, SLASH_T, bodyH, OPAL_PTS, SHARD_PTS, TAKEDOWN_PTS, FREEZE_COST, FREEZE_CD, KEY_PTS, ALARM_FROM, jetState, tileAtPx } from './world.js';
 import { mapFor, nameFor } from './levels.js';
 import { drawIceman, drawPuddle, drawSlashArc, drawCrystal, drawShot, PAL } from '../magma-escape/art.js';
+import { preloadCrystal, drawCrystal as drawZoneCrystal } from '../../assets/js/eggs.js';
 import { paintMap, drawBackdrop, drawLavaTiles, drawDoor, drawOpal, drawBeam, drawGuard, drawGuardSmoke, drawIce, drawJet, drawLamp, drawLampLight, drawVent, drawKey, drawGates } from './art.js';
 
 const ID = 'inferno-vault';
+const SECRET = 16, ZONE = 6;                // the secret level, and the zone whose Frost Crystal it holds
 const W = 480, H = 720;
 const PANEL = 150;                 // touch strip inside the box when a phone's bottom band is too short
 const TAU = Math.PI * 2;
@@ -48,15 +54,23 @@ runGame({
   lives: 3,
   extend: { maxH: 900, topShare: 0 },
   finalLevel: 15,
+  secretLevel: SECRET,
+  secretTitle: '★ THE HEART OF THE VAULT ★',
+  legendBadge: 'crystal',
+  legendRevealDelay: 6.5,
+  legendLore: 'At the very heart of the Fire King\'s vault: fire, sealed in ice.',
+  legendLine: () => 'all 16 levels · not a single life lost',
+  sealedHint: 'Something still burns at the heart of the vault… perhaps for an Iceman who never melts?',
+  sealedHintCheckpoint: 'Legends say the heart of the vault only opens for an Iceman who starts from level 1…',
   winTitle: 'You broke into the Inferno Vault!',
   bonusLevels: [],
   comboWindow: 2.5,
   comboStep: 3,
   maxMultiplier: 5,
   music: MUSIC,
-  levelTitle: (level) => `Level ${level} · ${nameFor(level)}`,
+  levelTitle: (level) => (level === SECRET ? '★ THE HEART OF THE VAULT ★' : `Level ${level} · ${nameFor(level)}`),
   levelInfo: (level) => LEVEL_INFO[level] || 'Deeper into the vault. The guards walk faster down here.',
-  titleHint: 'The Fire King keeps the Inferno Crystal in a vault deep inside the volcano. His guards carry fire.',
+  titleHint: 'The Fire King keeps the Inferno Crystal in a vault deep inside the volcano. Legends say only an Iceman who never melts reaches its heart…',
   create: (shell) => new InfernoVault(shell),
 });
 
@@ -77,6 +91,7 @@ const LEVEL_INFO = {
   13: 'Brutes are too hot for your blade. Freeze one from behind, then shatter it.',
   14: 'Three guards on one floor. If one sees you, the alarm rings and they all turn on you.',
   15: 'The Fire King\'s Door. Everything the vault has stands between you and the Inferno Crystal.',
+  16: 'You never melted once. The Inferno Crystal rests at the heart of the vault: take it.',
 };
 
 /** Original sound effects on the shared synth (no audio files). */
@@ -135,7 +150,8 @@ class InfernoVault {
   }
 
   startLevel(level) {
-    this.level = level;
+    this.level = level; this.finale = null;
+    if (level >= SECRET - 1) preloadCrystal(ZONE);
     this.m = mapFor(level);
     this.sim = new VaultSim(this.m, level);
     this.mapCv = null;
@@ -251,6 +267,88 @@ class InfernoVault {
     this.animate(dt);
     this.stepParts(dt);
     this.updateCamera(dt);
+    if (this.finale) this.stepFinale(dt);
+  }
+
+  // ── Level 16: the Inferno Crystal ────────────────────────────
+  startFinale() {
+    const s = this.s, d = this.m.exit;
+    this.finale = { t: 0, note: 0, nextNote: 0.9, sparkT: 0, x: d.x, y: d.y };
+    s.award(5000, W / 2, this.viewH() * 0.26, { color: '#ffd27a', size: 30 });
+    s.fx.flash('#ffe2a8', 0.65); s.fx.shake(5, 0.4);
+    sfx.statue(); sfx.key();
+    this.ring(d.x, d.y - 60, '#ffd27a'); this.ring(d.x, d.y - 60, '#cfe8f5');
+    s.legendFound();
+  }
+  stepFinale(dt) {
+    const f = this.finale, p = this.sim.p;
+    f.t += dt;
+    // a slow, rising tune in the vault's own key, sung by the ice
+    const tune = [69, 72, 76, 81, 79, 76, 77, 81, 84, 88, 86, 84, 81, 84, 88, 93];
+    f.nextNote -= dt;
+    if (f.nextNote <= 0 && f.note < 32) {
+      const n = tune[f.note % tune.length];
+      sfx.play(() => { Sound.tone({ freq: Sound.note(n), dur: 1.0, type: 'sine', vol: 0.1 }); Sound.tone({ freq: Sound.note(n - 12), dur: 0.7, type: 'triangle', vol: 0.04 }); });
+      f.note++; f.nextNote = f.note % 4 === 3 ? 0.7 : 0.34;
+    }
+    f.sparkT -= dt;
+    if (f.sparkT <= 0) {
+      f.sparkT = 0.05;
+      const a = Math.random() * TAU, r = 20 + Math.random() * 90, h = bodyH(p.k);
+      this.parts.push({ x: p.x + Math.cos(a) * r, y: p.y - h - 40 + Math.sin(a) * r * 0.7, vx: 0, vy: -20, life: 0.9, max: 0.9, size: 1.5 + Math.random() * 2, color: Math.random() < 0.5 ? '#ffd27a' : '#cfe8f5', grav: -10, drag: 1 });
+      this.capParts();
+    }
+  }
+  /** The altar at the heart of the vault, with the Inferno Crystal floating over it (until he takes it). */
+  drawAltar(ctx, d, t, glow) {
+    const x = d.x, y = d.y;
+    ctx.save();
+    ctx.fillStyle = '#2b2226'; ctx.strokeStyle = '#07050a'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x - 26, y); ctx.lineTo(x - 18, y - 12); ctx.lineTo(x + 18, y - 12); ctx.lineTo(x + 26, y); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#3a2e30'; ctx.fillRect(x - 12, y - 30, 24, 18); ctx.strokeRect(x - 12, y - 30, 24, 18);
+    ctx.fillStyle = '#4a3c3a'; ctx.fillRect(x - 18, y - 36, 36, 6); ctx.strokeRect(x - 18, y - 36, 36, 6);
+    ctx.fillStyle = '#ff9a3c'; ctx.fillRect(x - 8, y - 24, 16, 2);
+    if (!this.finale) {
+      const bob = Math.sin(t * 2) * 4;
+      if (glow) { ctx.globalAlpha = 0.8 + Math.sin(t * 3) * 0.15; ctx.drawImage(glow, x - 60, y - 130 + bob, 120, 120); ctx.globalAlpha = 1; }
+      drawZoneCrystal(ctx, x, y - 70 + bob, 54, ZONE);
+    }
+    ctx.restore();
+  }
+  /** Where the crystal is held up in the finale, and how far the reveal has got (0..1). */
+  finalePos() {
+    const f = this.finale, p = this.sim.p, k = Math.min(1, f.t / 1.2);
+    return { k, x: p.x, y: p.y - bodyH(p.k) - 34 - k * 26 };
+  }
+  /** The finale, behind the Iceman: the lava freezing over, outward from him, and the crystal's rays. */
+  drawFinaleBack(ctx) {
+    const f = this.finale, m = this.sim.m, { k, x, y } = this.finalePos();
+    // the lava freezing, outward from him
+    const R = f.t * 170;
+    ctx.save();
+    for (let r = 0; r < m.R; r++) for (let c = 0; c < m.C; c++) {
+      if (m.t[r * m.C + c] !== 3) continue;
+      const tx = c * TILE + TILE / 2, ty = r * TILE + TILE / 2, d = Math.hypot(tx - x, ty - y);
+      if (d > R) continue;
+      ctx.globalAlpha = Math.min(0.9, (R - d) / 120);
+      ctx.fillStyle = '#bfe6f7'; ctx.fillRect(c * TILE, r * TILE, TILE, TILE);
+      ctx.strokeStyle = '#f2fbff'; ctx.lineWidth = 1; ctx.strokeRect(c * TILE + 1, r * TILE + 1, TILE - 2, TILE - 2);
+    }
+    ctx.globalAlpha = 1;
+    // rays
+    ctx.translate(x, y);
+    for (let i = 0; i < 12; i++) {
+      ctx.rotate(TAU / 12 + Math.sin(f.t * 0.4) * 0.01);
+      ctx.fillStyle = i % 2 ? `rgba(255,210,122,${(0.16 * k).toFixed(3)})` : `rgba(207,232,245,${(0.2 * k).toFixed(3)})`;
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-10, -220 * k); ctx.lineTo(10, -220 * k); ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+  }
+  /** The finale, in front: the Inferno Crystal held up over his head. */
+  drawFinaleFront(ctx, glow) {
+    const { k, x, y } = this.finalePos();
+    if (glow) { ctx.globalAlpha = 0.9; ctx.drawImage(glow, x - 70, y - 70, 140, 140); ctx.globalAlpha = 1; }
+    drawZoneCrystal(ctx, x, y, 50 + k * 22, ZONE);
   }
 
   scr(x, y) { return [x, y - this.cam.y]; }
@@ -413,7 +511,8 @@ class InfernoVault {
         const bonus = Math.round(e.hp) * 2 * L;
         if (bonus > 0) s.award(bonus, W / 2, vh * 0.48, { color: '#cfe8f5', size: 18 });
         this.ring(p.x, p.y - 30, '#ffd27a');
-        s.completeLevel();
+        if (this.level === SECRET) this.startFinale();
+        else s.completeLevel();
         break;
       }
     }
@@ -488,7 +587,8 @@ class InfernoVault {
     drawLavaTiles(ctx, sim.m, r0, r1, t, glow('rgba(255,122,26,0.85)'));
     if (sim.ice.length) drawIce(ctx, sim.m, sim.ice, t);
     if (!sim.keyGot) drawGates(ctx, m, r0, r1, t);
-    drawDoor(ctx, m.exit, t, glow('rgba(255,150,60,0.6)'), sim.done ? 1 : 0, !sim.keyGot);
+    if (m.heart) this.drawAltar(ctx, m.exit, t, glow('rgba(255,150,60,0.75)'));
+    else drawDoor(ctx, m.exit, t, glow('rgba(255,150,60,0.6)'), sim.done ? 1 : 0, !sim.keyGot);
     const vg = glow('rgba(143,211,240,0.6)');
     for (const v of m.vents) if (this.near(v.y)) drawVent(ctx, v, t, vg);
     if (m.key && !sim.keyGot && this.near(m.key.y)) drawKey(ctx, m.key, t, glow('rgba(255,150,60,0.85)'));
@@ -512,8 +612,10 @@ class InfernoVault {
     for (const b of sim.shots) if (!b.dead && this.near(b.y)) drawShot(ctx, b, sg);
     const lg = glow('rgba(255,190,100,0.8)');
     for (const l of sim.lamps) if (this.near(l.y)) drawLamp(ctx, l, sim.t, lg);
+    if (this.finale) this.drawFinaleBack(ctx);
     this.drawPlayer(ctx);
     if (this.anim.blast) this.drawBlast(ctx, this.anim.blast);
+    if (this.finale) this.drawFinaleFront(ctx, glow('rgba(255,220,160,0.9)'));
     this.drawParts(ctx);
     ctx.restore();
     if (sim.alarmT > 0) { ctx.fillStyle = `rgba(255,40,10,${(0.1 + 0.07 * Math.sin(t * 10)).toFixed(3)})`; ctx.fillRect(0, 0, W, vh); }

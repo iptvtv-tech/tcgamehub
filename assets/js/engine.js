@@ -957,7 +957,7 @@ class Shell {
       ${this.def.legendLore ? `<p class="legend-hint">${esc(this.def.legendLore)}</p>` : ''}
       <p class="muted">Final score <b>${fmt(score)}</b> · ${this.def.legendLine ? esc(this.def.legendLine(this)) : `${this.def.finalLevel || ''} levels · not a single life lost`}</p>
       <div class="gold-unlocks"><small>Golden characters unlocked${zone ? ` in Zone ${zone.n}` : ''}</small>
-        <div>${unlocks.map((u) => `<span class="gold-pill">✨ ${esc(u.gold)}</span>`).join('')}</div>
+        <div>${unlocks.map((u) => `<span class="gold-pill">✨ ${esc(u.gold)}${unlocks.filter((q) => q.gold === u.gold).length > 1 ? ` · ${esc(u.title)}` : ''}</span>`).join('')}</div>
       </div>
       <div class="rank-box" data-legend>
         <p class="rank-msg">Sign the <b>Hall of Legends</b>:</p>

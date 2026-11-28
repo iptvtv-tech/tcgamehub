@@ -34,7 +34,7 @@ const r = reporter('inferno-vault game test');
 const STEP = 1 / 120;
 
 // ── 1. finish every level after a real mistake ──
-const LEVELS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+const LEVELS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
 const SEEDS = [1, 2];
 let runs = 0, totalT = 0, takedowns = 0;
 for (const level of LEVELS) for (const seed of SEEDS) {
@@ -313,7 +313,19 @@ const poolOf = (m) => {                                  // the first lava pool 
   r.check(w.x === x && faces.size === 2, `a sentinel should stay put and turn round (x ${x} → ${w.x}, faces ${[...faces]})`);
 }
 
-// ── 6. every level is a real vault: guards from level 2, more of them deeper ──
+// ── 6. Legends: the secret level 16 and the Inferno Crystal ──
+{
+  r.check(G.def.secretLevel === 16 && G.def.finalLevel === 15 && G.def.legendBadge === 'crystal', 'the secret level should be 16, after 15 levels, with the crystal badge');
+  r.check(mapFor(16).heart && !mapFor(16).key && mapFor(16) !== mapFor(15), 'level 16 should be its own map, The Heart of the Vault');
+  const s = G.start({ seed: 3, level: 16, lives: 3 });
+  const b = { skill: 1, t: 0, level: 16, mem: {} };
+  let t = 0;
+  while (t < 200 && !s.legend && s.state !== 'over') { if (s.state === 'playing') botStep(s, b, b.mem); else s.hold([]); s.tick(); t += STEP; }
+  r.check(s.legend, `taking the crystal at the heart of the vault should be the Legends ending (legendFound) (${t.toFixed(0)} s)`);
+  r.check(s.game.finale, 'the crystal finale should start');
+}
+
+// ── 7. every level is a real vault: guards from level 2, more of them deeper ──
 r.check(mapFor(1).guards.length === 0 && mapFor(2).guards.length === 1, 'level 1 should have no guard and level 2 one');
 r.check(mapFor(7).jets.length > 0 && mapFor(8).lamps.length > 0, 'level 7 should have flame jets and level 8 heat lamps');
 r.check([11, 12, 13, 14, 15].every((L) => mapFor(L).key), 'every level from 11 should have an ember key');

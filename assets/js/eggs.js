@@ -12,6 +12,7 @@ export const EGGS = {
   3: { name: 'Crypt Crystal', short: 'Crypt Crystal', jewel: '#c084fc', jewel2: '#6b21a8', band: 'amethysts' },
   4: { name: 'Throne Crystal', short: 'Throne Crystal', jewel: '#fca5a5', jewel2: '#b91c1c', band: 'rubies' },
   5: { name: 'Beacon Crystal', short: 'Beacon Crystal', jewel: '#6ee7b7', jewel2: '#047857', band: 'star emeralds' },
+  6: { name: 'Inferno Crystal', short: 'Inferno Crystal', jewel: '#fdba74', jewel2: '#c2410c', band: 'fire opals' },
 };
 export const eggName = (n) => EGGS[n]?.name || `Zone ${n} Crystal`;
 
@@ -28,8 +29,11 @@ export function eggSVG(n, { size = 64, won = true, title = '' } = {}) {
       <path d="${CRYSTAL_PATH}" fill="rgba(186,230,253,.05)" stroke="rgba(186,230,253,.4)" stroke-width="2.5" stroke-dasharray="6 6" stroke-linejoin="round"/>
       <text x="50" y="76" text-anchor="middle" font-size="30" fill="rgba(186,230,253,.5)" font-family="system-ui">?</text></svg>`;
   }
-  // a little motif frozen inside: Zone 1 a keyhole, Zone 2 a mask, Zone 3 a skull, Zone 4 a throne, Zone 5 a ringed moon and its beacon star
-  const motif = n === 5
+  // a little motif frozen inside: Zone 1 a keyhole, Zone 2 a mask, Zone 3 a skull, Zone 4 a throne, Zone 5 a ringed moon and its beacon star,
+  // Zone 6 a flame (fire sealed in ice)
+  const motif = n === 6
+    ? `<path d="M50 20 C59 31 63 38 59 48 C56 55 44 55 41 48 C37 40 45 35 50 20 Z" fill="#c2410c"/><path d="M50 30 C55 37 57 42 54 48 C52 52 48 52 46 48 C44 44 47 39 50 30 Z" fill="#fdba74"/><path d="M50 40 C52 43 53 46 51 49 C50 50 50 50 49 49 C47 46 48 43 50 40 Z" fill="#fff7ed"/>`
+    : n === 5
     ? `<ellipse cx="50" cy="42" rx="17" ry="5" fill="none" stroke="#065f46" stroke-width="2.2" transform="rotate(-14 50 42)"/><circle cx="50" cy="42" r="9" fill="#065f46"/><circle cx="47" cy="39" r="2.4" fill="#6ee7b7" opacity=".8"/><path d="M50 18 l2 5 5 .4 -4 3.2 1.4 5 -4.4 -2.8 -4.4 2.8 1.4 -5 -4 -3.2 5 -.4z" fill="#f0f9ff" stroke="#065f46" stroke-width=".8"/>`
     : n === 4
     ? `<path d="M40 30 h20 v16 h3 v12 h-4 v-6 h-18 v6 h-4 v-12 h3z" fill="#7f1d1d"/><path d="M43 33 h14 v11 h-14z" fill="#dc2626"/><path d="M41 30 l3 -5 3 5 3 -6 3 6 3 -5 3 5" fill="none" stroke="#7f1d1d" stroke-width="1.6"/>`
